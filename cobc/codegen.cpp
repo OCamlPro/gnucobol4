@@ -6610,11 +6610,22 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 	}
 
 	if(prog->prog_type == CB_FUNCTION_TYPE) {
-		str += output_prefix();
-		str += output_data(prog->returning);
-		str += output(" = cob_malloc(");
-		str += output_size(prog->returning);
-		str += output("U);\n\n");
+		bool seen = false;
+		for(cb_field * f = prog->working_storage; f; f = f->sister) {
+			if(f == cb_code_field(prog->returning)) {
+				seen = true;
+				break;
+			}
+		}
+		if(!seen) {
+			str += output_line ("// Initialize RETURNING item in LOCAL-STORAGE");
+			str += output_prefix();
+			str += output("*((void**)& ");
+			str += output_data(prog->returning);
+			str += output(") = cob_malloc(");
+			str += output_size(prog->returning);
+			str += output("U);\n\n");
+		}
 	}
 
 	if(prog->flag_global_use && parameter_list) {

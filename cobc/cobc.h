@@ -403,7 +403,7 @@ void			cob_gen_optim(const enum cb_optim);
 unsigned int	chk_field_variable_address(struct cb_field *);
 
 // naming.cpp
-void			externalize_tree(struct cb_field **);
+void			externalize_tree(struct cb_program *, struct cb_field **);
 
 // error.cpp
 void			cb_warning(const char *, ...) COB_A_FORMAT12;

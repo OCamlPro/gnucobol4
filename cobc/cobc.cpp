@@ -1669,13 +1669,19 @@ process_command_line(const int argc, char ** argv)
 	struct stat	st;
 	char		ext[COB_MINI_BUFF];
 
+#ifdef _MSC_VER
 	/* Translate command line arguments from WIN to UNIX style */
-	int argnum = 1;
-	while (++argnum <= argc) {
-		if (argv[argnum - 1][0] == '/') {
-			argv[argnum - 1][0] = '-';
+	int argnum = 0;
+	while (++argnum < argc) {
+		if (argv[argnum][0] == '-' && argv[argnum][1] == 'I' && argv[argnum][2] == 0) {
+			++argnum;
+			continue;
+		}
+		if (argv[argnum][0] == '/') {
+			argv[argnum][0] = '-';
 		}
 	}
+#endif
 
 	while((c = cob_getopt_long_long(argc, argv, short_options,
 									long_options, &idx, 1)) >= 0) {
@@ -3064,19 +3070,19 @@ process_translate(filename * fn)
 		void prtree(cb_field *);
 		skadbg("PROGRAM %s\n", q->program_id);
 		skadbg("WORKING-STORAGE\n");
-		externalize_tree(&q->working_storage);
+		externalize_tree(q, &q->working_storage);
 		prtree(q->working_storage);
 		skadbg("LOCAL-STORAGE\n");
-		externalize_tree(&q->local_storage);
+		externalize_tree(q, &q->local_storage);
 		prtree(q->local_storage);
 		skadbg("LINKAGE\n");
-		externalize_tree(&q->linkage_storage);
+		externalize_tree(q, &q->linkage_storage);
 		prtree(q->linkage_storage);
 		//skadbg("SCREEN\n");
-		//externalize_tree(&q->screen_storage);
+		//externalize_tree(q, &q->screen_storage);
 		//prtree(q->screen_storage);
 		//skadbg("REPORT\n");
-		//externalize_tree(&q->report_storage);
+		//externalize_tree(q, &q->report_storage);
 		//prtree(q->report_storage);
 	}
 /////////////////////////// SKA //////////////////////
