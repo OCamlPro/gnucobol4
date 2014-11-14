@@ -88,7 +88,7 @@ cob_decimal & cob_decimal::operator=(const double rhs) {
 	std::string str = temp.get_str(lscale, 10);
 #else
 	mp_exp_t lscale;
-	std::string str = temp.get_str(&lscale, 10, 0);
+	std::string str = temp.get_str(lscale, 10, 0);
 #endif
 	int len = (int) str.length();
 	if(len == 0) {

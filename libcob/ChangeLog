@@ -1,3 +1,7 @@
+2014-11-14  Sergey Kashyrin <ska@kiska.net>
+
+	* common.cpp, common.h : http://sourceforge.net/p/open-cobol/bugs/60/
+	* cobdecimal.cpp : Correcting temp.get_str(lscale, 10, 0); (was &lscale - wrong)
 
 2014-04-14  Philipp Böhme <phi.boehme@googlemail.com>
 

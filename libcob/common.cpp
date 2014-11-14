@@ -1453,7 +1453,7 @@ cob_module_leave(cob_module * module)
 	COB_MODULE_PTR = COB_MODULE_PTR->next;
 }
 
-void *
+cob_func_loc *
 cob_save_func(cob_field ** savefld, const int params,
 			  const int eparams, ...)
 {
