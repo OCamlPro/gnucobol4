@@ -92,6 +92,22 @@ static void reorg_redef(cb_field * f, int level, cb_field ** base = 0)
 	}
 }
 
+static char * reserved[] = {
+	"LC_NUMERIC",
+	"PAGE_SIZE",
+	"EOF"
+};
+
+static bool isreserved(const char * name)
+{
+	for(int i = 0; i < sizeof(reserved)/sizeof(reserved[0]); ++i) {
+		if(0 == strcmp(reserved[i], name)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static void reorg_fnames(cb_field * f, const char * basename, const char * add = NULL)
 {
 	cb_field * fbase = f;
@@ -115,7 +131,8 @@ static void reorg_fnames(cb_field * f, const char * basename, const char * add =
 			// Duplicate of 01 level
 			strcpy(adddup, add);
 		}
-		char * nm0 = new char[(int)(strlen(f->name) + 2 + strlen(adddup))];
+		int nm0len = (int)(strlen(f->name) + strlen(adddup) + 1);
+		char * nm0 = new char[nm0len];
 		if(!isalpha(f->name[0]) && f->name[0] != '_') {
 			nm0[0] = '_';
 			strcpy(nm0 + 1, f->name);
@@ -130,9 +147,17 @@ static void reorg_fnames(cb_field * f, const char * basename, const char * add =
 			} else {
 				*p = toupper(*p);
 			}
-			
 		}
-		int ct = (int)(strlen(nm0) + strlen(basename) + 2);
+		if(isreserved(nm0)) {
+			char * nn = new char[nm0len + 1];
+			memcpy(nn, nm0, nm0len);
+			nn[nm0len - 1] = '_';
+			nn[nm0len] = 0;
+			delete nm0;
+			nm0 = nn;
+			++nm0len;
+		}
+		int ct = (int)(nm0len + strlen(basename) + 1);
 		char * nm = new char[ct];
 		if(*basename == 0) {
 			strcpy(nm, nm0);
@@ -172,7 +197,7 @@ static bool chkren(cb_field * f, bool bSister = true)
 	return false;
 }
 
-void externalize_tree(cb_field ** base)
+void externalize_tree(cb_program * pgm, cb_field ** base)
 {
 	if(*base == 0) {
 		return;
@@ -214,12 +239,17 @@ void externalize_tree(cb_field ** base)
 		// Resolving unused duplicate names of 01 level
 		char adddup[20];
 		adddup[0] = 0;
-		for(cb_field * prev = *base; prev != f; prev = prev->sister) {
-			if(0 == strcmp(prev->name, f->name)) {
-				// Duplicate
-				sprintf(adddup, "_%d_", dupnum);
-				++dupnum;
-				break;
+		if(0 == strcmp(pgm->program_id, f->name)) {
+			sprintf(adddup, "_%d_", dupnum);
+			++dupnum;
+		} else {
+			for(cb_field * prev = *base; prev != f; prev = prev->sister) {
+				if(0 == strcmp(prev->name, f->name)) {
+					// Duplicate
+					sprintf(adddup, "_%d_", dupnum);
+					++dupnum;
+					break;
+				}
 			}
 		}
 		reorg_fnames(f, "", adddup);
