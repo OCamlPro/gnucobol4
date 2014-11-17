@@ -1089,10 +1089,15 @@ compute_size(cb_field * f)
 						cb_warning_x(c,
 									 _("Size of '%s' larger than size of '%s'"),
 									 c->name, c->redefines->name);
-						size +=
-							(c->size * c->occurs_max) -
-							(c->redefines->size *
-							 c->redefines->occurs_max);
+						int maxsz = c->redefines->size * c->redefines->occurs_max;
+						for(cb_field * c0 = c->redefines->sister; c0 != c; c0 = c0->sister) {
+							if(c0->size * c0->occurs_max > maxsz) {
+								maxsz = c0->size * c0->occurs_max;
+							}
+						}
+						if(c->size * c->occurs_max > maxsz) {
+							size += (c->size * c->occurs_max) - maxsz;
+						}
 					} else {
 						cb_error_x(c,
 								   _("Size of '%s' larger than size of '%s'"),
