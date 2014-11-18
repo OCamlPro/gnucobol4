@@ -1,3 +1,12 @@
+
+2014-11-18  Sergey Kashyrin <ska@kiska.net>
+
+	* move.cpp : retrofit
+		 2014-04-25  Ron Norman <rjn@inglenet.com>
+	     fixed bug in cob_move_fp_to_fp()
+	     2014-05-07  Ron Norman <rjn@inglenet.com>
+		 replaced memcpy by memmove
+
 2014-11-14  Sergey Kashyrin <ska@kiska.net>
 
 	* common.cpp, common.h : http://sourceforge.net/p/open-cobol/bugs/60/

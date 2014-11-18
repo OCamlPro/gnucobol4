@@ -350,14 +350,14 @@ cob_move_display_to_alphanum(cob_field * f1, cob_field * f2)
 				data2 += diff;
 				size2 -= diff;
 			}
-			memcpy(data2, data1 + size1 - size2, size2);
+			memmove(data2, data1 + size1 - size2, size2);
 		}
 	} else {
 		int diff = (int)(size2 - size1);
 		if(diff < 0) {
-			memcpy(data2, data1, size2);
+			memmove(data2, data1, size2);
 		} else {
-			memcpy(data2, data1, size1);
+			memmove(data2, data1, size1);
 			if(zero_size) {
 				/* Implied 0('P's) */
 				zero_size = cob_min_int(zero_size, diff);
@@ -385,17 +385,17 @@ cob_move_alphanum_to_alphanum(cob_field * f1, cob_field * f2)
 	if(size1 >= size2) {
 		/* Move string with truncation */
 		if(COB_FIELD_JUSTIFIED(f2)) {
-			memcpy(data2, data1 + size1 - size2, size2);
+			memmove(data2, data1 + size1 - size2, size2);
 		} else {
-			memcpy(data2, data1, size2);
+			memmove(data2, data1, size2);
 		}
 	} else {
 		/* Move string with padding */
 		if(COB_FIELD_JUSTIFIED(f2)) {
 			memset(data2, ' ', size2 - size1);
-			memcpy(data2 + size2 - size1, data1, size1);
+			memmove(data2 + size2 - size1, data1, size1);
 		} else {
-			memcpy(data2, data1, size1);
+			memmove(data2, data1, size1);
 			memset(data2 + size1, ' ', size2 - size1);
 		}
 	}
@@ -474,22 +474,22 @@ cob_move_packed_to_display(cob_field * f1, cob_field * f2)
 /* Floating point */
 
 static void
-cob_move_fp_to_fp(cob_field * f1, cob_field * f2)
+cob_move_fp_to_fp(cob_field * src, cob_field * dst)
 {
 	double dfp;
 	float ffp;
 
-	if(COB_FIELD_TYPE(f1) == COB_TYPE_NUMERIC_FLOAT) {
-		memcpy((void *)&ffp, f2->data, sizeof(float));
+	if(COB_FIELD_TYPE(src) == COB_TYPE_NUMERIC_FLOAT) {
+		memcpy((void *)&ffp, src->data, sizeof(float));
 		dfp = ffp;
 	} else {
-		memcpy((void *)&dfp, f2->data, sizeof(double));
+		memcpy((void *)&dfp, src->data, sizeof(double));
 		ffp = (float)dfp;
 	}
-	if(COB_FIELD_TYPE(f2) == COB_TYPE_NUMERIC_FLOAT) {
-		memcpy(f2->data,(void *)&ffp, sizeof(float));
+	if(COB_FIELD_TYPE(dst) == COB_TYPE_NUMERIC_FLOAT) {
+		memcpy(dst->data,(void *)&ffp, sizeof(float));
 	} else {
-		memcpy(f2->data,(void *)&dfp, sizeof(double));
+		memcpy(dst->data,(void *)&dfp, sizeof(double));
 	}
 }
 
@@ -572,7 +572,7 @@ cob_move_binary_to_display(cob_field * f1, cob_field * f2)
 			sign = -1;
 			val = (cob_u64_t) -val2;
 		} else {
-			val = val2;
+			val = (cob_u64_t) val2;
 		}
 	} else {
 		val = cob_binary_mget_uint64(f1);
@@ -1204,7 +1204,7 @@ cob_move(cob_field * src, cob_field * dst)
 	case COB_TYPE_NUMERIC_DOUBLE:
 		switch(COB_FIELD_TYPE(dst)) {
 		case COB_TYPE_NUMERIC_DOUBLE:
-			memcpy(dst->data, src->data, sizeof(double));
+			memmove(dst->data, src->data, sizeof(double));
 			return;
 		case COB_TYPE_NUMERIC_FLOAT:
 			cob_move_fp_to_fp(src, dst);
@@ -1230,7 +1230,7 @@ cob_move(cob_field * src, cob_field * dst)
 	case COB_TYPE_NUMERIC_FLOAT:
 		switch(COB_FIELD_TYPE(dst)) {
 		case COB_TYPE_NUMERIC_FLOAT:
-			memcpy(dst->data, src->data, sizeof(float));
+			memmove(dst->data, src->data, sizeof(float));
 			return;
 		case COB_TYPE_NUMERIC_DOUBLE:
 			cob_move_fp_to_fp(src, dst);
@@ -1259,7 +1259,7 @@ cob_move(cob_field * src, cob_field * dst)
 			cob_decimal_setget_fld(src, dst, opt);
 			return;
 		case COB_TYPE_NUMERIC_FP_DEC64:
-			memcpy(dst->data, src->data,(size_t)8);
+			memmove(dst->data, src->data,(size_t)8);
 			return;
 		case COB_TYPE_NUMERIC_FLOAT:
 		case COB_TYPE_NUMERIC_DOUBLE:
@@ -1281,7 +1281,7 @@ cob_move(cob_field * src, cob_field * dst)
 			cob_decimal_setget_fld(src, dst, opt);
 			return;
 		case COB_TYPE_NUMERIC_FP_DEC128:
-			memcpy(dst->data, src->data,(size_t)16);
+			memmove(dst->data, src->data,(size_t)16);
 			return;
 		case COB_TYPE_NUMERIC_FLOAT:
 		case COB_TYPE_NUMERIC_DOUBLE:
