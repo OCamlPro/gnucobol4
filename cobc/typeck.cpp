@@ -3031,8 +3031,8 @@ decimal_expand(cb_tree d, cb_tree x)
 			 * Set t, Y
 			 * OP d, t */
 			cb_binary_op * p = CB_BINARY_OP(x);
-			cb_tree t = decimal_alloc();
 			decimal_expand(d, p->x);
+			cb_tree t = decimal_alloc();
 			decimal_expand(t, p->y);
 			decimal_compute(p->op, d, t);
 			decimal_free();
