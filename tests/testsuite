@@ -31973,14 +31973,11 @@ read at_status <"$at_status_file"
 #AT_START_419
 at_fn_group_banner 419 'run_functions.at:2623' \
   "User-Defined FUNCTION with/without parameter" "   " 2
-at_xfail=yes
+at_xfail=no
 (
   $as_echo "419. $at_setup_line: testing $at_desc ..."
   $at_traceon
 
-
-
-# CPP version currently has a codegen issue here:
 
 
 cat >prog.cob <<'_ATEOF'
@@ -32028,28 +32025,28 @@ _ATEOF
 
 
 { set +x
-$as_echo "$at_srcdir/run_functions.at:2671: \$COMPILE -o prog prog.cob"
-at_fn_check_prepare_dynamic "$COMPILE -o prog prog.cob" "run_functions.at:2671"
+$as_echo "$at_srcdir/run_functions.at:2668: \$COMPILE -o prog prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE -o prog prog.cob" "run_functions.at:2668"
 ( $at_check_trace; $COMPILE -o prog prog.cob
 ) >>"$at_stdout" 2>>"$at_stderr"
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/run_functions.at:2671"
+at_fn_check_status 0 $at_status "$at_srcdir/run_functions.at:2668"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
 { set +x
-$as_echo "$at_srcdir/run_functions.at:2672: ./prog"
-at_fn_check_prepare_trace "run_functions.at:2672"
+$as_echo "$at_srcdir/run_functions.at:2669: ./prog"
+at_fn_check_prepare_trace "run_functions.at:2669"
 ( $at_check_trace; ./prog
 ) >>"$at_stdout" 2>>"$at_stderr"
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/run_functions.at:2672"
+at_fn_check_status 0 $at_status "$at_srcdir/run_functions.at:2669"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
