@@ -3,6 +3,7 @@
 #
 # Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
 # Copyright (C) 2008-2012 Roger While
+# Copyright (C) 2013 BCS/JR.
 #
 # This file is part of GNU Cobol.
 #
@@ -22,10 +23,9 @@
 lib_LTLIBRARIES = libcob.la
 libcob_la_SOURCES = common.c move.c numeric.c strings.c \
 	call.c intrinsic.c termio.c screenio.c cobgetopt.c \
-        fileio.c fileio-call.c fileio-isam-bdb.c fileio-isam-xisam.c fileio-isam-odbc.c \
-        fileio-misc.c fileio-relative.c fileio-sequential.c fileio-sort.c \
-        fileio-stats.c
-
+	fileio.c fileio-call.c fileio-isam-bdb.c fileio-isam-xisam.c fileio-isam-odbc.c \
+	fileio-misc.c fileio-relative.c fileio-sequential.c fileio-sort.c \
+	fileio-stats.c
 
 libcob_la_CFLAGS = $(AM_CFLAGS) -I$(top_srcdir)
 libcob_la_LIBADD = $(LIBCOB_LIBS)
@@ -36,3 +36,15 @@ EXTRA_DIST = coblocal.h system.def
 pkgincludedir = $(includedir)/libcob
 pkginclude_HEADERS = common.h cobgetopt.h exception.def fileio.h fileio-call.h fileio-sort.h fileio-exception.def fileio-status.def 
 
+install-data-hook:
+	rm -f $(includedir)/libcob/byteswap.h
+	rm -f $(includedir)/libcob/call.h
+	rm -f $(includedir)/libcob/fileio.h
+	rm -f $(includedir)/libcob/termio.h
+	rm -f $(includedir)/libcob/screenio.h
+	rm -f $(includedir)/libcob/move.h
+	rm -f $(includedir)/libcob/numeric.h
+	rm -f $(includedir)/libcob/strings.h
+	rm -f $(includedir)/libcob/intrinsic.h
+	rm -f $(includedir)/libcob/codegen.h
+	rm -f $(includedir)/libcob/system.def

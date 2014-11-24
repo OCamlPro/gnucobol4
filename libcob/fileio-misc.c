@@ -1,6 +1,7 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
+   Copyright (C) 2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2013 BCS/JR.
 
    This file is part of GNU Cobol.
 
@@ -16,17 +17,12 @@
 
    You should have received a copy of the GNU Lesser General Public License
    along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
-
-
-
-
-   OpenCOBOL fileio module. Re-engineered by BCS/JR. 2013
- */
-
-
+*/
 
 
 /*
+ * GNU Cobol fileio module.
+ *
  *	A collection of functions providing internal support to the fileio modules
  */
 
@@ -36,6 +32,8 @@
 
 
 
+#ifdef HAVE_VALUES_H
+#endif
 #include "fileio-misc.h"
 
 
