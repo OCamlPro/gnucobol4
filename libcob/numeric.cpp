@@ -1887,15 +1887,14 @@ cob_add_int(cob_field * f, const int n, const int opt)
 	if(unlikely(n == 0)) {
 		return 0;
 	}
-#if	0	/* RXWRXW - Buggy */
-	if(COB_FIELD_TYPE(f) == COB_TYPE_NUMERIC_PACKED) {
-		return cob_add_packed(f, n, opt);
-	} else if(COB_FIELD_TYPE(f) == COB_TYPE_NUMERIC_DISPLAY) {
-		return cob_display_add_int(f, n, opt);
-	}
-#endif
 	/* Not optimized */
 	cob_decimal_set_field(&cob_d1, f);
+	if(COB_FIELD_TYPE (f) >= COB_TYPE_NUMERIC_FLOAT && COB_FIELD_TYPE (f) <= COB_TYPE_NUMERIC_FP_BIN128) {
+		cob_d2.value = (cob_sli_t) n;
+		cob_d2.scale = 0;
+		cob_d1.value += cob_d2.value;
+		return cob_decimal_get_field(&cob_d1, f, opt);
+	}
 	int scale = COB_FIELD_SCALE(f);
 	int val = n;
 	if(unlikely(scale < 0)) {

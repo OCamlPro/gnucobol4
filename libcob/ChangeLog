@@ -1,4 +1,10 @@
 
+2014-12-02  Sergey Kashyrin <ska@kiska.net>
+
+	* numeric.cpp : retrofit
+		 2014-04-25  Ron Norman <rjn@inglenet.com>
+		 Fixed errors in cob_add_int() when computing with floats.
+
 2014-11-18  Sergey Kashyrin <ska@kiska.net>
 
 	* move.cpp : retrofit
