@@ -3218,7 +3218,7 @@ process_assemble(filename * fn)
 #elif defined(__WATCOMC__)
 	if(cb_compile_level == CB_LEVEL_MODULE ||
 			cb_compile_level == CB_LEVEL_LIBRARY ||
-			cobc_flag_library) {
+			cobc_flag_library || cobc_flag_module) {
 		sprintf(cobc_buffer, "%s -c %s %s %s -fe=\"%s\" \"%s\"",
 				cobc_cc, cobc_cflags, cobc_include,
 				COB_PIC_FLAGS, fn->object, fn->translate);
@@ -3231,7 +3231,7 @@ process_assemble(filename * fn)
 #else
 	if(cb_compile_level == CB_LEVEL_MODULE ||
 			cb_compile_level == CB_LEVEL_LIBRARY ||
-			cobc_flag_library) {
+			cobc_flag_library || cobc_flag_module) {
 		sprintf(cobc_buffer, "%s -c %s %s %s -o \"%s\" \"%s\"",
 				cobc_cc, cobc_cflags, cobc_include,
 				COB_PIC_FLAGS, fn->object, fn->translate);
