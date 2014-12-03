@@ -31,6 +31,8 @@ DISTCLEANFILES = $(BUILT_SOURCES)
 
 EXTRA_DIST = gnu-cobol-cpp.spec libcob.h.in po/en.translate \
 	lib/Makefile.am lib/ChangeLog lib/dummymac.cpp lib/gettext.h
+pkgincludedir = $(includedir)
+pkginclude_HEADERS = libcob.h
 
 dist-hook:
 	echo "#define COB_TAR_DATE \"`date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h
