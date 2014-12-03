@@ -132,11 +132,12 @@ static void reorg_fnames(cb_field * f, const char * basename, const char * add =
 			strcpy(adddup, add);
 		}
 		int nm0len = (int)(strlen(f->name) + strlen(adddup) + 1);
-		char * nm0 = new char[nm0len];
+		char * nm0 = new char[nm0len + 1];
 		if(!isalpha(f->name[0]) && f->name[0] != '_') {
 			nm0[0] = '_';
 			strcpy(nm0 + 1, f->name);
 			if(adddup[0] != 0) strcat(nm0, adddup);
+			++nm0len;
 		} else {
 			strcpy(nm0, f->name);
 			if(adddup[0] != 0) strcat(nm0, adddup);

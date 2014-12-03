@@ -144,7 +144,7 @@ public:
 				delete h2;
 			}
 		}
-		delete data;
+		delete [] data;
 	}
 
 private:
