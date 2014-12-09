@@ -2610,6 +2610,7 @@ process_filename (const char *filename)
 		/* Already compiled */
 		fn->need_preprocess = 0;
 		fn->need_translate = 0;
+		animflag_set = 0; /* Ignore -a option for C-Sources */
 	}
 	else if (
 #if	defined(__OS400__)

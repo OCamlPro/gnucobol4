@@ -99,6 +99,10 @@
 #define OC_C_VERSION	"unknown"
 #endif
 
+#ifdef HEAP_DEBUG
+	static FILE* heaplog;
+#endif
+
 struct cob_alloc_cache {
 	struct cob_alloc_cache	*next;		/* Pointer to next */
 	void			*cob_pointer;	/* Pointer to malloced space */
@@ -214,6 +218,10 @@ cob_exit_common (void)
 	struct cob_external	*q;
 	struct cob_alloc_cache	*x;
 	struct cob_alloc_cache	*y;
+
+#ifdef HEAP_DEBUG
+	fclose(heaplog);
+#endif
 
 #ifdef	HAVE_SETLOCALE
 	if (cobglobptr->cob_locale_orig) {
@@ -1123,8 +1131,13 @@ void *
 cob_malloc (const size_t size)
 {
 	void	*mptr;
-
 	mptr = calloc ((size_t)1, size);
+
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "cob_malloc: %i, %p\n", size, mptr);
+	fflush(heaplog);
+#endif
+
 	if (unlikely(!mptr)) {
 		cob_fatal_error (COB_FERROR_MEMORY);
 	}
@@ -1134,6 +1147,11 @@ cob_malloc (const size_t size)
 COB_INLINE void
 cob_free (void * mptr)
 {
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "cob_free: %p\n", mptr);
+	fflush(heaplog);
+#endif
+
 #ifdef _DEBUG
 	if (unlikely(!mptr)) {
 		cob_fatal_error (COB_FERROR_FREE);
@@ -1147,8 +1165,12 @@ void *
 cob_fast_malloc (const size_t size)
 {
 	void	*mptr;
-
 	mptr = malloc (size);
+
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "cob_malloc: %i, %p\n", size, mptr);
+	fflush(heaplog);
+#endif
 	if (unlikely(!mptr)) {
 		cob_fatal_error (COB_FERROR_MEMORY);
 	}
@@ -1613,7 +1635,7 @@ cob_module_leave (cob_module *module)
 }
 
 void *
-cob_save_func (cob_field **savefld, const int params,
+cob_save_func (cob_field** savefld, const int params,
 	       const int eparams, ...)
 {
 	struct cob_func_loc	*fl;
@@ -1628,10 +1650,26 @@ cob_save_func (cob_field **savefld, const int params,
 	}
 
 	/* Allocate return field */
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "*savefld: ");
+	fflush(heaplog);
+#endif
 	*savefld = cob_malloc (sizeof (cob_field));
 	/* Allocate save area */
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "fl: ");
+	fflush(heaplog);
+#endif
 	fl = cob_malloc (sizeof(struct cob_func_loc));
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "fl->func_params: ");
+	fflush(heaplog);
+#endif
 	fl->func_params = cob_malloc (sizeof(void *) * ((size_t)numparams + 1U));
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "fl->data: ");
+	fflush(heaplog);
+#endif
 	fl->data = cob_malloc (sizeof(void *) * ((size_t)numparams + 1U));
 
 	/* Save values */
@@ -1666,8 +1704,20 @@ cob_restore_func (struct cob_func_loc *fl)
 #endif
 	COB_MODULE_PTR->cob_procedure_params = fl->save_proc_parms;
 	COB_MODULE_PTR->module_num_params = fl->save_num_params;
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "fl->data: ");
+	fflush(heaplog);
+#endif
 	cob_free (fl->data);
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "fl->func_params: ");
+	fflush(heaplog);
+#endif
 	cob_free (fl->func_params);
+#ifdef HEAP_DEBUG
+	fprintf(heaplog, "fl: ");
+	fflush(heaplog);
+#endif
 	cob_free (fl);
 }
 
@@ -4269,6 +4319,10 @@ cob_init (const int argc, char **argv)
 		return;
 	}
 
+#ifdef HEAP_DEBUG
+	heaplog = fopen("heap.log", "w");
+#endif
+
 	cobglobptr = NULL;
 	runtimeptr = (struct runtime_env*) cob_malloc(sizeof(struct runtime_env));
 
@@ -4442,7 +4496,9 @@ cob_init (const int argc, char **argv)
 	s = getenv ("COB_ANIM");		/* EB */
 	if (s) {	/* EB */
 		runtimeptr->cob_anim_env = cob_save_env_value(runtimeptr->cob_anim_env, s);
-		cobglobptr->cob_anim = 1;			/* EB */
+		if (cob_check_env_true(s)) {
+			cobglobptr->cob_anim = 1;			/* EB */
+		}
 	}					/* EB */
 
 

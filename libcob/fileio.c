@@ -712,8 +712,8 @@ save_status (cob_file *f, cob_field *fnstatus, const int status)
 		return;
 	}
 	cob_set_exception (status_exception[status / 10]);
-	f->file_status[0] = COB_I2D (status / 10);
-	f->file_status[1] = COB_I2D (status % 10);
+	f->file_status[0] = (unsigned char)COB_I2D (status / 10);
+	f->file_status[1] = (unsigned char)COB_I2D (status % 10);
 	if (fnstatus) {
 		memcpy (fnstatus->data, f->file_status, (size_t)2);
 	}

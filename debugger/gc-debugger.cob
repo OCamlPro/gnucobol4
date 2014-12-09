@@ -499,7 +499,7 @@
                     ", module-init-flag: " delimited by size
                     module-init-flag delimited by size
                     ", call-depth: " delimited by size
-                    call-depth delimited by size                
+                    call-depth delimited by size
                     into tmp-log-line
                 end-string
                 perform log-msg
@@ -671,8 +671,6 @@
       ***************************************************************
         process-interface-block section.
             perform log-interface-block.
-            
-            move active-line-if to active-line.
 
             perform process-interface-block-count-depth.
             
@@ -691,6 +689,7 @@
                               perform check-for-stop-run
                               goback
                           else 
+                              perform line-cursor-adjustment
                               display animator-screen end-display
                               perform display-active-line
                           end-if
@@ -766,45 +765,84 @@
       
       ***************************************************************
         display-active-line section.
-            move active-line to goto-linenumber.
+            move active-line-if to goto-linenumber.
             move spaces to tmp-command-input-buffer.
             
             perform goto-line.
             
-            add 1 to active-line-onscreen 
-            giving tmp-onscreen-linenumber end-add
+            compute active-line-onscreen = active-line-if 
+                - linenumber(1) + 1 end-compute
+            compute tmp-onscreen-linenumber = active-line-onscreen 
+                + 1 end-compute
             
             display sourceline(active-line-onscreen)(1:74)
             line tmp-onscreen-linenumber col 7 
             with background-color COB-COLOR-GREEN end-display
             
+      *      if cob-anim-logging = 'Y'
+      *          string "display-active-line: " delimited by size
+      *              active-line-onscreen delimited by size 
+      *              ", " delimited by size 
+      *              tmp-onscreen-linenumber delimited by size
+      *              into tmp-log-line
+      *          end-string
+      *          perform log-msg
+      *      end-if
+            
             continue.
             
       ***************************************************************
         display-active-line-if-visible section.
-            if active-line >= linenumber(1) 
-                and active-line <= linenumber(MAX-ROWS)
+            if active-line-if >= linenumber(1) 
+                and active-line-if <= linenumber(MAX-ROWS)
                 
-                compute tmp-onscreen-linenumber = linenumber(MAX-ROWS) 
-                - active-line end-compute
-                add 1 to tmp-onscreen-linenumber 
-                giving tmp-onscreen-linenumber-2 end-add
-
+                compute tmp-onscreen-linenumber = active-line-if 
+                    - linenumber(1) + 1 end-compute
+                compute tmp-onscreen-linenumber-2 = 
+                    tmp-onscreen-linenumber + 1 end-compute
+                
+      *          if cob-anim-logging = 'Y'
+      *              string "display-active-line-if-visible: " 
+      *                  delimited by size
+      *                  tmp-onscreen-linenumber delimited by size 
+      *                  ", " delimited by size 
+      *                  tmp-onscreen-linenumber-2 delimited by size
+      *                  into tmp-log-line
+      *              end-string
+      *              perform log-msg
+      *          end-if
+                
                 display sourceline(tmp-onscreen-linenumber)(1:74)
                 line tmp-onscreen-linenumber-2 col 7 
                 with background-color COB-COLOR-GREEN end-display
                 
             else if module-line-count <= MAX-ROWS
-                    add 1 to active-line 
+                    add 1 to active-line-if 
                     giving tmp-onscreen-linenumber-2 end-add
                 
-                    display sourceline(active-line)(1:74)
+                    display sourceline(active-line-if)(1:74)
                     line tmp-onscreen-linenumber-2 col 7 
                     with background-color COB-COLOR-GREEN end-display
                 end-if
             end-if
             
-            continue.            
+            continue.
+            
+      ***************************************************************
+        line-cursor-adjustment section.
+            display space line line-cursor-position col 6 end-display        
+            compute line-cursor-position = active-line-if - 
+                linenumber(1) + 1 end-compute
+            
+      *      if cob-anim-logging = 'Y'
+      *          string "line-cursor-adjustment: " delimited by size 
+      *              line-cursor-position
+      *              into tmp-log-line
+      *          end-string
+      *          perform log-msg.
+      *      end-if
+        
+            continue.
             
       ***************************************************************
         quit-debugger section.
@@ -835,12 +873,12 @@
             
       ***************************************************************
         check-for-stop-run section.
-            if active-line >= first-stmt-if
-                move active-line to tmp-linenumber-bin
+            if active-line-if >= first-stmt-if
+                move active-line-if to tmp-linenumber-bin
                 
                 if cob-anim-logging = 'Y'
                     string "check for stop run. " delimited by size 
-                        active-line delimited by size 
+                        active-line-if delimited by size 
                         ", " delimited by size
                         cobol-src-name delimited by size
                         ", " delimited by size
@@ -884,10 +922,11 @@
       ***************************************************************
         goto-line section.
             if module-line-count < MAX-ROWS
-                move active-line to active-line-onscreen
+                move active-line-if to active-line-onscreen
                 display space line line-cursor-position col 6 
                 end-display
-                add 1 to active-line giving line-cursor-position end-add
+                add 1 to active-line-if giving line-cursor-position 
+                end-add
             else
                 if tmp-command-input-buffer(1:1) = "G"
                     move 3 to tmp-unstring-ptr
@@ -904,13 +943,13 @@
                 
                 divide MAX-ROWS by 2 giving tmp-number 
                 end-divide
-                move tmp-number to line-cursor-position
+      *          move tmp-number to line-cursor-position
                 
                 if goto-linenumber > tmp-linenumber-2
                     compute goto-linenumber = module-line-count - 
                     tmp-number end-compute
                 else if goto-linenumber < MAX-ROWS 
-                        add 1 to tmp-number giving  goto-linenumber 
+                        add 1 to tmp-number giving goto-linenumber 
                         end-add
                      end-if
                 end-if
@@ -941,10 +980,15 @@
                     move tmp-linenumber to linenumber(tmp-counter)
                     
                     if linenumber(tmp-counter) = goto-linenumber 
-                        move tmp-counter to active-line-onscreen
                         display space line line-cursor-position col 6 
                         end-display
                         move tmp-counter to line-cursor-position
+                        string "goto-line, line-cursor-position: " 
+                            delimited by size
+                            line-cursor-position delimited by size 
+                            into tmp-log-line
+                        end-string
+                        perform log-msg                        
                     end-if
                 
                     add 1 to tmp-counter end-add

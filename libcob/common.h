@@ -1222,9 +1222,10 @@ typedef struct interface_block {
 typedef struct anim_field {
 	const char		*field_name;
 	unsigned char	*data;
-	size_t		size;
-	size_t		usage;
-	void		*previous;
+	size_t			size;
+	size_t			usage;
+	const char		*program_id;
+	void			*previous;
 } anim_field;
 
 /*******************************/
