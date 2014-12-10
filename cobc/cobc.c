@@ -2706,8 +2706,8 @@ process_filename (const char *filename)
 
 #ifdef _MSC_VER
 /*
- * search_pattern can contain one or more search strings separated by #
- * search_patterns must have a final #
+ * search_pattern can contain one or more search strings separated by |?|
+ * search_patterns must have a final |?|
  */
 static int 
 line_contains(char* line_start, char* line_end, char* search_patterns) {
@@ -2720,12 +2720,12 @@ line_contains(char* line_start, char* line_end, char* search_patterns) {
 	pattern = strtok(tmp_pattern_list, "|?|");
 	while(pattern != NULL) {
 		for (line_pos = line_start; line_pos + strlen(pattern) <= line_end; line_pos++) {
-				/* Find matching substring */
+			/* Find matching substring */
 			if (memcmp (line_pos, pattern, strlen(pattern)) == 0) {
 				cobc_free(tmp_pattern_list);
-					return 1;
-				}
+				return 1;
 			}
+		}
 
 		pattern = strtok(NULL, "|?|");
 	}
@@ -3001,10 +3001,10 @@ process (const char *cmd, struct filename *fn)
 	}
 
 	if(output_name) output_name_temp = file_basename(output_name);
-	else output_name_temp = (char *) fn->demangle_source;
+	else output_name_temp = (char *) file_basename(fn->source);
 
-	search_pattern = (char*) cobc_malloc(2 * (strlen(output_name_temp) + 4) + 3 * strlen(sep) + fn->translate_len - i + 1);
-	sprintf(search_pattern, "%s\n%s%s.lib%s%s.exp%s", fn->translate + i + 1, sep, output_name_temp, sep, output_name_temp, sep);
+	search_pattern = (char*) cobc_malloc(2 * (strlen(output_name_temp) + 4) + 4 * strlen(sep) + fn->translate_len - i + 1 + 13);
+	sprintf(search_pattern, "%s\n%s%s.lib%s%s.exp%s%s%s", fn->translate + i + 1, sep, output_name_temp, sep, output_name_temp, sep, "warning C4715", sep);
 
 	/* Open pipe to catch output of cl.exe */
 	pipe = _popen(cmd, "r");
@@ -3033,7 +3033,7 @@ process (const char *cmd, struct filename *fn)
 		}
 
 		/* print rest of buffer */
-		if(line_end) fprintf(stdout, line_end + 1);
+		//if(line_end) fprintf(stdout, line_end + 1);
 		fflush(stdout);
 
 		cobc_free(read_buffer);

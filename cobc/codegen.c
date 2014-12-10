@@ -5837,27 +5837,27 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_storage ("static unsigned int\tinitialized = 0;\n\n");
 	}
 
-		output_local ("/* Module structure pointer */\n");
-	#if	0	/* RXWRXW - MODULE */
-		if (prog->flag_recursive) {
-			output_local ("cob_module\t\t*module;\n\n");
-		} else {
-			output_local ("static cob_module\tmodule_data;\n");
-			output_local ("static cob_module\t*module = &module_data;\n\n");
-		}
-	#else
-		if (prog->flag_recursive) {
+	output_local ("/* Module structure pointer */\n");
+#if	0	/* RXWRXW - MODULE */
+	if (prog->flag_recursive) {
+		output_local ("struct cob_module\t\t*module;\n\n");
+	} else {
+		output_local ("static struct cob_module\tmodule_data;\n");
+		output_local ("static struct cob_module\t*module = &module_data;\n\n");
+	}
+#else
+	if (prog->flag_recursive) {
 			output_local ("cob_module\t\t*module = NULL;\n\n");
-		} else {
+	} else {
 			output_local ("static cob_module\t*module = NULL;\n\n");
-		}
-	#endif
-	
+	}
+#endif
+
 	if(!nested) {
-	#if	1	/* RXWRXW - GLOBPTR */
+#if	1	/* RXWRXW - GLOBPTR */
 		output_storage ("/* Global variable pointer */\n");
 		output_storage ("static cob_global\t\t*cob_glob_ptr;\n\n");
-	#endif
+#endif
 	}
 
 	/* Decimal structures */
@@ -6050,19 +6050,18 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	output_line ("/* Start of function code */");
 	output_newline ();
 
+	/* Program local variables */
+	output_line ("/* Program local variables */");
+	output_line ("#include \"%s\"", prog->local_include->local_name);
+	output_line ("static int cob_anim_local = 0;"); /* EB */
+	output_newline ();
+
 	/* reset initialize flag for nested programs */
 	if(nested) {
 		output_line ("/* reset initialized flag if nested program */");
 		output_line ("initialized = 0;");
 		output_newline ();
 	}
-
-
-	/* Program local variables */
-	output_line ("/* Program local variables */");
-	output_line ("#include \"%s\"", prog->local_include->local_name);
-	output_line ("static int cob_anim_local = 0;"); /* EB */
-	output_newline ();
 
 	/* CANCEL callback */
 	if (prog->prog_type == CB_PROGRAM_TYPE) {
@@ -6734,7 +6733,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_line ("memset (b_cb + 66, ' ', 280);\t// datafield-value");	/* EB */
 		anim_first_stmt = 0;	/* EB */
 	}	/* EB */
-	
+
 
 	output_line ("initialized = 1;");
 	output_line ("goto P_ret_initialize;");
