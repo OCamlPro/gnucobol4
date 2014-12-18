@@ -5050,8 +5050,10 @@ output_stmt(cb_tree x)
 		ap = CB_ASSIGN(x);
 #ifdef	COB_NON_ALIGNED
 		/* Nonaligned */
-		if(CB_TREE_CLASS(ap->var) == CB_CLASS_POINTER ||
-				CB_TREE_CLASS(ap->val) == CB_CLASS_POINTER) {
+		if(CB_TREE_TAG(ap->val) != CB_TAG_BINARY_OP &&
+				(CB_TREE_CLASS(ap->var) == CB_CLASS_POINTER ||
+				CB_TREE_CLASS(ap->val) == CB_CLASS_POINTER))
+		{
 			/* Pointer assignment */
 			str += output_indent("{");
 			str += output_line("void *temp_ptr;");

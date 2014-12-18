@@ -3675,6 +3675,11 @@ cb_build_add(cb_tree v, cb_tree n, cb_tree round_opt)
 		return cb_build_move(cb_build_binary_op(v, '+', n), v);
 	}
 	if(CB_TREE_CLASS(v) == CB_CLASS_POINTER) {
+		if(CB_CAST_P(v)) {
+			if(CB_CAST(v)->cast_type == CB_CAST_ADDRESS) {
+				return cb_build_move(cb_build_binary_op(v, '+', n), v);
+			}
+		}
 		optimize_defs[COB_POINTER_MANIP] = 1;
 		return CB_BUILD_FUNCALL_3("cob_pointer_manip", v, n, cb_int0);
 	}
@@ -3715,6 +3720,11 @@ cb_build_sub(cb_tree v, cb_tree n, cb_tree round_opt)
 		return cb_build_move(cb_build_binary_op(v, '-', n), v);
 	}
 	if(CB_TREE_CLASS(v) == CB_CLASS_POINTER) {
+		if(CB_CAST_P(v)) {
+			if(CB_CAST(v)->cast_type == CB_CAST_ADDRESS) {
+				return cb_build_move(cb_build_binary_op(v, '-', n), v);
+			}
+		}
 		optimize_defs[COB_POINTER_MANIP] = 1;
 		return CB_BUILD_FUNCALL_3("cob_pointer_manip", v, n, cb_int1);
 	}

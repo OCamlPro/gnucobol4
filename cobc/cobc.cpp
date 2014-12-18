@@ -2465,7 +2465,7 @@ read_buffer_line(char* offset) {
 static int 
 line_contains(char* line_start, char* line_end, char* search_patterns) {
 	if(search_patterns[strlen(search_patterns) - 1] != '#') return -1;
-	
+
 	int pattern_start = 0;
 	for(int pattern_end = 0; pattern_end < (int) strlen(search_patterns); pattern_end++) {
 		if(search_patterns[pattern_end] == '#') {
@@ -2739,19 +2739,19 @@ process (const char *cmd, struct filename *fn)
 	for(i = (int)fn->translate_len - 1; i >= 0; i--) {
 		if(fn->translate[i] == '\\') break;
 	}
-	
+
 	char* output_name_temp;
 
 	if(output_name) output_name_temp = file_basename(output_name);
 	else output_name_temp = (char *) fn->demangle_source;
 
-	
+
     /* TODO: change to std::string */
 	char* search_pattern = (char*) cob_malloc(fn->translate_len - i + 1);
 	snprintf(search_pattern, fn->translate_len - i, "%s#", fn->translate + i + 1); 
 	char* search_pattern2 = (char*) cob_malloc(2 * (strlen(output_name_temp) + 4) + 3);
 	sprintf(search_pattern2, "%s.lib#%s.exp#", output_name_temp, output_name_temp);
-	
+
 	FILE* pipe;
 	/* Open pipe to catch output of cl.exe */
 	pipe = _popen(cmd, "r");
@@ -2762,7 +2762,7 @@ process (const char *cmd, struct filename *fn)
 		char* read_buffer = (char*) cob_malloc(COB_FILE_BUFF);
 		char *line_start = read_buffer;
 		fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
-		
+
 		/* reading two lines to filter unnecessary outputs */
 		for(i = 0; i < 2; i++) {
 			/* read one line from buffer, returning line end position */
