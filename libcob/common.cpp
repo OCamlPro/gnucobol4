@@ -3103,7 +3103,7 @@ cob_sys_getopt_long_long(void* so, void* lo, void* idx, const int long_only, voi
 
 	COB_CHK_PARMS (CBL_OC_GETOPT, 6);
 
-	
+
 	/*
 	 * Read in sizes of some parameters
 	 */
@@ -3124,7 +3124,7 @@ cob_sys_getopt_long_long(void* so, void* lo, void* idx, const int long_only, voi
 		cob_runtime_error (_("Call to CBL_OC_GETOPT with wrong longoption size."));
 		cob_stop_run (1);
 	}
-	
+
 	int longind;
 	if (COB_MODULE_PTR->cob_procedure_params[2]) {
 		longind = cob_get_int (COB_MODULE_PTR->cob_procedure_params[2]);
@@ -3167,7 +3167,7 @@ cob_sys_getopt_long_long(void* so, void* lo, void* idx, const int long_only, voi
 
 	int return_value = cob_getopt_long_long(cob_argc, cob_argv, shortoptions, longoptions, &longind, long_only);
 	char* temp = (char*) &return_value;
-	
+
 	/*
 	 * Write data back to Cobol
 	 */
@@ -3187,7 +3187,7 @@ cob_sys_getopt_long_long(void* so, void* lo, void* idx, const int long_only, voi
 
 	if(cob_optarg != NULL) {
 		memset(opt_val, 0x00, opt_val_size);
-		
+
 		size_t optlen = strlen(cob_optarg);
 		if (optlen > opt_val_size) {
 			/* Returncode 2 for "Optionvalue too long => cut" */

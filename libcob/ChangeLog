@@ -1,3 +1,7 @@
+2014-12-17  Sergey Kashyrin <ska@kiska.net>
+
+	* common.h : SPARC platform is OK with non-aligned
+		 as we are using -xmemalign=8i
 
 2014-12-02  Sergey Kashyrin <ska@kiska.net>
 
