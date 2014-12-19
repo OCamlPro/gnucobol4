@@ -1,3 +1,7 @@
+2014-12-19  Sergey Kashyrin <ska@kiska.net>
+
+	* common.h : Attempt to fix Bug #114 without testing
+
 2014-12-18  Sergey Kashyrin <ska@kiska.net>
 
 	* common.cpp, cobgetopt.h : Bug in CBL_OC_GETOPT (not aware of BIG_ENDIAN)

@@ -49,7 +49,7 @@
 
 #else
 
-#if defined(LLONG_MAX) && (LLONG_MAX == LONG_MAX)
+#if LONG_MAX > INT_MAX
 #define	cob_s64_t		long int
 #define	cob_u64_t		unsigned long int
 #else
