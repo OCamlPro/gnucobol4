@@ -31,7 +31,7 @@
    Also, when `ordering' is RETURN_IN_ORDER,
    each non-option ARGV-element is returned here.  */
 
-COB_EXPIMP char *cob_optarg;
+COB_EXPIMP char * cob_optarg;
 
 /* Index in ARGV of the next element to be scanned.
    This is used for communication to and from the caller
@@ -79,11 +79,11 @@ COB_EXPIMP int cob_optopt;
 
 struct option
 {
-	const char	*name;
+	const char * name;
 	/* has_arg can't be an enum because some compilers complain about
 	type mismatches in all the code that assumes it is an int.  */
 	int		has_arg;
-	int		*flag;
+	int *	flag;
 	int		val;
 };
 

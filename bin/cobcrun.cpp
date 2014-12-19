@@ -196,28 +196,28 @@ print_info(void)
 }
 
 static int
-process_command_line (int argc, char *argv[])
+process_command_line(int argc, char *argv[])
 {
 	/* At least one option or module name needed */
-	if (argc <= 1) {
+	if(argc <= 1) {
 		print_usage();
 		return 1;
 	}
 
 	/* Translate first command line argument from WIN to UNIX style */
-	if (argv[1][0] == '/') {
+	if(argv[1][0] == '/') {
 		argv[1][0] = '-';
-		}
+	}
 
 	/* Process first command line argument only if not a module */
-	if (argv[1][0] != '-') {
+	if(argv[1][0] != '-') {
 		return 99;
 	}
 
 	int	idx;
-	int c = cob_getopt_long_long (argc, argv, short_options,
+	int c = cob_getopt_long_long(argc, argv, short_options,
 					  long_options, &idx, 1);
-	if (c > 0) {
+	if(c > 0) {
 		switch (c) {
 		case '?':
 			/* Unknown option or ambiguous */
@@ -235,25 +235,24 @@ process_command_line (int argc, char *argv[])
 
 		case 'V':
 			/* --version */
-			print_version ();
+			print_version();
 			return 0;
 		}
 	}
-
 	return 99;
 }
 
 int
-main (int argc, char **argv)
+main(int argc, char **argv)
 {
 
 #ifdef	HAVE_SETLOCALE
-	setlocale (LC_ALL, "");
+	setlocale(LC_ALL, "");
 #endif
 
-	int pcl_return = process_command_line (argc, argv);
+	int pcl_return = process_command_line(argc, argv);
 
-	if (pcl_return != 99) {
+	if(pcl_return != 99) {
 		return pcl_return;
 	}
 	if(strlen(argv[1]) > 31) {

@@ -1,3 +1,8 @@
+2014-12-18  Sergey Kashyrin <ska@kiska.net>
+
+	* common.cpp, cobgetopt.h : Bug in CBL_OC_GETOPT (not aware of BIG_ENDIAN)
+		 Maybe it's not final, as I'm asuming LONG-ONLY is S9(7) COMP-5
+
 2014-12-17  Sergey Kashyrin <ska@kiska.net>
 
 	* common.h : SPARC platform is OK with non-aligned
