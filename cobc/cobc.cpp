@@ -2445,41 +2445,27 @@ process_filename(const char * fname)
 
 #ifdef _MSC_VER
 
-static char*
-read_buffer_line(char* offset) {
-	if (!offset) return NULL;
-
-	while (offset[0] != 0x00 && strcmp("\n", offset) != 0) {
-		offset++;
-	}
-
-	if (offset[0] == 0x00) return "EOF";
-	return offset;
-}
-
 /*
  * search_pattern can contain one or more search strings separated by #
  * search_patterns must have a final #
  * TODO: change to std::string
  */
 static int 
-line_contains(char* line_start, char* line_end, char* search_patterns) {
+line_contains(char * line_start, char * line_end, char * search_patterns) {
 	if(search_patterns[strlen(search_patterns) - 1] != '#') return -1;
 
 	int pattern_start = 0;
 	for(int pattern_end = 0; pattern_end < (int) strlen(search_patterns); pattern_end++) {
 		if(search_patterns[pattern_end] == '#') {
-			for (char* line_pos = line_start; line_pos + pattern_end - pattern_start <= line_end; line_pos++) {
+			for(char * line_pos = line_start; line_pos + pattern_end - pattern_start <= line_end; line_pos++) {
 				/* Find matching substring */
-				if (memcmp (line_pos, search_patterns + pattern_start, pattern_end - pattern_start) == 0) {
+				if(memcmp (line_pos, search_patterns + pattern_start, pattern_end - pattern_start) == 0) {
 					return 1;
 				}
 			}
-
 			pattern_start = pattern_end + 1;
 		}
 	}
-
 	return 0;
 }
 #endif
@@ -2488,16 +2474,16 @@ line_contains(char* line_start, char* line_end, char* search_patterns) {
 static int
 process(char * cmd)
 {
-	char	* name = NULL;
-	char	* objname = NULL;
-	char	* cobjname = NULL;
-	char	* token;
-	char	* incl[100];
-	char	* defs[100];
-	char	* objs[100];
-	char	* libs[100];
-	char	* optc[100];
-	char	* optl[100];
+	char * name = NULL;
+	char * objname = NULL;
+	char * cobjname = NULL;
+	char * token;
+	char * incl[100];
+	char * defs[100];
+	char * objs[100];
+	char * libs[100];
+	char * optc[100];
+	char * optl[100];
 	int	nincl = 0;
 	int	ndefs = 0;
 	int	nobjs = 0;
@@ -2726,11 +2712,13 @@ process(char * cmd)
 
 #elif defined(_MSC_VER)
 static int
-process (const char *cmd, struct filename *fn)
+process(const char * cmd, struct filename * fn)
 {
+	const char * sep = "|?|";
+
 	/* if we are verbose, we don't need to filter anything */
-	if (verbose_output) {
-		cobc_cmd_print (cmd);
+	if(verbose_output) {
+		cobc_cmd_print(cmd);
 		return !!system(cmd);
 	}
 
@@ -2740,59 +2728,58 @@ process (const char *cmd, struct filename *fn)
 		if(fn->translate[i] == '\\') break;
 	}
 
-	char* output_name_temp;
+	char * output_name_temp;
 
 	if(output_name) output_name_temp = file_basename(output_name);
 	else output_name_temp = (char *) fn->demangle_source;
 
+	/* TODO: change to std::string */
+	char * search_pattern = new char[fn->translate_len - i + 1 + strlen(sep)];
+	sprintf(search_pattern, "%s%s", fn->translate + i + 1, sep);
+	char * search_pattern2 = new char[2 * (strlen(output_name_temp) + 4) + 2 * strlen(sep) + 1];
+	sprintf(search_pattern2, "%s.lib%s%s.exp%s", output_name_temp, sep, output_name_temp, sep);
 
-    /* TODO: change to std::string */
-	char* search_pattern = (char*) cob_malloc(fn->translate_len - i + 1);
-	snprintf(search_pattern, fn->translate_len - i, "%s#", fn->translate + i + 1); 
-	char* search_pattern2 = (char*) cob_malloc(2 * (strlen(output_name_temp) + 4) + 3);
-	sprintf(search_pattern2, "%s.lib#%s.exp#", output_name_temp, output_name_temp);
-
-	FILE* pipe;
 	/* Open pipe to catch output of cl.exe */
-	pipe = _popen(cmd, "r");
+	FILE * pipe = _popen(cmd, "r");
 
-	if(!pipe) return !!-1; /* checkme */
-	else {
-		/* prepare buffer and read from pipe */
-		char* read_buffer = (char*) cob_malloc(COB_FILE_BUFF);
-		char *line_start = read_buffer;
-		fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
+	if(!pipe) {
+		delete [] search_pattern;
+		delete [] search_pattern2;
+		return 1; /* checkme */
+	}
 
-		/* reading two lines to filter unnecessary outputs */
-		for(i = 0; i < 2; i++) {
-			/* read one line from buffer, returning line end position */
-			char *line_end = read_buffer_line(line_start);
+	/* prepare buffer and read from pipe */
+	char * read_buffer = new char[COB_FILE_BUFF];
 
-			if(strcmp("EOF", line_end) == 0) {
-				return !!_pclose(pipe);
-			}
+	for(i = 0; ; i++) {
+		char * line_start = fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
+
+		if(line_start == NULL) {
+			break;
+		}
+
+		/* read one line from buffer, returning line end position */
+		if(i == 0) {
+			char * line_end = line_start + strlen(line_start) - 1;
+
 			/* if non of the patterns was found, print line */
 			if(!line_contains(line_start, line_end, search_pattern)
-			   && !line_contains(line_start, line_end, search_pattern2)) 
+				&& !line_contains(line_start, line_end, search_pattern2)) 
 			{
-				fprintf(stdout, "%*s", line_end - line_start + 2, line_start);
+				fprintf(stdout, "%.*s", line_end - line_start + 2, line_start);
 			}
-
-			line_start = line_end + 1;
+			continue;
 		}
-		/* print rest of buffer */
-		fprintf(stdout, line_start);
-		fflush(stdout);
-
-		while(fgets(read_buffer, COB_FILE_BUFF - 1, pipe) != NULL) {
-			fprintf(stdout, read_buffer);
-			fflush(stdout);
+		/* filter empty lines */
+		if(0 == strcmp(line_start, "\n")) {
+			continue;
 		}
-
-		free(read_buffer);
+		fprintf(stdout, "%s", line_start);
 	}
-	free(search_pattern);
-	free(search_pattern2);
+
+	delete [] read_buffer;
+	delete [] search_pattern;
+	delete [] search_pattern2;
 
 	/* close pipe and get return code of cl.exe */
 	return !!_pclose(pipe);
