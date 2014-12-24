@@ -1,3 +1,13 @@
+2014-12-24  Sergey Kashyrin <ska@kiska.net>
+
+	* numeric.cpp, common.cpp : Enhancement.
+		 Introducing two environment variables which affect runtime behaviour.
+		 COB_ZERODIV - if defined, divide-by-zero without ON (NOT ON) ERROR
+			will cause "cob_runtime_error("DIVIDE BY ZERO")"
+		 COB_ABEND_ON_ERROR - if defined, "cob_runtime_error" will cause "cob_stop_run(1)"
+			if handlers are not handling this error.
+		 All of that is an attempt to achieve behaviour of 390 mainframe and Microfocus CHECKDIV option.
+
 2014-12-19  Sergey Kashyrin <ska@kiska.net>
 
 	* common.h : Attempt to fix Bug #114 without testing

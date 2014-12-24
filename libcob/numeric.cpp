@@ -1510,7 +1510,18 @@ cob_decimal_do_round(cob_decimal * d, cob_field * f, const int opt)
 int
 cob_decimal_get_field(cob_decimal * d, cob_field * f, const int opt)
 {
+	static int zerodiv = -1;
 	if(unlikely(d->scale == COB_DECIMAL_NAN)) {
+		if(!(opt & COB_STORE_KEEP_ON_OVERFLOW)) {
+			// No NOT/ON ERROR handlers
+			if(zerodiv < 0) {
+				char * e = getenv("COB_ZERODIV");
+				zerodiv = (e != NULL);
+			}
+			if(zerodiv) {
+				cob_runtime_error(_("DIVIDE BY ZERO"));
+			}
+		}
 		cob_set_exception(COB_EC_SIZE_OVERFLOW);
 		return cobglobptr->cob_exception_code;
 	}

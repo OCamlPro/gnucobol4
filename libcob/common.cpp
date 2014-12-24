@@ -1234,12 +1234,8 @@ cob_stop_run(const int status)
 void
 cob_runtime_error(const char * fmt, ...)
 {
-	va_list			ap;
-
-#if	1	/* RXWRXW - Exit screen */
-	/* Exit screen mode early */
-	cob_exit_screen();
-#endif
+	va_list		ap;
+	static int	hardabend = -1;
 
 	if(hdlrs != NULL) {
 		if(runtime_err_str) {
@@ -1267,6 +1263,11 @@ cob_runtime_error(const char * fmt, ...)
 		hdlrs = NULL;
 	}
 
+#if	1	/* RXWRXW - Exit screen */
+	/* Exit screen mode early */
+	cob_exit_screen();
+#endif
+
 	/* Prefix */
 	if(cob_source_file) {
 		fprintf(stderr, "%s: %u: ", cob_source_file, cob_source_line);
@@ -1281,6 +1282,13 @@ cob_runtime_error(const char * fmt, ...)
 	/* Postfix */
 	putc('\n', stderr);
 	fflush(stderr);
+	if(hardabend < 0) {
+		char * e = getenv("COB_ABEND_ON_ERROR");
+		hardabend = (e != NULL);
+	}
+	if(hardabend) {
+		cob_stop_run(1);
+	}
 }
 
 void
