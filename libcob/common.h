@@ -49,14 +49,25 @@
 
 #else
 
+#include <limits.h>
+
 #if LONG_MAX > INT_MAX
+
 #define	cob_s64_t		long int
 #define	cob_u64_t		unsigned long int
+#define	COB_S64_C(x)	x ## L
+#define	COB_U64_C(x)	x ## UL
+#define	CB_FMT_LLD		"%ld"
+#define	CB_FMT_LLU		"%lu"
+#define	CB_FMT_PLLD		"%+*.*ld"
+#define	CB_FMT_PLLU		"%*.*lu"
+#define	CB_FMT_LLD_F	"%ldL"
+#define	CB_FMT_LLU_F	"%luUL"
+
 #else
+
 #define	cob_s64_t		long long
 #define	cob_u64_t		unsigned long long
-#endif
-
 #define	COB_S64_C(x)	x ## LL
 #define	COB_U64_C(x)	x ## ULL
 #define	CB_FMT_LLD		"%lld"
@@ -66,6 +77,7 @@
 #define	CB_FMT_LLD_F	"%lldLL"
 #define	CB_FMT_LLU_F	"%lluULL"
 
+#endif
 #endif
 
 #define	cob_c8_ptr		cob_c8_t *

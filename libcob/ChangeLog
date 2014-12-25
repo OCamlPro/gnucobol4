@@ -1,3 +1,7 @@
+2014-12-25  Sergey Kashyrin <ska@kiska.net>
+
+	* common.h : Fix for Bug #114 - fore some reason <limits.h> not included
+
 2014-12-24  Sergey Kashyrin <ska@kiska.net>
 
 	* numeric.cpp, common.cpp : Enhancement.
