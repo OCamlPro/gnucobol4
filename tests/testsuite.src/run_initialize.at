@@ -46,7 +46,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -72,7 +72,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -100,7 +100,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -127,7 +127,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -153,7 +153,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -186,7 +186,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -236,7 +236,32 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
+AT_CHECK([./prog], [0])
+
+AT_CLEANUP
+
+AT_SETUP([INITIALIZE with reference modification])
+AT_KEYWORDS([initialize])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  MYFLD        PIC X(6) VALUE "ABCDEF".
+       PROCEDURE        DIVISION.
+       ASTART SECTION.
+       A01.
+           INITIALIZE MYFLD (1:2).
+           IF MYFLD NOT = "  CDEF"
+              DISPLAY MYFLD
+              END-DISPLAY
+           END-IF.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP

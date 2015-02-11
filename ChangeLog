@@ -1,12 +1,38 @@
+2014-12-04  Edward Hart <edward-h@users.sf.net>
+
+	* configure.ac : #44 Disable optimisation with --enable-debug
+
+2014-09-09  Philipp Böhme <phi.boehme@googlemail.com>
+
+	* configure.ac : new check for mp_get_memory_functions in 
+	  libgmp and new preprocessor define HAVE_MP_GET_MEMORY_FUNCTIONS
+
+2014-08-07  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* configure.ac : add new parameter --with-curses for explicit
+	  selection of used curses library (including "no");
+	  better check of matching version header/library for GMP and BDB;
+	  additional output of configuration summary to config.log;
+	  respect --quite (don't echo or printf to stdout)
+
+2014-06-20  Philipp Böhme <phi.boehme@googlemail.com>
+
+	* New folder build_windows
+	* Added project files for Visual Studio 2003 and newer
+
+2014-06-14  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* General: Win compatibility: define COB_OBJEXT in defaults.h
+
+2014-04-14  Philipp Böhme <phi.boehme@googlemail.com>
+
+	* moved cobgetopt.c from lib to libcob
+	* link cobc to libcob
 
 2014-04-11  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
 	* configure.ac : bugfix for systems with prototype for finite function
 	  in ieeefp.h instead of math.h
-
-2013-11-18  Ron Norman
-
-	* Report Writer Module build setup
 
 2013-09-29  Brian Tiffin & Simon Sobisch <sf-mensch@users.sf.net>
 
@@ -37,7 +63,7 @@
 
 	* configure.ac : Changes for BDB support, support icc
 	* General : Affects all directories - Rebase to latest stable
-	  autoxxxx tools
+		    autoxxxx tools
 
 2009-03-12  Roger While <simrw@sim-basis.de>
 
@@ -393,11 +419,11 @@
 	  configure.ac, configure, Mak** : Fix missing variables.
 	  Run autoreconf
 
-2005-04-15  Keisuke Nishida  <knishida@gnu-cobol.org>
+2005-04-15  Keisuke Nishida  <knishida@opencobol.org>
 
 	* configure.ac (WORDS_BIGENDIAN): New variable.
 
-2005-04-13  Keisuke Nishida  <knishida@gnu-cobol.org>
+2005-04-13  Keisuke Nishida  <knishida@opencobol.org>
 
 	* configure.ac (LIBCOB_CFLAGS): Set -fPIC when necessary.
 
@@ -438,7 +464,7 @@
 	  to __db_open. This fixes configuring against
 	  the NPTL versions of DB (eg. Red Hat, Suse).
 
-2004-08-02  Keisuke Nishida  <knishida@gnu-cobol.org>
+2004-08-02  Keisuke Nishida  <knishida@opencobol.org>
 
 	* Version 0.30 released.
 
@@ -498,7 +524,7 @@
 2002-10-14  Keisuke Nishida  <knishida@netlab.jp>
 
 	* Makefile.am: Install libcob.conf in $(sysconfdir), not in
-	$(sysconfdir)/gnu-cobol.
+	$(sysconfdir)/open-cobol.
 	* configure.ac (COB_CONFIG_FILE): Updated.
 
 2002-09-30  Keisuke Nishida  <knishida@netlab.jp>

@@ -9,7 +9,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 37
+#define YY_FLEX_SUBMINOR_VERSION 35
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -142,7 +142,15 @@ typedef unsigned int flex_uint32_t;
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -154,12 +162,7 @@ typedef unsigned int flex_uint32_t;
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
 
-#ifndef YY_TYPEDEF_YY_SIZE_T
-#define YY_TYPEDEF_YY_SIZE_T
-typedef size_t yy_size_t;
-#endif
-
-extern yy_size_t yyleng;
+extern int yyleng;
 
 extern FILE *yyin, *yyout;
 
@@ -185,6 +188,11 @@ extern FILE *yyin, *yyout;
 
 #define unput(c) yyunput( c, (yytext_ptr)  )
 
+#ifndef YY_TYPEDEF_YY_SIZE_T
+#define YY_TYPEDEF_YY_SIZE_T
+typedef size_t yy_size_t;
+#endif
+
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
 struct yy_buffer_state
@@ -202,7 +210,7 @@ struct yy_buffer_state
 	/* Number of characters read into yy_ch_buf, not including EOB
 	 * characters.
 	 */
-	yy_size_t yy_n_chars;
+	int yy_n_chars;
 
 	/* Whether we "own" the buffer - i.e., we know we created it,
 	 * and can realloc() it to grow it, and should free() it to
@@ -272,8 +280,8 @@ static YY_BUFFER_STATE * yy_buffer_stack = 0; /**< Stack as an array. */
 
 /* yy_hold_char holds the character lost when yytext is formed. */
 static char yy_hold_char;
-static yy_size_t yy_n_chars;		/* number of characters read into yy_ch_buf */
-yy_size_t yyleng;
+static int yy_n_chars;		/* number of characters read into yy_ch_buf */
+int yyleng;
 
 /* Points to current character in buffer. */
 static char *yy_c_buf_p = (char *) 0;
@@ -301,7 +309,7 @@ static void yy_init_buffer (YY_BUFFER_STATE b,FILE *file  );
 
 YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
 YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
-YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,yy_size_t len  );
+YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,int len  );
 
 void *yyalloc (yy_size_t  );
 void *yyrealloc (void *,yy_size_t  );
@@ -1621,7 +1629,7 @@ static void	scan_options (const char *, const unsigned int);
 
 
 
-#line 1625 "scanner.c"
+#line 1624 "scanner.c"
 
 #define INITIAL 0
 #define DECIMAL_IS_PERIOD 1
@@ -1682,7 +1690,12 @@ static int input (void );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -1809,7 +1822,7 @@ YY_DECL
 
 
 
-#line 1813 "scanner.c"
+#line 1812 "scanner.c"
 
 	if ( !(yy_init) )
 		{
@@ -1946,7 +1959,7 @@ YY_RULE_SETUP
 			cb_source_file = cobc_parse_strdup (p2);
 			cb_source_line = (int)strtol (yytext + 5, NULL, 10) - 1;
 		}
-		free (p2);
+		cobc_free (p2);
 	}
 }
 	YY_BREAK
@@ -2737,17 +2750,14 @@ YY_RULE_SETUP
 	cb_tree				l;
 
 	/* Check word length */
-	if (unlikely(yyleng > 31)) {
-		if (!cb_relaxed_syntax_check) {
-			cb_error (_("Word length exceeds 31 characters - '%s'"),
-				  yytext);
-		} else if (yyleng > 61) {
+	if (unlikely(yyleng > cb_word_length)) {
+		if (yyleng > COB_MAX_WORDLEN) {
 			/* Absolute limit */
-			cb_error (_("Word length exceeds maximum allowed - '%s'"),
-				  yytext);
-		} else if (warningopt) {
-			cb_warning (_("Word length exceeds 31 characters - '%s'"),
-				  yytext);
+			cb_error (_("Word length exceeds maximum of %d characters - '%s'"),
+				  COB_MAX_WORDLEN, yytext);
+		} else if (!cb_relaxed_syntax_check || warningopt) {
+			cb_error (_("Word length exceeds %d characters - '%s'"),
+				  cb_word_length, yytext);
 		}
 	}
 
@@ -2873,7 +2883,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 110:
 YY_RULE_SETUP
-#line 897 "scanner.l"
+#line 894 "scanner.l"
 {
 	yylval = NULL;
 	return LESS_OR_EQUAL;
@@ -2881,7 +2891,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 111:
 YY_RULE_SETUP
-#line 902 "scanner.l"
+#line 899 "scanner.l"
 {
 	yylval = NULL;
 	return GREATER_OR_EQUAL;
@@ -2889,7 +2899,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 112:
 YY_RULE_SETUP
-#line 907 "scanner.l"
+#line 904 "scanner.l"
 {
 	yylval = NULL;
 	return NOT_EQUAL;
@@ -2897,7 +2907,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 113:
 YY_RULE_SETUP
-#line 912 "scanner.l"
+#line 909 "scanner.l"
 {
 	yylval = NULL;
 	return EXPONENTIATION;
@@ -2905,7 +2915,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 114:
 YY_RULE_SETUP
-#line 917 "scanner.l"
+#line 914 "scanner.l"
 {
 	last_token_is_dot = 1;
 	yylval = NULL;
@@ -2914,7 +2924,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 115:
 YY_RULE_SETUP
-#line 923 "scanner.l"
+#line 920 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_AMPER;
@@ -2922,7 +2932,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 116:
 YY_RULE_SETUP
-#line 928 "scanner.l"
+#line 925 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_COLON;
@@ -2930,7 +2940,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 117:
 YY_RULE_SETUP
-#line 933 "scanner.l"
+#line 930 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_EQUAL;
@@ -2938,7 +2948,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 118:
 YY_RULE_SETUP
-#line 938 "scanner.l"
+#line 935 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_DIV;
@@ -2946,7 +2956,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 119:
 YY_RULE_SETUP
-#line 943 "scanner.l"
+#line 940 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_MUL;
@@ -2954,7 +2964,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 120:
 YY_RULE_SETUP
-#line 948 "scanner.l"
+#line 945 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_PLUS;
@@ -2962,7 +2972,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 121:
 YY_RULE_SETUP
-#line 953 "scanner.l"
+#line 950 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_MINUS;
@@ -2970,7 +2980,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 122:
 YY_RULE_SETUP
-#line 958 "scanner.l"
+#line 955 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_LESS;
@@ -2978,7 +2988,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 123:
 YY_RULE_SETUP
-#line 963 "scanner.l"
+#line 960 "scanner.l"
 {
 	yylval = NULL;
 	return TOK_GREATER;
@@ -2986,7 +2996,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 124:
 YY_RULE_SETUP
-#line 968 "scanner.l"
+#line 965 "scanner.l"
 {
 	int	c;
 
@@ -3004,14 +3014,14 @@ YY_RULE_SETUP
 
 case 125:
 YY_RULE_SETUP
-#line 984 "scanner.l"
+#line 981 "scanner.l"
 {
 	/* Ignore */
   }
 	YY_BREAK
 case 126:
 YY_RULE_SETUP
-#line 987 "scanner.l"
+#line 984 "scanner.l"
 {
 	BEGIN INITIAL;
 	scan_picture (yytext);
@@ -3022,7 +3032,7 @@ YY_RULE_SETUP
 
 case 127:
 YY_RULE_SETUP
-#line 995 "scanner.l"
+#line 992 "scanner.l"
 {
 	struct cb_intrinsic_table	*cbp;
 	cb_tree				l;
@@ -3046,7 +3056,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 128:
 YY_RULE_SETUP
-#line 1015 "scanner.l"
+#line 1012 "scanner.l"
 {
 	yylval = NULL;
 	return yytext[0];
@@ -3058,7 +3068,7 @@ case YY_STATE_EOF(DECIMAL_IS_PERIOD):
 case YY_STATE_EOF(DECIMAL_IS_COMMA):
 case YY_STATE_EOF(PICTURE_STATE):
 case YY_STATE_EOF(FUNCTION_STATE):
-#line 1021 "scanner.l"
+#line 1018 "scanner.l"
 {
 	struct cb_level_78	*p78;
 	struct cb_level_78	*p782;
@@ -3066,17 +3076,17 @@ case YY_STATE_EOF(FUNCTION_STATE):
 	/* At EOF - Clear variables */
 	for (p78 = lev78ptr; p78; ) {
 		p782 = p78->next;
-		free (p78);
+		cobc_free (p78);
 		p78 = p782;
 	}
 	for (p78 = globlev78ptr; p78; ) {
 		p782 = p78->next;
-		free (p78);
+		cobc_free (p78);
 		p78 = p782;
 	}
 	for (p78 = const78ptr; p78; ) {
 		p782 = p78->next;
-		free (p78);
+		cobc_free (p78);
 		p78 = p782;
 	}
 	top78ptr = NULL;
@@ -3091,10 +3101,10 @@ case YY_STATE_EOF(FUNCTION_STATE):
 	YY_BREAK
 case 129:
 YY_RULE_SETUP
-#line 1051 "scanner.l"
+#line 1048 "scanner.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 3098 "scanner.c"
+#line 3094 "scanner.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -3279,21 +3289,21 @@ static int yy_get_next_buffer (void)
 
 	else
 		{
-			yy_size_t num_to_read =
+			int num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
 
 			/* just a shorter name for the current buffer */
-			YY_BUFFER_STATE b = YY_CURRENT_BUFFER_LVALUE;
+			YY_BUFFER_STATE b = YY_CURRENT_BUFFER;
 
 			int yy_c_buf_p_offset =
 				(int) ((yy_c_buf_p) - b->yy_ch_buf);
 
 			if ( b->yy_is_our_buffer )
 				{
-				yy_size_t new_size = b->yy_buf_size * 2;
+				int new_size = b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -3324,7 +3334,7 @@ static int yy_get_next_buffer (void)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			(yy_n_chars), num_to_read );
+			(yy_n_chars), (size_t) num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = (yy_n_chars);
 		}
@@ -3420,7 +3430,7 @@ static int yy_get_next_buffer (void)
 	yy_current_state = yy_nxt[yy_base[yy_current_state] + (unsigned int) yy_c];
 	yy_is_jam = (yy_current_state == 840);
 
-		return yy_is_jam ? 0 : yy_current_state;
+	return yy_is_jam ? 0 : yy_current_state;
 }
 
     static void yyunput (int c, register char * yy_bp )
@@ -3435,7 +3445,7 @@ static int yy_get_next_buffer (void)
 	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		register yy_size_t number_to_move = (yy_n_chars) + 2;
+		register int number_to_move = (yy_n_chars) + 2;
 		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
 					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
 		register char *source =
@@ -3484,7 +3494,7 @@ static int yy_get_next_buffer (void)
 
 		else
 			{ /* need more input */
-			yy_size_t offset = (yy_c_buf_p) - (yytext_ptr);
+			int offset = (yy_c_buf_p) - (yytext_ptr);
 			++(yy_c_buf_p);
 
 			switch ( yy_get_next_buffer(  ) )
@@ -3758,7 +3768,7 @@ void yypop_buffer_state (void)
  */
 static void yyensure_buffer_stack (void)
 {
-	yy_size_t num_to_alloc;
+	int num_to_alloc;
     
 	if (!(yy_buffer_stack)) {
 
@@ -3930,7 +3940,7 @@ void yyfree (void * ptr )
 
 #define YYTABLES_NAME "yytables"
 
-#line 1051 "scanner.l"
+#line 1048 "scanner.l"
 
 
 
@@ -4422,14 +4432,14 @@ scan_define_options (const char *text)
 	/* Variable name */
 	s = strtok (NULL, " \n");
 	if (!s) {
-		free (p);
+		cobc_free (p);
 		return;
 	}
 
 	/* Check for already defined constant */
 	for (p78 = top78ptr; p78; p78 = p78->globnext) {
 		if (strcasecmp (s, p78->fld78->name) == 0) {
-			free (p);
+			cobc_free (p);
 			return;
 		}
 	}
@@ -4495,8 +4505,8 @@ scan_define_options (const char *text)
 	cb_add_const_var (var, x);
 
 freevar:
-	free (p);
-	free (var);
+	cobc_free (p);
+	cobc_free (var);
 }
 
 /* Global functions */
@@ -4506,15 +4516,15 @@ ylex_clear_all (void)
 {
 	/* Clear buffers after parsing all source elements */
 	if (picbuff2) {
-		free (picbuff2);
+		cobc_free (picbuff2);
 		picbuff2 = NULL;
 	}
 	if (picbuff1) {
-		free (picbuff1);
+		cobc_free (picbuff1);
 		picbuff1 = NULL;
 	}
 	if (plexbuff) {
-		free (plexbuff);
+		cobc_free (plexbuff);
 		plexbuff = NULL;
 	}
 	plexsize = 0;
@@ -4545,7 +4555,7 @@ cb_reset_78 (void)
 	/* Remove constant (78 level) items for current program */
 	for (p78 = lev78ptr; p78; ) {
 		p782 = p78->next;
-		free (p78);
+		cobc_free (p78);
 		p78 = p782;
 	}
 	lev78ptr = NULL;
@@ -4568,7 +4578,7 @@ cb_reset_global_78 (void)
 	/* Remove constant (78 level) items for top program */
 	for (p78 = globlev78ptr; p78; ) {
 		p782 = p78->next;
-		free (p78);
+		cobc_free (p78);
 		p78 = p782;
 	}
 	globlev78ptr = NULL;
@@ -4630,6 +4640,12 @@ check_level_78 (const char *name)
 
 	/* Check against a current constant (78 level) */
 	for (p78 = lev78ptr; p78; p78 = p78->next) {
+		if (strcasecmp (name, p78->fld78->name) == 0) {
+			return p78->fld78;
+		}
+	}
+	/* Check against a global constant (78 level) */
+	for (p78 = globlev78ptr; p78; p78 = p78->next) {
 		if (strcasecmp (name, p78->fld78->name) == 0) {
 			return p78->fld78;
 		}

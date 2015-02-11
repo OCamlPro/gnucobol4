@@ -90,7 +90,8 @@ struct cob_inp_struct {
 /* Local variables */
 
 static cob_global		*cobglobptr;
-
+static cob_u32_t		cob_legacy;
+static char*			cob_legacy_env;
 
 /* Local variables when screenio activated */
 
@@ -103,7 +104,6 @@ static size_t			cob_has_color;
 static int			global_return;
 static int			cob_current_y;
 static int			cob_current_x;
-static cob_u32_t		cob_legacy;
 static short			fore_color;
 static short			back_color;
 #endif
@@ -468,8 +468,13 @@ cob_screen_init (void)
 	fflush (stdout);
 	fflush (stderr);
 
+	/*
+	 * TODO: needs Documentation
+	 */
 	if ((s = getenv ("COB_LEGACY")) != NULL) {
-		if (*s == 'Y' || *s == 'y' || *s == '1') {
+		if (cob_check_env_true(s)) {
+			cob_legacy_env = cob_save_env_value(cob_legacy_env, s);
+
 			cob_legacy = 1U;
 		}
 	}
@@ -1416,7 +1421,8 @@ cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
 			break;
 		}
 
-		if (!f) {
+		/* extension: ACCEPT OMITTED */
+		if (unlikely(!f)) {
 			(void)flushinp ();
 			cob_beep ();
 			continue;
@@ -1649,6 +1655,9 @@ cob_screen_set_mode (const cob_u32_t smode)
 void
 cob_exit_screen (void)
 {
+	if (!cobglobptr) {
+		return;
+	}
 	if (cobglobptr->cob_screen_initialized) {
 		cobglobptr->cob_screen_initialized = 0;
 		clear ();
@@ -1659,7 +1668,7 @@ cob_exit_screen (void)
 		_nc_freeall ();
 #endif
 		if (cob_base_inp) {
-			free (cob_base_inp);
+			cob_free (cob_base_inp);
 			cob_base_inp = NULL;
 		}
 	}
@@ -1676,7 +1685,7 @@ cob_exit_screen (void)
 void
 cob_field_display (cob_field *f, cob_field *line, cob_field *column,
 		   cob_field *fgc, cob_field *bgc, cob_field *fscroll,
-		   const int attr)
+		   const int fattr)
 {
 	COB_UNUSED (f);
 	COB_UNUSED (line);
@@ -1684,13 +1693,13 @@ cob_field_display (cob_field *f, cob_field *line, cob_field *column,
 	COB_UNUSED (fgc);
 	COB_UNUSED (bgc);
 	COB_UNUSED (fscroll);
-	COB_UNUSED (attr);
+	COB_UNUSED (fattr);
 }
 
 void
 cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
 		  cob_field *fgc, cob_field *bgc, cob_field *fscroll,
-		  cob_field *ftimeout, cob_field *prompt, const int attr)
+		  cob_field *ftimeout, cob_field *prompt, const int fattr)
 {
 	COB_UNUSED (f);
 	COB_UNUSED (line);
@@ -1700,7 +1709,7 @@ cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
 	COB_UNUSED (fscroll);
 	COB_UNUSED (ftimeout);
 	COB_UNUSED (prompt);
-	COB_UNUSED (attr);
+	COB_UNUSED (fattr);
 }
 
 void
@@ -1807,7 +1816,22 @@ cob_sys_get_scr_size (unsigned char *line, unsigned char *col)
 }
 
 void
-cob_init_screenio (cob_global *lptr)
+cob_init_screenio (cob_global *lptr, runtime_env* runtimeptr)
 {
+	char* s;
+
+	/*
+	 * TODO: needs Documentation
+	 */
+	if ((s = getenv ("COB_LEGACY")) != NULL) {
+		if (cob_check_env_true(s)) {
+			cob_legacy_env = cob_save_env_value(cob_legacy_env, s);
+
+			cob_legacy = 1U;
+		}
+	}
+
 	cobglobptr = lptr;
+	runtimeptr->cob_legacy_env = cob_legacy_env;
+	runtimeptr->cob_legacy = &cob_legacy;
 }

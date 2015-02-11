@@ -18,6 +18,34 @@
 
 ### GNU Cobol Test Suite
 
+AT_SETUP([COPY: within comment])
+AT_KEYWORDS([copy])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      *COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           STOP RUN.
+])
+
+AT_DATA([prog2.cob], [
+  IDENTIFICATION   DIVISION.
+  PROGRAM-ID.      prog2.
+  DATA             DIVISION.
+  WORKING-STORAGE  SECTION.
+  *> COPY "copy.inc".
+  PROCEDURE        DIVISION.
+  STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0])
+AT_CHECK([$COMPILE_ONLY -free prog2.cob], [0])
+
+AT_CLEANUP
+
 AT_SETUP([COPY: file not found])
 AT_KEYWORDS([copy])
 
@@ -59,7 +87,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
@@ -88,7 +116,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
@@ -118,7 +146,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OKOK])
 
 AT_CLEANUP
@@ -147,7 +175,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OKOK])
 
 AT_CLEANUP
@@ -176,7 +204,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OKOK])
 
 AT_CLEANUP
@@ -205,7 +233,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
@@ -230,7 +258,7 @@ AT_DATA([prog.cob], [
    STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -free -o prog prog.cob])
+AT_CHECK([$COMPILE -free -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP

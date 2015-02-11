@@ -186,11 +186,11 @@ struct local_filename {
 /* Structure for filename */
 struct filename {
 	struct filename		*next;
-	const char		*source;		/* foo.cob */
-	const char		*preprocess;		/* foo.i */
-	const char		*translate;		/* foo.c */
-	const char		*trstorage;		/* foo.c.h */
-	const char		*object;		/* foo.o */
+	const char		*source;		/* foo.cob (path from command line) */
+	const char		*preprocess;		/* foo.i (full path) */
+	const char		*translate;		/* foo.c (full path) */
+	const char		*trstorage;		/* foo.c.h (full path) */
+	const char		*object;		/* foo.o (full path) */
 	const char		*demangle_source;	/* foo */
 	const char		*listing_file;		/* foo.lst */
 	struct local_filename	*localfile;		/* foo.c.l[n].h */
@@ -309,6 +309,7 @@ extern int			functions_are_all;
 extern struct noreserve		*cobc_nores_base;
 
 extern void			*cobc_malloc (const size_t);
+extern void			cobc_free (void *);
 extern void			*cobc_strdup (const char *);
 extern void			*cobc_realloc (void *, const size_t);
 
@@ -331,7 +332,7 @@ extern void			cobc_abort_pr (const char *, ...) COB_A_FORMAT12;
 DECLNORET extern void		cobc_abort (const char *,
 					    const int) COB_A_NORETURN;
 DECLNORET extern void		cobc_too_many_errors (void) COB_A_NORETURN;
-extern void			cobc_dumb_abort (const char *, const int);
+DECLNORET extern void			cobc_dumb_abort (const char *, const int);
 
 extern size_t			cobc_check_valid_name (const char *,
 						       const unsigned int);
@@ -359,6 +360,7 @@ extern size_t			cobc_check_valid_name (const char *,
 #undef	CB_CONFIG_SUPPORT
 
 extern int		cb_load_std (const char *);
+extern int		cb_config_entry (char *, const char *, const int);
 extern int		cb_load_conf (const char *, const int, const int);
 
 #ifndef	HAVE_DESIGNATED_INITS
@@ -416,12 +418,19 @@ extern size_t		suppress_warn;
 extern void		cob_gen_optim (const enum cb_optim);
 
 /* error.c */
+#define CB_MSG_STYLE_GCC	0
+#define CB_MSG_STYLE_MSC	1U
+
+extern size_t		cb_msg_style;
+
 extern void		cb_warning (const char *, ...) COB_A_FORMAT12;
 extern void		cb_error (const char *, ...) COB_A_FORMAT12;
 extern void		cb_plex_warning (const size_t,
 					 const char *, ...) COB_A_FORMAT23;
 extern void		cb_plex_error (const size_t,
 				       const char *, ...) COB_A_FORMAT23;
+extern void		configuration_error (const char *,
+					 const int, const char *, ...) COB_A_FORMAT34;
 
 extern unsigned int	cb_verify (const enum cb_support, const char *);
 

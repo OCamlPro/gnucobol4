@@ -196,11 +196,27 @@ lookup_word (struct cb_reference *p, const char *name)
 	p->hashval = val;
 }
 
+#define CB_FILE_ERR_REQUIRED	1
+#define CB_FILE_ERR_INVALID_FT	2
+#define CB_FILE_ERR_INVALID		3
+
 static void
-file_error (cb_tree name, const char *clause)
+file_error (cb_tree name, const char *clause, const char errtype)
 {
-	cb_error_x (name, _("%s clause is required for file '%s'"), clause,
-		    CB_NAME (name));
+	switch (errtype) {
+	case CB_FILE_ERR_REQUIRED:
+		cb_error_x (name, _("%s clause is required for file '%s'"),
+			clause, CB_NAME (name));
+		break;
+	case CB_FILE_ERR_INVALID_FT:
+		cb_error_x (name, _("%s clause is invalid for file '%s' (file type)"),
+			clause, CB_NAME (name));
+		break;
+	case CB_FILE_ERR_INVALID:
+		cb_error_x (name, _("%s clause is invalid for file '%s'"), 
+			clause, CB_NAME (name));
+		break;
+	}
 }
 
 /* Tree */
@@ -381,15 +397,9 @@ cb_name_1 (char *s, cb_tree x)
 			sprintf (s, "FUNCTION %s", cbit->intr_tab->name);
 		}
 		break;
-
 	case CB_TAG_FILE:
 		sprintf (s, "FILE %s", CB_FILE (x)->name);
 		break;
-
-	case CB_TAG_REPORT:
-		sprintf (s, "REPORT %s", CB_REPORT (CB_VALUE (x))->name);
-		break;
-
 	default:
 		sprintf (s, _("<Unexpected tree tag %d>"), (int)CB_TREE_TAG (x));
 	}
@@ -489,6 +499,120 @@ global_check (struct cb_reference *r, cb_tree items, size_t *ambiguous)
 		}
 	}
 	return candidate;
+}
+
+static int
+iso_8601_func (const enum cb_intr_enum intr)
+{
+	return intr == CB_INTR_FORMATTED_CURRENT_DATE
+		|| intr == CB_INTR_FORMATTED_DATE
+		|| intr == CB_INTR_FORMATTED_DATETIME
+		|| intr == CB_INTR_FORMATTED_TIME
+		|| intr == CB_INTR_INTEGER_OF_FORMATTED_DATE
+		|| intr == CB_INTR_SECONDS_FROM_FORMATTED_TIME
+		|| intr == CB_INTR_TEST_FORMATTED_DATETIME;
+}
+
+static int
+valid_format (const enum cb_intr_enum intr, const char *format)
+{
+	char	decimal_point = current_program->decimal_point;
+
+        /* Precondition: iso_8601_func (intr) */
+
+	switch (intr) {
+	case CB_INTR_FORMATTED_CURRENT_DATE:
+		return cob_valid_datetime_format (format, decimal_point);
+	case CB_INTR_FORMATTED_DATE:
+		return cob_valid_date_format (format);
+	case CB_INTR_FORMATTED_DATETIME:
+		return cob_valid_datetime_format (format, decimal_point);
+	case CB_INTR_FORMATTED_TIME:
+		return cob_valid_time_format (format, decimal_point);
+	case CB_INTR_INTEGER_OF_FORMATTED_DATE:
+		return cob_valid_date_format (format)
+			|| cob_valid_datetime_format (format, decimal_point);
+	case CB_INTR_SECONDS_FROM_FORMATTED_TIME:
+		return cob_valid_time_format (format, decimal_point)
+			|| cob_valid_datetime_format (format, decimal_point);
+	case CB_INTR_TEST_FORMATTED_DATETIME:
+		return cob_valid_time_format (format, decimal_point)
+			|| cob_valid_date_format (format)
+			|| cob_valid_datetime_format (format, decimal_point);
+	default:
+		cb_error (_("Invalid date/time function - '%d'"), intr);
+		/* Ignore the content of the format */
+	        return 1;
+	}
+}
+
+static const char *
+try_get_constant_data (cb_tree val)
+{
+	if (val == NULL) {
+		return NULL;
+	} else if (CB_LITERAL_P (val)) {
+		return (char *) CB_LITERAL (val)->data;
+	} else if (CB_CONST_P (val)) {
+		return CB_CONST (val)->val;
+	} else {
+		return NULL;
+	}
+}
+
+static int
+offset_time_format (const char *format)
+{
+	char	decimal_point = current_program->decimal_point;
+
+        if (cob_valid_time_format (format, decimal_point)
+	    || cob_valid_datetime_format (format, decimal_point)) {
+		/* Only offset time formats contain a '+'. */
+		return strchr (format, '+') !=  NULL;
+	} else {
+		return 0;
+	}
+}	
+
+static int
+offset_arg_param_num (const enum cb_intr_enum intr)
+{
+	if (intr == CB_INTR_FORMATTED_TIME) {
+		return 3;
+	} else if (intr == CB_INTR_FORMATTED_DATETIME) {
+		return 4;
+	} else {
+		return 0;
+	}
+}
+
+static int
+valid_const_date_time_args (const cb_tree tree, const struct cb_intrinsic_table *intr,
+			    cb_tree args)
+{
+	cb_tree		arg = CB_VALUE (args);
+	const char	*data;
+	int		error_found = 0;
+
+	/* Precondition: iso_8601_func (intr->intr_enum) */
+
+	data = try_get_constant_data (arg);
+	if (data != NULL) {
+		if(!valid_format (intr->intr_enum, data)) {
+			cb_error_x (tree, _("FUNCTION '%s' has invalid date/time format"),
+				    intr->name);
+			error_found = 1;
+		} else if (offset_time_format (data)
+			   && cb_list_length (args) < offset_arg_param_num (intr->intr_enum)) {
+			cb_error_x (tree, _("FUNCTION '%s' does not have an offset time"),
+				    intr->name);
+		}
+	} else {
+		cb_warning_x (tree, _("FUNCTION '%s' has format in variable"),
+			      intr->name);
+	}
+
+	return !error_found;
 }
 
 /* Global functions */
@@ -697,7 +821,9 @@ cb_tree_type (const cb_tree x, const struct cb_field *f)
 		COBC_DUMB_ABORT ();
 	}
 	/* NOT REACHED */
+#ifndef _MSC_VER
 	return 0;
+#endif
 }
 
 int
@@ -864,13 +990,6 @@ cb_get_int (const cb_tree x)
 	size_t			i;
 	int			val;
 
-	if(x == NULL)		return 0;
-	if(x == cb_int0)	return 0;
-	if(x == cb_int1)	return 1;
-	if(x == cb_int2)	return 2;
-	if(x == cb_int3)	return 3;
-	if(x == cb_int4)	return 4;
-	if(x == cb_int5)	return 5;
 	if (!CB_LITERAL_P (x)) {
 		cobc_abort_pr (_("Invalid literal cast - Aborting"));
 		COBC_ABORT ();
@@ -1557,7 +1676,6 @@ cb_build_picture (const char *str)
 	cob_u32_t		s_char_seen;
 	cob_u32_t		dp_char_seen;
 	cob_u32_t		real_digits;
-	cob_u32_t		c_count;
 	cob_u32_t		s_count;
 	cob_u32_t		v_count;
 	cob_u32_t		allocated;
@@ -1593,7 +1711,6 @@ cb_build_picture (const char *str)
 	x_digits = 0;
 	real_digits = 0;
 	scale = 0;
-	c_count = 0;
 	s_count = 0;
 	v_count = 0;
 	lastonechar = 0;
@@ -1788,11 +1905,7 @@ repeat:
 			if (s_char_seen || p_char_seen) {
 				goto error;
 			}
-			if(s_count == 0) {
-				digits += n - 1;
-			} else {
-				digits += n;
-			}
+			digits += n - 1;
 			s_count++;
 			/* FIXME: need more check */
 			break;
@@ -1824,13 +1937,8 @@ repeat:
 		default:
 			if (c == current_program->currency_symbol) {
 				category |= PIC_NUMERIC_EDITED;
-				if(c_count == 0) {
-					digits += n - 1;
-					c_count = n - 1;
-				} else {
-					digits += n;
-					c_count += n;
-				}
+				digits += n - 1;
+				/* FIXME: need more check */
 				break;
 			}
 
@@ -1954,55 +2062,6 @@ cb_build_constant (cb_tree name, cb_tree value)
 	CB_FIELD (x)->storage = CB_STORAGE_CONSTANT;
 	CB_FIELD (x)->values = CB_LIST_INIT (value);
 	return x;
-}
-
-/* Add new field to hold data from given field */
-cb_tree
-cb_field_dup(struct cb_field *f, struct cb_reference *ref)
-{
-	cb_tree		x;
-	struct cb_field *s;
-	char		buff[COB_MINI_BUFF],pic[30];
-	int		dec,dig;
-
-	snprintf (buff, (size_t)COB_MINI_MAX, "COPY OF %s", f->name);
-	x = cb_build_field (cb_build_reference (buff));
-	if(ref
-	&& ref->length
-	&& CB_LITERAL_P(ref->length)) {
-		sprintf(pic,"X(%d)",cb_get_int(ref->length));
-	} else
-	if(f->pic->category == CB_CATEGORY_NUMERIC
-	|| f->pic->category == CB_CATEGORY_NUMERIC_EDITED) {
-		dig = f->pic->digits;
-		if((dec = f->pic->scale) > 0) {
-			if((dig-dec) == 0) {
-				sprintf(pic,"SV9(%d)",dec);
-			} else if((dig-dec) < 0) {
-				sprintf(pic,"SP(%d)V9(%d)",-(dig-dec),dec);
-			} else {
-				sprintf(pic,"S9(%d)V9(%d)",dig-dec,dec);
-			}
-		} else {
-			sprintf(pic,"S9(%d)",dig);
-		}
-	} else {
-		sprintf(pic,"X(%d)",f->size);
-	}
-	s = CB_FIELD (x);
-	s->pic 	= CB_PICTURE (cb_build_picture (pic));
-	if(f->pic->category == CB_CATEGORY_NUMERIC
-	|| f->pic->category == CB_CATEGORY_NUMERIC_EDITED) {
-		s->values	= CB_LIST_INIT (cb_zero);
-	} else {
-		s->values	= CB_LIST_INIT (cb_space);
-	}
-	s->storage	= CB_STORAGE_WORKING;
-	s->usage	= CB_USAGE_DISPLAY;
-	s->count++;
-	cb_validate_field (s);
-	CB_FIELD_ADD (current_program->working_storage, s);
-	return  cb_build_field_reference (s, NULL);
 }
 
 #if	0	/* RXWRXW - Field */
@@ -2132,94 +2191,18 @@ struct cb_report *
 build_report (cb_tree name)
 {
 	struct cb_report *p;
-	cb_tree		x,y;
-	char		buff[COB_MINI_BUFF];
 
 	p = make_tree (CB_TAG_REPORT, CB_CATEGORY_UNKNOWN, sizeof (struct cb_report));
 	p->name = cb_define (name, CB_TREE (p));
 	p->cname = cb_to_cname (p->name);
 
-	/* Set up LINE-COUNTER / PAGE-COUNTER */
-	snprintf (buff, (size_t)COB_MINI_MAX,
-		  "LINE-COUNTER of %s", p->name);
-	x = cb_build_field (cb_build_reference (buff));
-	CB_FIELD (x)->usage	= CB_USAGE_UNSIGNED_INT;
-	CB_FIELD (x)->values	= CB_LIST_INIT (cb_zero);
-	CB_FIELD (x)->storage	= CB_STORAGE_WORKING;
-	CB_FIELD (x)->count++;
-	cb_validate_field (CB_FIELD (x));
-	p->line_counter = cb_build_field_reference (CB_FIELD (x), NULL);
-	CB_FIELD_ADD (current_program->working_storage, CB_FIELD (x));
-
-	snprintf (buff, (size_t)COB_MINI_MAX,
-		  "PAGE-COUNTER of %s", p->name);
-	y = cb_build_field (cb_build_reference (buff));
-	CB_FIELD (y)->usage	= CB_USAGE_UNSIGNED_INT;
-	CB_FIELD (y)->values	= CB_LIST_INIT (cb_zero);
-	CB_FIELD (y)->storage	= CB_STORAGE_WORKING;
-	CB_FIELD (y)->count++;
-	cb_validate_field (CB_FIELD (y));
-	p->page_counter = cb_build_field_reference (CB_FIELD (y), NULL);
-	CB_FIELD_ADD (current_program->working_storage, CB_FIELD (y));
-
+#if	0	/* RXWRXW RP */
+	p->organization = COB_ORG_SEQUENTIAL;
+	p->access_mode = COB_ACCESS_SEQUENTIAL;
+	p->handler = CB_LABEL (cb_standard_error_handler);
+	p->handler_prog = current_program;
+#endif
 	return p;
-}
-
-/* Add SUM counter to program */
-void
-build_sum_counter(struct cb_report *r, struct cb_field *f)
-{
-	cb_tree		x;
-	struct cb_field *s;
-	char		buff[COB_MINI_BUFF],pic[30];
-	int		dec,dig;
-
-	/* Set up SUM COUNTER */
-	if(f->flag_filler) {
-		snprintf (buff, (size_t)COB_MINI_MAX, "SUM OF %s", 
-					CB_FIELD(CB_VALUE(f->report_sum_list))->name);
-	} else {
-		snprintf (buff, (size_t)COB_MINI_MAX, "SUM %s", f->name);
-	}
-	x = cb_build_field (cb_build_reference (buff));
-	if(f->pic->digits == 0)
-		dig = 16;
-	else if(f->pic->digits > 17)
-		dig = 18;
-	else
-		dig = f->pic->digits + 2;
-	if((dec = f->pic->scale) > 0) {
-		if((dig-dec) == 0) {
-			sprintf(pic,"SV9(%d)",dec);
-		} else if((dig-dec) < 0) {
-			sprintf(pic,"SP(%d)V9(%d)",-(dig-dec),dec);
-		} else {
-			sprintf(pic,"S9(%d)V9(%d)",dig-dec,dec);
-		}
-	} else {
-		sprintf(pic,"S9(%d)",dig);
-	}
-	s = CB_FIELD (x);
-	s->pic 	= CB_PICTURE (cb_build_picture (pic));
-	s->values	= CB_LIST_INIT (cb_zero);
-	s->storage	= CB_STORAGE_WORKING;
-	s->usage	= CB_USAGE_DISPLAY;
-	s->count++;
-	cb_validate_field (s);
-	f->report_sum_counter = cb_build_field_reference (s, NULL);
-	CB_FIELD_ADD (current_program->working_storage, s);
-
-	if(r->sums == NULL) {
-		r->sums = cobc_parse_malloc((r->num_sums+2) * sizeof(struct cb_field *) * 2);
-	} else {
-		r->sums = cobc_parse_realloc(r->sums,
-					(r->num_sums+2) * sizeof(struct cb_field *) * 2);
-	}
-	r->sums[r->num_sums*2 + 0] = s;
-	r->sums[r->num_sums*2 + 1] = f;
-	r->sums[r->num_sums*2 + 2] = NULL;
-	r->sums[r->num_sums*2 + 3] = NULL;
-	r->num_sums++;
 }
 
 /* File */
@@ -2243,34 +2226,47 @@ build_file (cb_tree name)
 void
 validate_file (struct cb_file *f, cb_tree name)
 {
+	/* Check ASSIGN clause
+		Currently break's GNU COBOL's extension for SORT FILEs having no need
+		for an ASSIGN clause (tested in run_extensions "SORT ASSIGN ..."
+		According to the Programmer's Guide for 1.1 the ASSIGN is totally
+		ignored as the SORT is either done in memory (if there's enough space)
+		or in a temporary disk file.
+		For supporting this f->organization = COB_ORG_SORT is done when we
+		see an SD in FILE SECTION for the file, while validate_file is called
+		in INPUT-OUTPUT Section.
+	*/
+	if (!f->assign && f->organization != COB_ORG_SORT && !f->flag_fileid) {
+		file_error (name, "ASSIGN", CB_FILE_ERR_REQUIRED);
+	}
 	/* Check RECORD/RELATIVE KEY clause */
 	switch (f->organization) {
 	case COB_ORG_INDEXED:
 		if (f->key == NULL) {
-			file_error (name, "RECORD KEY");
+			file_error (name, "RECORD KEY", CB_FILE_ERR_REQUIRED);
 		}
 		break;
 	case COB_ORG_RELATIVE:
 		if (f->key == NULL && f->access_mode != COB_ACCESS_SEQUENTIAL) {
-			file_error (name, "RELATIVE KEY");
+			file_error (name, "RELATIVE KEY", CB_FILE_ERR_REQUIRED);
 		}
 		if (f->alt_key_list) {
-			cb_error_x (name, _("ALTERNATE clause invalid for this file type"));
+			file_error (name, "ALTERNATE", CB_FILE_ERR_INVALID_FT);
 			f->alt_key_list = NULL;
 		}
 		break;
 	default:
 		if (f->key) {
-			cb_error_x (name, _("RECORD clause invalid for this file type"));
+			file_error (name, "RECORD", CB_FILE_ERR_INVALID_FT);
 			f->key = NULL;
 		}
 		if (f->alt_key_list) {
-			cb_error_x (name, _("ALTERNATE clause invalid for this file type"));
+			file_error (name, "ALTERNATE", CB_FILE_ERR_INVALID_FT);
 			f->alt_key_list = NULL;
 		}
 		if (f->access_mode == COB_ACCESS_DYNAMIC ||
 		    f->access_mode == COB_ACCESS_RANDOM) {
-			cb_error_x (name, _("ORGANIZATION clause invalid"));
+			file_error (name, "ORGANIZATION", CB_FILE_ERR_INVALID);
 		}
 		break;
 	}
@@ -2327,12 +2323,6 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 	}
 
 	/* Check the record size if it is limited */
-	for (p = records; p; p = p->sister) {
-		if (f->record_max > 0
-		&&  p->size > f->record_max) {
-			f->record_max = p->size;
-		}
-	}
 	for (p = records; p; p = p->sister) {
 		if (f->record_min > 0) {
 			if (p->size < f->record_min) {
@@ -2442,122 +2432,6 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 		CB_FIELD_ADD (current_program->working_storage, CB_FIELD (x));
 	}
 }
-
-static struct cb_report *report_checked = NULL;
-void
-finalize_report (struct cb_report *r, struct cb_field *records)
-{
-	struct cb_field		*p;
-	if(report_checked != r) {
-		report_checked = r;
-		if(r->lines > 9999)
-			r->lines = 9999;
-		if(r->heading < 0)
-			r->heading = 0;
-		if(r->first_detail < 1) {
-			if(r->first_detail <= 0
-			&& !r->has_detail
-			&& r->t_first_detail == NULL
-			&& r->t_last_detail == NULL) {
-				cb_warning_x (CB_TREE(r), _("NO DETAIL line defined in report %s"),r->name);
-			}
-			r->first_detail = 1;
-		}
-		if(r->t_lines == NULL
-		&& r->t_columns == NULL
-		&& r->t_heading == NULL
-		&& r->t_first_detail == NULL
-		&& r->t_last_detail == NULL
-		&& r->t_last_control == NULL
-		&& r->t_footing == NULL) {	/* No PAGE LIMITS set at run-time so check it now */
-			if(r->first_detail <= 0) {
-				cb_warning_x (CB_TREE(r), _("NO DETAIL line defined in report %s"),r->name);
-			} else if(!(r->first_detail >= r->heading)) {
-				cb_error_x (CB_TREE(r), _("PAGE LIMIT FIRST DETAIL should be >= HEADING"));
-			} 
-			if(r->footing > 0 && !(r->footing >= r->heading)) {
-				cb_error_x (CB_TREE(r), _("PAGE LIMIT FOOTING should be >= HEADING"));
-			} else if(r->last_detail > 0 && !(r->last_detail >= r->first_detail)) {
-				cb_error_x (CB_TREE(r), _("PAGE LIMIT LAST DETAIL should be >= FIRST DETAIL"));
-			} else if(r->footing > 0 && !(r->footing >= r->last_detail)) {
-				cb_error_x (CB_TREE(r), _("PAGE LIMIT FOOTING should be >= LAST DETAIL"));
-			} else if(!(r->lines >= r->footing)) {
-				cb_error_x (CB_TREE(r), _("PAGE LIMIT LINES should be >= FOOTING"));
-			}
-		}
-	}
-
-	for (p = records; p; p = p->sister) {
-		if(p->report != NULL)
-		    continue;
-		p->report = r;
-		if(p->storage == CB_STORAGE_REPORT
-		&& ((p->report_flag &  COB_REPORT_LINE) || p->level == 1)) {
-			if(r->rcsz < p->size)
-				r->rcsz = p->size;
-			if(r->line_ids == NULL) {
-				r->line_ids = cobc_parse_malloc((r->num_lines+2) * sizeof(struct cb_field *));
-			} else {
-				r->line_ids = cobc_parse_realloc(r->line_ids,
-							(r->num_lines+2) * sizeof(struct cb_field *));
-			}
-			r->line_ids[r->num_lines++] = p;
-			r->line_ids[r->num_lines] = NULL;	/* Clear next entry */
-		} 
-		if(p->report_source
-		&& CB_REF_OR_FIELD_P (p->report_source)) {
-			struct cb_field *f = CB_FIELD (cb_ref(p->report_source));
-			if(f && f->count == 0)
-				f->count++;
-			if(CB_TREE_TAG (p->report_source) == CB_TAG_REFERENCE) {
-				struct cb_reference     *ref;
-				ref = CB_REFERENCE (p->report_source); 
-				if(ref->offset || ref->length || ref->subs || f->flag_local) {
-					p->report_from = p->report_source;
-					p->report_source = cb_field_dup(f, ref);
-				}
-			}
-		}
-		if(p->report_sum_counter
-		&& CB_REF_OR_FIELD_P (p->report_sum_counter)) {
-			struct cb_field *f = CB_FIELD (cb_ref(p->report_sum_counter));
-			if(f && f->count == 0)
-				f->count++;
-		}
-		if (p->children) {
-		    finalize_report(r,p->children);
-		}
-	}
-
-	for (p = records; p; p = p->sister) {
-		if(p->report != r)
-			continue;
-		if(p->storage == CB_STORAGE_REPORT
-		&& ((p->report_flag &  COB_REPORT_LINE) || p->level == 1)) {
-			if(p->size < r->rcsz)
-				p->size = r->rcsz;
-			if(p->memory_size < r->rcsz)
-				p->memory_size = r->rcsz;
-		}
-		if(p->level == 1
-		&& p->report != NULL
-		&& p->report->file != NULL) {
-			if(p->report->file->record_min < r->rcsz)
-				p->report->file->record_min = r->rcsz;
-			if(p->report->file->record_max < p->size)
-				p->report->file->record_max = r->rcsz;
-			if(p->report->file->record != NULL) {
-				if(p->report->file->record->size < r->rcsz)
-					p->report->file->record->size = r->rcsz;
-			}
-		}
-	}
-	if(r->file->record_max < r->rcsz)
-		r->file->record_max = r->rcsz;
-	if(r->rcsz < r->file->record_max)
-		r->rcsz = r->file->record_max;
-}
-
 
 /* Reference */
 
@@ -3291,6 +3165,12 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 		if (CB_PAIR_Y(refmod) && CB_LITERAL_P(CB_PAIR_Y(refmod)) &&
 		    cb_get_int (CB_PAIR_Y(refmod)) < 1) {
 			cb_error_x (name, _("FUNCTION '%s' has invalid reference modification"), cbp->name);
+			return cb_error_node;
+		}
+	}
+
+	if (iso_8601_func (cbp->intr_enum)) {
+		if (!valid_const_date_time_args (name, cbp, args)) {
 			return cb_error_node;
 		}
 	}

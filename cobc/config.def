@@ -18,11 +18,14 @@
    along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* Definitions of variables in config/xxx.conf files */
+/* Definitions of variables in config/xxx.conf files
+   Possible override via -cb_conf=tag:value
+ */
 
 CB_CONFIG_STRING  (cb_config_name, "name")
 CB_CONFIG_INT (cb_tab_width, "tab-width")
 CB_CONFIG_INT (cb_text_column, "text-column")
+CB_CONFIG_INT (cb_word_length, "word-length")
 CB_CONFIG_ANY (unsigned int, cb_assign_clause, "assign-clause")
 CB_CONFIG_ANY (unsigned int, cb_binary_size, "binary-size")
 CB_CONFIG_ANY (unsigned int, cb_binary_byteorder, "binary-byteorder")
@@ -39,6 +42,8 @@ CB_CONFIG_BOOLEAN (cb_sticky_linkage, "sticky-linkage")
 CB_CONFIG_BOOLEAN (cb_relax_level_hierarchy, "relax-level-hierarchy")
 CB_CONFIG_BOOLEAN (cb_cobol85_reserved, "cobol85-reserved")
 CB_CONFIG_BOOLEAN (cb_host_sign, "hostsign")
+CB_CONFIG_BOOLEAN (cb_accept_update, "accept-update")
+CB_CONFIG_BOOLEAN (cb_accept_auto, "accept-auto")
 CB_CONFIG_SUPPORT (cb_author_paragraph, "author-paragraph")
 CB_CONFIG_SUPPORT (cb_memory_size_clause, "memory-size-clause")
 CB_CONFIG_SUPPORT (cb_multiple_file_tape_clause, "multiple-file-tape-clause")

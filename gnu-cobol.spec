@@ -2,7 +2,7 @@
 # Adjust/activate "Packager" tag as necessary
 
 Name:		gnu-cobol
-Version:	2.1
+Version:	2.0
 Release:	1%{?dist}
 Summary:	GNU Cobol - COBOL compiler
 
@@ -11,7 +11,7 @@ Summary:	GNU Cobol - COBOL compiler
 Group:		Development/Languages/Other
 License:	GPL/LGPL
 
-URL:		http://www.gnu.org/software/gnucobol
+URL:		http://sourceforge.net/projects/open-cobol
 # Source:	http://downloads.sourceforge.net/%{name}/%{name}-%{version}.tar.gz
 Source:		http://www.sim-basis.de/%{name}-%{version}.tar.gz
 

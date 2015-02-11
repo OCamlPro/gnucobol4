@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2014 Simon Sobisch
 
    This file is part of GNU Cobol.
 
@@ -35,6 +36,11 @@ static char		*errnamebuff = NULL;
 static struct cb_label	*last_section = NULL;
 static struct cb_label	*last_paragraph = NULL;
 
+static unsigned int conf_error_displayed = 0;
+
+
+size_t				cb_msg_style;
+
 static void
 print_error (const char *file, int line, const char *prefix,
 	     const char *fmt, va_list ap)
@@ -67,7 +73,11 @@ print_error (const char *file, int line, const char *prefix,
 	}
 
 	/* Print the error */
-	fprintf (stderr, "%s: %d: %s", file, line, prefix);
+    if (cb_msg_style == CB_MSG_STYLE_MSC) {
+		fprintf (stderr, "%s (%d): %s", file, line, prefix);
+	} else {
+		fprintf (stderr, "%s: %d: %s", file, line, prefix);
+	}
 	vfprintf (stderr, fmt, ap);
 	putc ('\n', stderr);
 }
@@ -128,6 +138,37 @@ cb_plex_error (const size_t sline, const char *fmt, ...)
 	}
 }
 
+/* Error for config.c */
+void
+configuration_error (const char *fname, const int line, const char *fmt, ...)
+{
+	va_list args;
+
+	if (!conf_error_displayed) {
+		conf_error_displayed = 1;
+		fputs (_("Configuration Error"), stderr);
+		putc ('\n', stderr);
+	}
+
+	if (fname) {
+		if (line) {
+			fprintf (stderr, "%s:%d: ", fname, line);
+		} else {
+			fprintf (stderr, "%s: ", fname);
+		}
+	} else {
+		fputs ("cb_conf: ", stderr);
+	}
+
+	va_start(args, fmt);
+	vfprintf (stderr, fmt, args);
+	va_end(args);
+
+	putc ('\n', stderr);
+	fflush (stderr);
+}
+
+/* Generic warning/error routines */
 void
 cb_warning_x (cb_tree x, const char *fmt, ...)
 {

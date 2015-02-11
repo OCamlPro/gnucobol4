@@ -1,5 +1,6 @@
 ## Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
 ## Copyright (C) 2007-2012 Roger While
+## Copyright (C) 2014 Simon Sobisch
 ## 
 ## This file is part of GNU Cobol.
 ## 
@@ -29,7 +30,9 @@ AT_DATA([dump.c], [
 #ifdef	__INTEL_COMPILER
 #pragma warning ( disable : 1419 )
 #endif
-int dump (unsigned char *, int *);
+#define COB_LIB_EXPIMP
+#include <libcob.h>
+COB_EXPIMP int dump (unsigned char *, int *);
 int dump (unsigned char *data, int *p)
 {
   int i;
@@ -59,8 +62,8 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE dump.c])
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.c], [0], , [])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [00001234
 00004660
@@ -88,7 +91,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [00074565
 16777215
@@ -112,7 +115,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
@@ -163,7 +166,7 @@ AT_DATA([prog.cob], [
          END-IF.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -202,7 +205,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -228,7 +231,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -258,7 +261,7 @@ AT_DATA([prog.cob], [
            END-DISPLAY.
 ])
 
-AT_CHECK([$COMPILE -std=mvs -o prog prog.cob])
+AT_CHECK([$COMPILE -std=mvs -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [123456:34:56])
 
 AT_CLEANUP
@@ -317,7 +320,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf -o prog prog.cob])
+AT_CHECK([$COMPILE -std=mf -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [18181    22        333
 1818  3    22      111
@@ -379,7 +382,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf -fodoslide -o prog prog.cob])
+AT_CHECK([$COMPILE -std=mf -fodoslide -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [0606122333
 1010  3  22111
@@ -444,7 +447,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf -o prog prog.cob])
+AT_CHECK([$COMPILE -std=mf -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [33331    22        333            444
 3333  3    22      111            000
@@ -509,11 +512,62 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf -fodoslide -o prog prog.cob])
+AT_CHECK([$COMPILE -std=mf -fodoslide -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [0909122333444
 1313  3  22111000
 ])
+
+AT_CLEANUP
+
+AT_SETUP([INITIALIZE level 01])
+AT_KEYWORDS([initialize])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 L1 OCCURS 1000 TIMES.
+           05 L2 PIC S9(9) COMP-5 VALUE 5.
+           05 L3 PIC S9(9)        VALUE 5.
+       PROCEDURE DIVISION.
+           IF L2(3) not = 5
+              DISPLAY '0 VALUE(3) = ' L2(3)
+              END-DISPLAY
+           END-IF.
+           INITIALIZE L1(1).
+           IF L2(1) not = 0
+              DISPLAY '1 VALUE(1) = ' L2(1)
+              END-DISPLAY
+           END-IF.
+           IF L2(3) not = 5
+              DISPLAY '1 VALUE(3) = ' L2(3)
+              END-DISPLAY
+           END-IF.
+           INITIALIZE L1(1)  DEFAULT.
+           IF L2(1) not = 0
+              DISPLAY '2 VALUE(1) = ' L2(1)
+              END-DISPLAY
+           END-IF.
+           IF L2(3) not = 5
+              DISPLAY '2 VALUE(3) = ' L2(3)
+              END-DISPLAY
+           END-IF.
+           INITIALIZE L1(1)  ALL VALUE.
+           IF L2(1) not = 5
+              DISPLAY '3 VALUE(1) = ' L2(1)
+              END-DISPLAY
+           END-IF.
+           IF L2(3) not = 5
+              DISPLAY '3 VALUE(3) = ' L2(3)
+              END-DISPLAY
+           END-IF.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -std=mf prog.cob], [0], , [])
+AT_CHECK([./prog], [0])
 
 AT_CLEANUP
 
@@ -613,8 +667,9 @@ AT_KEYWORDS([extensions])
 AT_DATA([setfilename.c], [
 #include <stdio.h>
 #include <string.h>
+#define COB_LIB_EXPIMP
 #include <libcob.h>
-int setfilename (cob_file *f, unsigned char *name)
+COB_EXPIMP int setfilename (cob_file *f, unsigned char *name)
 {
   memcpy (f->assign->data, name, strlen ((char *)name));
   return 0;
@@ -643,8 +698,8 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE setfilename.c])
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE setfilename.c], [0], , [])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 AT_CHECK([test -e TESTFILE], [0])
 
@@ -704,15 +759,65 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE A@B.cob])
-AT_CHECK([$COMPILE_MODULE A@%:@B.cob])
-AT_CHECK([$COMPILE_MODULE A-B.cob])
-AT_CHECK([$COMPILE_MODULE A_B.cob])
-AT_CHECK([$COMPILE -o caller caller.cob])
+AT_CHECK([$COMPILE_MODULE A@B.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE A@%:@B.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE A-B.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE A_B.cob], [0], , [])
+AT_CHECK([$COMPILE -o caller caller.cob], [0], , [])
 
 AT_CHECK([./caller], [0], [P1P2P3P4])
 
 AT_CLEANUP
+
+AT_SETUP([CALL / GOBACK with LOCAL-STORAGE])
+AT_KEYWORDS([extensions])
+
+# Testcase introduced when Bug #91 occured.
+# Will fail if memory is freed which was 
+# allocated by mpir/gmp.
+AT_DATA([prog_a.cob], [
+		IDENTIFICATION DIVISION. 
+		PROGRAM-ID. prog_a.
+		DATA DIVISION.
+		WORKING-STORAGE SECTION.
+		77  WS-STRINGA   PIC X(10).
+		PROCEDURE DIVISION.       
+		    MOVE  "hi there"   TO WS-STRINGA
+		    CALL  "prog_b"  USING WS-STRINGA      
+		    DISPLAY "back in prog_a"  
+		    GOBACK.
+])
+
+AT_DATA([prog_b.cob], [
+		IDENTIFICATION DIVISION. 
+		PROGRAM-ID. prog_b.
+		DATA DIVISION.
+		WORKING-STORAGE SECTION. 
+		77  WS-STRINGB   PIC X(10).
+		77  WS-CALLSB    PIC 9(03).
+		LOCAL-STORAGE SECTION.
+		77  LS-STRING  PIC X(10). 
+		LINKAGE SECTION.
+		77  LK-STRING  PIC X(10). 
+		
+		PROCEDURE DIVISION  USING  LK-STRING. 
+		    DISPLAY "entered prog_b"           
+		    ADD   1  TO  WS-CALLSB 
+		    MOVE  LK-STRING TO WS-STRINGB     
+		    MOVE  LK-STRING TO LS-STRING    
+		    DISPLAY "exiting prog_b"      
+		    GOBACK.
+])
+
+AT_CHECK([$COMPILE prog_a.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE prog_b.cob], [0], [], [])
+AT_CHECK([./prog_a], [0], [entered prog_b
+exiting prog_b
+back in prog_a
+], [])
+
+AT_CLEANUP
+
 
 AT_SETUP([CALL BY VALUE alphanumeric item])
 AT_KEYWORDS([extensions])
@@ -766,7 +871,7 @@ AT_DATA([prog.cob], [
        END PROGRAM PROG.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -788,7 +893,7 @@ AT_DATA([prog.cob], [
        END PROGRAM caller.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -810,7 +915,7 @@ AT_DATA([prog.cob], [
        END PROGRAM caller.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -908,7 +1013,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob], [0], , [])
 AT_CHECK([DD_FILENAME="x" ./prog], [0])
 AT_CHECK([test -f "x"], [0])
 AT_CHECK([dd_FILENAME="y" ./prog], [0])
@@ -945,7 +1050,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob], [0], , [])
 AT_CHECK([DIR="." ./prog], [0])
 AT_CHECK([test -f "./FILENAME" && rm -f "./FILENAME"], [0])
 
@@ -976,7 +1081,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob], [0], , [])
 AT_CHECK([COB_FILE_PATH=".." ./prog], [0])
 AT_CHECK([test -f "../FILENAMEX" && rm -f "../FILENAMEX"], [0])
 
@@ -1026,8 +1131,8 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE caller.cob])
-AT_CHECK([$COMPILE_MODULE callee.cob])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
 AT_CHECK([./caller], [0],
 [+000000000
 +000000001
@@ -1084,8 +1189,8 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE caller.cob])
-AT_CHECK([$COMPILE_MODULE callee.cob])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
@@ -1110,26 +1215,85 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 
 AT_CHECK([./prog X ABCD], [0])
 
 AT_CLEANUP
 
-AT_SETUP([STOP RUN RETURNING])
+AT_SETUP([STOP RUN RETURNING/GIVING])
+AT_KEYWORDS([extensions])
+
+AT_DATA([prog1.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog1.
+       PROCEDURE        DIVISION.
+           STOP RUN RETURNING 1.
+])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog2.
+       PROCEDURE        DIVISION.
+           STOP RUN GIVING 2.
+])
+
+AT_CHECK([$COMPILE prog1.cob], [0], , [])
+AT_CHECK([./prog1], [1])
+
+AT_CHECK([$COMPILE prog2.cob], [0], , [])
+AT_CHECK([./prog2], [2])
+
+AT_CLEANUP
+
+
+AT_SETUP([GOBACK/EXIT PROGRAM RETURNING/GIVING])
 AT_KEYWORDS([extensions])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
        PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77  RETURN-DISP  PIC S9(08).
        PROCEDURE        DIVISION.
-           STOP RUN RETURNING 1.
+           CALL 'prog1' END-CALL
+           IF RETURN-CODE NOT = -1
+              MOVE RETURN-CODE TO RETURN-DISP
+              DISPLAY 'RETURN-CODE ' RETURN-DISP
+                      ' INSTEAD OF -1'
+              END-DISPLAY
+           END-IF
+           CALL 'prog2' END-CALL
+           IF RETURN-CODE NOT = 2
+              MOVE RETURN-CODE TO RETURN-DISP
+              DISPLAY 'RETURN-CODE ' RETURN-DISP
+                      ' INSTEAD OF 2'
+              END-DISPLAY
+           END-IF
+           STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
-AT_CHECK([./prog], [1])
+AT_DATA([prog1.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog1.
+       PROCEDURE        DIVISION.
+           EXIT PROGRAM RETURNING -1.
+])
+
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog2.
+       PROCEDURE        DIVISION.
+           GOBACK GIVING 2.
+])
+
+AT_CHECK([$COMPILE prog.cob prog1.cob prog2.cob], [0], , [])
+AT_CHECK([./prog], [2])
 
 AT_CLEANUP
+
 
 # ENTRY
 
@@ -1168,14 +1332,15 @@ AT_DATA([hello.cob], [
            EXIT PROGRAM.
 ])
 
-AT_CHECK([$COMPILE -std=mvs caller.cob])
-AT_CHECK([$COMPILE_MODULE -std=mvs hello.cob])
+AT_CHECK([$COMPILE -std=mvs caller.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE -std=mvs hello.cob], [0], , [])
 AT_CHECK([./caller], [0],
 [Hello, COBOL!
 Bye, COBOL!
 ])
 
 AT_CLEANUP
+
 
 ## LINE SEQUENTIAL
 
@@ -1212,7 +1377,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog])
 AT_CHECK([cat TEST-FILE], [0], 
 [a
@@ -1223,6 +1388,7 @@ abcd
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([LINE SEQUENTIAL read])
 AT_KEYWORDS([extensions])
@@ -1278,7 +1444,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [(a   )
 (ab  )
@@ -1289,6 +1455,7 @@ AT_CHECK([./prog], [0],
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([ASSIGN to KEYBOARD/DISPLAY])
 AT_KEYWORDS([extensions])
@@ -1335,7 +1502,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([cat TEST-FILE | ./prog], [0],
 [a
 ab
@@ -1347,8 +1514,16 @@ abcdef
 
 AT_CLEANUP
 
+
 AT_SETUP([SORT ASSIGN KEYBOARD to ASSIGN DISPLAY])
 AT_KEYWORDS([extensions])
+
+# GC has an extension "SORT FILES always in memory" and therefore didn't
+# used the ASSIGN clause (which should be mandatory) for SORT files at all.
+# We should add an according test and change the test here after cleanup,
+# either officially removing the "ASSIGN clause not necessary for SORT FILES"
+# extension or enable it only with either a conf entry or frelax-syntax.
+AT_XFAIL_IF(true)
 
 AT_DATA([TEST-FILE],
 [9
@@ -1388,7 +1563,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([cat TEST-FILE | ./prog], [0],
 [0
 00
@@ -1400,6 +1575,7 @@ AT_CHECK([cat TEST-FILE | ./prog], [0],
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Environment/Argument variable])
 AT_KEYWORDS([extensions])
@@ -1437,7 +1613,7 @@ AT_DATA([prog.cob], [
 ])
 
 export TEST_ENV=OK
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE -o prog prog.cob], [0], , [])
 AT_CHECK([./prog CHECKPAR], [0],
 [(OK  )
 (RXW )
@@ -1446,6 +1622,7 @@ AT_CHECK([./prog CHECKPAR], [0],
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECIMAL-POINT is COMMA (1)])
 AT_KEYWORDS([extensions])
@@ -1467,12 +1644,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [00,50
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECIMAL-POINT is COMMA (2)])
 AT_KEYWORDS([extensions])
@@ -1494,12 +1672,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [03,00
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECIMAL-POINT is COMMA (3)])
 AT_KEYWORDS([extensions])
@@ -1521,12 +1700,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [01,50
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECIMAL-POINT is COMMA (4)])
 AT_KEYWORDS([extensions])
@@ -1548,12 +1728,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [00,10
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECIMAL-POINT is COMMA (5)])
 AT_KEYWORDS([extensions])
@@ -1580,13 +1761,14 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [01,10
 00,10
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([78 Level (1)])
 AT_KEYWORDS([extensions])
@@ -1603,12 +1785,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OK
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([78 Level (2)])
 AT_KEYWORDS([extensions])
@@ -1628,12 +1811,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OKOKOK
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([78 Level (3)])
 AT_KEYWORDS([extensions])
@@ -1651,36 +1835,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OKOK
 ])
 
 AT_CLEANUP
 
-AT_SETUP([Unreachable statement])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       PROCEDURE        DIVISION.
-       P01.
-           GO TO P02.
-           DISPLAY "INVALID"
-           END-DISPLAY.
-       P02.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE -Wunreachable prog.cob], [0], ,
-[prog.cob: In paragraph 'P01':
-prog.cob: 9: Warning: Unreachable statement 'DISPLAY'
-])
-
-AT_CLEANUP
 
 AT_SETUP([DEBUG (1)])
 AT_KEYWORDS([extensions])
@@ -1698,12 +1859,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OK
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DEBUG (2)])
 AT_KEYWORDS([extensions])
@@ -1721,13 +1883,14 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -fdebugging-line prog.cob])
+AT_CHECK([$COMPILE -fdebugging-line prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OK
 OK
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DEBUG free format (1)])
 AT_KEYWORDS([extensions])
@@ -1745,12 +1908,13 @@ AT_DATA([prog.cob], [
              STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -free prog.cob])
+AT_CHECK([$COMPILE -free prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OK
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([DEBUG free format (2)])
 AT_KEYWORDS([extensions])
@@ -1768,13 +1932,14 @@ AT_DATA([prog.cob], [
              STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -free -fdebugging-line prog.cob])
+AT_CHECK([$COMPILE -free -fdebugging-line prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OK
 OK
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([SOURCE FIXED/FREE directives])
 AT_KEYWORDS([extensions])
@@ -1786,7 +1951,7 @@ AT_DATA([prog.cob], [
    DATA             DIVISION.
    WORKING-STORAGE  SECTION.
    >>SOURCE FIXED
-       PROCEDURE        DIVISION.                                       DISPLAY
+       PROCEDURE        DIVISION.                                       FIXED
              DISPLAY "OK"
              END-DISPLAY.
        >>SOURCE FREE
@@ -1796,13 +1961,99 @@ AT_DATA([prog.cob], [
              STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OK
 OK
 ])
 
 AT_CLEANUP
+
+
+AT_SETUP([Larger REDEFINES lengths])
+AT_KEYWORDS([extensions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  Z            PIC 99.
+       01  XMAIN        PIC X(8).
+       01  XMAINRED REDEFINES XMAIN.
+           03  FILLER         PIC X(4).
+           03  XMAIN03.
+               05  XMAIN0501  PIC X(4).
+               05  XMAIN0502 REDEFINES XMAIN0501 PIC X(5).
+       01 USE-VARS.
+          05 USE-VALUE                PIC 9
+                                      VALUE ZERO.
+             88 USE-ACTIVE-FIRST      VALUE 1.
+             88 USE-ACTIVE-SECOND     VALUE 2.
+          05 USE-FIRST.
+             10 FIRST-DATA.
+                20 FIRST-DATA-VAR     PIC X(033).
+             10 FIRST-VARIANT-A REDEFINES FIRST-DATA.
+                20 PART-A-FIRST       PIC X(33211).
+             10 FIRST-VARIANT-B REDEFINES FIRST-DATA.
+                20 PART-B-FIRST       PIC X(24561).
+             10 FIRST-VARIANT-C REDEFINES FIRST-DATA.
+                20 PART-C-FIRST       PIC X(3421).
+         05 USE-SECOND REDEFINES USE-FIRST.
+            10 SECOND-HEADER.
+               20 SECOND-DATA         PIC 9(015).
+               20 SECOND-CONTROL-SUM  PIC 9(015)V9(003).
+            10 SECOND-VARIANT-A REDEFINES SECOND-HEADER.
+               20 PART-A-SECOND       PIC X(27241).
+            10 SECOND-VARIANT-B REDEFINES SECOND-HEADER.
+               20 PART-B-SECOND       PIC X(3879).
+       PROCEDURE        DIVISION.
+           MOVE    LENGTH OF XMAIN       TO Z.
+           IF Z NOT = 8
+              DISPLAY "Test 1 " Z
+              END-DISPLAY
+           END-IF.
+           MOVE    LENGTH OF XMAINRED    TO Z.
+           IF Z NOT = 9
+              DISPLAY "Test 2 " Z
+              END-DISPLAY
+           END-IF.
+           MOVE    LENGTH OF XMAIN03     TO Z.
+           IF Z NOT = 5
+              DISPLAY "Test 3 " Z
+              END-DISPLAY
+           END-IF.
+           MOVE    LENGTH OF XMAIN0501   TO Z.
+           IF Z NOT = 4
+              DISPLAY "Test 4 " Z
+              END-DISPLAY
+           END-IF.
+           MOVE    LENGTH OF XMAIN0502   TO Z.
+           IF Z NOT = 5
+              DISPLAY "Test 5 " Z
+              END-DISPLAY
+           END-IF.
+           IF LENGTH OF USE-FIRST  NOT = 33211
+              DISPLAY LENGTH OF USE-FIRST   END-DISPLAY
+           END-IF.
+           IF LENGTH OF USE-SECOND NOT = 27241
+              DISPLAY LENGTH OF USE-SECOND  END-DISPLAY
+           END-IF.
+           STOP RUN.                          
+])
+
+AT_CHECK([$COMPILE -frelax-syntax -o prog prog.cob], [0], ,
+[prog.cob: 12: Warning: Size of 'XMAIN0502' larger than size of 'XMAIN0501'
+prog.cob: 21: Warning: Size of 'FIRST-VARIANT-A' larger than size of 'FIRST-DATA'
+prog.cob: 23: Warning: Size of 'FIRST-VARIANT-B' larger than size of 'FIRST-DATA'
+prog.cob: 25: Warning: Size of 'FIRST-VARIANT-C' larger than size of 'FIRST-DATA'
+prog.cob: 31: Warning: Size of 'SECOND-VARIANT-A' larger than size of 'SECOND-HEADER'
+prog.cob: 33: Warning: Size of 'SECOND-VARIANT-B' larger than size of 'SECOND-HEADER'
+])
+AT_CHECK([./prog], [0])
+
+AT_CLEANUP
+
 
 AT_SETUP([Obsolete 85 keywords])
 AT_KEYWORDS([extensions])
@@ -1820,12 +2071,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [OKOK
 ])
 
 AT_CLEANUP
+
 
 #  System routines
 
@@ -1868,11 +2120,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE caller.cob])
-AT_CHECK([$COMPILE_MODULE callee.cob])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
 AT_CHECK([./caller], [1], [OKOK])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$NARG])
 AT_KEYWORDS([extensions])
@@ -1907,11 +2160,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE caller.cob])
-AT_CHECK([$COMPILE_MODULE callee.cob])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$PARAMSIZE])
 AT_KEYWORDS([extensions])
@@ -1948,11 +2202,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE caller.cob])
-AT_CHECK([$COMPILE_MODULE callee.cob])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$JUSTIFY])
 AT_KEYWORDS([extensions])
@@ -1973,10 +2228,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$PRINTABLE])
 AT_KEYWORDS([extensions])
@@ -2001,10 +2257,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$MAKEDIR])
 AT_KEYWORDS([extensions])
@@ -2020,11 +2277,12 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 AT_CHECK([test -d "TMP" && rmdir "TMP"], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$GETPID])
 AT_KEYWORDS([extensions])
@@ -2045,10 +2303,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$TOUPPER])
 AT_KEYWORDS([extensions])
@@ -2069,10 +2328,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine C$TOLOWER])
 AT_KEYWORDS([extensions])
@@ -2093,10 +2353,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_OR])
 AT_KEYWORDS([extensions])
@@ -2119,10 +2380,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_NOR])
 AT_KEYWORDS([extensions])
@@ -2145,10 +2407,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_AND])
 AT_KEYWORDS([extensions])
@@ -2171,10 +2434,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_XOR])
 AT_KEYWORDS([extensions])
@@ -2197,10 +2461,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_IMP])
 AT_KEYWORDS([extensions])
@@ -2223,10 +2488,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_NIMP])
 AT_KEYWORDS([extensions])
@@ -2249,10 +2515,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_NOT])
 AT_KEYWORDS([extensions])
@@ -2274,10 +2541,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([System routine CBL_EQ])
 AT_KEYWORDS([extensions])
@@ -2300,10 +2568,535 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
+
+AT_SETUP([System routine CBL_OC_GETOPT])
+AT_KEYWORDS([extensions])
+
+AT_DATA([prog.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+      *> check combination long and short options
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+           01 LO.
+                05 OPTIONRECORD OCCURS 2 TIMES.
+                    10 ONAME        PIC X(25).
+                    10 HAS-VALUE    PIC 9.
+                    10 VALPOINT     POINTER     VALUE NULL.
+                    10 VAL          PIC X(4).
+
+            01 SO PIC X(256).
+            01 LONGIND PIC 99.
+            01 LONG-ONLY PIC 9 VALUE 1.
+            01 RETURN-CHAR PIC X(4).
+            01 OPT-VAL PIC X(10).
+            01 RET-DISP PIC S9 VALUE 0.
+            
+            01 COUNTER PIC 9 VALUE 0.
+        PROCEDURE DIVISION.
+            MOVE "jkl" TO SO.
+            
+            MOVE "version" TO ONAME(1).
+            MOVE 0 TO HAS-VALUE(1).
+            MOVE "v" TO VAL(1).
+            
+            MOVE "verbose" TO ONAME(2).
+            MOVE 0 TO HAS-VALUE(2).
+            MOVE "V" TO VAL(2).
+        
+            PERFORM WITH TEST BEFORE UNTIL COUNTER > 5
+                CALL 'CBL_OC_GETOPT' USING 
+                BY REFERENCE SO LO LONGIND
+                BY VALUE LONG-ONLY
+                BY REFERENCE RETURN-CHAR OPT-VAL
+            
+                IF COUNTER = 0 AND RETURN-CHAR NOT = 'v' THEN
+                    DISPLAY '0-Error: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 1 AND RETURN-CHAR NOT = 'V' THEN
+                    DISPLAY '1-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 2 AND RETURN-CHAR NOT = 'j' THEN
+                    DISPLAY '2-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 3 AND RETURN-CHAR NOT = 'k' THEN
+                    DISPLAY '3-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 4 AND RETURN-CHAR NOT = 'l' THEN
+                    DISPLAY '4-ERROR: ' RETURN-CHAR
+               END-IF
+                
+               ADD 1 TO COUNTER
+            END-PERFORM
+
+            MOVE 0 TO RETURN-CODE.
+
+            STOP RUN.
+])
+
+AT_DATA([prog2.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog2.
+      *> check if partial options work correct
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+      *> Check with wrong record count
+
+
+            01 LO.
+                05 OPTIONRECORD OCCURS 3 TIMES.
+                    10 ONAME        PIC X(25).
+                    10 HAS-VALUE    PIC 9.
+                    10 VALPOINT     POINTER     VALUE NULL.
+                    10 VAL          PIC X(4).
+
+            78 SO VALUE "jkl".
+            01 LONGIND PIC 99.
+            01 LONG-ONLY PIC 9 VALUE 1.
+            01 RETURN-CHAR PIC X(4).
+            01 OPT-VAL PIC X(10).
+            01 RET-DISP PIC S9 VALUE 0.
+            
+            01 COUNTER PIC 9 VALUE 0.
+        PROCEDURE DIVISION.
+            MOVE "version" TO ONAME(1).
+            MOVE 0 TO HAS-VALUE(1).
+            MOVE "v" TO VAL(1).
+            
+            MOVE "verbose" TO ONAME(2).
+            MOVE 0 to HAS-VALUE(2).
+            MOVE "V" TO VAL(2).
+        
+            PERFORM WITH TEST BEFORE UNTIL COUNTER > 2
+                CALL 'CBL_OC_GETOPT' USING 
+                BY REFERENCE SO LO LONGIND
+                BY VALUE LONG-ONLY
+                BY REFERENCE RETURN-CHAR OPT-VAL
+            
+                IF COUNTER = 0 AND RETURN-CHAR NOT = '?' THEN
+                    DISPLAY '0-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 1 AND RETURN-CHAR NOT = 'v' THEN
+                    DISPLAY '1-ERROR: ' RETURN-CHAR
+                END-IF
+                      
+               ADD 1 TO COUNTER
+            END-PERFORM
+
+            MOVE 0 TO RETURN-CODE.
+
+            STOP RUN.
+])
+
+AT_DATA([prog3.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog3.
+      *> check for optional and mandatory parameters
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+            01 SO PIC X(128).
+            01 LO.
+                05 OPTIONRECORD OCCURS 3 TIMES.
+                    10 ONAME        PIC X(25).
+                    10 HAS-VALUE    PIC 9.
+                    10 VALPOINT     POINTER     VALUE NULL.
+                    10 VAL          PIC X(4).
+            01 LONGIND PIC 99.
+            01 LONG-ONLY PIC 9 VALUE 0.
+            01 RETURN-CHAR PIC X(4).
+            01 OPT-VAL PIC X(10).
+            01 RET-DISP PIC S9 VALUE 0.
+            
+            01 COUNTER PIC 9 VALUE 0.
+        PROCEDURE DIVISION.
+            MOVE "j:k::l" TO SO.
+
+            MOVE "version" TO ONAME(1).
+            MOVE 1 TO HAS-VALUE(1).
+            MOVE "v" TO VAL(1).
+
+            MOVE "verbose" TO ONAME(2).
+            MOVE 2 TO HAS-VALUE(2).
+            MOVE "V" TO VAL(2).
+
+            MOVE "usage" TO ONAME(3).
+            MOVE 0 TO HAS-VALUE(3).
+            MOVE "u" TO VAL(3).
+
+            PERFORM WITH TEST BEFORE UNTIL COUNTER > 6
+                CALL 'CBL_OC_GETOPT' USING
+                BY REFERENCE SO LO LONGIND
+                BY VALUE LONG-ONLY
+                BY REFERENCE RETURN-CHAR OPT-VAL
+
+                IF COUNTER = 0 AND OPT-VAL(1:4) NOT = 'lang' THEN
+                        DISPLAY '0-ERROR: ' OPT-VAL
+                END-IF
+                IF COUNTER = 1 AND 
+                  (OPT-VAL(1:1) NOT = 'k' OR 
+                   RETURN-CHAR  NOT = 'V' OR 
+                   OPT-VAL(1:4)     = 'kang') THEN
+                        DISPLAY '1-ERROR: ' OPT-VAL ' ' RETURN-CHAR ' '
+                END-IF
+                IF COUNTER = 2 AND RETURN-CHAR NOT = 'u' THEN
+                        DISPLAY '2-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 3 AND (OPT-VAL(1:1) NOT = '5' OR 
+                RETURN-CHAR NOT = 'j') THEN
+                        DISPLAY '3-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 4 AND (OPT-VAL(1:1) NOT = '6' OR 
+                RETURN-CHAR NOT = 'k') THEN
+                        DISPLAY '4-ERROR: ' RETURN-CHAR
+                END-IF
+                IF COUNTER = 5 AND RETURN-CHAR NOT = 'l' THEN
+                        DISPLAY '5-ERROR: ' RETURN-CHAR
+                END-IF
+
+               ADD 1 TO COUNTER
+            END-PERFORM
+
+            MOVE 0 TO RETURN-CODE.
+
+            STOP RUN.
+])
+
+AT_DATA([prog4.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog4.
+      *> check use of value pointer and trimming of opt-val
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+            01 SO PIC X(12).
+            01 LO.
+                05 OPTIONRECORD OCCURS 3 TIMES.
+                    10 ONAME        PIC X(25).
+                    10 HAS-VALUE    PIC 9.
+                    10 VALPOINT     POINTER     VALUE NULL.
+                    10 VAL          PIC X(4).
+            01 LONGIND PIC 99.
+            01 LONG-ONLY PIC 9 VALUE 1.
+            01 RETURN-CHAR PIC X(4).
+            01 OPT-VAL PIC X(10).
+            01 RET-DISP PIC S999 VALUE 0.
+
+            01 COUNTER PIC 9 VALUE 0.
+
+            01 FLAG-VAL PIC X(4).
+        procedure division.
+            MOVE "jkl" TO SO.
+
+            MOVE "static" TO ONAME(1).
+            MOVE 0 TO HAS-VALUE(1).
+            SET VALPOINT(1) TO ADDRESS OF FLAG-VAL.
+            MOVE '1' TO VAL(1).
+
+            MOVE "dynamic" TO ONAME(2).
+            MOVE 0 TO HAS-VALUE(2).
+            SET VALPOINT(2) TO ADDRESS OF FLAG-VAL.
+            MOVE '0' TO VAL(2).
+
+            MOVE "usage" TO ONAME(3).
+            MOVE 1 TO HAS-VALUE(3).
+            MOVE 'u' TO VAL(3).
+
+            PERFORM WITH TEST BEFORE UNTIL COUNTER > 3
+                CALL 'CBL_OC_GETOPT' USING
+                BY REFERENCE SO LO LONGIND
+                BY VALUE LONG-ONLY
+                BY REFERENCE RETURN-CHAR OPT-VAL
+
+                MOVE RETURN-CODE TO RET-DISP
+                
+                IF COUNTER = 0 AND (RETURN-CODE NOT = 0 OR 
+                                    FLAG-VAL NOT = '1') THEN
+                    DISPLAY 'RETURN VALUE: ' RET-DISP ' ' FLAG-VAL
+                END-IF
+                IF COUNTER = 1 AND (RETURN-CODE NOT = 0 OR 
+                                    FLAG-VAL NOT = '0') THEN
+                    DISPLAY 'RETURN VALUE: ' RET-DISP ' ' FLAG-VAL
+                END-IF
+                IF COUNTER = 2 AND (RETURN-CHAR NOT = 'u' OR 
+                                    RETURN-CODE NOT = 2) THEN
+                    DISPLAY 'RETURN VALUE: ' RET-DISP ' ' FLAG-VAL
+                END-IF
+
+               ADD 1 TO COUNTER
+            END-PERFORM
+
+            IF RETURN-CODE NOT = -1
+               MOVE RETURN-CODE TO RET-DISP
+               DISPLAY 'last RETURN-CODE wrong ' RET-DISP
+               END-DISPLAY
+            END-IF
+
+            MOVE 0 TO RETURN-CODE.
+
+            STOP RUN.
+])
+
+AT_DATA([prog5.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog5.
+      *> check for wrong longopotion structure
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+            01 SO PIC X.
+            01 LO.
+                05 OPTIONRECORD OCCURS 2 TIMES.
+                    10 ONAME        PIC X(45).
+                    10 HAS-VALUE    PIC 9.
+                    10 VALPOINT     POINTER     VALUE NULL.
+                    10 VAL          PIC X(4).
+            01 LONGIND PIC 99.
+            01 LONG-ONLY PIC 9 VALUE 1.
+            01 RETURN-CHAR PIC X(4).
+            01 OPT-VAL PIC X(10).
+            01 RET-DISP PIC S999 VALUE 0.
+
+            01 COUNTER PIC 9 VALUE 0.
+
+            01 FLAG-VAL PIC 9.
+        PROCEDURE DIVISION.
+            MOVE "super-long-option-with-more-than-25-bytes" 
+            TO ONAME(1).
+            MOVE 0 TO HAS-VALUE(1).
+            MOVE '1' TO VAL(1).
+
+            MOVE "stupid-long-option-with-more-than-25-bytes" 
+            TO ONAME(2).
+            MOVE 0 TO HAS-VALUE(2).
+            MOVE '0' TO VAL(2).
+
+            PERFORM WITH TEST BEFORE UNTIL COUNTER > 2
+                CALL 'CBL_OC_GETOPT' USING
+                BY REFERENCE SO LO LONGIND
+                BY VALUE LONG-ONLY
+                BY REFERENCE RETURN-CHAR OPT-VAL
+
+      *>          MOVE RETURN-CODE TO RET-DISP
+                
+      *>          IF COUNTER = 0 AND RETURN-CODE NOT = 1 THEN
+      *>              DISPLAY 'RETURN VALUE: ' RET-DISP ' ' FLAG-VAL
+      *>          END-IF
+            END-PERFORM
+            
+      *>      MOVE 0 TO RETURN-CODE.
+
+            STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog --version --verbose -jkl], [0], [])
+AT_CHECK([$COMPILE_MODULE prog2.cob], [0], [], [])
+AT_CHECK([$COBCRUN prog2 --ver --vers], [0], [], [prog2: option `--ver' is ambiguous
+])
+AT_CHECK([$COMPILE prog3.cob], [0], , [])
+AT_CHECK([./prog3 --version=lang --verbose=k --usage -j 5 -k6 -l], [0], [])
+AT_CHECK([$COMPILE prog4.cob --free], [0], , [])
+AT_CHECK([./prog4 --static --dynamic --usage=boringandtoolongtext], [0], [])
+# Again a long and system specific error message which we ignore. 
+# Return code 1 is sufficient as proof of hard return (as wanted).
+AT_CHECK([$COMPILE prog5.cob], [0], , [])
+AT_CHECK([./prog5 --static], [1], [], [prog5.cob: 35: libcob: Call to CBL_OC_GETOPT with wrong longoption size.
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([System routine CBL_COPY_FILE])
+
+AT_DATA([prog.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        PROCEDURE DIVISION.
+        DISPLAY "test" END-DISPLAY
+        STOP RUN.
+])
+
+AT_DATA([prog2.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog2.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        01 FILE1 PIC X(8) VALUE 'prog.cob'.
+        01 FILE2 PIC X(9) VALUE 'prog3.cob'.
+        
+        PROCEDURE DIVISION.
+        CALL 'CBL_COPY_FILE' USING 
+        FILE1 FILE2
+        END-CALL
+        STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog2.cob], [0], [], [])
+AT_CHECK([./prog2], [0], [], [])
+AT_CHECK([diff prog.cob prog3.cob], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([System routines for directories])
+
+AT_DATA([prog.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        01 DIR PIC X(4) VALUE 'ABCD'.
+        
+        PROCEDURE DIVISION.
+        CALL 'CBL_CREATE_DIR' USING DIR END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error creating dir ...' END-DISPLAY
+        END-IF
+
+        CALL 'CBL_CHANGE_DIR' USING DIR END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error changing dir ...' END-DISPLAY
+        END-IF
+
+        CALL 'CBL_CHANGE_DIR' USING '..' END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error changing dir up ...' END-DISPLAY
+        END-IF
+
+        CALL 'CBL_DELETE_DIR' USING DIR END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error deleting dir' END-DISPLAY
+        END-IF
+        
+        STOP RUN.
+])
+
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [])
+AT_CHECK([test -e abcd], [1], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([System routines for files])
+
+AT_DATA([prog.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        01 FNAME PIC X(256) VALUE 'testtext.txt'.
+        01 ACCESS-MODE PIC X USAGE COMP-X VALUE 2.
+        01 HANDLE PIC X(4) USAGE COMP-X.
+        
+        01 OFFSET PIC X(8) USAGE COMP-X.
+        01 NBYTES PIC X(4) USAGE COMP-X.
+        01 WRITE-BUFFER PIC X(20).
+        
+        PROCEDURE DIVISION.
+        CALL 'CBL_CREATE_FILE' USING 
+        FNAME 55 11 22 HANDLE 
+        END-CALL
+        IF RETURN-CODE NOT = -1
+            DISPLAY 'Wrong return codes ...' END-DISPLAY
+        END-IF
+        
+        CALL 'CBL_CREATE_FILE' USING 
+        FNAME ACCESS-MODE 0 0 HANDLE 
+        END-CALL        
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error creating file ...' END-DISPLAY
+        END-IF
+        
+        MOVE 'TestText.ABCD' TO WRITE-BUFFER.
+        MOVE 0 TO OFFSET.
+        MOVE 9 TO NBYTES.
+
+        CALL 'CBL_WRITE_FILE' USING 
+        HANDLE OFFSET NBYTES '0' WRITE-BUFFER
+        END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error writing file ...' END-DISPLAY
+        END-IF
+        
+        CALL 'CBL_FLUSH_FILE' USING HANDLE END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error flushing file ...' END-DISPLAY
+        END-IF        
+        
+        STOP RUN.
+])
+
+AT_DATA([prog2.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog2.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        01 FNAME PIC X(256) VALUE 'testtext.txt'.
+        01 RET PIC -9.
+        01 HANDLE PIC X(4) USAGE COMP-X.
+        
+        01 OFFSET PIC X(8) USAGE COMP-X.
+        01 NBYTES PIC X(4) USAGE COMP-X.
+        01 READ-BUFFER PIC X(10).
+        
+        PROCEDURE DIVISION.
+        CALL 'CBL_OPEN_FILE' USING
+        FNAME 1 0 0 HANDLE
+        END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error opening file ...' END-DISPLAY
+        END-IF
+        
+        MOVE SPACES TO READ-BUFFER.
+        MOVE 2 TO OFFSET.
+        MOVE 9 TO NBYTES.
+        
+        CALL 'CBL_READ_FILE' USING
+        HANDLE OFFSET NBYTES 0 READ-BUFFER
+        END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error reading file ...' END-DISPLAY
+        END-IF        
+        IF READ-BUFFER NOT = 'stText.'
+            DISPLAY 'Wrong readbuffer ...' END-DISPLAY
+        END-IF
+        
+        CALL 'CBL_CLOSE_FILE' USING HANDLE END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error closing file ...' END-DISPLAY
+        END-IF 
+        
+        CALL 'CBL_RENAME_FILE' USING FNAME 'foo.txt' END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error renaming file ...' END-DISPLAY
+        END-IF                               
+                
+        CALL 'CBL_DELETE_FILE' USING 'foo.txt' END-CALL
+        IF RETURN-CODE NOT = 0
+            DISPLAY 'Error deleting file ...' END-DISPLAY
+        END-IF                
+        
+        STOP RUN.
+])
+
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE prog2.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [WARNING - Call to CBL_CREATE_FILE with wrong file_lock: 11
+WARNING - Call to CBL_CREATE_FILE with wrong file_dev: 22
+WARNING - Call to CBL_OPEN_FILE with wrong access mode: 55
+])
+AT_CHECK([./prog2], [0], [], [])
+
+AT_CLEANUP
+
 
 AT_SETUP([Conditional/define directives (1)])
 AT_KEYWORDS([extensions])
@@ -2324,10 +3117,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
+
 
 AT_SETUP([Conditional/define directives (2)])
 AT_KEYWORDS([extensions])
@@ -2348,10 +3142,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -DACTIVATE prog.cob])
+AT_CHECK([$COMPILE -DACTIVATE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
+
 
 AT_SETUP([Conditional/define directives (3)])
 AT_KEYWORDS([extensions])
@@ -2375,10 +3170,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -DACTIVATE2 prog.cob])
+AT_CHECK([$COMPILE -DACTIVATE2 prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
+
 
 AT_SETUP([Conditional/define directives (4)])
 AT_KEYWORDS([extensions])
@@ -2400,10 +3196,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -DACTIVATE2 prog.cob])
+AT_CHECK([$COMPILE -DACTIVATE2 prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([Conditional/define directives (5)])
 AT_KEYWORDS([extensions])

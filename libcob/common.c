@@ -18,7 +18,6 @@
    along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include "config.h"
 #include "defaults.h"
 #include "tarstamp.h"
@@ -67,6 +66,39 @@
 #include "libcob.h"
 #include "coblocal.h"
 
+#include "libcob/cobgetopt.h"
+
+#define	CB_IMSG_SIZE	24
+#define	CB_IVAL_SIZE	(80 - CB_IMSG_SIZE - 4)
+
+/* Stringify macros */
+#define CB_STRINGIFY(s)			#s
+#define CB_XSTRINGIFY(s)		CB_STRINGIFY(s)
+
+/* C version info */
+#ifdef	__VERSION__
+#define OC_C_VERSION_PRF	""
+#define OC_C_VERSION	CB_XSTRINGIFY(__VERSION__)
+#elif	defined(__xlc__)
+#define OC_C_VERSION_PRF	"(IBM) "
+#define OC_C_VERSION	CB_XSTRINGIFY(__xlc__)
+#elif	defined(_MSC_VER)
+#define OC_C_VERSION_PRF	"(Microsoft) "
+#define OC_C_VERSION	CB_XSTRINGIFY(_MSC_VER)
+#elif	defined(__BORLANDC__)
+#define OC_C_VERSION_PRF	"(Borland) "
+#define OC_C_VERSION	CB_XSTRINGIFY(__BORLANDC__)
+#elif	defined(__WATCOMC__)
+#define OC_C_VERSION_PRF	"(Watcom) "
+#define OC_C_VERSION	CB_XSTRINGIFY(__WATCOMC__)
+#elif	defined(__INTEL_COMPILER)
+#define OC_C_VERSION_PRF	"(Intel) "
+#define OC_C_VERSION	CB_XSTRINGIFY(__INTEL_COMPILER)
+#else
+#define OC_C_VERSION_PRF	""
+#define OC_C_VERSION	"unknown"
+#endif
+
 struct cob_alloc_cache {
 	struct cob_alloc_cache	*next;		/* Pointer to next */
 	void			*cob_pointer;	/* Pointer to malloced space */
@@ -93,6 +125,7 @@ static struct cob_alloc_cache	*cob_alloc_base;
 static const char		*cob_last_sfile;
 
 static cob_global		*cobglobptr;
+static runtime_env		*runtimeptr;
 
 static char			*runtime_err_str;
 
@@ -122,9 +155,17 @@ static FILE			*cob_trace_file;
 static unsigned int		cob_source_line;
 static unsigned int		cob_line_trace;
 
+static char				*strbuff = NULL;
+
+static int		cob_process_id = 0;
+static int		cob_temp_iteration = 0;
+
 #if	defined(HAVE_SIGNAL_H) && defined(HAVE_SIG_ATOMIC_T)
 static volatile sig_atomic_t	sig_is_handled = 0;
 #endif
+
+/* Function Pointer for external signal handling */
+static void		(*cob_ext_sighdl) (int) = NULL;
 
 #undef	COB_EXCEPTION
 #define COB_EXCEPTION(code,tag,name,critical)	name,
@@ -176,45 +217,45 @@ cob_exit_common (void)
 #ifdef	HAVE_SETLOCALE
 	if (cobglobptr->cob_locale_orig) {
 		(void) setlocale (LC_ALL, cobglobptr->cob_locale_orig);
-		free (cobglobptr->cob_locale_orig);
+		cob_free (cobglobptr->cob_locale_orig);
 	}
 	if (cobglobptr->cob_locale) {
-		free (cobglobptr->cob_locale);
+		cob_free (cobglobptr->cob_locale);
 	}
 	if (cobglobptr->cob_locale_ctype) {
-		free (cobglobptr->cob_locale_ctype);
+		cob_free (cobglobptr->cob_locale_ctype);
 	}
 	if (cobglobptr->cob_locale_collate) {
-		free (cobglobptr->cob_locale_collate);
+		cob_free (cobglobptr->cob_locale_collate);
 	}
 	if (cobglobptr->cob_locale_messages) {
-		free (cobglobptr->cob_locale_messages);
+		cob_free (cobglobptr->cob_locale_messages);
 	}
 	if (cobglobptr->cob_locale_monetary) {
-		free (cobglobptr->cob_locale_monetary);
+		cob_free (cobglobptr->cob_locale_monetary);
 	}
 	if (cobglobptr->cob_locale_numeric) {
-		free (cobglobptr->cob_locale_numeric);
+		cob_free (cobglobptr->cob_locale_numeric);
 	}
 	if (cobglobptr->cob_locale_time) {
-		free (cobglobptr->cob_locale_time);
+		cob_free (cobglobptr->cob_locale_time);
 	}
 #endif
 
 	if (cob_user_name) {
-		free (cob_user_name);
+		cob_free (cob_user_name);
 	}
 	if (commlnptr) {
-		free (commlnptr);
+		cob_free (commlnptr);
 	}
 	if (cob_local_env) {
-		free (cob_local_env);
+		cob_free (cob_local_env);
 	}
 
 	/* Free library routine stuff */
 
 	if (cobglobptr->cob_term_buff) {
-		free (cobglobptr->cob_term_buff);
+		cob_free (cobglobptr->cob_term_buff);
 	}
 
 	/* Free cached externals */
@@ -222,31 +263,31 @@ cob_exit_common (void)
 		q = p;
 		p = p->next;
 		if (q->ename) {
-			free (q->ename);
+			cob_free (q->ename);
 		}
 		if (q->ext_alloc) {
-			free (q->ext_alloc);
+			cob_free (q->ext_alloc);
 		}
-		free (q);
+		cob_free (q);
 	}
 
 	/* Free cached mallocs */
 	for (x = cob_alloc_base; x;) {
 		y = x;
 		x = x->next;
-		free (y->cob_pointer);
-		free (y);
+		cob_free (y->cob_pointer);
+		cob_free (y);
 	}
 
 	/* Free last stuff */
 	if (runtime_err_str) {
-		free (runtime_err_str);
+		cob_free (runtime_err_str);
 	}
 	if (cobglobptr) {
 		if (cobglobptr->cob_main_argv0) {
-			free ((void *)(cobglobptr->cob_main_argv0));
+			cob_free ((void *)(cobglobptr->cob_main_argv0));
 		}
-		free (cobglobptr);
+		cob_free (cobglobptr);
 	}
 	cobglobptr = NULL;
 	cob_initialized = 0;
@@ -278,23 +319,78 @@ cob_terminate_routines (void)
 
 #ifdef	HAVE_SIGNAL_H
 static void COB_A_NORETURN
+cob_sig_handler_ex (int sig)
+{
+	/* call external signal handler if registered */
+	if (cob_ext_sighdl != NULL) {
+		(*cob_ext_sighdl) (sig);
+		cob_ext_sighdl = NULL;
+	}
+#ifdef	SIGSEGV
+	if (sig == SIGSEGV) {
+		exit (SIGSEGV);
+	}
+#endif
+#ifdef	HAVE_RAISE
+	raise (sig);
+#else
+	kill (cob_sys_getpid(), sig);
+#endif
+	exit (sig);
+}
+
+static void COB_A_NORETURN
 cob_sig_handler (int sig)
 {
+	const char *signal_name;
+
 #if	defined(HAVE_SIGACTION) && !defined(SA_RESETHAND)
 	struct sigaction	sa;
 #endif
 
 #ifdef	HAVE_SIG_ATOMIC_T
 	if (sig_is_handled) {
-#ifdef	HAVE_RAISE
-		raise (sig);
-#else
-		kill (getpid (), sig);
-#endif
-		exit (sig);
+		cob_sig_handler_ex(sig);
 	}
 	sig_is_handled = 1;
 #endif
+
+	switch (sig) {
+#ifdef	SIGINT
+	case SIGINT:
+		signal_name = "SIGINT";
+		break;
+#endif
+#ifdef	SIGHUP
+	case SIGHUP:
+		signal_name = "SIGHUP";
+		break;
+#endif
+#ifdef	SIGQUIT
+	case SIGQUIT:
+		signal_name = "SIGQUIT";
+		break;
+#endif
+#ifdef	SIGTERM
+	case SIGTERM:
+		signal_name = "SIGTERM";
+		break;
+#endif
+#ifdef	SIGPIPE
+	case SIGPIPE:
+		signal_name = "SIGPIPE";
+		break;
+#endif
+#ifdef	SIGSEGV
+	case SIGSEGV:
+		signal_name = "SIGSEGV";
+		break;
+#endif
+	default:
+		signal_name = "unkown";
+		fprintf(stderr, "Caught wrong signal: %d\n", sig);
+		break;
+	}
 
 #ifdef	HAVE_SIGACTION
 #ifndef	SA_RESETHAND
@@ -306,34 +402,33 @@ cob_sig_handler (int sig)
 #else
 	(void)signal (sig, SIG_DFL);
 #endif
+	cob_exit_screen ();
+	putc ('\n', stderr);
+	if (cob_source_file) {
+		fprintf (stderr, "%s: %u: ", cob_source_file, cob_source_line);
+	}
 
 #ifdef	SIGSEGV
 	if (sig == SIGSEGV) {
-		cob_exit_screen ();
-		putc ('\n', stderr);
-		if (cob_source_file) {
-			fprintf (stderr, "%s: %u: ", cob_source_file, cob_source_line);
-		}
-		fprintf (stderr, _("Attempt to reference unallocated memory (Signal SIGSEGV)"));
-		putc ('\n', stderr);
-		fprintf (stderr, _("Abnormal termination - File contents may be incorrect"));
-		putc ('\n', stderr);
-		fflush (stderr);
-		exit (SIGSEGV);
+		fprintf (stderr, _("Attempt to reference unallocated memory"));
+	} else {
+		fprintf (stderr, _("Caught Signal"));
 	}
+#else
+	fprintf (stderr, _("Caught Signal"));
 #endif
+	putc (' ', stderr);
+	fprintf (stderr, _("(Signal %s)"), signal_name);
+	putc ('\n', stderr);
+
 	if (cob_initialized) {
 		cob_terminate_routines ();
 		fprintf (stderr, _("Abnormal termination - File contents may be incorrect"));
-		putc ('\n', stderr);
-		fflush (stderr);
 	}
-#ifdef	HAVE_RAISE
-	raise (sig);
-#else
-	kill (getpid(), sig);
-#endif
-	exit (sig);
+	putc ('\n', stderr);
+	fflush (stderr);
+
+	cob_sig_handler_ex(sig);
 }
 #endif
 
@@ -393,7 +488,7 @@ cob_set_signal (void)
 	}
 #endif
 #ifdef	SIGSEGV
-	/* Take direct control of segementation violation */
+	/* Take direct control of segmentation violation */
 	(void)sigemptyset (&sa.sa_mask);
 	(void)sigaction (SIGSEGV, &sa, NULL);
 #endif
@@ -425,8 +520,8 @@ cob_set_signal (void)
 		(void)signal (SIGPIPE, cob_sig_handler);
 	}
 #endif
-	/* Take direct control of segementation violation */
 #ifdef	SIGSEGV
+	/* Take direct control of segmentation violation */
 	(void)signal (SIGSEGV, cob_sig_handler);
 #endif
 
@@ -861,17 +956,48 @@ cob_check_trace_file (void)
 	}
 }
 
+int
+cob_check_env_true (char* s)
+{
+	if (s) {
+		if (strlen(s) == 1 && (*s == 'Y' || *s == 'y' || *s == '1')) return 1;
+		if (strcasecmp(s, "YES") == 0 || strcasecmp(s, "ON") == 0 ||
+			strcasecmp(s, "TRUE") == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int
+cob_check_env_false (char* s)
+{
+	if (s) {
+		if (strlen(s) == 1 && (*s == 'N' || *s == 'n' || *s == '0')) return 1;
+		if (strcasecmp(s, "NO") == 0 || strcasecmp(s, "NONE") == 0 ||
+			strcasecmp(s, "OFF") == 0 || strcasecmp(s, "FALSE") == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
 static void
 cob_rescan_env_vals (void)
 {
-	char	*s;
+	char	*s, *tail;
+	int		timeout_scale;
 
 	/* termio */
-	s = getenv ("COB_REDIRECT_DISPLAY");
-	if (s && (*s == 'Y' || *s == 'y' || *s == '1')) {
-		cobglobptr->cob_disp_to_stderr = 1;
-	} else {
-		cobglobptr->cob_disp_to_stderr = 0;
+	s = getenv("COB_REDIRECT_DISPLAY");
+	if (s) {
+		runtimeptr->cob_disp_to_stderr_env = cob_save_env_value(runtimeptr->cob_disp_to_stderr_env, s);
+
+		if (cob_check_env_true(s)) {
+			cobglobptr->cob_disp_to_stderr = 1;
+		} else {
+			cobglobptr->cob_disp_to_stderr = 0;
+		}
 	}
 
 	/* screenio */
@@ -879,25 +1005,16 @@ cob_rescan_env_vals (void)
 	/* BELL disposition */
 	/* Default to BEEP */
 	cobglobptr->cob_beep_value = 0;
-	s = getenv ("COB_BELL");
+	s = getenv("COB_BELL");
 	if (s) {
-		if (!strcasecmp (s, "FLASH")) {
+		runtimeptr->cob_beep_str_env = cob_save_env_value(
+				runtimeptr->cob_beep_str_env, s);
+		if (!strcasecmp(s, "FLASH")) {
 			cobglobptr->cob_beep_value = 1;
-		} else if (!strcasecmp (s, "SPEAKER")) {
+		} else if (!strcasecmp(s, "SPEAKER")) {
 			cobglobptr->cob_beep_value = 2;
-		} else {
-			/* NO/NONE/OFF/0 */
-			switch (*s) {
-			case 'n':
-			case 'N':
-			case 'o':
-			case 'O':
-			case '0':
-				cobglobptr->cob_beep_value = 9;
-				break;
-			default:
-				break;
-			}
+		} else if (cob_check_env_false (s)) {
+			cobglobptr->cob_beep_value = 9;
 		}
 	}
 
@@ -905,12 +1022,24 @@ cob_rescan_env_vals (void)
 	cobglobptr->cob_timeout_scale = 1000;
 	s = getenv ("COB_TIMEOUT_SCALE");
 	if (s) {
-		if (*s == '1') {
-			cobglobptr->cob_timeout_scale = 100;
-		} else if (*s == '2') {
-			cobglobptr->cob_timeout_scale = 10;
-		} else if (*s == '3') {
-			cobglobptr->cob_timeout_scale = 1;
+		runtimeptr->cob_timeout_scale_env = cob_save_env_value(
+				runtimeptr->cob_timeout_scale_env, s);
+
+		if (strlen(s) == 1) {
+			switch(s[0]) {
+				case '1':
+					cobglobptr->cob_timeout_scale = 100; break;
+				case '2':
+					cobglobptr->cob_timeout_scale = 10; break;
+				case '3':
+					cobglobptr->cob_timeout_scale = 1; break;
+			}
+		}
+		else {
+			timeout_scale = (int) strtol(s, &tail, 10);
+			if((!tail || strlen(tail) == 0) && timeout_scale >= 0) {
+				cobglobptr->cob_timeout_scale = timeout_scale;
+			}
 		}
 	}
 
@@ -919,11 +1048,17 @@ cob_rescan_env_vals (void)
 	cobglobptr->cob_use_esc = 0;
 	s = getenv ("COB_SCREEN_EXCEPTIONS");
 	if (s) {
-		if (*s == 'Y' || *s == 'y' || *s == '1') {
+		runtimeptr->cob_extended_status_env = cob_save_env_value(
+				runtimeptr->cob_extended_status_env, s);
+
+		if (cob_check_env_true(s)) {
 			cobglobptr->cob_extended_status = 1;
 			s = getenv ("COB_SCREEN_ESC");
 			if (s) {
-				if (*s == 'Y' || *s == 'y' || *s == '1') {
+				runtimeptr->cob_use_esc_env = cob_save_env_value(
+						runtimeptr->cob_use_esc_env, s);
+
+				if (cob_check_env_true(s)) {
 					cobglobptr->cob_use_esc = 1;
 				}
 			}
@@ -995,6 +1130,18 @@ cob_malloc (const size_t size)
 	return mptr;
 }
 
+COB_INLINE void
+cob_free (void * mptr)
+{
+#ifdef _DEBUG
+	if (unlikely(!mptr)) {
+		cob_fatal_error (COB_FERROR_FREE);
+	}
+#endif
+	free (mptr);
+
+}
+
 void *
 cob_fast_malloc (const size_t size)
 {
@@ -1007,14 +1154,14 @@ cob_fast_malloc (const size_t size)
 	return mptr;
 }
 
-void *
-cob_strdup (const void *p)
+char *
+cob_strdup (const char *p)
 {
-	void	*mptr;
+	char	*mptr;
 	size_t	len;
 
 	len = strlen (p);
-	mptr = cob_malloc (len + 1U);
+	mptr = (char *) cob_malloc (len + 1U);
 	memcpy (mptr, p, len);
 	return mptr;
 }
@@ -1052,7 +1199,7 @@ cob_cache_realloc (void *ptr, const size_t size)
 			}
 			mptr = cob_malloc (size);
 			memcpy (mptr, cache_ptr->cob_pointer, cache_ptr->size);
-			free (cache_ptr->cob_pointer);
+			cob_free (cache_ptr->cob_pointer);
 			cache_ptr->cob_pointer = mptr;
 			cache_ptr->size = size;
 			return mptr;
@@ -1074,13 +1221,13 @@ cob_cache_free (void *ptr)
 	prev_ptr = cob_alloc_base;
 	for (; cache_ptr; cache_ptr = cache_ptr->next) {
 		if (ptr == cache_ptr->cob_pointer) {
-			free (cache_ptr->cob_pointer);
+			cob_free (cache_ptr->cob_pointer);
 			if (cache_ptr == cob_alloc_base) {
 				cob_alloc_base = cache_ptr->next;
 			} else {
 				prev_ptr->next = cache_ptr->next;
 			}
-			free (cache_ptr);
+			cob_free (cache_ptr);
 			return;
 		}
 		prev_ptr = cache_ptr;
@@ -1187,7 +1334,6 @@ void
 cob_field_to_string (const cob_field *f, void *str, const size_t maxsize)
 {
 	unsigned char	*s;
-	char		*st;
 	size_t		count;
 	size_t		i;
 
@@ -1196,17 +1342,6 @@ cob_field_to_string (const cob_field *f, void *str, const size_t maxsize)
 		return;
 	}
 	i = f->size - 1;
-	switch (COB_FIELD_TYPE (f)) {
-	case COB_TYPE_NUMERIC_BINARY:
-	case COB_TYPE_NUMERIC_PACKED:
-	case COB_TYPE_NUMERIC_FLOAT:
-		st = (char *)str;
-		strcpy(st,"0x");
-		for(i=0; i < f->size && i < (maxsize-2)/2; i++)
-			sprintf(&st[strlen(st)],"%02X",(unsigned char)(f->data[i] & 0xFF));
-		return;
-		break;
-	}
 	for (; ;) {
 		if (f->data[i] && f->data[i] != (unsigned char)' ') {
 			count = i + 1;
@@ -1280,7 +1415,7 @@ cob_runtime_error (const char *fmt, ...)
 			}
 			hp = h;
 			h = h->next;
-			free (hp);
+			cob_free (hp);
 		}
 		hdlrs = NULL;
 	}
@@ -1339,6 +1474,9 @@ cob_fatal_error (const int fatal_error)
 		break;
 	case COB_FERROR_RECURSIVE:
 		cob_runtime_error (_("Invalid recursive COBOL CALL"));
+		break;
+	case COB_FERROR_FREE:
+		cob_runtime_error (_("Call to cob_free with NULL pointer"));
 		break;
 	case COB_FERROR_FILE:
 		file_status = cobglobptr->cob_error_file->file_status;
@@ -1413,7 +1551,7 @@ cob_fatal_error (const int fatal_error)
 				     filename, (size_t)COB_FILE_MAX);
 		cob_runtime_error (_("%s (Status = %02d) File : '%s'"),
 				   msg, status, filename);
-		free (filename);
+		cob_free (filename);
 		break;
 	case COB_FERROR_FUNCTION:
 		cob_runtime_error (_("Attempt to use non-implemented function"));
@@ -1527,9 +1665,9 @@ cob_restore_func (struct cob_func_loc *fl)
 #endif
 	COB_MODULE_PTR->cob_procedure_params = fl->save_proc_parms;
 	COB_MODULE_PTR->module_num_params = fl->save_num_params;
-	free (fl->data);
-	free (fl->func_params);
-	free (fl);
+	cob_free (fl->data);
+	cob_free (fl->func_params);
+	cob_free (fl);
 }
 
 void
@@ -1925,6 +2063,13 @@ cob_real_put_sign (cob_field *f, const int sign)
 	}
 }
 
+/* Registration of external handlers */
+void
+cob_reg_sighnd	(void (*sighnd) (int))
+{
+	cob_ext_sighdl = sighnd;
+}
+
 /* Switch */
 
 int
@@ -2151,7 +2296,7 @@ void
 cob_table_sort (cob_field *f, const int n)
 {
 	qsort (f->data, (size_t) n, f->size, sort_compare);
-	free (sort_keys);
+	cob_free (sort_keys);
 }
 
 /* Run-time error checking */
@@ -2186,7 +2331,7 @@ cob_check_numeric (const cob_field *f, const char *name)
 		}
 		*p = '\0';
 		cob_runtime_error (_("'%s' not numeric: '%s'"), name, buff);
-		free (buff);
+		cob_free (buff);
 		cob_stop_run (1);
 	}
 }
@@ -2369,7 +2514,7 @@ void
 cob_display_command_line (cob_field *f)
 {
 	if (commlnptr) {
-		free (commlnptr);
+		cob_free (commlnptr);
 	}
 	commlnptr = cob_malloc (f->size + 1U);
 	commlncnt = f->size;
@@ -2416,7 +2561,7 @@ cob_accept_command_line (cob_field *f)
 		}
 	}
 	cob_memcpy (f, buff, size);
-	free (buff);
+	cob_free (buff);
 }
 
 /* Argument number */
@@ -2477,7 +2622,7 @@ cob_display_environment (const cob_field *f)
 	if (cob_local_env_size < f->size) {
 		cob_local_env_size = f->size;
 		if (cob_local_env) {
-			free (cob_local_env);
+			cob_free (cob_local_env);
 		}
 		cob_local_env = cob_malloc (cob_local_env_size + 1U);
 	}
@@ -2494,9 +2639,12 @@ cob_display_environment (const cob_field *f)
 void
 cob_display_env_value (const cob_field *f)
 {
-	char	*p;
 	char	*env2;
+#if !HAVE_SETENV
+	char	*p;
 	size_t	len;
+#endif
+	int		ret;
 
 	if (!cob_local_env) {
 		cob_set_exception (COB_EC_IMP_DISPLAY);
@@ -2508,11 +2656,16 @@ cob_display_env_value (const cob_field *f)
 	}
 	env2 = cob_malloc (f->size + 1U);
 	cob_field_to_string (f, env2, f->size);
+#if HAVE_SETENV
+	ret = setenv(cob_local_env, env2, 1);
+#else
 	len = strlen (cob_local_env) + strlen (env2) + 3U;
 	p = cob_fast_malloc (len);
 	sprintf (p, "%s=%s", cob_local_env, env2);
-	free (env2);
-	if (putenv (p) != 0) {
+	ret = putenv (p);
+#endif
+	cob_free (env2);
+	if (ret != 0) {
 		cob_set_exception (COB_EC_IMP_DISPLAY);
 		return;
 	}
@@ -2554,7 +2707,7 @@ cob_get_environment (const cob_field *envname, cob_field *envval)
 		p = " ";
 	}
 	cob_memcpy (envval, p, strlen (p));
-	free (buff);
+	cob_free (buff);
 }
 
 void
@@ -2609,7 +2762,7 @@ cob_allocate (unsigned char **dataptr, cob_field *retptr,
 		mptr = malloc ((size_t)fsize);
 		if (!mptr) {
 			cob_set_exception (COB_EC_STORAGE_NOT_AVAIL);
-			free (cache_ptr);
+			cob_free (cache_ptr);
 		} else {
 			if (initialize) {
 				temp.size = (size_t)fsize;
@@ -2648,13 +2801,13 @@ cob_free_alloc (unsigned char **ptr1, unsigned char *ptr2)
 		vptr1 = *ptr1;
 		for (; cache_ptr; cache_ptr = cache_ptr->next) {
 			if (vptr1 == cache_ptr->cob_pointer) {
-				free (cache_ptr->cob_pointer);
+				cob_free (cache_ptr->cob_pointer);
 				if (cache_ptr == cob_alloc_base) {
 					cob_alloc_base = cache_ptr->next;
 				} else {
 					prev_ptr->next = cache_ptr->next;
 				}
-				free (cache_ptr);
+				cob_free (cache_ptr);
 				*ptr1 = NULL;
 				return;
 			}
@@ -2666,13 +2819,13 @@ cob_free_alloc (unsigned char **ptr1, unsigned char *ptr2)
 	if (ptr2 && *(void **)ptr2) {
 		for (; cache_ptr; cache_ptr = cache_ptr->next) {
 			if (*(void **)ptr2 == cache_ptr->cob_pointer) {
-				free (cache_ptr->cob_pointer);
+				cob_free (cache_ptr->cob_pointer);
 				if (cache_ptr == cob_alloc_base) {
 					cob_alloc_base = cache_ptr->next;
 				} else {
 					prev_ptr->next = cache_ptr->next;
 				}
-				free (cache_ptr);
+				cob_free (cache_ptr);
 				*(void **)ptr2 = NULL;
 				return;
 			}
@@ -2710,6 +2863,68 @@ cob_putenv (char *name)
 		return ret;
 	}
 	return -1;
+}
+
+static const char *
+cob_gettmpdir (void)
+{
+	char	*tmpdir;
+	char	*tmp;
+#if !HAVE_SETENV
+	char	*put;
+#endif
+		
+	if ((tmpdir = getenv ("TMPDIR")) == NULL) {
+		tmp = NULL;
+#ifdef	_WIN32
+		if ((tmpdir = getenv ("TEMP")) == NULL &&
+		    (tmpdir = getenv ("TMP")) == NULL &&
+		    (tmpdir = getenv ("USERPROFILE")) == NULL) {
+			tmp = cob_fast_malloc (2U);
+			strcpy (tmp, ".");
+			tmpdir = tmp;
+		}
+#else
+		if ((tmpdir = getenv ("TMP")) == NULL &&
+		    (tmpdir = getenv ("TEMP")) == NULL) {
+			tmp = cob_fast_malloc (5U);
+		    strcpy (tmp, "/tmp");
+			tmpdir = tmp;
+		}
+#endif
+#if HAVE_SETENV
+		setenv("TMPDIR", tmpdir, 1);
+#else
+		put = cob_fast_malloc (strlen (tmpdir) + 10);
+		sprintf (put, "TMPDIR=%s", tmpdir);
+		putenv (cob_strdup(put));
+		cob_free ((void *)put);
+#endif
+		if (tmp) {
+			cob_free ((void *)tmp);
+			tmpdir = getenv ("TMPDIR");
+		}
+	}
+	return tmpdir;
+}
+
+void
+cob_temp_name (char *filename, const char *ext)
+{
+	/* Set temporary file name */
+	if (ext) {
+		snprintf (filename, (size_t)COB_FILE_MAX, "%s%ccob%d_%d%s",
+			cob_gettmpdir(), SLASH_INT, cob_sys_getpid(), cob_temp_iteration, ext);
+	} else {
+		snprintf (filename, (size_t)COB_FILE_MAX, "%s%ccobsort%d_%d",
+			cob_gettmpdir(), SLASH_INT, cob_sys_getpid(), cob_temp_iteration);
+	}
+}
+
+void
+cob_incr_temp_iteration (void)
+{
+	cob_temp_iteration++;
 }
 
 int
@@ -2802,7 +3017,7 @@ cob_sys_exit_proc (const void *dispo, const void *pptr)
 				exit_hdlrs = h->next;
 			}
 			if (hp) {
-				free (hp);
+				cob_free (hp);
 			}
 			break;
 		}
@@ -2847,7 +3062,7 @@ cob_sys_error_proc (const void *dispo, const void *pptr)
 				hdlrs = h->next;
 			}
 			if (hp) {
-				free (hp);
+				cob_free (hp);
 			}
 			break;
 		}
@@ -2895,7 +3110,7 @@ cob_sys_system (const void *cmdline)
 				cob_screen_set_mode (0);
 			}
 			i = system (buff);
-			free (buff);
+			cob_free (buff);
 			if (cobglobptr->cob_screen_initialized) {
 				cob_screen_set_mode (1U);
 			}
@@ -3105,13 +3320,13 @@ cob_sys_x91 (void *p1, const void *p2, void *p3)
 		/* Get switches */
 		p = parm;
 		for (i = 0; i < 8; ++i, ++p) {
-			*p = cob_switch[i];
+			*p = (unsigned char)cob_switch[i];
 		}
 		*result = 0;
 		break;
 	case 16:
 		/* Return number of call parameters */
-		*parm = COB_MODULE_PTR->module_num_params;
+		*parm = (unsigned char)COB_MODULE_PTR->module_num_params;
 		*result = 0;
 		break;
 	default:
@@ -3204,7 +3419,10 @@ cob_sys_oc_nanosleep (const void *data)
 int
 cob_sys_getpid (void)
 {
-	return (int)getpid ();
+	if (!cob_process_id) {
+		cob_process_id = (int)getpid ();
+	}
+	return cob_process_id;
 }
 
 int
@@ -3265,6 +3483,148 @@ cob_sys_parameter_size (void *data)
 		}
 	}
 	return 0;
+}
+
+int
+cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, void* return_char, void* opt_val) {
+	/*
+	 * cob_argc is a static int containing argc from runtime
+	 * cob_argv is a static char** containing argv from runtime
+	 */
+
+	size_t opt_val_size = 0;
+	size_t so_size = 0;
+	size_t lo_size = 0;
+	
+	unsigned int lo_amount;
+
+	int exit_status;
+
+	char* shortoptions;
+	char* temp;
+
+	struct option* longoptions;
+	longoption_def* l = NULL;
+
+	int longind = 0;
+	unsigned int i;
+	int j;
+
+	unsigned int optlen;
+	int return_value;
+
+	COB_UNUSED (idx);
+	COB_UNUSED (lo);
+	COB_UNUSED (so);
+
+	COB_CHK_PARMS (CBL_OC_GETOPT, 6);
+
+	/*
+	 * Read in sizes of some parameters
+	 */
+	if (COB_MODULE_PTR->cob_procedure_params[1]) {
+		lo_size = COB_MODULE_PTR->cob_procedure_params[1]->size;
+	}
+	if (COB_MODULE_PTR->cob_procedure_params[0]) {
+		so_size = COB_MODULE_PTR->cob_procedure_params[0]->size;
+	}
+	if (COB_MODULE_PTR->cob_procedure_params[5]) {
+		opt_val_size = COB_MODULE_PTR->cob_procedure_params[5]->size;
+	}
+
+	/*
+	 * Buffering longoptions (cobol), target format (struct option)
+	 */
+	if (lo_size % sizeof(longoption_def) == 0) {
+		lo_amount = (int)lo_size / sizeof(longoption_def);
+		longoptions = (struct option*) cob_malloc(sizeof(struct option) * (lo_amount + 1U));
+	}
+	else {
+		cob_runtime_error (_("Call to CBL_OC_GETOPT with wrong longoption size."));
+		cob_stop_run (1);
+	}
+
+	if (!COB_MODULE_PTR->cob_procedure_params[2]) {
+		cob_runtime_error (_("Call to CBL_OC_GETOPT with missing longind."));
+		cob_stop_run (1);
+	}
+	longind = cob_get_int (COB_MODULE_PTR->cob_procedure_params[2]);
+
+	/*
+	 * Add 0-termination to strings.
+	 */
+	shortoptions = cob_malloc(so_size + 1U);
+	if (COB_MODULE_PTR->cob_procedure_params[0]) {
+		cob_field_to_string (COB_MODULE_PTR->cob_procedure_params[0], shortoptions, so_size);
+	}
+
+	if (COB_MODULE_PTR->cob_procedure_params[1]) {
+		l = (struct longoption_def*) (COB_MODULE_PTR->cob_procedure_params[1]->data);
+	}
+
+	for (i = 0; i < lo_amount; i++) {
+		j = sizeof(l->name) - 1;
+		while (j >= 0 && l->name[j] == 0x20) {
+			l->name[j] = 0x00;
+			j--;
+		}
+		longoptions->name = l->name;
+		longoptions->has_arg = (int) l->has_option - '0';
+		memcpy (&longoptions->flag, l->return_value_pointer, sizeof(l->return_value_pointer));
+		memcpy(&longoptions->val, &l->return_value, 4);
+
+		l = l + 1; /* +1 means pointer + 1*sizeof(longoption_def) */
+		longoptions = longoptions + 1;
+	}
+
+	/*
+	 * Appending final record, so getopt can spot the end of longoptions
+	 */
+	longoptions->name = NULL;
+	longoptions->has_arg = 0;
+	longoptions->flag = NULL;
+	longoptions->val = 0;
+
+
+	l -= lo_amount; /* Set pointer back to begin of longoptions */
+	longoptions -= lo_amount;
+
+	return_value = cob_getopt_long_long(cob_argc, cob_argv, shortoptions, longoptions, &longind, long_only);
+	temp = (char*) &return_value;
+	
+	/*
+	 * Write data back to Cobol
+	 */
+	if (temp[0] == '?' || temp[0] == ':' || temp[0] == 'W' 
+		|| temp[0] == -1 || temp[0] == 0) exit_status = return_value;
+	else exit_status = 3;
+
+	for(i = 3; i > 0; i--) {
+		if(temp[i] == 0x00) temp[i] = 0x20;
+		else break;
+	}
+
+	cob_set_int (COB_MODULE_PTR->cob_procedure_params[2], longind);
+	memcpy (return_char, &return_value, 4);
+
+	if(cob_optarg != NULL) {
+		memset (opt_val, 0x00, opt_val_size);
+		
+		optlen = strlen (cob_optarg);
+		if (optlen > opt_val_size) {
+			/* Returncode 2 for "Optionvalue too long => cut" */
+			optlen = opt_val_size;
+			exit_status = 2;
+		}
+		memcpy (opt_val, cob_optarg, optlen);
+	}
+
+
+	cob_free (shortoptions);
+	cob_free (longoptions);
+
+	return exit_status;
+
 }
 
 int
@@ -3456,7 +3816,7 @@ cob_set_locale (cob_field *locale, const int category)
 		break;
 	}
 	if (buff) {
-		free (buff);
+		cob_free (buff);
 	}
 	if (!p) {
 		cob_set_exception (COB_EC_LOCALE_MISSING);
@@ -3465,7 +3825,7 @@ cob_set_locale (cob_field *locale, const int category)
 	p = setlocale (LC_ALL, NULL);
 	if (p) {
 		if (cobglobptr->cob_locale) {
-			free (cobglobptr->cob_locale);
+			cob_free (cobglobptr->cob_locale);
 		}
 		cobglobptr->cob_locale = cob_strdup (p);
 	}
@@ -3473,6 +3833,419 @@ cob_set_locale (cob_field *locale, const int category)
 	cob_set_exception (COB_EC_LOCALE_MISSING);
 #endif
 }
+
+char*
+cob_int_to_string(int i, char* number) {
+	if(!number) return NULL;
+	sprintf(number, "%i", i);
+	return number;
+}
+
+char*
+cob_int_to_formatted_bytestring(int i, char* number) {
+
+	double d;
+	char* strB;
+
+	if(!number) return NULL;
+
+	strB = (char*) cob_fast_malloc(3);
+
+	if (i > (1024 * 1024)) {
+		d = i / 1024.0 / 1024.0;
+		strB = (char*) "MB";
+	} else if (i > 1024) {
+		d = i / 1024.0;
+		strB = (char*) "kB";
+	} else {
+		d = 0;
+		strB = (char*) "B";
+	}
+	sprintf(number, "%3.2f %s", d, strB);
+	return number;
+}
+
+char*
+cob_strcat(char* str1, char* str2) {
+	size_t l;
+	char *temp1, *temp2;
+
+	l = strlen(str1) + strlen(str2) + 1;
+
+	/*
+	 * If one of the parameter is the buffer itself,
+	 * we copy the buffer before continuing.
+	 */
+	if (str1 == strbuff) {
+		temp1 = cob_strdup(str1);
+	} else {
+		temp1 = str1;
+	}
+	if (str2 == strbuff) {
+		temp2 = cob_strdup(str2);
+	} else {
+		temp2 = str2;
+	}
+
+	cob_free(strbuff);
+	strbuff = (char*) cob_fast_malloc(l);
+
+	sprintf(strbuff, "%s%s", temp1, temp2);
+	return strbuff;
+}
+
+char*
+cob_strjoin(char** strarray, int size, char* separator) {
+
+	char* result;
+	int i;
+
+	if(!strarray || size <= 0 || !separator) return NULL;
+
+	result = strarray[0];
+	for (i = 1; i < size; i++) {
+		result = cob_strcat(result, separator);
+		result = cob_strcat(result, strarray[i]);
+	}
+
+	return result;
+}
+
+char* cob_save_env_value(char* env_var, char* env_val) {
+	if (!env_val) return NULL;
+
+	if (env_var) cob_free(env_var);
+	env_var = (char*) cob_fast_malloc(strlen(env_val) + 1);
+	strcpy(env_var, env_val);
+
+	return env_var;
+}
+
+static void var_print(const char *msg, const char *val, const char *default_val,
+		const unsigned int format) {
+	char	*p;
+	char	*token;
+	size_t	n;
+	int	lablen;
+	int	toklen;
+
+	switch (format) {
+	case 0:
+		printf("%-*.*s : ", CB_IMSG_SIZE, CB_IMSG_SIZE, msg);
+		break;
+		case 1: {
+		printf("  %s: ", _("env"));
+		lablen = CB_IMSG_SIZE - 2 - strlen(_("env")) - 2;
+		printf("%-*.*s : ", lablen, lablen, msg);
+			break;
+		}
+	case 2:
+		printf("    %-*.*s     : ", CB_IMSG_SIZE, CB_IMSG_SIZE, msg);
+		break;
+	case 3:
+		printf("        %-*.*s : ", CB_IMSG_SIZE, CB_IMSG_SIZE, msg);
+		break;
+	default:
+		printf("%-*.*s : ", CB_IMSG_SIZE, CB_IMSG_SIZE, msg);
+		break;
+	}
+
+	if (!val && !default_val) {
+		putchar('\n');
+		return;
+	} else if (val && default_val && ((format != 2 && val[0] == 0x30) || strcmp(val, default_val) == 0)) {
+		val = cob_strcat((char*) default_val, (char*) _(" (default)"));
+	} else if (!val && default_val) {
+		val = default_val;
+	}
+
+	if (val && strlen(val) <= CB_IVAL_SIZE) {
+		printf("%s", val);
+		putchar ('\n');
+
+		return;
+	}
+
+	p = strdup (val);
+	if (!p) {
+		fputs (_("Memory allocation failure"), stderr);
+		putc ('\n', stderr);
+		return;
+	}
+	n = 0;
+	token = strtok (p, " ");
+	for (; token; token = strtok (NULL, " ")) {
+		toklen = strlen (token) + 1;
+		if ((n + toklen) > CB_IVAL_SIZE) {
+			if (n) {
+				if (format == 2 || format == 3)
+					printf("\n        %*.*s", CB_IMSG_SIZE + 3,
+					CB_IMSG_SIZE + 3, " ");
+				else
+					printf("\n%*.*s", CB_IMSG_SIZE + 3, CB_IMSG_SIZE + 3, " ");
+			}
+			n = 0;
+		}
+		printf ("%s%s", (n ? " " : ""), token);
+		n += toklen;
+	}
+	putchar ('\n');
+	cob_free (p);
+
+}
+
+
+void
+print_runtime_env(void) {
+	char* no_default;
+	char* not_set;
+	char* intstring;
+	char* intstring2;
+
+	printf("GNU Cobol runtime environment\n\n");
+	printf("All values were resolved from current environment. \n\n");
+	/* Alles aus common.c --> cob_init und cob_init_... - einigermaßen sinnvoll sortiert (ggf. Zwischenüberschriften ...*/
+
+	if(!cob_initialized) {
+		cob_init(cob_argc, cob_argv);
+	}
+
+	no_default = (char*) _("No");
+	not_set = (char*) _("not set");
+	intstring = (char*) cob_fast_malloc(10);
+	intstring2 = (char*) cob_fast_malloc(10);
+
+	printf(_("Call environment\n"));
+
+	var_print("COB_LIBRARY_PATH", runtimeptr->cob_library_path_env, not_set,
+			2);
+	var_print("resolve_path",
+			cob_strjoin(runtimeptr->resolve_path, *(runtimeptr->resolve_size),
+					(char*) PATHSEPS), not_set, 3);
+	var_print("COB_PRE_LOAD", runtimeptr->cob_preload_env, not_set, 2);
+	var_print("base_preload_ptr",
+			runtimeptr->cob_preload_resolved, not_set, 3);
+	var_print("COB_LOAD_CASE", runtimeptr->name_convert_env, not_set, 2);
+	var_print("name_convert",
+			cob_int_to_string(*(runtimeptr->name_convert), intstring),
+			no_default, 3);
+	var_print("COB_PHYSICAL_CANCEL", runtimeptr->physical_cancel_env,
+			not_set, 2);
+	var_print("physical_cancel",
+			cob_int_to_string(*(runtimeptr->physical_cancel), intstring),
+			no_default, 3);
+
+	printf(_("\n\nFile I/O\n"));
+	var_print("COB_SYNC", runtimeptr->cob_do_sync_env, not_set, 2);
+	var_print("cob_do_sync",
+			cob_int_to_string(*(runtimeptr->cob_do_sync), intstring),
+			no_default, 3);
+	var_print("COB_LS_USES_CR", runtimeptr->cob_ls_uses_cr_env, not_set, 2);
+	var_print("cob_ls_uses_cr",
+			cob_int_to_string(*(runtimeptr->cob_ls_uses_cr), intstring),
+			no_default, 3);
+
+	var_print("COB_SORT_MEMORY", runtimeptr->cob_sort_memory_env, not_set,
+			2);
+	var_print("cob_sort_memory",
+			cob_int_to_formatted_bytestring(*(runtimeptr->cob_sort_memory),
+					intstring),
+			cob_int_to_formatted_bytestring(COB_SORT_MEMORY, intstring2), 3);
+	var_print("COB_SORT_CHUNK", runtimeptr->cob_sort_chunk_env, not_set, 2);
+	var_print("cob_sort_chunk",
+			cob_int_to_formatted_bytestring(*(runtimeptr->cob_sort_chunk),
+					intstring),
+			cob_int_to_formatted_bytestring(COB_SORT_CHUNK, intstring2), 3);
+	var_print("COB_FILE_PATH", runtimeptr->cob_file_path_env, not_set, 2);
+	var_print("cob_file_path", runtimeptr->cob_file_path, not_set, 3);
+	var_print("COB_LS_NULLS", runtimeptr->cob_ls_nulls_env, not_set, 2);
+	var_print("cob_ls_nulls",
+			cob_int_to_string(*(runtimeptr->cob_ls_nulls), intstring),
+			no_default, 3);
+	var_print("COB_LS_FIXED", runtimeptr->cob_ls_fixed_env, not_set, 2);
+	var_print("cob_ls_fixed",
+			cob_int_to_string(*(runtimeptr->cob_ls_fixed), intstring),
+			no_default, 3);
+	var_print("COB_VARSEQ_FORMAT", runtimeptr->cob_varseq_type_env,
+			_("0 (default), [2-byte record-length] [0000] [record-data]"), 2);
+	var_print("cob_varseq_type",
+			cob_int_to_string(*(runtimeptr->cob_varseq_type), intstring),
+			_("0 (default), [2-byte record-length] [0000] [record-data]"), 3);
+	var_print("COB_UNIX_LF", runtimeptr->cob_unix_lf_env, not_set,
+			2);
+	var_print("cob_unix_lf",
+			cob_int_to_string(cobglobptr->cob_unix_lf, intstring),
+			no_default, 3);
+
+	if (runtimeptr->cob_local_edit) {
+		printf(_("\n\nLocale Properties\n"));
+		var_print("COB_LOCALE_NUMERIC_EDITED", runtimeptr->cob_local_edit_env,
+				not_set, 2);
+		var_print("cob_local_edit",
+				cob_int_to_string(*(runtimeptr->cob_local_edit), intstring),
+				no_default, 3);
+	}
+
+	printf(_("\n\nScreen I/O\n"));
+	var_print("COB_REDIRECT_DISPLAY",
+			runtimeptr->cob_disp_to_stderr_env, not_set, 2);
+	var_print("cob_disp_to_stderr",
+			cob_int_to_string(cobglobptr->cob_disp_to_stderr,
+					intstring), no_default, 3);
+	var_print("COB_BELL", runtimeptr->cob_beep_str_env, not_set, 2);
+	var_print("cob_beep_value", cob_int_to_string(cobglobptr->cob_beep_value, intstring), (char*) "0", 3);
+	var_print("COB_TIMEOUT_SCALE", runtimeptr->cob_timeout_scale_env,
+			not_set, 2);
+	var_print("cob_timeout_scale",
+			cob_int_to_string(cobglobptr->cob_timeout_scale,
+					intstring), "1000", 3);
+	var_print("COB_SCREEN_EXCEPTIONS",
+			runtimeptr->cob_extended_status_env, not_set, 2);
+	var_print("cob_extended_status",
+			cob_int_to_string(cobglobptr->cob_extended_status,
+					intstring), no_default, 3);
+	var_print("COB_SCREEN_ESC", runtimeptr->cob_use_esc_env,
+			not_set, 2);
+	var_print("cob_screen_esc",
+			cob_int_to_string(cobglobptr->cob_use_esc, intstring),
+			no_default, 3);
+	var_print("COB_LEGACY", runtimeptr->cob_legacy_env,
+				not_set, 2);
+	var_print("cob_legacy",
+				cob_int_to_string(*(runtimeptr->cob_legacy), intstring),
+				no_default, 3);
+	
+	printf(_("\n\nMiscellaneous\n"));
+	var_print("COB_SET_TRACE", runtimeptr->cob_line_trace_env, not_set, 2);
+	var_print("cob_line_trace", cob_int_to_string(cob_line_trace, intstring), no_default, 3);
+	cob_check_trace_file();
+	var_print("COB_TRACE_FILE", cob_trace_env, not_set, 2);
+	if(cob_trace_file != stderr) {
+		var_print("cob_trace_file", cob_trace_env, NULL, 3);
+	}
+	else {
+		var_print("cob_trace_file", _("stderr (default)"), NULL, 3);
+	}
+	var_print("COB_DISABLE_WARNINGS",
+			runtimeptr->cob_display_warn_env, not_set, 2);
+	var_print("cob_display_warn",
+			cob_int_to_string(cobglobptr->cob_display_warn,
+					intstring), no_default, 3);
+	var_print("COB_ENV_MANGLE", runtimeptr->cob_env_mangle_env,
+			not_set, 2);
+	var_print("cob_env_mangle",
+			cob_int_to_string(cobglobptr->cob_env_mangle, intstring),
+			no_default, 3);
+}
+
+void
+print_version(void) {
+	char* cobc_buffer;
+	char month[32];
+	int day, year;
+
+	cobc_buffer = cob_fast_malloc((size_t) COB_MINI_MAX);
+
+	/* Set up build time stamp */
+	memset (month, 0, sizeof(month));
+	day = 0;
+	year = 0;
+	sscanf (__DATE__, "%s %d %d", month, &day, &year);
+
+	if (day && year) {
+		snprintf (cobc_buffer, (size_t)COB_MINI_MAX,
+			  "%s %2.2d %4.4d %s", month, day, year, __TIME__);
+	} else {
+		snprintf (cobc_buffer, (size_t)COB_MINI_MAX,
+			  "%s %s", __DATE__, __TIME__);
+	}
+
+	printf ("libcob (%s) %s.%d\n",
+		PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
+	puts ("Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida");
+	puts ("Copyright (C) 2006-2012 Roger While");
+	puts ("Copyright (C) 2009,2010,2012,2014 Simon Sobisch");
+	puts (_("This is free software; see the source for copying conditions.  There is NO\n\
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
+	printf (_("Built     %s"), cobc_buffer);
+	putchar ('\n');
+	printf (_("Packaged  %s"), COB_TAR_DATE);
+	putchar ('\n');
+
+}
+
+void
+print_info(void) {
+	char	buff[16];
+	char	*s;
+
+	print_version ();
+	putchar ('\n');
+	puts (_("Build information"));
+	var_print (_("Build environment"),	COB_BLD_BUILD, "", 0);
+	var_print ("CC", COB_BLD_CC, "", 0);
+	var_print ("CPPFLAGS", COB_BLD_CPPFLAGS, "", 0);
+	var_print ("CFLAGS", COB_BLD_CFLAGS, "", 0);
+	var_print ("LD", COB_BLD_LD, "", 0);
+	var_print ("LDFLAGS", COB_BLD_LDFLAGS, "", 0);
+	putchar ('\n');
+	printf (_("C version %s%s"), OC_C_VERSION_PRF, OC_C_VERSION);
+	putchar ('\n');
+	puts (_("GNU Cobol information"));
+
+//	if ((s = getenv ("COB_LIBRARY_PATH")) != NULL) {
+//		var_print ("COB_LIBRARY_PATH",	s, "", 1);
+//	}
+	var_print ("COB_MODULE_EXT", COB_MODULE_EXT, "", 0);
+	var_print ("COB_OBJECT_EXT", COB_OBJECT_EXT, "", 0);
+	var_print ("COB_EXEEXT", COB_EXEEXT, "", 0);
+
+#if	defined(USE_LIBDL) || defined(_WIN32)
+	var_print (_("Dynamic loading"),	_("System"), "", 0);
+#else
+	var_print (_("Dynamic loading"),	_("Libtool"), "", 0);
+#endif
+
+#ifdef	COB_PARAM_CHECK
+	var_print ("\"CBL_\" param check",	_("Enabled"), "", 0);
+#else
+	var_print ("\"CBL_\" param check",	_("Disabled"), "", 0);
+#endif
+
+	snprintf (buff, sizeof(buff), "%d", WITH_VARSEQ);
+	var_print (_("Variable format"), buff, "", 0);
+	if ((s = getenv ("COB_VARSEQ_FORMAT")) != NULL) {
+		var_print ("COB_VARSEQ_FORMAT", s, "", 1);
+	}
+
+#ifdef	COB_LI_IS_LL
+	var_print ("BINARY-C-LONG",	_("8 bytes"), "", 0);
+#else
+	var_print ("BINARY-C-LONG", _("4 bytes"), "", 0);
+#endif
+
+#ifdef	WITH_SEQRA_EXTFH
+	var_print (_("Sequential handler"),	_("External"), "", 0);
+#else
+	var_print (_("Sequential handler"), _("Internal"), "", 0);
+#endif
+#ifdef	WITH_INDEX_EXTFH
+	var_print (_("ISAM handler"),		_("External"), "", 0);
+#endif
+#ifdef	WITH_DB
+	var_print (_("ISAM handler"),		_("BDB"), "", 0);
+#endif
+#ifdef	WITH_CISAM
+	var_print (_("ISAM handler"),		_("C-ISAM (Experimental)"), "", 0);
+#endif
+#ifdef	WITH_DISAM
+	var_print (_("ISAM handler"),		_("D-ISAM (Experimental)"), "", 0);
+#endif
+#ifdef	WITH_VBISAM
+	var_print (_("ISAM handler"),		_("VBISAM (Experimental)"), "", 0);
+#endif
+}
+
 
 void
 cob_init (const int argc, char **argv)
@@ -3488,6 +4261,7 @@ cob_init (const int argc, char **argv)
 	}
 
 	cobglobptr = NULL;
+	runtimeptr = (struct runtime_env*) cob_malloc(sizeof(struct runtime_env));
 
 	cob_set_signal ();
 
@@ -3575,25 +4349,31 @@ cob_init (const int argc, char **argv)
 #ifdef	_WIN32
 	/* Allows running of tests under Win */
 	s = getenv ("COB_UNIX_LF");
-	if (s && (*s == 'Y' || *s == 'y' || *s == '1')) {
-		cobglobptr->cob_unix_lf = 1;
-		_setmode (_fileno (stdin), _O_BINARY);
-		_setmode (_fileno (stdout), _O_BINARY);
-		_setmode (_fileno (stderr), _O_BINARY);
+	if (s) {
+		runtimeptr->cob_unix_lf_env = cob_save_env_value(runtimeptr->cob_unix_lf_env, s);
+
+		if (cob_check_env_true(s)) {
+
+			cobglobptr->cob_unix_lf = 1;
+			_setmode (_fileno (stdin), _O_BINARY);
+			_setmode (_fileno (stdout), _O_BINARY);
+			_setmode (_fileno (stderr), _O_BINARY);
+		}
 	}
 #endif
 
-	cob_init_numeric (cobglobptr);
-	cob_init_strings ();
-	cob_init_move (cobglobptr);
-	cob_init_intrinsic (cobglobptr);
-	cob_init_fileio (cobglobptr);
-	cob_init_call (cobglobptr);
-	cob_init_screenio (cobglobptr);
-	cob_init_termio (cobglobptr);
+	/* Call inits with runtimeptr to get the adresses of all */
+	cob_init_numeric(cobglobptr);
+	cob_init_strings();
+	cob_init_move(cobglobptr, runtimeptr);
+	cob_init_intrinsic(cobglobptr);
+	/* Screen-IO might be needed for error outputs */
+	cob_init_screenio(cobglobptr, runtimeptr);
+	cob_init_fileio(cobglobptr, runtimeptr);
+	cob_init_call(cobglobptr, runtimeptr);
+	cob_init_termio(cobglobptr);
 
 	/* Set up library routine stuff */
-
 	cobglobptr->cob_term_buff = cob_malloc ((size_t)COB_MEDIUM_BUFF);
 	cob_rescan_env_vals ();
 
@@ -3602,22 +4382,26 @@ cob_init (const int argc, char **argv)
 		sprintf (runtime_err_str, "COB_SWITCH_%d", i);
 		s = getenv (runtime_err_str);
 		if (s && (*s == '1' || strcasecmp (s, "ON") == 0)) {
-			cob_switch[i] = 1;
+				cob_switch[i] = 1;
 		} else {
-			cob_switch[i] = 0;
+				cob_switch[i] = 0;
+			}
 		}
-	}
 
 	/* Trace enable */
 	s = getenv ("COB_SET_TRACE");
-	if (s && (*s == 'Y' || *s == 'y' || *s == '1')) {
-		cob_line_trace = 1;
+	if (s) {
+		runtimeptr->cob_line_trace_env = cob_save_env_value(runtimeptr->cob_line_trace_env, s);
+
+		if (cob_check_env_true(s)) {
+			cob_line_trace = 1;
+		}
 	}
 
 	/* Trace file */
 	s = getenv ("COB_TRACE_FILE");
 	if (s) {
-		cob_trace_env = cob_strdup (s);
+		cob_trace_env = (const char*) cob_save_env_value((char*) cob_trace_env, s);
 		cob_trace_file = NULL;
 	} else {
 		cob_trace_env = NULL;
@@ -3625,17 +4409,24 @@ cob_init (const int argc, char **argv)
 	}
 
 	/* Disable runtime warnings */
+	cobglobptr->cob_display_warn = 1;
 	s = getenv ("COB_DISABLE_WARNINGS");
-	if (s && (*s == 'Y' || *s == 'y' || *s == '1')) {
-		cobglobptr->cob_display_warn = 0;
-	} else {
-		cobglobptr->cob_display_warn = 1;
+	if (s) {
+		runtimeptr->cob_display_warn_env = cob_save_env_value(runtimeptr->cob_display_warn_env, s);
+
+		if (cob_check_env_true(s)) {
+			cobglobptr->cob_display_warn = 0;
+		}
 	}
 
 	/* Mangle environment names */
 	s = getenv ("COB_ENV_MANGLE");
-	if (s && (*s == 'Y' || *s == 'y' || *s == '1')) {
-		cobglobptr->cob_env_mangle = 1;
+	if (s) {
+		runtimeptr->cob_env_mangle_env = cob_save_env_value(runtimeptr->cob_env_mangle_env, s);
+
+		if (cob_check_env_true(s)) {
+			cobglobptr->cob_env_mangle = 1;
+		}
 	}
 
 	/* Get user name */
@@ -3672,10 +4463,10 @@ cob_init (const int argc, char **argv)
 	i = GetModuleFileNameA (NULL, s, COB_LARGE_MAX);
 	if (i > 0 && i < COB_LARGE_BUFF) {
 		cobglobptr->cob_main_argv0 = cob_strdup (s);
-		free (s);
+		cob_free (s);
 		return;
 	}
-	free (s);
+	cob_free (s);
 #elif	defined(HAVE_READLINK)
 	path = NULL;
 	if (!access ("/proc/self/exe", R_OK)) {
@@ -3690,10 +4481,10 @@ cob_init (const int argc, char **argv)
 		i = (int)readlink (path, s, (size_t)COB_LARGE_MAX);
 		if (i > 0 && i < COB_LARGE_BUFF) {
 			cobglobptr->cob_main_argv0 = cob_strdup (s);
-			free (s);
+			cob_free (s);
 			return;
 		}
-		free (s);
+		cob_free (s);
 	}
 #endif
 
@@ -3707,7 +4498,7 @@ cob_init (const int argc, char **argv)
 		} else {
 			cobglobptr->cob_main_argv0 = cob_strdup (path);
 		}
-		free (s);
+		cob_free (s);
 #else
 		cobglobptr->cob_main_argv0 = cob_strdup (path);
 #endif
@@ -3727,7 +4518,7 @@ cob_init (const int argc, char **argv)
 		if (realpath (argv[0], s) != NULL) {
 			cobglobptr->cob_main_argv0 = cob_strdup (s);
 		}
-		free (s);
+		cob_free (s);
 #endif
 		if (!cobglobptr->cob_main_argv0) {
 			cobglobptr->cob_main_argv0 = cob_strdup (argv[0]);

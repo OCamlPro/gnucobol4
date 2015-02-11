@@ -544,7 +544,7 @@ cob_move_fp_to_fp (cob_field *src, cob_field *dst)
 
 	if (COB_FIELD_TYPE (src) == COB_TYPE_NUMERIC_FLOAT) {
 		memmove ((void *)&ffp, src->data, sizeof(float));
-		dfp = ffp;
+		dfp = (double)ffp;
 	} else {
 		memmove ((void *)&dfp, src->data, sizeof(double));
 		ffp = (float)dfp;
@@ -647,9 +647,9 @@ cob_move_binary_to_display (cob_field *f1, cob_field *f2)
 		val2 = cob_binary_mget_sint64 (f1);
 		if (val2 < 0) {
 			sign = -1;
-			val = -(cob_u64_t)val2;
+			val = (cob_u64_t)-val2;
 		} else {
-			val = val2;
+			val = (cob_u64_t)val2;
 		}
 	} else {
 		val = cob_binary_mget_uint64 (f1);
@@ -990,9 +990,9 @@ cob_move_edited_to_display (cob_field *f1, cob_field *f2)
 	int		scale = 0;
 	int		count = 0;
 	int		have_point = 0;
-	int		cp;
 	int		n;
 	unsigned char	c;
+	unsigned char	cp;
 	unsigned char	dec_pt;
 
 	dec_pt = COB_MODULE_PTR->decimal_point;
@@ -1057,7 +1057,7 @@ cob_move_edited_to_display (cob_field *f1, cob_field *f2)
 	store_common_region (f2, buff, (size_t)(p - buff), scale);
 
 	COB_PUT_SIGN (f2, sign);
-	free (buff);
+	cob_free (buff);
 }
 
 static void
@@ -1118,7 +1118,7 @@ indirect_move (void (*func) (cob_field *src, cob_field *dst),
 	temp.attr = &attr;
 	func (src, &temp);
 	cob_move (&temp, dst);
-	free (temp.data);
+	cob_free (temp.data);
 }
 
 static void
@@ -1162,7 +1162,7 @@ cob_move_all (cob_field *src, cob_field *dst)
 	}
 
 	cob_move (&temp, dst);
-	free (p);
+	cob_free (p);
 }
 
 void
@@ -1679,7 +1679,7 @@ cob_get_llint (cob_field *f)
 }
 
 void
-cob_init_move (cob_global *lptr)
+cob_init_move (cob_global *lptr, runtime_env* runtimeptr)
 {
 #if	0	/* RXWRXW - Local edit sym */
 #ifdef	HAVE_LOCALECONV
@@ -1696,7 +1696,7 @@ cob_init_move (cob_global *lptr)
 	cob_lc_thou = 0;
 #ifdef	HAVE_LOCALECONV
 	s = getenv ("COB_LOCALE_NUMERIC_EDITED");
-	if (s && (*s == 'Y' || *s == 'y' || *s == '1')) {
+	if (cob_check_env_true(s)) {
 		p = localeconv ();
 		if (strlen (p->mon_decimal_point) != 1) {
 			return;
@@ -1705,9 +1705,14 @@ cob_init_move (cob_global *lptr)
 			return;
 		}
 		cob_locale_edit = 1;
+		runtimeptr->cob_local_edit = &cob_local_edit;
 		cob_lc_dec = *((unsigned char *)(p->mon_decimal_point));
 		cob_lc_thou = *((unsigned char *)(p->mon_thousands_sep));
 	}
+#else
+	COB_UNUSED(runtimeptr);
 #endif
+#else
+	COB_UNUSED(runtimeptr);
 #endif
 }

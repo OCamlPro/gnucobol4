@@ -212,6 +212,19 @@ mpz_get_sll (const mpz_ptr src)
 
 #endif	/* COB_EXPERIMENTAL */
 
+
+void
+cob_gmp_free (void * ptr) {
+/* mpir/gmp free functions */
+#ifdef HAVE_MP_GET_MEMORY_FUNCTIONS
+	void (*freefunc)(void *, size_t);
+	mp_get_memory_functions (NULL, NULL, &freefunc);
+	freefunc (ptr, strlen((char*) ptr) + 1);
+#else
+	free (ptr);
+#endif
+}
+
 static COB_INLINE COB_A_INLINE void
 num_byte_memcpy (unsigned char *s1, const unsigned char *s2, size_t size)
 {
@@ -323,7 +336,7 @@ cob_decimal_set_llint (cob_decimal *d, const cob_s64_t n)
 	negative = 0;
 	if (n < 0) {
 		negative = 1;
-		uval = -(cob_u64_t)n;
+		uval = (cob_u64_t)-n;
 	} else {
 		uval = (cob_u64_t)n;
 	}
@@ -833,7 +846,7 @@ cob_decimal_set_double (cob_decimal *d, const double v)
 	if (!*q) {
 		mpz_set_ui (d->value, 0UL);
 		d->scale = 0;
-		free (q);
+		cob_gmp_free(q);
 		return;
 	}
 	p = q;
@@ -857,7 +870,7 @@ cob_decimal_set_double (cob_decimal *d, const double v)
 	if (sign) {
 		mpz_neg (d->value, d->value);
 	}
-	free (q);
+	cob_gmp_free(q);
 }
 
 static double
@@ -1144,6 +1157,7 @@ cob_decimal_get_packed (cob_decimal *d, cob_field *f, const int opt)
 	int		sign;
 	int		digits;
 	unsigned int	x;
+
 #if	0	/* RXWRXW stack */
 	char		buff[1024];
 #endif
@@ -1191,7 +1205,8 @@ cob_decimal_get_packed (cob_decimal *d, cob_field *f, const int opt)
 #if	0	/* RXWRXW stack */
 			if (unlikely(mza != buff)) {
 #endif
-				free (mza);
+				cob_gmp_free(mza);
+
 #if	0	/* RXWRXW stack */
 			}
 #endif
@@ -1220,7 +1235,8 @@ cob_decimal_get_packed (cob_decimal *d, cob_field *f, const int opt)
 #if	0	/* RXWRXW stack */
 	if (unlikely(mza != buff)) {
 #endif
-		free (mza);
+		cob_gmp_free(mza);
+
 #if	0	/* RXWRXW stack */
 	}
 #endif
@@ -1253,7 +1269,7 @@ cob_set_packed_int (cob_field *f, const int val)
 		return;
 	}
 	if (val < 0) {
-		n = -(cob_u32_t)val;
+		n = (cob_u32_t)-val;
 		sign = 1;
 	} else {
 		n = (cob_u32_t)val;
@@ -1340,7 +1356,7 @@ cob_decimal_set_display (cob_decimal *d, cob_field *f)
 		}
 		p[size] = 0;
 		mpz_set_str (d->value, (char *)p, 10);
-		free (p);
+		cob_free (p);
 	}
 
 	/* Set sign and scale */
@@ -1384,7 +1400,7 @@ cob_decimal_get_display (cob_decimal *d, cob_field *f, const int opt)
 		/* If the statement has ON SIZE ERROR or NOT ON SIZE ERROR,
 		   then throw an exception */
 		if (opt & COB_STORE_KEEP_ON_OVERFLOW) {
-			free (p);
+			cob_gmp_free(p);
 			return cobglobptr->cob_exception_code;
 		}
 
@@ -1396,8 +1412,9 @@ cob_decimal_get_display (cob_decimal *d, cob_field *f, const int opt)
 		memcpy (data + diff, p, size);
 	}
 
-	free (p);
+	cob_gmp_free(p);
 	COB_PUT_SIGN (f, sign);
+
 	return 0;
 }
 
@@ -1468,7 +1485,7 @@ cob_decimal_set_binary (cob_decimal *d, cob_field *f)
 			val = cob_binary_get_sint64 (f);
 			if (val < 0) {
 				negative = 1;
-				uval = -(cob_u64_t)val;
+				uval = (cob_u64_t)-val;
 			} else {
 				uval = (cob_u64_t)val;
 			}
@@ -1845,10 +1862,10 @@ cob_decimal_get_field (cob_decimal *d, cob_field *f, const int opt)
 	temp.attr = &attr;
 	if (cob_decimal_get_display (d, &temp, opt) == 0) {
 		cob_move (&temp, f);
-		free (temp.data);
+		cob_free (temp.data);
 		return 0;
 	}
-	free (temp.data);
+	cob_free (temp.data);
 	return cobglobptr->cob_exception_code;
 }
 
@@ -2180,65 +2197,54 @@ cob_add_int (cob_field *f, const int n, const int opt)
 	int	scale;
 	int	val;
 
-#if	0	/* RXWRXW - Buggy */
 	if (unlikely(n == 0)) {
 		return 0;
 	}
+#if	0	/* RXWRXW - Buggy */
 	if (COB_FIELD_TYPE (f) == COB_TYPE_NUMERIC_PACKED) {
 		return cob_add_packed (f, n, opt);
 	} else if (COB_FIELD_TYPE (f) == COB_TYPE_NUMERIC_DISPLAY) {
 		return cob_display_add_int (f, n, opt);
 	}
 #endif
+
 	/* Not optimized */
 	cob_decimal_set_field (&cob_d1, f);
-#if 0	
-	mpz_set_si (cob_d2.value, n);
-	cob_d2.scale = 0;
-	if (cob_d1.scale) {
-		mpz_ui_pow_ui (cob_mexp, 10, (unsigned int)cob_d1.scale);
-		mpz_mul (cob_d2.value, cob_d2.value, cob_mexp);
-		cob_d2.scale = cob_d1.scale;
-	}
-	mpz_add (cob_d1.value, cob_d1.value, cob_d2.value);
-	return cob_decimal_get_field (&cob_d1, f, opt);
-#else
-	/* RJN: April 2014; I am not sure why the code 
-		   was scaling the 'integer' as that resulted in
-		   and incorrect value
-	   The above code is from OpenCOBOL 1.1 and does work
-	   This following code is removed...
-	*/
+
 	if (COB_FIELD_TYPE (f) >= COB_TYPE_NUMERIC_FLOAT
-	&&  COB_FIELD_TYPE (f) <= COB_TYPE_NUMERIC_FP_BIN128)
-		scale = 0;
-	else
+	&&  COB_FIELD_TYPE (f) <= COB_TYPE_NUMERIC_FP_BIN128) {
+		mpz_set_si (cob_d2.value, (cob_sli_t) n);
+		cob_d2.scale = 0;
+		mpz_add (cob_d1.value, cob_d1.value, cob_d2.value);
+		return cob_decimal_get_field (&cob_d1, f, opt);
+	}
+	else {
 		scale = COB_FIELD_SCALE (f);
-	val = n;
-	if (unlikely(scale < 0)) {
-		/* PIC 9(n)P(m) */
-		if (-scale < 10) {
-			while (scale++) {
-				val /= 10;
+		val = n;
+		if (unlikely(scale < 0)) {
+			/* PIC 9(n)P(m) */
+			if (-scale < 10) {
+				while (scale++) {
+					val /= 10;
+				}
+			} else {
+				val = 0;
 			}
-		} else {
-			val = 0;
+			scale = 0;
+			if (!val) {
+				return 0;
+			}
 		}
-		scale = 0;
-		if (!val) {
-			return 0;
+		mpz_set_si (cob_d2.value, (cob_sli_t)val);
+		cob_d2.scale = 0;
+		if (scale > 0) {
+			mpz_ui_pow_ui (cob_mexp, 10UL, (cob_uli_t)scale);
+			mpz_mul (cob_d2.value, cob_d2.value, cob_mexp);
+			cob_d2.scale = cob_d1.scale;
 		}
+		mpz_add (cob_d1.value, cob_d1.value, cob_d2.value);
+		return cob_decimal_get_field (&cob_d1, f, opt);
 	}
-	mpz_set_si (cob_d2.value, (cob_sli_t)val);
-	cob_d2.scale = 0;
-	if (scale > 0) {
-		mpz_ui_pow_ui (cob_mexp, 10UL, (cob_uli_t)scale);
-		mpz_mul (cob_d2.value, cob_d2.value, cob_mexp);
-		cob_d2.scale = cob_d1.scale;
-	}
-	mpz_add (cob_d1.value, cob_d1.value, cob_d2.value);
-	return cob_decimal_get_field (&cob_d1, f, opt);
-#endif
 }
 
 int
@@ -2277,7 +2283,7 @@ cob_cmp_llint (cob_field *f1, const cob_s64_t n)
 	negative = 0;
 	if (n < 0) {
 		negative = 1;
-		uval = -(cob_u64_t)n;
+		uval = (cob_u64_t)-n;
 	} else {
 		uval = (cob_u64_t)n;
 	}
@@ -2295,11 +2301,11 @@ cob_cmp_llint (cob_field *f1, const cob_s64_t n)
 }
 
 #ifdef COB_FLOAT_DELTA
-#define TOLERANCE (double)COB_FLOAT_DELTA
+#define TOLERANCE (double) COB_FLOAT_DELTA
 #else
-#define TOLERANCE (double)0.00001
+#define TOLERANCE (double) 0.0000001
 #endif
-#define FLOAT_EQ(x,y,t) (fabs((fabs(x-y)/x)) < t)
+#define FLOAT_EQ(x,y,t) (fabs(((x-y)/x)) < t)
 
 int
 cob_cmp_float (cob_field *f1, cob_field *f2)
@@ -2369,7 +2375,7 @@ cob_cmp_packed (cob_field *f, const cob_s64_t val)
 	}
 	/* Both positive or both negative */
 	if (val < 0) {
-		n = -(cob_u64_t)val;
+		n = (cob_u64_t)-val;
 	} else {
 		n = (cob_u64_t)val;
 	}
@@ -2616,7 +2622,7 @@ cob_decimal_pop (const cob_u32_t params, ...)
 	for (i = 0; i < params; ++i) {
 		dec = va_arg (args, cob_decimal *);
 		mpz_clear (dec->value);
-		free (dec);
+		cob_free (dec);
 	}
 	va_end (args);
 }
@@ -2633,7 +2639,7 @@ cob_exit_numeric (void)
 	for (i = 0; i < COB_MAX_DEC_STRUCT; d1++, i++) {
 		mpz_clear (d1->value);
 	}
-	free (cob_decimal_base);
+	cob_free (cob_decimal_base);
 
 	mpz_clear (cob_d_remainder.value);
 

@@ -6,7 +6,7 @@
 
    The GNU Cobol runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
-   as published by the Free Software Foundation, either version 3 of the
+   as published by the Freecob_freetware Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    GNU Cobol is distributed in the hope that it will be useful,
@@ -75,19 +75,21 @@
 #endif
 #define off_t		cob_s64_t
 
-#elif	defined(HAVE_FDATASYNC)
-#define	fdcobsync	fdatasync
-#else
-#define	fdcobsync	fsync
-
-#endif
-
 #ifndef	_O_TEMPORARY
 #define	_O_TEMPORARY	0
 #endif
 
+#else
+#if	defined(HAVE_FDATASYNC)
+#define	fdcobsync	fdatasync
+#else
+#define	fdcobsync	fsync
+#endif
+
 #ifndef	O_BINARY
 #define	O_BINARY	0
+#endif
+
 #endif
 
 /* Force symbol exports */
@@ -170,7 +172,6 @@ struct file_list {
 #define COBSORTFILEERR		3
 #define COBSORTNOTOPEN		4
 
-#define	COB_SORT_CHUNK		256 * 1024
 
 /* Sort item */
 struct cobitem {
@@ -232,26 +233,29 @@ struct cobsort {
 
 static cob_global	*cobglobptr;
 
-#ifndef	_WIN32
-static int		cob_iteration;
-static pid_t		cob_process_id;
-#endif
-
 static unsigned int	eop_status;
 static unsigned int	check_eop_status;
 static unsigned int	cob_ls_uses_cr;
+static char*		cob_ls_uses_cr_env;
 static unsigned int	cob_ls_nulls;
+static char*		cob_ls_nulls_env;
 static unsigned int	cob_ls_fixed;
+static char*		cob_ls_fixed_env;
 static unsigned int	cob_do_sync;
+static char*		cob_do_sync_env;
 static size_t		cob_vsq_len;
 static unsigned int	cob_varseq_type;
+static char*		cob_varseq_type_env;
 
 static size_t		cob_sort_memory;
+static char*		cob_sort_memory_env;
 static size_t		cob_sort_chunk;
+static char*		cob_sort_chunk_env;
 
 static struct file_list	*file_cache;
 
 static char		*cob_file_path;
+static char*	cob_file_path_env;
 static char		*file_open_env;
 static char		*file_open_name;
 static char		*file_open_buff;
@@ -522,7 +526,7 @@ cob_chk_file_env (const char *src)
 		}
 	}
 	if (unlikely(q)) {
-		free (q);
+		cob_free (q);
 	}
 	return p;
 }
@@ -535,22 +539,11 @@ cob_chk_file_mapping (void)
 	char		*dst;
 	char		*saveptr;
 	char		*orig;
-	const char	*slash_char;
 	unsigned int	dollar;
 
 	if (unlikely(!COB_MODULE_PTR->flag_filename_mapping)) {
 		return;
 	}
-
-#ifdef	_WIN32
-	if (cobglobptr->cob_unix_lf) {
-		slash_char = "/";
-	} else {
-		slash_char = "\\";
-	}
-#else
-	slash_char = "/";
-#endif
 
 	/* Misuse "dollar" here to indicate a separator */
 	dollar = 0;
@@ -575,7 +568,7 @@ cob_chk_file_mapping (void)
 			strncpy (file_open_name, p, (size_t)COB_FILE_MAX);
 		} else if (cob_file_path) {
 			snprintf (file_open_buff, (size_t)COB_FILE_MAX, "%s%s%s",
-				  cob_file_path, slash_char, file_open_name);
+				  cob_file_path, SLASH_STR, file_open_name);
 			strncpy (file_open_name, file_open_buff,
 				 (size_t)COB_FILE_MAX);
 		}
@@ -606,7 +599,7 @@ cob_chk_file_mapping (void)
 
 	/* strtok strips leading delimiters */
 	if (*src == '/' || *src == '\\') {
-		strcpy (file_open_buff, slash_char);
+		strcpy (file_open_buff, SLASH_STR);
 	} else {
 		file_open_buff[COB_FILE_MAX] = 0;
 		p = strtok (orig, "/\\");
@@ -630,7 +623,7 @@ cob_chk_file_mapping (void)
 			if (dollar) {
 				dollar = 0;
 			} else {
-				strcat (file_open_buff, slash_char);
+				strcat (file_open_buff, SLASH_STR);
 			}
 		} else {
 			orig = NULL;
@@ -642,7 +635,7 @@ cob_chk_file_mapping (void)
 		}
 	}
 	strcpy (file_open_name, file_open_buff);
-	free (saveptr);
+	cob_free (saveptr);
 }
 
 static void
@@ -721,8 +714,8 @@ save_status (cob_file *f, cob_field *fnstatus, const int status)
 		return;
 	}
 	cob_set_exception (status_exception[status / 10]);
-	f->file_status[0] = COB_I2D (status / 10);
-	f->file_status[1] = COB_I2D (status % 10);
+	f->file_status[0] = (unsigned char)COB_I2D (status / 10);
+	f->file_status[1] = (unsigned char)COB_I2D (status % 10);
 	if (fnstatus) {
 		memcpy (fnstatus->data, f->file_status, (size_t)2);
 	}
@@ -849,7 +842,7 @@ cob_seq_write_opt (cob_file *f, const int opt)
 		i = opt & COB_WRITE_MASK;
 		if (!i) {
 			/* AFTER/BEFORE 0 */
-			if (write (f->fd, "\015", (size_t)1) != 1) {
+			if (write (f->fd, "\r", (size_t)1) != 1) {
 				return 1;
 			}
 		} else {
@@ -971,10 +964,6 @@ cob_fd_file_open (cob_file *f, char *filename, const int mode, const int sharing
 			lseek (fd, (off_t) 0, SEEK_END);
 		}
 		f->open_mode = mode;
-		if (f->flag_optional && nonexistent) {
-			f->fd = fd;	/* Fill in fd as file is OK to use; RJN 2011/10/26 */
-			return COB_STATUS_05_SUCCESS_OPTIONAL;
-		}
 		break;
 	case ENOENT:
 		if (mode == COB_OPEN_EXTEND || mode == COB_OPEN_OUTPUT) {
@@ -1141,11 +1130,6 @@ cob_file_open (cob_file *f, char *filename, const int mode, const int sharing)
 	switch (errno) {
 	case 0:
 		f->open_mode = mode;
-		if (f->flag_optional && nonexistent) {
-			f->file = fp;	/* Fill in fd as file is OK to use; RJN 2011/10/26 */
-			f->fd = fileno (fp);
-			return COB_STATUS_05_SUCCESS_OPTIONAL;
-		}
 		break;
 	case EINVAL:
 		if (f->flag_optional && nonexistent) {
@@ -1488,7 +1472,7 @@ lineseq_read (cob_file *f, const int read_opts)
 			}
 		}
 		if (likely(i < f->record_max)) {
-			*dataptr++ = n;
+			*dataptr++ = (unsigned char)n;
 			i++;
 		}
 	}
@@ -2055,15 +2039,15 @@ freefh (struct indexfile *fh)
 		return;
 	}
 	if (fh->filename) {
-		free ((void *)fh->filename);
+		cob_free ((void *)fh->filename);
 	}
 	if (fh->savekey) {
-		free ((void *)fh->savekey);
+		cob_free ((void *)fh->savekey);
 	}
 	if (fh->recwrk) {
-		free ((void *)fh->recwrk);
+		cob_free ((void *)fh->recwrk);
 	}
-	free ((void *)fh);
+	cob_free ((void *)fh);
 }
 
 /* Restore ISAM file positioning */
@@ -2190,7 +2174,7 @@ join_environment (void)
 #endif
 #endif
 	bdb_env->set_cachesize (bdb_env, 0, 2*1024*1024, 0);
-	bdb_env->set_alloc (bdb_env, cob_malloc, realloc, free);
+	bdb_env->set_alloc (bdb_env, cob_malloc, realloc, cob_free);
 	flags = DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB;
 	ret = bdb_env->open (bdb_env, bdb_home, flags, 0);
 	if (ret) {
@@ -2217,7 +2201,7 @@ lock_record (cob_file *f, const char *key, const unsigned int keylen)
 	p = f->file;
 	len = keylen + p->filenamelen + 1;
 	if (len > rlo_size) {
-		free (record_lock_object);
+		cob_free (record_lock_object);
 		record_lock_object = cob_malloc (len);
 		rlo_size = len;
 	}
@@ -2247,7 +2231,7 @@ test_record_lock (cob_file *f, const char *key, const unsigned int keylen)
 	p = f->file;
 	len = keylen + p->filenamelen + 1;
 	if (len > rlo_size) {
-		free (record_lock_object);
+		cob_free (record_lock_object);
 		record_lock_object = cob_malloc (len);
 		rlo_size = len;
 	}
@@ -2289,7 +2273,7 @@ get_dupno (cob_file *f, const cob_u32_t i)
 	unsigned int		dupno;
 
 	p = f->file;
-	dupno =  0;
+	dupno = 0;
 	DBT_SET (p->key, f->keys[i].field);
 	memcpy (p->temp_key, p->key.data, (size_t)p->key.size);
 	p->db[i]->cursor (p->db[i], NULL, &p->cursor[i], 0);
@@ -2706,11 +2690,11 @@ bdb_nofile (const char *filename)
 	for (i = 0; bdb_data_dir && bdb_data_dir[i]; ++i) {
 		bdb_buff[COB_SMALL_MAX] = 0;
 		if (is_absolute (bdb_data_dir[i])) {
-			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s/%s",
-				  bdb_data_dir[i], filename);
+			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%s%s",
+				  bdb_data_dir[i], SLASH_STR, filename);
 		} else {
-			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s/%s/%s",
-				  bdb_home, bdb_data_dir[i], filename);
+			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%s%s%s%s",
+				  bdb_home, SLASH_STR, bdb_data_dir[i], SLASH_STR, filename);
 		}
 		errno = 0;
 		if (access (bdb_buff, F_OK) == 0 || errno != ENOENT) {
@@ -2719,8 +2703,8 @@ bdb_nofile (const char *filename)
 	}
 	if (i == 0) {
 		bdb_buff[COB_SMALL_MAX] = 0;
-		snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s/%s",
-			  bdb_home, filename);
+		snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%s%s",
+			  bdb_home, SLASH_STR, filename);
 		errno = 0;
 		if (access (bdb_buff, F_OK) == 0 || errno != ENOENT) {
 			return 0;
@@ -2964,7 +2948,10 @@ dobuild:
 			isindexinfo (isfd, (void *)&di, 0);
 			/* Mask off ISVARLEN */
 			fh->nkeys = di.di_nkeys & 0x7F;
-			for (k = 0; k < f->nkeys && !ret; ++k) {
+			if (fh->nkeys != f->nkeys) {
+				ret = COB_STATUS_39_CONFLICT_ATTRIBUTE;
+			}
+			for (k = 0; k < fh->nkeys && !ret; ++k) {
 				memset (&fh->key[k], 0, sizeof(struct keydesc));
 				isindexinfo (isfd, &fh->key[k], (int)(k+1));
 				if (fh->lenkey < fh->key[k].k_leng) {
@@ -3036,21 +3023,21 @@ dobuild:
 	cob_u32_t		flags = 0;
 	int			ret = 0;
 	int			nonexistent;
-
 #if	0	/* RXWRXW - Access check BDB Human */
 	int			checkvalue;
-
-	if (mode == COB_OPEN_INPUT) {
-		checkvalue = R_OK;
-	} else {
-		checkvalue = R_OK | W_OK;
-	}
 #endif
 
 	COB_UNUSED (sharing);
 
 	cob_chk_file_mapping ();
 
+#if	0	/* RXWRXW - Access check BDB Human */
+	if (mode == COB_OPEN_INPUT) {
+		checkvalue = R_OK;
+	} else {
+		checkvalue = R_OK | W_OK;
+	}
+#endif
 
 	nonexistent = 0;
 	if (bdb_nofile (filename)) {
@@ -3074,7 +3061,7 @@ dobuild:
 		ret = bdb_env->lock_get (bdb_env, bdb_lock_id, DB_LOCK_NOWAIT,
 					&p->key, lock_mode, &p->bdb_file_lock);
 		if (ret) {
-			free (p);
+			cob_free (p);
 			if (ret == DB_LOCK_NOTGRANTED) {
 				return COB_STATUS_61_FILE_SHARING;
 			} else {
@@ -3186,14 +3173,14 @@ dobuild:
 			if (handle_created) {
 				DB_CLOSE (p->db[i]);
 			}
-			free (p->db);
-			free (p->last_readkey);
-			free (p->last_dupno);
-			free (p->cursor);
+			cob_free (p->db);
+			cob_free (p->last_readkey);
+			cob_free (p->last_dupno);
+			cob_free (p->cursor);
 			if (bdb_env != NULL) {
 				bdb_env->lock_put (bdb_env, &p->bdb_file_lock);
 			}
-			free (p);
+			cob_free (p);
 			switch (ret) {
 			case DB_LOCK_NOTGRANTED:
 				return COB_STATUS_61_FILE_SHARING;
@@ -3306,26 +3293,26 @@ indexed_close (cob_file *f, const int opt)
 		if (p->db[i]) {
 			DB_CLOSE (p->db[i]);
 		}
-		free (p->last_readkey[i]);
-		free (p->last_readkey[f->nkeys + i]);
+		cob_free (p->last_readkey[i]);
+		cob_free (p->last_readkey[f->nkeys + i]);
 	}
 
 	if (p->last_key) {
-		free (p->last_key);
+		cob_free (p->last_key);
 	}
-	free (p->temp_key);
-	free (p->db);
-	free (p->last_readkey);
-	free (p->last_dupno);
-	free (p->rewrite_sec_key);
-	free (p->filename);
-	free (p->cursor);
+	cob_free (p->temp_key);
+	cob_free (p->db);
+	cob_free (p->last_readkey);
+	cob_free (p->last_dupno);
+	cob_free (p->rewrite_sec_key);
+	cob_free (p->filename);
+	cob_free (p->cursor);
 	if (bdb_env != NULL) {
 		unlock_record (f);
 		bdb_env->lock_put (bdb_env, &p->bdb_file_lock);
 		bdb_env->lock_id_free (bdb_env, p->bdb_lock_id);
 	}
-	free (p);
+	cob_free (p);
 
 	return COB_STATUS_00_SUCCESS;
 
@@ -3839,11 +3826,14 @@ indexed_read_next (cob_file *f, const int read_opts)
 	cob_u32_t		nextprev;
 	int			file_changed;
 	int			bdb_opts;
-	unsigned int		dupno = 0;
+	unsigned int		dupno;
 
 	p = f->file;
 	nextprev = DB_NEXT;
+	dupno = 0;
 	file_changed = 0;
+	
+	dupno = 0;
 
 	bdb_opts = read_opts;
 	if (bdb_env != NULL) {
@@ -4556,7 +4546,7 @@ cob_close (cob_file *f, cob_field *fnstatus, const int opt, const int remfil)
 				} else {
 					m->next = l->next;
 				}
-				free (l);
+				cob_free (l);
 				break;
 			}
 			m = l;
@@ -5033,17 +5023,22 @@ open_cbl_file (unsigned char *file_name, unsigned char *file_access,
 			flag |= O_RDWR;
 			break;
 		default:
+			if (cobglobptr->cob_display_warn) {
+				fprintf (stderr, _("WARNING - Call to CBL_OPEN_FILE with wrong access mode: %d"), *file_access & 0x3F);
+				putc ('\n', stderr);
+				fflush (stderr);
+			}
 			memset (file_handle, -1, (size_t)4);
 			return -1;
 	}
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	fd = open (fn, flag, 0660);
 	if (fd < 0) {
-		free (fn);
+		cob_free (fn);
 		memset (file_handle, -1, (size_t)4);
 		return 35;
 	}
-	free (fn);
+	cob_free (fn);
 	memcpy (file_handle, &fd, (size_t)4);
 	return 0;
 }
@@ -5066,8 +5061,22 @@ cob_sys_create_file (unsigned char *file_name, unsigned char *file_access,
 		     unsigned char *file_lock, unsigned char *file_dev,
 		     unsigned char *file_handle)
 {
-	COB_UNUSED (file_lock);
-	COB_UNUSED (file_dev);
+	/*
+	 * @param: file_access : 1 (read-only), 2 (write-only), 3 (both)
+	 * @param: file_lock : not implemented, set 0
+	 * @param: file_dev : not implemented, set 0
+	 */
+
+	if (*file_lock != 0 && cobglobptr->cob_display_warn) {
+		fprintf (stderr, _("WARNING - Call to CBL_CREATE_FILE with wrong file_lock: %d"), *file_lock);
+		putc ('\n', stderr);
+		fflush (stderr);
+	}
+	if (*file_dev != 0 && cobglobptr->cob_display_warn) {
+		fprintf (stderr, _("WARNING - Call to CBL_CREATE_FILE with wrong file_dev: %d"), *file_dev);
+		putc ('\n', stderr);
+		fflush (stderr);
+	}
 
 	COB_CHK_PARMS (CBL_CREATE_FILE, 5);
 
@@ -5188,7 +5197,7 @@ cob_sys_delete_file (unsigned char *file_name)
 	}
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	ret = unlink (fn);
-	free (fn);
+	cob_free (fn);
 	if (ret) {
 		return 128;
 	}
@@ -5220,23 +5229,24 @@ cob_sys_copy_file (unsigned char *fname1, unsigned char *fname2)
 	flag |= O_RDONLY;
 	fd1 = open (fn1, flag, 0);
 	if (fd1 < 0) {
-		free (fn1);
+		cob_free (fn1);
 		return -1;
 	}
-	free (fn1);
+	cob_free (fn1);
 	fn2 = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[1]);
 	flag &= ~O_RDONLY;
 	flag |= O_CREAT | O_TRUNC | O_WRONLY;
 	fd2 = open (fn2, flag, 0660);
 	if (fd2 < 0) {
 		close (fd1);
-		free (fn2);
+		cob_free (fn2);
 		return -1;
 	}
-	free (fn2);
+	cob_free (fn2);
+
 	ret = 0;
-	while ((i = read (fd1, fn1, sizeof(fn1))) > 0) {
-		if (write (fd2, fn1, (size_t)i) < 0) {
+	while ((i = read (fd1, file_open_buff, COB_FILE_BUFF)) > 0) {
+		if (write (fd2, file_open_buff, (size_t)i) < 0) {
 			ret = -1;
 			break;
 		}
@@ -5273,10 +5283,10 @@ cob_sys_check_file_exist (unsigned char *file_name, unsigned char *file_info)
 
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	if (stat (fn, &st) < 0) {
-		free (fn);
+		cob_free (fn);
 		return 35;
 	}
-	free (fn);
+	cob_free (fn);
 	sz = (cob_s64_t)st.st_size;
 	tm = localtime (&st.st_mtime);
 	d = (short)tm->tm_mday;
@@ -5327,8 +5337,8 @@ cob_sys_rename_file (unsigned char *fname1, unsigned char *fname2)
 	fn1 = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	fn2 = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[1]);
 	ret = rename (fn1, fn2);
-	free (fn1);
-	free (fn2);
+	cob_free (fn1);
+	cob_free (fn2);
 	if (ret) {
 		return 128;
 	}
@@ -5362,7 +5372,7 @@ cob_sys_get_current_dir (const int flags, const int dir_length,
 		has_space = 2;
 	}
 	if (dir_size + has_space > dir_length) {
-		free (dirname);
+		cob_free (dirname);
 		return 128;
 	}
 	if (has_space) {
@@ -5372,7 +5382,7 @@ cob_sys_get_current_dir (const int flags, const int dir_length,
 	} else {
 		memcpy (dir, dirname, (size_t)dir_size);
 	}
-	free (dirname);
+	cob_free (dirname);
 	return 0;
 }
 
@@ -5395,7 +5405,7 @@ cob_sys_create_dir (unsigned char *dir)
 #else
 	ret = mkdir (fn, 0770);
 #endif
-	free (fn);
+	cob_free (fn);
 	if (ret) {
 		return 128;
 	}
@@ -5417,7 +5427,7 @@ cob_sys_change_dir (unsigned char *dir)
 	}
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	ret = chdir (fn);
-	free (fn);
+	cob_free (fn);
 	if (ret) {
 		return 128;
 	}
@@ -5439,7 +5449,7 @@ cob_sys_delete_dir (unsigned char *dir)
 	}
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	ret = rmdir (fn);
-	free (fn);
+	cob_free (fn);
 	if (ret) {
 		return 128;
 	}
@@ -5527,10 +5537,10 @@ cob_sys_file_info (unsigned char *file_name, unsigned char *file_info)
 
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
 	if (stat (fn, &st) < 0) {
-		free (fn);
+		cob_free (fn);
 		return 35;
 	}
-	free (fn);
+	cob_free (fn);
 	sz = (cob_u64_t)st.st_size;
 	tm = localtime (&st.st_mtime);
 	d = (short)tm->tm_mday;
@@ -5663,23 +5673,26 @@ cob_free_list (struct cobsort *hp)
 	for (; s1;) {
 		s2 = s1;
 		s1 = s1->next;
-		free (s2->mem_ptr);
-		free (s2);
+		cob_free (s2->mem_ptr);
+		cob_free (s2);
 	}
 }
 
-static void *
+static struct cobitem *
 cob_new_item (struct cobsort *hp, const size_t size)
 {
 	struct cobitem		*q;
 	struct sort_mem_struct	*s;
-	void			*vp;
 
 	COB_UNUSED (size);
 
+	/* Creation of an empty item */
 	if (unlikely(hp->empty != NULL)) {
 		q = hp->empty;
 		hp->empty = q->next;
+		q->block_byte = 0;
+		q->next = NULL;
+		q->end_of_block = 0;
 		return (void *)q;
 	}
 	if (unlikely((hp->mem_used + hp->alloc_size) > hp->mem_size)) {
@@ -5691,62 +5704,38 @@ cob_new_item (struct cobsort *hp, const size_t size)
 		hp->mem_total += hp->chunk_size;
 		hp->mem_used = 0;
 	}
-	vp = (void *)(hp->mem_base->mem_ptr + hp->mem_used);
+	q = (struct cobitem *)(hp->mem_base->mem_ptr + hp->mem_used);
 	hp->mem_used += hp->alloc_size;
 	if (unlikely(hp->mem_total >= cob_sort_memory)) {
 		if ((hp->mem_used + hp->alloc_size) > hp->mem_size) {
 			hp->switch_to_file = 1;
 		}
 	}
-	return vp;
+	q->block_byte = 0;
+	q->next = NULL;
+	q->end_of_block = 0;
+	return q;
 }
 
 static FILE *
-cob_tmpfile (void)
+cob_srttmpfile (void)
 {
 	FILE		*fp;
-	const char	*s;
 	char		*filename;
 	int		fd;
-#ifdef	_WIN32
-	char		*tmpdir;
-#endif
 
 	filename = cob_malloc ((size_t)COB_FILE_BUFF);
-
+	cob_temp_name(filename, NULL);
+	cob_incr_temp_iteration();
 #ifdef	_WIN32
-	/* Get temporary directory */
-	tmpdir = cob_malloc ((size_t)COB_FILE_BUFF);
-	if ((s = getenv ("TMPDIR")) != NULL ||
-	    (s = getenv ("TMP")) != NULL ||
-	    (s = getenv ("TEMP")) != NULL) {
-		strncpy (tmpdir, s, (size_t)COB_FILE_MAX);
-	} else {
-		GetTempPath (COB_FILE_BUFF, tmpdir);
-	}
-	/* Get temporary file name */
-	GetTempFileName (tmpdir, "cob", 0, filename);
-	DeleteFile (filename);
-	free (tmpdir);
 	fd = open (filename,
 		    _O_CREAT | _O_TRUNC | _O_RDWR | _O_BINARY | _O_TEMPORARY,
 		    _S_IREAD | _S_IWRITE);
 #else
-	if (cob_process_id == 0) {
-		cob_process_id = getpid ();
-	}
-	if ((s = getenv ("TMPDIR")) == NULL &&
-	    (s = getenv ("TMP")) == NULL &&
-	    (s = getenv ("TEMP")) == NULL) {
-		s = "/tmp";
-	}
-	snprintf (filename, (size_t)COB_FILE_MAX, "%s/cobsort%d_%d",
-		  s, (int)cob_process_id, cob_iteration);
-	cob_iteration++;
 	fd = open (filename, O_CREAT | O_TRUNC | O_RDWR | O_BINARY, 0660);
 #endif
 	if (fd < 0) {
-		free (filename);
+		cob_free (filename);
 		return NULL;
 	}
 	(void)unlink (filename);
@@ -5754,15 +5743,15 @@ cob_tmpfile (void)
 	if (!fp) {
 		close (fd);
 	}
-	free (filename);
+	cob_free (filename);
 	return fp;
 }
 
 static int
-cob_get_temp_file (struct cobsort *hp, const int n)
+cob_get_sort_tempfile (struct cobsort *hp, const int n)
 {
 	if (hp->file[n].fp == NULL) {
-		hp->file[n].fp = cob_tmpfile ();
+		hp->file[n].fp = cob_srttmpfile ();
 		if (hp->file[n].fp == NULL) {
 			cob_runtime_error (_("SORT is unable to acquire temporary file"));
 			cob_stop_run (1);
@@ -5928,10 +5917,10 @@ cob_file_sort_process (struct cobsort *hp)
 	}
 	rewind (hp->file[0].fp);
 	rewind (hp->file[1].fp);
-	if (unlikely(cob_get_temp_file (hp, 2))) {
+	if (unlikely(cob_get_sort_tempfile (hp, 2))) {
 		return COBSORTFILEERR;
 	}
-	if (unlikely(cob_get_temp_file (hp, 3))) {
+	if (unlikely(cob_get_sort_tempfile (hp, 3))) {
 		return COBSORTFILEERR;
 	}
 	source = 0;
@@ -6014,10 +6003,10 @@ cob_file_sort_submit (cob_file *f, const unsigned char *p)
 	}
 	if (unlikely(hp->switch_to_file)) {
 		if (!hp->files_used) {
-			if (unlikely(cob_get_temp_file (hp, 0))) {
+			if (unlikely(cob_get_sort_tempfile (hp, 0))) {
 				return COBSORTFILEERR;
 			}
-			if (unlikely(cob_get_temp_file (hp, 1))) {
+			if (unlikely(cob_get_sort_tempfile (hp, 1))) {
 				return COBSORTFILEERR;
 			}
 			hp->files_used = 1;
@@ -6163,6 +6152,7 @@ cob_file_sort_giving (cob_file *sort_file, const size_t varcnt, ...)
 			} else {
 				opt = 0;
 			}
+			fbase[i]->record->size = fbase[i]->record_max;
 			cob_copy_check (fbase[i], sort_file);
 			cob_write (fbase[i], fbase[i]->record, opt, NULL, 0);
 		}
@@ -6170,7 +6160,7 @@ cob_file_sort_giving (cob_file *sort_file, const size_t varcnt, ...)
 	for (i = 0; i < varcnt; ++i) {
 		cob_close (fbase[i], NULL, COB_CLOSE_NORMAL, 0);
 	}
-	free (fbase);
+	cob_free (fbase);
 }
 
 void
@@ -6245,10 +6235,10 @@ cob_file_sort_close (cob_file *f)
 				fclose (hp->file[i].fp);
 			}
 		}
-		free (hp);
+		cob_free (hp);
 	}
 	if (f->keys) {
-		free (f->keys);
+		cob_free (f->keys);
 	}
 	f->file = NULL;
 	save_status (f, fnstatus, COB_STATUS_00_SUCCESS);
@@ -6338,15 +6328,15 @@ cob_exit_fileio (void)
 		bdb_env = NULL;
 	}
 	if (record_lock_object) {
-		free (record_lock_object);
+		cob_free (record_lock_object);
 		record_lock_object = NULL;
 	}
 	if (bdb_buff) {
-		free (bdb_buff);
+		cob_free (bdb_buff);
 		bdb_buff = NULL;
 	}
 	if (bdb_home) {
-		free (bdb_home);
+		cob_free (bdb_home);
 		bdb_home = NULL;
 	}
 
@@ -6361,25 +6351,25 @@ cob_exit_fileio (void)
 #endif
 
 	if (cob_file_path) {
-		free (cob_file_path);
+		cob_free (cob_file_path);
 		cob_file_path = NULL;
 	}
 
 	if (runtime_buffer) {
-		free (runtime_buffer);
+		cob_free (runtime_buffer);
 		runtime_buffer = NULL;
 	}
 
 	for (l = file_cache; l;) {
 		p = l;
 		l = l->next;
-		free (p);
+		cob_free (p);
 	}
 	file_cache = NULL;
 }
 
 void
-cob_init_fileio (cob_global *lptr)
+cob_init_fileio (cob_global *lptr, runtime_env* runtimeptr)
 {
 	char		*s;
 	cob_sli_t	memsiz;
@@ -6387,11 +6377,6 @@ cob_init_fileio (cob_global *lptr)
 	struct	stat	st;
 
 	cobglobptr = lptr;
-
-#ifndef	_WIN32
-	cob_iteration = 0;
-	cob_process_id = 0;
-#endif
 	file_cache = NULL;
 	eop_status = 0;
 	check_eop_status = 0;
@@ -6400,23 +6385,23 @@ cob_init_fileio (cob_global *lptr)
 	cob_ls_nulls = 0;
 	cob_ls_fixed = 0;
 	if ((s = getenv ("COB_SYNC")) != NULL) {
-		switch (*s) {
-		case 'Y':
-		case 'y':
-		case 'P':
-		case 'p':
-		case '1':
+		cob_do_sync_env = cob_save_env_value(cob_do_sync_env, s);
+
+		if (cob_check_env_true(s) || *s == 'P' || *s == 'p' ) {
 			cob_do_sync = 1;
-			break;
 		}
 	}
 	if ((s = getenv ("COB_LS_USES_CR")) != NULL) {
-		if (*s == 'Y' || *s == 'y' || *s == '1') {
+		cob_ls_uses_cr_env = cob_save_env_value(cob_ls_uses_cr_env, s);
+
+		if (cob_check_env_true(s)) {
 			cob_ls_uses_cr = 1;
 		}
 	}
-	cob_sort_memory = 128 * 1024 * 1024;
+	cob_sort_memory = COB_SORT_MEMORY;
 	if ((s = getenv ("COB_SORT_MEMORY")) != NULL) {
+		cob_sort_memory_env = cob_save_env_value(cob_sort_memory_env, s);
+
 		errno = 0;
 		memsiz = strtol (s, NULL, 10);
 		if (!errno && memsiz >= 1024 * 1024) {
@@ -6425,6 +6410,8 @@ cob_init_fileio (cob_global *lptr)
 	}
 	cob_sort_chunk = COB_SORT_CHUNK;
 	if ((s = getenv ("COB_SORT_CHUNK")) != NULL) {
+		cob_sort_chunk_env = cob_save_env_value(cob_sort_chunk_env, s);
+
 		n = atoi (s);
 		if (n >= (128 * 1024) && n <= (16 * 1024 * 1024)) {
 			cob_sort_chunk = (size_t)n;
@@ -6438,19 +6425,24 @@ cob_init_fileio (cob_global *lptr)
 		cob_sort_chunk = cob_sort_memory / 2;
 	}
 	cob_file_path = cob_fileio_getenv ("COB_FILE_PATH");
+	cob_file_path_env = cob_save_env_value(cob_file_path_env, cob_file_path);
 	if (cob_file_path) {
 		if (stat (cob_file_path, &st) || !(S_ISDIR (st.st_mode))) {
-			free (cob_file_path);
+			cob_free (cob_file_path);
 			cob_file_path = NULL;
 		}
 	}
 	if ((s = getenv ("COB_LS_NULLS")) != NULL) {
-		if (*s == 'Y' || *s == 'y' || *s == '1') {
+		cob_ls_nulls_env = cob_save_env_value(cob_ls_nulls_env, s);
+
+		if (cob_check_env_true(s)) {
 			cob_ls_nulls = 1;
 		}
 	}
 	if ((s = getenv ("COB_LS_FIXED")) != NULL) {
-		if (*s == 'Y' || *s == 'y' || *s == '1') {
+		cob_ls_fixed_env = cob_save_env_value(cob_ls_fixed_env, s);
+
+		if (cob_check_env_true(s)) {
 			cob_ls_fixed = 1;
 		}
 	}
@@ -6462,6 +6454,8 @@ cob_init_fileio (cob_global *lptr)
 #endif
 	cob_varseq_type = WITH_VARSEQ;
 	if ((s = getenv ("COB_VARSEQ_FORMAT")) != NULL) {
+		cob_varseq_type_env = cob_save_env_value(cob_varseq_type_env, s);
+
 		if (*s == '0') {
 			cob_varseq_type = 0;
 			cob_vsq_len = 4;
@@ -6496,4 +6490,22 @@ cob_init_fileio (cob_global *lptr)
 	extfh_cob_init_fileio (&sequential_funcs, &lineseq_funcs,
 			       &relative_funcs, &cob_file_write_opt);
 #endif
+
+
+	runtimeptr->cob_do_sync = &cob_do_sync;
+	runtimeptr->cob_do_sync_env = cob_do_sync_env;
+	runtimeptr->cob_ls_nulls = &cob_ls_nulls;
+	runtimeptr->cob_ls_nulls_env = cob_ls_nulls_env;
+	runtimeptr->cob_ls_fixed = &cob_ls_fixed;
+	runtimeptr->cob_ls_fixed_env = cob_ls_fixed_env;
+	runtimeptr->cob_ls_uses_cr = &cob_ls_uses_cr;
+	runtimeptr->cob_ls_uses_cr_env = cob_ls_uses_cr_env;
+	runtimeptr->cob_file_path = cob_file_path;
+	runtimeptr->cob_file_path_env = cob_file_path_env;
+	runtimeptr->cob_sort_memory = &cob_sort_memory;
+	runtimeptr->cob_sort_memory_env = cob_sort_memory_env;
+	runtimeptr->cob_sort_chunk = &cob_sort_chunk;
+	runtimeptr->cob_sort_chunk_env = cob_sort_chunk_env;
+	runtimeptr->cob_varseq_type = &cob_varseq_type;
+	runtimeptr->cob_varseq_type_env = cob_varseq_type_env;
 }

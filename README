@@ -16,14 +16,13 @@ This package contains the following subdirectories:
 
     cobc        COBOL compiler
     libcob      COBOL run-time library
-    bin		COBOL driver program
+    bin         COBOL driver program
     lib         Helper routines for missing OS functionality
     config      Configuration files
     po          International messages
     doc         'info' and 'pdf' files
     tests       Test suite
     extras      useful COBOL programs 
-    cobreport   Sample Report Writer programs and tests
 
 All programs except those in lib and libcob are distributed under
 the GNU General Public License.  See COPYING for details.
@@ -38,17 +37,17 @@ Requirements
 ============
 
   ***
-     NOTE
-	For all the following packages (required or optional),
-	BOTH runtime AND development components are necessary.
+    NOTE
+    For all the following packages (required or optional),
+    BOTH runtime AND development components are necessary.
   ***
   ***
-     NOTE
-	All the following packages are normally part of a Linux
-	distribution. Cygwin distribution also has these as installable packages.
-	Other operating systems also may have repositories for these.
-	eg. MAC OS, CentOS and others all have package repositories.
-	ALWAYS install the distribution packages when available !!
+    NOTE
+    All the following packages are normally part of a Linux
+    distribution. Cygwin distribution also has these as installable packages.
+    Other operating systems also may have repositories for these.
+    eg. MAC OS, CentOS and others all have package repositories.
+    ALWAYS install the distribution packages when available !!
   ***
 
 GNU Cobol REQUIRES the following external library to be installed:
@@ -62,20 +61,20 @@ GNU Cobol REQUIRES the following external library to be installed:
 
     GNU MP is distributed under GNU Lesser General Public License.
 
-     NOTE
-	Please ALWAYS use the distro package whenever possible !!
-	See NOTE above.
+    NOTE
+    Please ALWAYS use the distro package whenever possible !!
+    See NOTE above.
        
 
 GNU Cobol MAY require the following external library to be installed:
 
     ***
-	NOTE - libltdl is NOT needed when installing on Linux,
-	SUN Solaris, MAC OS, CentOS or Windows
+    NOTE - libltdl is NOT needed when installing on Linux,
+    SUN Solaris, MAC OS, CentOS or Windows
         (including Cygwin, MingW and native windows).
-	It is also NOT needed with later versions of AIX and HP-UX.
-	(AIX >= 5.1 and HP-UX >= 11.1 are known to NOT require this).
-	(Check if you have the "dlopen" function).
+    It is also NOT needed with later versions of AIX and HP-UX.
+    (AIX >= 5.1 and HP-UX >= 11.1 are known to NOT require this).
+    (Check if you have the "dlopen" function).
     ***
 
   o GNU Libtool (libltdl)
@@ -132,12 +131,12 @@ Installation
    (Mainly Cygwin/MingW/Windows ports).
  
 ** NOTE **
-	The default installation path for GNU Cobol is /usr/local.
-	The installation path may be changed by specifying --prefix=<dir>
-	as a parameter to the configure.
-	Further parameters may be specified to affect
-	include/library search paths.
-	Execute ./configure --help for further details.
+   The default installation path for GNU Cobol is /usr/local.
+   The installation path may be changed by specifying --prefix=<dir>
+   as a parameter to the configure.
+   Further parameters may be specified to affect
+   include/library search paths.
+   Execute ./configure --help for further details.
 
 To generate/install GNU Cobol :
 

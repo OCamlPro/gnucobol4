@@ -105,7 +105,6 @@ static size_t			overlapping = 0;
 static int			expr_index;		/* Stack index */
 static int			expr_stack_size;	/* Stack max size */
 static struct expr_node		*expr_stack;		/* Expression node stack */
-static int			report_id = 1;
 
 static const unsigned char	hexval[] = "0123456789ABCDEF";
 
@@ -642,31 +641,8 @@ cb_check_numeric_edited_name (cb_tree x)
 }
 
 cb_tree
-cb_check_sum_field (cb_tree x)
-{
-	struct cb_field		*f;
-	if (x == cb_error_node) {
-		return cb_error_node;
-	}
-
-	if (CB_TREE_CATEGORY (x) != CB_CATEGORY_NUMERIC_EDITED) {
-		return x;
-	}
-
-	f = CB_FIELD (cb_ref(x));
-	if(f->report) {		/* If part of a REPORT, check if it is a SUM */
-		struct cb_field *sc = get_sum_data_field(f->report, f);
-		if(sc) {	/* Use the SUM variable instead of the print variable */
-			return cb_build_field_reference (sc, NULL);
-		}
-	}
-	return x;
-}
-
-cb_tree
 cb_check_numeric_value (cb_tree x)
 {
-	struct cb_field		*f;
 	if (x == cb_error_node) {
 		return cb_error_node;
 	}
@@ -675,24 +651,7 @@ cb_check_numeric_value (cb_tree x)
 		return x;
 	}
 
-	switch(CB_TREE_CATEGORY (x)) {
-	case CB_CATEGORY_ALPHABETIC:
-		cb_error_x (x, _("'%s' is Alpha, instead of a numeric value"), cb_name (x));
-		break;
-	case CB_CATEGORY_ALPHANUMERIC_EDITED:
-		cb_error_x (x, _("'%s' is Alpha Edited, instead of a numeric value"), cb_name (x));
-		break;
-	case CB_CATEGORY_NUMERIC_EDITED:
-		f = CB_FIELD (cb_ref(x));
-		if(f->report) {
-			struct cb_field *sc = get_sum_data_field(f->report, f);
-			if(sc) {	/* Use the SUM variable instead of the print variable */
-				return cb_build_field_reference (sc, NULL);
-			}
-		}
-	default:
-		cb_error_x (x, _("'%s' is not a numeric value"), cb_name (x));
-	}
+	cb_error_x (x, _("'%s' is not a numeric value"), cb_name (x));
 	return cb_error_node;
 }
 
@@ -856,7 +815,9 @@ cb_field_size (const cb_tree x)
 		COBC_DUMB_ABORT ();
 	}
 	/* NOT REACHED */
+#ifndef _MSC_VER
 	return 0;
+#endif
 }
 
 /* List system routines */
@@ -1479,16 +1440,15 @@ cb_build_identifier (cb_tree x, const int subchk)
 	f = CB_FIELD (v);
 
 	/* BASED check */
-	if (CB_EXCEPTION_ENABLE (COB_EC_BOUND_PTR)) {
+	if (current_statement && CB_EXCEPTION_ENABLE (COB_EC_DATA_PTR_NULL)) {
 		p = cb_field_founder (f);
 		if (p->redefines) {
 			p = p->redefines;
 		}
-		if (current_statement && !current_statement->flag_no_based &&
-			strcmp(current_statement->name, "FREE")) {
+		if (!current_statement->flag_no_based) {
 			if (p->flag_item_based ||
 			   (f->storage == CB_STORAGE_LINKAGE &&
-			    !p->flag_is_pdiv_parm)) {
+				  !p->flag_is_pdiv_parm)) {
 				current_statement->null_check = CB_BUILD_FUNCALL_2 (
 					"cob_check_based",
 					cb_build_address (cb_build_field_reference (p, NULL)),
@@ -1856,12 +1816,12 @@ cb_validate_collating (struct cb_program *prog)
 	}
 	if (CB_ALPHABET_NAME (x)->low_val_char) {
 		cb_low = cb_build_alphanumeric_literal ("\0", (size_t)1);
-		CB_LITERAL(cb_low)->data[0] = CB_ALPHABET_NAME (x)->low_val_char;
+		CB_LITERAL(cb_low)->data[0] = (unsigned char)CB_ALPHABET_NAME (x)->low_val_char;
 		CB_LITERAL(cb_low)->all = 1;
 	}
 	if (CB_ALPHABET_NAME (x)->high_val_char != 255){
 		cb_high = cb_build_alphanumeric_literal ("\0", (size_t)1);
-		CB_LITERAL(cb_high)->data[0] = CB_ALPHABET_NAME (x)->high_val_char;
+		CB_LITERAL(cb_high)->data[0] = (unsigned char)CB_ALPHABET_NAME (x)->high_val_char;
 		CB_LITERAL(cb_high)->all = 1;
 	}
 }
@@ -2329,7 +2289,32 @@ cb_validate_program_data (struct cb_program *prog)
 	struct cb_field		*q;
 	struct cb_field		*depfld;
 	struct cb_file		*f;
+	struct cb_report	*rep;
 	unsigned char		*c;
+	char			buff[COB_MINI_BUFF];
+
+	for (l = current_program->report_list; l; l = CB_CHAIN (l)) {
+		/* Set up LINE-COUNTER / PAGE-COUNTER */
+		rep = CB_REPORT (CB_VALUE (l));
+		snprintf (buff, (size_t)COB_MINI_MAX,
+			  "LINE-COUNTER %s", rep->cname);
+		x = cb_build_field (cb_build_reference (buff));
+		CB_FIELD (x)->usage = CB_USAGE_UNSIGNED_INT;
+		CB_FIELD (x)->values = CB_LIST_INIT (cb_zero);
+		CB_FIELD (x)->count++;
+		cb_validate_field (CB_FIELD (x));
+		rep->line_counter = cb_build_field_reference (CB_FIELD (x), NULL);
+		CB_FIELD_ADD (current_program->working_storage, CB_FIELD (x));
+		snprintf (buff, (size_t)COB_MINI_MAX,
+			  "PAGE-COUNTER %s", rep->cname);
+		x = cb_build_field (cb_build_reference (buff));
+		CB_FIELD (x)->usage = CB_USAGE_UNSIGNED_INT;
+		CB_FIELD (x)->values = CB_LIST_INIT (cb_zero);
+		CB_FIELD (x)->count++;
+		cb_validate_field (CB_FIELD (x));
+		rep->page_counter = cb_build_field_reference (CB_FIELD (x), NULL);
+		CB_FIELD_ADD (current_program->working_storage, CB_FIELD (x));
+	}
 
 	for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
 		f = CB_FILE (CB_VALUE (l));
@@ -2415,12 +2400,6 @@ cb_validate_program_data (struct cb_program *prog)
 		p->values = CB_LIST_INIT (cb_zero);
 		p->count++;
 		*/
-		/* RJN: Added back as COB-CRT-STATUS is getting generated 
-		 * and I am not sure why. TODO FIX this later
-		 */
-		p->values = CB_LIST_INIT (cb_zero);
-		p->count++;
-
 		CB_FIELD_ADD (current_program->working_storage, p);
 		prog->crt_status = l;
 	}
@@ -3179,6 +3158,10 @@ decimal_alloc (void)
 	if (current_program->decimal_index >= COB_MAX_DEC_STRUCT) {
 		cobc_abort_pr (_("Internal decimal structure size exceeded - %d"),
 				COB_MAX_DEC_STRUCT);
+		if (strcmp(current_statement->name, "COMPUTE") == 0) {
+			cobc_abort_pr (_("Try to minimize the number of parenthesis "
+							 "or split into multiple computations."));
+		}
 		COBC_ABORT ();
 	}
 	if (current_program->decimal_index > current_program->decimal_index_max) {
@@ -3282,8 +3265,8 @@ decimal_expand (cb_tree d, cb_tree x)
 		 * Set t, Y
 		 * OP d, t */
 		p = CB_BINARY_OP (x);
-		t = decimal_alloc ();
 		decimal_expand (d, p->x);
+		t = decimal_alloc ();
 		decimal_expand (t, p->y);
 		decimal_compute (p->op, d, t);
 		decimal_free ();
@@ -3964,7 +3947,7 @@ cb_build_add (cb_tree v, cb_tree n, cb_tree round_opt)
 	}
 	if (CB_TREE_CLASS (v) == CB_CLASS_POINTER) {
 		optimize_defs[COB_POINTER_MANIP] = 1;
-		return CB_BUILD_FUNCALL_3 ("cob_pointer_manip", cb_build_address(v), n, cb_int0);
+		return CB_BUILD_FUNCALL_3 ("cob_pointer_manip", v, n, cb_int0);
 	}
 #else
 	if (CB_INDEX_P (v) || CB_TREE_CLASS (v) == CB_CLASS_POINTER) {
@@ -4007,7 +3990,7 @@ cb_build_sub (cb_tree v, cb_tree n, cb_tree round_opt)
 	}
 	if (CB_TREE_CLASS (v) == CB_CLASS_POINTER) {
 		optimize_defs[COB_POINTER_MANIP] = 1;
-		return CB_BUILD_FUNCALL_3 ("cob_pointer_manip", cb_build_address(v), n, cb_int1);
+		return CB_BUILD_FUNCALL_3 ("cob_pointer_manip", v, n, cb_int1);
 	}
 #else
 	if (CB_INDEX_P (v) || CB_TREE_CLASS (v) == CB_CLASS_POINTER) {
@@ -4610,7 +4593,7 @@ cb_emit_alter (cb_tree source, cb_tree target)
 /* CALL statement */
 
 void
-cb_emit_call (cb_tree prog, cb_tree using, cb_tree returning,
+cb_emit_call (cb_tree prog, cb_tree par_using, cb_tree returning,
 	      cb_tree on_exception, cb_tree not_on_exception,
 	      cb_tree convention)
 {
@@ -4677,7 +4660,7 @@ cb_emit_call (cb_tree prog, cb_tree using, cb_tree returning,
 		error_ind = 1;
 	}
 
-	for (l = using; l; l = CB_CHAIN (l), numargs++) {
+	for (l = par_using; l; l = CB_CHAIN (l), numargs++) {
 		x = CB_VALUE (l);
 		if (x == cb_error_node) {
 			error_ind = 1;
@@ -4814,7 +4797,7 @@ cb_emit_call (cb_tree prog, cb_tree using, cb_tree returning,
 		is_sys_idx = 1;
 		for (psyst = system_tab; psyst->syst_name; psyst++, is_sys_idx++) {
 			if (!strcmp(entry, (const char *)psyst->syst_name)) {
-				if (psyst->syst_params > cb_list_length (using)) {
+				if (psyst->syst_params > cb_list_length (par_using)) {
 					cb_error_x (CB_TREE (current_statement),
 						    _("Wrong number of CALL parameters for '%s'"),
 						    (char *)psyst->syst_name);
@@ -4832,7 +4815,7 @@ cb_emit_call (cb_tree prog, cb_tree using, cb_tree returning,
 	if (numargs > current_program->max_call_param) {
 		current_program->max_call_param = numargs;
 	}
-	cb_emit (cb_build_call (prog, using, on_exception, not_on_exception,
+	cb_emit (cb_build_call (prog, par_using, on_exception, not_on_exception,
 		 returning, is_sys_call, call_conv));
 }
 
@@ -5517,7 +5500,7 @@ cb_emit_initialize (cb_tree vars, cb_tree fillinit, cb_tree value,
 /* INSPECT statement */
 
 static void
-validate_inspect (cb_tree x, cb_tree y)
+validate_inspect (cb_tree x, cb_tree y, const unsigned int replconv)
 {
 	cb_tree			l;
 	struct cb_reference	*r;
@@ -5597,8 +5580,13 @@ validate_inspect (cb_tree x, cb_tree y)
 		break;
 	}
 	if (size1 && size2 && size1 != size2) {
-		cb_error_x (CB_TREE (current_statement),
-			    _("REPLACING operands differ in size"));
+		if (replconv == 1) {
+			cb_error_x (CB_TREE (current_statement),
+					_("%s operands differ in size"), "REPLACING");
+		} else {
+			cb_error_x (CB_TREE (current_statement),
+					_("%s operands differ in size"), "CONVERTING");
+		}
 	}
 }
 
@@ -5637,8 +5625,13 @@ cb_emit_inspect (cb_tree var, cb_tree body, cb_tree replacing,
 	cb_emit (CB_BUILD_FUNCALL_0 ("cob_inspect_finish"));
 	return;
 rep_error:
-	cb_error_x (CB_TREE (current_statement),
-		    _("Invalid target for REPLACING/CONVERTING"));
+	if (replconv == 1) {
+		cb_error_x (CB_TREE (current_statement),
+				_("Invalid target for %s"), "REPLACING");
+	} else {
+		cb_error_x (CB_TREE (current_statement),
+				_("Invalid target for %s"), "CONVERTING");
+	}
 }
 
 void
@@ -5721,35 +5714,35 @@ cb_build_replacing_characters (cb_tree x, cb_tree l)
 cb_tree
 cb_build_replacing_all (cb_tree x, cb_tree y, cb_tree l)
 {
-	validate_inspect (x, y);
+	validate_inspect (x, y, 1);
 	return cb_list_add (l, CB_BUILD_FUNCALL_2 ("cob_inspect_all", y, x));
 }
 
 cb_tree
 cb_build_replacing_leading (cb_tree x, cb_tree y, cb_tree l)
 {
-	validate_inspect (x, y);
+	validate_inspect (x, y, 1);
 	return cb_list_add (l, CB_BUILD_FUNCALL_2 ("cob_inspect_leading", y, x));
 }
 
 cb_tree
 cb_build_replacing_first (cb_tree x, cb_tree y, cb_tree l)
 {
-	validate_inspect (x, y);
+	validate_inspect (x, y, 1);
 	return cb_list_add (l, CB_BUILD_FUNCALL_2 ("cob_inspect_first", y, x));
 }
 
 cb_tree
 cb_build_replacing_trailing (cb_tree x, cb_tree y, cb_tree l)
 {
-	validate_inspect (x, y);
+	validate_inspect (x, y, 1);
 	return cb_list_add (l, CB_BUILD_FUNCALL_2 ("cob_inspect_trailing", y, x));
 }
 
 cb_tree
 cb_build_converting (cb_tree x, cb_tree y, cb_tree l)
 {
-	validate_inspect (x, y);
+	validate_inspect (x, y, 2);
 	return cb_list_add (l, CB_BUILD_FUNCALL_2 ("cob_inspect_converting", x, y));
 }
 
@@ -6303,7 +6296,7 @@ validate_move (cb_tree src, cb_tree dst, const unsigned int is_value)
 
 			/* Size check */
 			size = cb_field_size (dst);
-			if (size >= 0 && (int)l->size > size) {
+			if (size > 0 && (int)l->size > size) {
 				goto size_overflow;
 			}
 		}
@@ -6522,10 +6515,9 @@ cb_build_move_copy (cb_tree src, cb_tree dst)
 	if (size == 1) {
 		return CB_BUILD_FUNCALL_2 ("$F", dst, src);
 	}
-	if(CB_FIELD_PTR (src)->storage == CB_STORAGE_LINKAGE
-	|| CB_FIELD_PTR (dst)->storage == CB_STORAGE_LINKAGE)
-		overlapping = 1;
-	if (overlapping) {
+	if (overlapping 
+	|| CB_FIELD_PTR (src)->storage == CB_STORAGE_LINKAGE
+	|| CB_FIELD_PTR (dst)->storage == CB_STORAGE_LINKAGE) {
 		overlapping = 0;
 		return CB_BUILD_FUNCALL_3 ("memmove",
 					   CB_BUILD_CAST_ADDRESS (dst),
@@ -7124,8 +7116,6 @@ cb_build_move (cb_tree src, cb_tree dst)
 		CB_REFERENCE (src)->flag_receiving = 0;
 	}
 #endif
-	src = cb_check_sum_field(src);
-	dst = cb_check_sum_field(dst);
 
 	if (CB_REFERENCE_P (dst)) {
 		/* Clone reference */
@@ -7207,7 +7197,6 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 	}
 
 	cb_check_data_incompat (src);
-	src = cb_check_sum_field(src);
 
 	tempval = 0;
 	if (cb_list_length (dsts) > 1) {
@@ -7227,7 +7216,7 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 			continue;
 		}
 		if (!tempval) {
-			m = cb_build_move (src, cb_check_sum_field(x));
+			m = cb_build_move (src, x);
 		} else {
 			m = CB_BUILD_FUNCALL_1 ("cob_get_indirect_field", x);
 		}
@@ -8052,7 +8041,8 @@ cb_emit_sort_init (cb_tree name, cb_tree keys, cb_tree col)
 			cb_emit (CB_BUILD_FUNCALL_3 ("cob_table_sort_init_key",
 					CB_VALUE (l),
 					CB_PURPOSE (l),
-					cb_int (CB_FIELD_PTR (CB_VALUE(l))->offset)));
+					cb_int(CB_FIELD_PTR (CB_VALUE(l))->offset
+						   - CB_FIELD_PTR (CB_VALUE(l))->parent->offset)));
 		}
 		f = CB_FIELD (cb_ref (name));
 		cb_emit (CB_BUILD_FUNCALL_2 ("cob_table_sort", name,
@@ -8513,165 +8503,6 @@ cb_build_write_advancing_page (cb_tree pos)
 	int opt = (pos == CB_BEFORE) ? COB_WRITE_BEFORE : COB_WRITE_AFTER;
 
 	return cb_int_hex (opt | COB_WRITE_PAGE);
-}
-
-
-/*
- * Emit any MOVEs from non-simple field to temp field
- * for GENERATE to execute
- */
-static int report_in_footing = 0;
-static void
-cb_emit_report_moves(struct cb_report *r, struct cb_field *f, int forterminate)
-{
-	struct cb_field         *p;
-	for (p = f; p; p = p->sister) {
-		if(p->report_flag & (COB_REPORT_FOOTING|COB_REPORT_CONTROL_FOOTING|COB_REPORT_CONTROL_FOOTING_FINAL)) {
-			report_in_footing = 1;
-		}
-		if(p->report_from) {
-			if(forterminate
-			&& report_in_footing) {
-				cb_emit_move( p->report_from, p->report_source);
-			} else
-			if(!forterminate
-			&& !report_in_footing) {
-				cb_emit_move( p->report_from, p->report_source);
-			}
-		}
-		if(p->report_when) {
-			int  ifwhen = 2;
-			if(p->children)
-				ifwhen = 3;
-			if(forterminate
-			&& report_in_footing) {
-				cb_emit (cb_build_if (p->report_when, NULL, (cb_tree)p, ifwhen));
-			} else
-			if(!forterminate
-			&& !report_in_footing) {
-				cb_emit (cb_build_if (p->report_when, NULL, (cb_tree)p, ifwhen));
-			}
-		}
-		if(p->children) {
-			cb_emit_report_moves(r, p->children, forterminate);
-			if(p->report_flag & (COB_REPORT_FOOTING|COB_REPORT_CONTROL_FOOTING|COB_REPORT_CONTROL_FOOTING_FINAL)) {
-				report_in_footing = 0;
-			}
-		}
-	}
-}
-
-static void
-cb_emit_report_move_id(cb_tree rep)
-{
-	struct cb_report *r = CB_REPORT (cb_ref(rep));
-	if(r
-	&& r->id == 0) {
-		r->id = report_id++;
-		cb_emit (CB_BUILD_FUNCALL_1 ("$M", rep));
-		cb_emit_report_moves(r, r->records, 0);
-		cb_emit (CB_BUILD_FUNCALL_1 ("$t", rep));
-		cb_emit_report_moves(r, r->records, 1);
-		cb_emit (CB_BUILD_FUNCALL_1 ("$m", rep));
-	}
-}
-
-/* INITIATE statement */
-
-void
-cb_emit_initiate (cb_tree rep)
-{
-	if (rep == cb_error_node) {
-		return;
-	}
-	rep->tag = CB_TAG_REPORT;
-	cb_emit_report_move_id(rep);
-	cb_emit (CB_BUILD_FUNCALL_1 ("$I", rep));
-
-}
-
-/* TERMINATE statement */
-
-void
-cb_emit_terminate (cb_tree rep)
-{
-	if (rep == cb_error_node) {
-		return;
-	}
-	rep->tag = CB_TAG_REPORT;
-	cb_emit_report_move_id(rep);
-	cb_emit (CB_BUILD_FUNCALL_1 ("$T", rep));
-
-}
-
-/* GENERATE statement */
-
-void
-cb_emit_generate (cb_tree x)
-{
-	struct cb_field	*f;
-	struct cb_report *r;
-	cb_tree		y;
-	cb_tree		z;
-	struct cb_word	*word;
-	if (x == cb_error_node) {
-		return;
-	}
-	y = cb_ref (x);
-	if (y == cb_error_node) {
-		return;
-	}
-	if(CB_TREE_TAG (y) == CB_TAG_REPORT) {
-		r = CB_REPORT (y);
-		z = cb_build_reference (r->name);
-		word = CB_REFERENCE (z)->word;
-		z->category = CB_CATEGORY_UNKNOWN;
-		z->tag = CB_TAG_REPORT;
-		CB_REFERENCE (z)->word = word;
-		CB_REFERENCE (z)->value = CB_TREE (y);
-		cb_emit_report_move_id(z);
-		cb_emit (CB_BUILD_FUNCALL_2 ("$R", z, NULL));
-		return;
-	}
-	f = CB_FIELD (y);
-	if(f == NULL
-	|| f->report == NULL) {
-		cb_error_x (x, _("Data item is not part of a report"));
-	} else {
-		r = CB_REPORT (f->report);
-		z = cb_build_reference (f->name);
-		word = CB_REFERENCE (z)->word;
-		z->category = CB_CATEGORY_UNKNOWN;
-		z->tag = CB_TAG_REPORT;
-		CB_REFERENCE (z)->word = word;
-		CB_REFERENCE (z)->value = CB_TREE (f->report);
-		x->tag = CB_TAG_REPORT_LINE;
-		cb_emit_report_move_id(z);
-		cb_emit (CB_BUILD_FUNCALL_2 ("$R", z, x));
-	}
-}
-
-/* GENERATE statement */
-
-void
-cb_emit_suppress (struct cb_field *f)
-{
-	cb_tree		z;
-	struct cb_word	*word;
-	/* MORE TO DO HERE */
-	/* Find cob_report_control and set on suppress flag */
-	if(f == NULL
-	|| f->report == NULL) {
-		cb_error (_("Improper use of SUPPRESS PRINTING "));
-		return;
-	}
-	z = cb_build_reference (f->name);
-	word = CB_REFERENCE (z)->word;
-	z->category = CB_CATEGORY_UNKNOWN;
-	z->tag = CB_TAG_REPORT;
-	CB_REFERENCE (z)->word = word;
-	CB_REFERENCE (z)->value = CB_TREE (f->report);
-	cb_emit (CB_BUILD_FUNCALL_2 ("$S", z, cb_int (f->id)));
 }
 
 #ifndef	HAVE_DESIGNATED_INITS

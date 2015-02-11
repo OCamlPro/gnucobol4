@@ -2,20 +2,20 @@
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
 
-   This file is part of OpenCOBOL.
+   This file is part of GNU Cobol.
 
-   The OpenCOBOL compiler is free software: you can redistribute it
+   The GNU Cobol compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   OpenCOBOL is distributed in the hope that it will be useful,
+   GNU Cobol is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with OpenCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -35,13 +35,6 @@
 #define CB_PREFIX_FILE		"h_"	/* File (cob_file) */
 #define CB_PREFIX_KEYS		"k_"	/* File keys (cob_file_key []) */
 #define CB_PREFIX_LABEL		"l_"	/* Label */
-#define CB_PREFIX_REPORT	"r_"	/* Report (cob_report) */
-#define CB_PREFIX_REPORT_LINE	"rl_"	/* Report line (cob_report_line) */
-#define CB_PREFIX_REPORT_FIELD	"rf_"	/* Report field (cob_report_field) */
-#define CB_PREFIX_REPORT_SUM	"rs_"	/* Report SUM (cob_report_sum) */
-#define CB_PREFIX_REPORT_CONTROL "rc_"	/* Report CONTROL (cob_report_control) */
-#define CB_PREFIX_REPORT_REF	"rr_"	/* Report CONTROL reference (cob_report_control_ref) */
-#define CB_PREFIX_REPORT_SUM_CTR "rsc_"	/* Report SUM COUNTER */
 #define CB_PREFIX_SEQUENCE	"s_"	/* Collating sequence */
 #define CB_PREFIX_STRING	"st_"	/* String */
 
@@ -105,8 +98,7 @@ enum cb_tag {
 	CB_TAG_LIST,		/* 32 List */
 	CB_TAG_DIRECT,		/* 33 Code output or comment */
 	CB_TAG_DEBUG,		/* 34 Debug item set */
-	CB_TAG_DEBUG_CALL,	/* 35 Debug callback */
-	CB_TAG_REPORT_LINE	/* 36 Report line description */
+	CB_TAG_DEBUG_CALL	/* 35 Debug callback */
 };
 
 /* Alphabet type */
@@ -644,7 +636,6 @@ struct cb_field {
 	struct cb_picture	*pic;		/* PICTURE */
 	struct cb_field		*vsize;		/* Variable size cache */
 	struct cb_label		*debug_section;	/* DEBUG section */
-	struct cb_report	*report;	/* RD section report name */
 
 	cb_tree			screen_line;	/* LINE */
 	cb_tree			screen_column;	/* COLUMN */
@@ -653,14 +644,6 @@ struct cb_field {
 	cb_tree			screen_foreg;	/* FOREGROUND */
 	cb_tree			screen_backg;	/* BACKGROUND */
 	cb_tree			screen_prompt;	/* PROMPT */
-	cb_tree			report_source;	/* SOURCE field */
-	cb_tree			report_from;	/* SOURCE field subscripted; so MOVE to report_source */
-	cb_tree			report_sum_counter;/* SUM counter */
-	cb_tree			report_sum_list;/* SUM field(s) */
-	cb_tree			report_sum_upon;/* SUM ... UPON detailname */
-	cb_tree			report_reset;	/* RESET ON field */
-	cb_tree			report_control;	/* CONTROL identifier */
-	cb_tree			report_when;	/* PRESENT WHEN condition */
 
 	int			id;		/* Field id */
 	int			size;		/* Field size */
@@ -676,12 +659,7 @@ struct cb_field {
 	int			nkeys;		/* Number of keys */
 	int			param_num;	/* CHAINING param number */
 	int			screen_flag;	/* Flags used in SCREEN SECTION */
-	int			report_flag;	/* Flags used in REPORT SECTION */
-	int			report_line;	/* LINE */
-	int			report_column;	/* COLUMN */
-	int			report_decl_id;	/* Label id of USE FOR REPORTING */
 	int			step_count;	/* STEP in REPORT */
-	int			next_group_line;/* NEXT GROUP [PLUS] line# */
 	unsigned int		vaddr;		/* Variable address cache */
 	cob_u32_t		special_index;	/* Special field */
 
@@ -871,7 +849,7 @@ struct cb_reference {
 	cb_tree			subs;		/* List of subscripts */
 	cb_tree			offset;		/* Reference mod offset */
 	cb_tree			length;		/* Reference mod length */
-	cb_tree			check;		/* Bounds check */
+	cb_tree			check;		/* Runtime checks */
 	struct cb_word		*word;		/* Pointer to word list */
 	struct cb_label		*section;	/* Current section */
 	struct cb_label		*paragraph;	/* Current paragraph */
@@ -1209,13 +1187,6 @@ struct cb_report {
 	cb_tree			page_counter;	/* PAGE-COUNTER */
 	cb_tree			code_clause;	/* CODE */
 	cb_tree			controls;	/* CONTROLS */
-	cb_tree			t_lines;	/* PAGE LIMIT LINES */
-	cb_tree			t_columns;	/* PAGE LIMIT COLUMNS */
-	cb_tree			t_heading;	/* HEADING */
-	cb_tree			t_first_detail;	/* FIRST DE */
-	cb_tree			t_last_control;	/* LAST CH */
-	cb_tree			t_last_detail;	/* LAST DE */
-	cb_tree			t_footing;	/* FOOTING */
 	int			lines;		/* PAGE LIMIT LINES */
 	int			columns;	/* PAGE LIMIT COLUMNS */
 	int			heading;	/* HEADING */
@@ -1223,17 +1194,6 @@ struct cb_report {
 	int			last_control;	/* LAST CH */
 	int			last_detail;	/* LAST DE */
 	int			footing;	/* FOOTING */
-	struct cb_field		*records;	/* First record definition of report */
-	int			num_lines;	/* Number of Lines defined */
-	struct cb_field		**line_ids;	/* array of LINE definitions */
-	int			num_sums;	/* Number of SUM counters defined */
-	struct cb_field		**sums;		/* Array of SUM fields */
-	int			rcsz;		/* Longest record */
-	int			id;		/* unique id for this report */
-	unsigned int		control_final:1;/* CONTROL FINAL declared */
-	unsigned int		global:1;	/* IS GLOBAL declared */
-	unsigned int		has_declarative:1;/* Has Declaratives Code to be executed */
-	unsigned int		has_detail:1;	/* Has DETAIL line */
 };
 
 #define CB_REPORT(x)	(CB_TREE_CAST (CB_TAG_REPORT, struct cb_report, x))
@@ -1329,7 +1289,6 @@ struct cb_program {
 	unsigned int	flag_gen_debug		: 1;	/* DEBUGGING MODE */
 
 	unsigned int	flag_save_exception	: 1;	/* Save execption code */
-	unsigned int	flag_report		: 1;	/* Have REPORT SECTION */
 };
 
 
@@ -1365,7 +1324,6 @@ extern cb_tree			cb_depend_check;
 
 extern unsigned int		gen_screen_ptr;
 
-extern struct cb_field *	get_sum_data_field(struct cb_report *r, struct cb_field *f);
 extern char			*cb_name (cb_tree);
 extern enum cb_class		cb_tree_class (cb_tree);
 extern enum cb_category		cb_tree_category (cb_tree);
@@ -1417,7 +1375,6 @@ extern struct cb_picture	*cb_build_binary_picture (const char *,
 extern cb_tree			cb_build_field (cb_tree);
 extern cb_tree			cb_build_implicit_field (cb_tree, const int);
 extern cb_tree			cb_build_constant (cb_tree, cb_tree);
-extern cb_tree			cb_field_dup(struct cb_field *f, struct cb_reference *ref);
 
 extern void			cb_build_symbolic_chars (const cb_tree,
 							 const cb_tree);
@@ -1435,8 +1392,6 @@ extern cb_tree			cb_build_label (cb_tree, struct cb_label *);
 extern struct cb_file		*build_file (cb_tree);
 extern void			validate_file (struct cb_file *, cb_tree);
 extern void			finalize_file (struct cb_file *,
-					       struct cb_field *);
-extern void			finalize_report (struct cb_report *,
 					       struct cb_field *);
 
 extern cb_tree			cb_build_filler (void);
@@ -1503,8 +1458,7 @@ extern cb_tree			cb_list_append (cb_tree, cb_tree);
 extern cb_tree			cb_list_reverse (cb_tree);
 extern int			cb_list_length (cb_tree);
 
-extern struct cb_report	*	build_report (cb_tree);
-extern void 			build_sum_counter(struct cb_report *r, struct cb_field *f);
+extern struct cb_report		*build_report (cb_tree);
 
 extern void			cb_add_common_prog (struct cb_program *);
 extern void			cb_insert_common_prog (struct cb_program *,
@@ -1586,7 +1540,6 @@ extern struct cb_program	*cb_build_program (struct cb_program *,
 						   const int);
 
 extern cb_tree		cb_check_numeric_value (cb_tree);
-extern cb_tree		cb_check_sum_field (cb_tree);
 extern size_t		cb_check_index_p (cb_tree x);
 
 extern void		cb_build_registers (void);
@@ -1659,10 +1612,6 @@ extern void		cb_emit_display (cb_tree, cb_tree,
 					 struct cb_attr_struct *);
 extern cb_tree		cb_build_display_mnemonic (cb_tree);
 extern cb_tree		cb_build_display_name (cb_tree);
-extern void		cb_emit_initiate (cb_tree);
-extern void		cb_emit_generate (cb_tree);
-extern void		cb_emit_suppress (struct cb_field *f);
-extern void		cb_emit_terminate (cb_tree);
 extern void		cb_emit_env_name (cb_tree);
 extern void		cb_emit_env_value (cb_tree);
 extern void		cb_emit_arg_number (cb_tree);

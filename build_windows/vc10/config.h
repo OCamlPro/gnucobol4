@@ -1,4 +1,4 @@
-/* config.h	Win32/x64 with VS2005-2013 */
+/* config.h	Win32/x64 VS2003-2013  */
 
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
@@ -20,6 +20,9 @@
 
 /* Can not dlopen self */
 #define COB_NO_SELFOPEN 1
+
+/* Object extension */
+#define COB_OBJEXT ".obj"
 
 /* Enable CALL parameter checking */
 /* #undef COB_PARAM_CHECK */
@@ -83,6 +86,9 @@
 /* #undef HAVE_DCGETTEXT */
 
 /* Has designated initializers */
+#if defined(_MSC_VER) && _MSC_VER >= 1800
+#define HAVE_DESIGNATED_INITS 1
+#endif
 /* #undef HAVE_DESIGNATED_INITS */
 
 /* Define to 1 if you have the <disam.h> header file. */
@@ -172,6 +178,9 @@
 /* Define to 1 if you have the `memset' function. */
 #define HAVE_MEMSET 1
 
+/* Do we have mp_get_memory_functions in gmp */
+#define HAVE_MP_GET_MEMORY_FUNCTIONS 1
+
 /* Has nanosleep function */
 /* #undef HAVE_NANO_SLEEP */
 
@@ -193,7 +202,7 @@
 /* Has -Wno-pointer-sign */
 /* #undef HAVE_PSIGN_OPT */
 
-/* Has raise function */
+/* Define to 1 if you have the `raise' function. */
 #define HAVE_RAISE 1
 
 /* Define to 1 if you have the `readlink' function. */
@@ -201,6 +210,9 @@
 
 /* Define to 1 if you have the `realpath' function. */
 /* #undef HAVE_REALPATH */
+
+/* Define to 1 if you have the `setenv' function. */
+/* #undef HAVE_SETENV */
 
 /* Define to 1 if you have the `setlocale' function. */
 #define HAVE_SETLOCALE 1
@@ -275,7 +287,7 @@
 /* #undef HAVE_USE_LEGACY_CODING */
 
 /* Define to 1 if you have the <vbisam.h> header file. */
-/* #undef HAVE_VBISAM_H */
+#define HAVE_VBISAM_H 1
 
 /* Define to 1 if you have the `vprintf' function. */
 #define HAVE_VPRINTF 1
@@ -300,19 +312,19 @@
 #define PACKAGE_NAME "GNU Cobol"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU Cobol 2.1"
+#define PACKAGE_STRING "GNU Cobol 2.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "gnu-cobol"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "http://www.gnu.org/software/gnucobol"
+#define PACKAGE_URL "http://www.opencobol.org"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.1"
+#define PACKAGE_VERSION "2.0"
 
 /* Define a patch level */
-#define PATCH_LEVEL 0
+#define PATCH_LEVEL COB_NUM_TAR_DATE
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -354,13 +366,13 @@
 
 
 /* Version number of package */
-#define VERSION "2.1"
+#define VERSION "2.0"
 
 /* Use CISAM as ISAM handler */
 /* #undef WITH_CISAM */
 
 /* Compile with the Berkeley DB library */
-#define WITH_DB 1
+/* #undef WITH_DB */
 
 /* Use DISAM as ISAM handler */
 /* #undef WITH_DISAM */
@@ -375,7 +387,7 @@
 #define WITH_VARSEQ 0
 
 /* Use VBISAM as ISAM handler */
-/* #undef WITH_VBISAM */
+#define WITH_VBISAM 1
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

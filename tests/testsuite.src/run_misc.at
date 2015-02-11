@@ -1,5 +1,6 @@
 ## Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
 ## Copyright (C) 2007-2012 Roger While
+## Copyright (C) 2014 Simon Sobisch
 ##
 ## This file is part of GNU Cobol.
 ##
@@ -18,6 +19,31 @@
 
 ### GNU Cobol Test Suite
 
+AT_SETUP([Compiler outputs])
+AT_KEYWORDS([runmisc cobc])
+
+AT_DATA([prog.cob],[
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        01 BLA PIC X(5) VALUE 'bluBb'.
+        PROCEDURE DIVISION.
+        DISPLAY BLA NO ADVANCING END-DISPLAY
+        STOP RUN.
+])
+
+AT_CHECK([$COBC -C prog.cob], [0], [], [])
+AT_CHECK([$COBC -c prog.c], [0], [], [])
+AT_CHECK([$COBC prog.$OBJECT_EXT])
+AT_CHECK([$COBCRUN prog], [0], [bluBb], [])
+AT_CHECK([$COBC -S prog.cob], [0], [], [])
+#AT_CHECK([$COBC prog.$ASM_EXT]) Currently breaking with MSC, deactivated
+AT_CHECK([$COBC -E prog.cob], [0], [], [])
+AT_CHECK([test -f prog.i], [0], [], [])
+AT_CLEANUP
+
+
 AT_SETUP([Source file not found])
 AT_KEYWORDS([runmisc])
 
@@ -26,6 +52,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Comma separator without space])
 AT_KEYWORDS([runmisc])
@@ -39,10 +66,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [111])
 
 AT_CLEANUP
+
 
 AT_SETUP([LOCAL-STORAGE (1)])
 AT_KEYWORDS([runmisc])
@@ -73,11 +101,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o prog caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o prog caller.cob], [0], , [])
 AT_CHECK([./prog], [0], [abcabc000abc], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([LOCAL-STORAGE (2)])
 AT_KEYWORDS([runmisc])
@@ -119,12 +148,13 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee2.cob])
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o prog caller.cob])
+AT_CHECK([$COMPILE_MODULE callee2.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o prog caller.cob], [0], , [])
 AT_CHECK([./prog], [0], [abc000], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([EXTERNAL data item])
 AT_KEYWORDS([runmisc])
@@ -161,11 +191,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o prog caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o prog caller.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([EXTERNAL AS data item])
 AT_KEYWORDS([runmisc])
@@ -209,11 +240,32 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o prog caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o prog caller.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
+
+AT_SETUP([Using full path for cobc])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       PROCEDURE        DIVISION.
+           DISPLAY "OK" NO ADVANCING
+           END-DISPLAY.
+           EXIT PROGRAM.
+])
+
+AT_CHECK([$COMPILE "$(pwd)/prog.cob"], [0], , [])
+AT_CHECK([./prog], [0], [OK])
+
+AT_CLEANUP
+
 
 AT_SETUP([cobcrun validation])
 AT_KEYWORDS([runmisc])
@@ -248,8 +300,8 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE_MODULE caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE caller.cob], [0], , [])
 AT_CHECK([$COBCRUN caller], [0], [HelloWorld])
 
 AT_CLEANUP
@@ -275,12 +327,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob], [0], ,
+AT_CHECK([$COMPILE prog.cob], [0], ,
 [prog.cob: 8: Warning: Overlapping MOVE may produce unpredictable results
 ])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([MOVE with refmod])
 AT_KEYWORDS([runmisc])
@@ -300,10 +353,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([MOVE with refmod (variable)])
 AT_KEYWORDS([runmisc])
@@ -325,10 +379,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([MOVE with group refmod])
 AT_KEYWORDS([runmisc])
@@ -349,10 +404,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([MOVE indexes])
 AT_KEYWORDS([runmisc])
@@ -374,10 +430,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([MOVE X'00'])
 AT_KEYWORDS([runmisc])
@@ -387,7 +444,9 @@ AT_DATA([dump.c], [
 #ifdef	__INTEL_COMPILER
 #pragma warning ( disable : 1419 )
 #endif
-int dump (unsigned char *);
+#define COB_LIB_EXPIMP
+#include <libcob.h>
+COB_EXPIMP int dump (unsigned char *);
 int dump (unsigned char *data)
 {
   printf ("%02x%02x%02x", data[[0]], data[[1]], data[[2]]);
@@ -408,11 +467,12 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE dump.c])
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.c], [0], , [])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [000102])
 
 AT_CLEANUP
+
 
 AT_SETUP([MOVE Z'literal'])
 AT_KEYWORDS([runmisc])
@@ -440,12 +500,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
 
-AT_SETUP([Floating continuation])
+
+AT_SETUP([Floating continuation indicator])
 AT_KEYWORDS([runmisc])
 
 AT_DATA([prog.cob], [
@@ -461,10 +522,75 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OKOK])
 
 AT_CLEANUP
+
+
+AT_SETUP([Fixed continuation indicator])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 X             PIC X(333) VALUE
+           '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWX
+      -    'YZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV
+      -    'WXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRST
+      -    'UVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQR
+      -    'STUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP
+      -             'QRSTUVWXYZ'.
+       PROCEDURE        DIVISION.
+           DISPLAY X NO ADVANCING
+           END-DISPLAY.
+           DISPLAY '_'
+           END-DISPLAY.
+           MOVE
+           "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567
+      -    "89abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345
+      -    "6789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123
+      -    "456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01
+      -     "23456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
+      -                                                               "Z
+      -             "0123456789" TO X.
+           DISPLAY X NO ADVANCING
+           END-DISPLAY.
+           DISPLAY '_'
+           END-DISPLAY.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], , [])
+AT_CHECK([./prog], [0], [0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ                       _
+abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789                       _
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Concatenation operator])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       PROCEDURE        DIVISION.
+           DISPLAY "OK"
+            & "OK"
+             NO ADVANCING
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], , [])
+AT_CHECK([./prog], [0], [OKOK])
+
+AT_CLEANUP
+
 
 ## OCCURS clause
 
@@ -487,6 +613,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 
 AT_CLEANUP
 
+
 ## Expressions
 
 AT_SETUP([Class check with reference modification])
@@ -507,10 +634,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([Index and parenthesized expression])
 AT_KEYWORDS([runmisc])
@@ -524,15 +652,17 @@ AT_DATA([prog.cob], [
          02 X           PIC X OCCURS 1 INDEXED BY I.
        PROCEDURE        DIVISION.
          IF I < (I + 2)
-           DISPLAY "OK"
+           DISPLAY "OK" NO ADVANCING
            END-DISPLAY
          END-IF.
          STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_ONLY -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
+AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
+
 
 AT_SETUP([Alphanumeric and binary numeric])
 AT_KEYWORDS([runmisc])
@@ -553,10 +683,11 @@ AT_DATA([prog.cob], [
          STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 ## CALL statement
 
@@ -579,12 +710,13 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE -c callee.cob])
-AT_CHECK([$COMPILE -c caller.cob])
-AT_CHECK([$COMPILE -o prog caller.o callee.o])
+AT_CHECK([$COMPILE_MODULE -c callee.cob], [0], , [])
+AT_CHECK([$COMPILE -c caller.cob], [0], , [])
+AT_CHECK([$COMPILE -o prog caller.$OBJECT_EXT callee.$OBJECT_EXT], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([CALL m1. CALL m2. CALL m1.])
 AT_KEYWORDS([runmisc])
@@ -632,13 +764,14 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE m1.cob])
-AT_CHECK([$COMPILE_MODULE m2.cob])
-AT_CHECK([$COMPILE -o caller caller.cob])
+AT_CHECK([$COMPILE_MODULE m1.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE m2.cob], [0], , [])
+AT_CHECK([$COMPILE -o caller caller.cob], [0], , [])
 
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([CALL binary literal parameter/LENGTH OF])
 AT_KEYWORDS([runmisc])
@@ -650,6 +783,9 @@ binary-byteorder: native
 
 AT_DATA([dump.c], [
 #include <stdio.h>
+#define COB_LIB_EXPIMP
+#include <libcob.h>
+COB_EXPIMP int dump (int *);
 int dump (int *p)
 {
   printf ("%8.8d\n", *p);
@@ -677,14 +813,14 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE dump.c])
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.c], [0], , [])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [00000001
 00000009
 00000004
 ])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0],
 [00000001
 00000009
@@ -692,6 +828,7 @@ AT_CHECK([./prog], [0],
 ])
 
 AT_CLEANUP
+
 
 ## INSPECT
 
@@ -713,10 +850,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : No repeat conversion check])
 AT_KEYWORDS([runmisc])
@@ -736,10 +874,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : CONVERTING TO figurative constant])
 AT_KEYWORDS([runmisc])
@@ -759,10 +898,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : CONVERTING NULL])
 AT_KEYWORDS([runmisc])
@@ -782,10 +922,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : CONVERTING TO NULL])
 AT_KEYWORDS([runmisc])
@@ -805,10 +946,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : REPLACING figurative constant])
 AT_KEYWORDS([runmisc])
@@ -828,10 +970,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : TALLYING BEFORE])
 AT_KEYWORDS([runmisc])
@@ -862,10 +1005,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : TALLYING AFTER])
 AT_KEYWORDS([runmisc])
@@ -896,10 +1040,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : REPLACING TRAILING ZEROS BY SPACES])
 AT_KEYWORDS([runmisc])
@@ -919,10 +1064,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([INSPECT : REPLACING complex])
 AT_KEYWORDS([runmisc])
@@ -945,9 +1091,10 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 AT_CLEANUP
+
 
 AT_SETUP([SWITCHES (1)])
 AT_KEYWORDS([runmisc])
@@ -1000,10 +1147,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([COB_SWITCH_1=ON COB_SWITCH_2=OFF ./prog], [0], [ONOFFOFFON])
 
 AT_CLEANUP
+
 
 AT_SETUP([SWITCHES (2)])
 AT_KEYWORDS([runmisc])
@@ -1031,10 +1179,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 ## PERFORM
 
@@ -1055,10 +1204,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [XXXX])
 
 AT_CLEANUP
+
 
 ## EXIT PERFORM  see ISO/IEC 1989:2002(E) 14.8.13 Format 5
 
@@ -1079,10 +1229,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OK])
 
 AT_CLEANUP
+
 
 ## EXIT PERFORM  see ISO/IEC 1989:2002(E) 14.8.13 Format 5
 
@@ -1103,10 +1254,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [OKOK])
 
 AT_CLEANUP
+
 
 ## EXIT PARAGRAPH  see ISO/IEC 1989:2002(E) 14.8.13 Format 6
 
@@ -1134,10 +1286,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 ## EXIT SECTION  see ISO/IEC 1989:2002(E) 14.8.13 Format 6
 
@@ -1169,10 +1322,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([PERFORM UNTIL EXIT])
 AT_KEYWORDS([runmisc])
@@ -1199,10 +1353,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([PERFORM inline (1)])
 AT_KEYWORDS([runmisc])
@@ -1226,10 +1381,11 @@ AT_DATA([prog.cob], [
            .
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([PERFORM inline (2)])
 AT_KEYWORDS([runmisc])
@@ -1247,10 +1403,11 @@ AT_DATA([prog.cob], [
            .
 ])
 
-AT_CHECK([$COMPILE -frelax-syntax -o prog prog.cob])
+AT_CHECK([$COMPILE -frelax-syntax -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([88 with FILLER])
 AT_KEYWORDS([runmisc])
@@ -1275,10 +1432,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([Non-overflow after overflow])
 AT_KEYWORDS([runmisc])
@@ -1302,10 +1460,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 ## PERFORM statement
 
@@ -1324,6 +1483,7 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE_ONLY prog.cob], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([STRING with subscript reference])
 AT_KEYWORDS([runmisc])
@@ -1346,10 +1506,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([UNSTRING DELIMITED ALL LOW-VALUE])
 AT_KEYWORDS([runmisc])
@@ -1380,10 +1541,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([UNSTRING DELIMITED ALL SPACE-2])
 AT_KEYWORDS([runmisc])
@@ -1444,10 +1606,11 @@ AT_DATA([prog.cob], [
            END-UNSTRING.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([UNSTRING DELIMITED POINTER])
 AT_KEYWORDS([runmisc])
@@ -1498,10 +1661,11 @@ AT_DATA([prog.cob], [
            .
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([UNSTRING DELIMITER IN])
 AT_KEYWORDS([runmisc])
@@ -1539,10 +1703,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -frelax-syntax -o prog prog.cob])
+AT_CHECK([$COMPILE -frelax-syntax -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([READ INTO AT-END sequence])
 AT_KEYWORDS([runmisc])
@@ -1575,10 +1740,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([First READ on empty SEQUENTIAL INDEXED file])
 AT_KEYWORDS([runmisc])
@@ -1614,10 +1780,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([REWRITE a RELATIVE file with RANDOM access])
 AT_KEYWORDS([runmisc])
@@ -1680,10 +1847,173 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
+
+AT_SETUP([SORT with SD, I/O SEQUENTIAL])
+AT_KEYWORDS([runmisc using giving])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT      DIVISION.
+       INPUT-OUTPUT     SECTION.
+       FILE-CONTROL.
+       SELECT SORT-IN   ASSIGN "test.txt".
+       SELECT SORT-OUT  ASSIGN "result.txt".
+       SELECT SORT-WRK  ASSIGN "SORT-WRK".
+       DATA             DIVISION.
+       FILE             SECTION.
+       FD SORT-IN.
+       01 IN-REC        PIC X(6).
+       FD SORT-OUT.
+       01 OUT-REC       PIC X(6).
+       SD SORT-WRK.
+       01 WRK-REC       PIC X(6).
+       PROCEDURE        DIVISION.
+           
+      * We shouldn't use AT_DATA to create sequential record
+      * data, because AT_DATA needs a \n at the end
+           OPEN OUTPUT SORT-IN.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM "world " END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM "hello " END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           CLOSE SORT-IN.
+           
+           SORT SORT-WRK
+                ASCENDING KEY WRK-REC
+                USING  SORT-IN
+                GIVING SORT-OUT.
+             STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [])
+AT_CHECK([cat result.txt], [0], [                              hello world ], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([SORT with SD, I/O LINE SEQUENTIAL])
+AT_KEYWORDS([runmisc using giving])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT      DIVISION.
+       INPUT-OUTPUT     SECTION.
+       FILE-CONTROL.
+       SELECT SORT-IN   ASSIGN "test.txt"
+                        ORGANISATION LINE SEQUENTIAL.
+       SELECT SORT-OUT  ASSIGN "result.txt"
+                        ORGANISATION LINE SEQUENTIAL.
+       SELECT SORT-WRK  ASSIGN "SORT-WRK".
+       DATA             DIVISION.
+       FILE             SECTION.
+       FD SORT-IN.
+       01 IN-REC        PIC X(20).
+       FD SORT-OUT.
+       01 OUT-REC       PIC X(20).
+       SD SORT-WRK.
+       01 WRK-REC       PIC X(6).
+       PROCEDURE        DIVISION.
+           
+      * We shouldn't use AT_DATA to create sequential record
+      * data, because AT_DATA needs a \n at the end
+           OPEN OUTPUT SORT-IN.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM "world " END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM "hello " END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           WRITE IN-REC FROM SPACES   END-WRITE.
+           CLOSE SORT-IN.
+           
+           SORT SORT-WRK
+                ASCENDING KEY WRK-REC
+                USING  SORT-IN
+                GIVING SORT-OUT.
+             STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [])
+AT_CHECK([cat result.txt], [0], [
+
+
+
+
+hello
+world
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([SORT with SD, I/O LINE SEQUENTIAL same file])
+AT_KEYWORDS([runmisc using giving])
+
+AT_DATA([test.txt], [
+bla
+world
+hello
+
+blubb
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT      DIVISION.
+       INPUT-OUTPUT     SECTION.
+       FILE-CONTROL.
+       SELECT SORT-IN   ASSIGN "test.txt"
+                        ORGANISATION LINE SEQUENTIAL.
+       SELECT SORT-WRK  ASSIGN "dummy".
+       DATA             DIVISION.
+       FILE             SECTION.
+       FD SORT-IN.
+       01 IN-REC        PIC X(6).
+       SD SORT-WRK.
+       01 sort-entry    PIC X(6).
+       PROCEDURE        DIVISION.
+
+      * We shouldn't use : > to create sequential record
+      * data, because : > needs a \n at the end
+      *     OPEN OUTPUT SORT-IN.
+      *     WRITE IN-REC FROM SPACES   END-WRITE.
+      *     WRITE IN-REC FROM "world " END-WRITE.
+      *     WRITE IN-REC FROM "hello " END-WRITE.
+      *     WRITE IN-REC FROM SPACES   END-WRITE.
+      *     CLOSE SORT-IN.
+
+           SORT SORT-WRK
+                ASCENDING sort-entry
+                USING  SORT-IN
+                GIVING SORT-IN.
+             STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [])
+AT_CHECK([cat test.txt], [0], [
+
+bla
+blubb
+hello
+world
+], [])
+
+AT_CLEANUP
+
 
 AT_SETUP([SORT: table sort])
 AT_KEYWORDS([runmisc])
@@ -1721,8 +2051,175 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
+
+AT_CLEANUP
+
+
+AT_SETUP([SORT: table sort (2)])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 K                 PIC 9(2).
+
+       01 CNT1              PIC 9(9) COMP-5 VALUE 4.
+       01 TAB1.
+          05 ROW1 OCCURS 1 TO 4 DEPENDING CNT1 
+                                 DESCENDING TAB1-NR.
+             10 TAB1-NR     PIC 99.
+
+       01 TAB2.
+          05 CNT2           PIC 9(9) COMP-5 VALUE 4.
+          05 ROW2 OCCURS 1 TO 4 DEPENDING CNT2 
+                                 DESCENDING TAB2-NR.
+             10 TAB2-NR PIC 99.
+
+       01 TAB3.
+          05 CNT3           PIC 9(9) COMP-5 VALUE 10.
+          05 ROW3 OCCURS 1 TO 10 DEPENDING CNT3
+                                  DESCENDING TAB3-NR
+                                  ASCENDING TAB3-DATA.
+             10 TAB3-NR     PIC 99.
+             10 FILLER      PIC X(2).
+             10 TAB3-DATA   PIC X(5).
+             10 FILLER      PIC X(2).
+             10 TAB3-DATA2  PIC X(5).
+
+
+       PROCEDURE DIVISION.
+       A.
+           PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
+             MOVE K TO TAB1-NR(K), TAB2-NR(K)
+           END-PERFORM
+           
+           MOVE 1 TO TAB3-NR(1).
+           MOVE 1 TO TAB3-NR(8).
+           MOVE 1 TO TAB3-NR(4).
+           MOVE 6 TO TAB3-NR(2).
+           MOVE 5 TO TAB3-NR(3).
+           MOVE 5 TO TAB3-NR(9).
+           MOVE 2 TO TAB3-NR(5).
+           MOVE 2 TO TAB3-NR(10).
+           MOVE 4 TO TAB3-NR(6).
+           MOVE 3 TO TAB3-NR(7).
+                      
+           MOVE "abcde" TO TAB3-DATA(1).
+           MOVE "AbCde" TO TAB3-DATA(2).
+           MOVE "abcde" TO TAB3-DATA(3).
+           MOVE "zyx" TO TAB3-DATA(4).
+           MOVE "12345" TO TAB3-DATA(5).
+           MOVE "zyx" TO TAB3-DATA(6).
+           MOVE "abcde" TO TAB3-DATA(7).
+           MOVE "AbCde" TO TAB3-DATA(8).
+           MOVE "abc" TO TAB3-DATA(9).
+           MOVE "12346" TO TAB3-DATA(10).
+           
+           MOVE "day" TO TAB3-DATA2(1).
+           MOVE "The" TO TAB3-DATA2(2).
+           MOVE "eats" TO TAB3-DATA2(3).
+           MOVE "." TO TAB3-DATA2(4).
+           MOVE "mooos" TO TAB3-DATA2(5).
+           MOVE "grass" TO TAB3-DATA2(6).
+           MOVE "and" TO TAB3-DATA2(7).
+           MOVE "whole" TO TAB3-DATA2(8).
+           MOVE "cow" TO TAB3-DATA2(9).
+           MOVE "the" TO TAB3-DATA2(10).
+           
+           SORT ROW1 DESCENDING TAB1-NR
+           SORT ROW2 DESCENDING TAB2-NR
+  
+           DISPLAY "SINGLE TABLE" END-DISPLAY
+           PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
+             DISPLAY  FUNCTION TRIM(TAB1-NR(K)) END-DISPLAY
+           END-PERFORM
+
+           DISPLAY "LOWER LEVEL TABLE" END-DISPLAY
+           PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
+             DISPLAY  FUNCTION TRIM(TAB2-NR(K)) END-DISPLAY
+           END-PERFORM
+           
+           SORT ROW3 DESCENDING TAB3-NR ASCENDING TAB3-DATA
+           
+           DISPLAY "MULTY KEY SORT" END-DISPLAY
+           PERFORM VARYING K FROM 1 BY 1 UNTIL K > 10
+             DISPLAY  FUNCTION TRIM(ROW3(K))
+             END-DISPLAY
+           END-PERFORM           
+
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [SINGLE TABLE
+04
+03
+02
+01
+LOWER LEVEL TABLE
+04
+03
+02
+01
+MULTY KEY SORT
+06  AbCde  The
+05  abc    cow
+05  abcde  eats 
+04  zyx    grass
+03  abcde  and
+02  12345  mooos
+02  12346  the
+01  AbCde  whole
+01  abcde  day
+01  zyx    .
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([SORT: table sort (3)])
+AT_SKIP_IF(true)
+
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 K                 PIC 9(2).
+
+       01 CNT1              PIC 9(9) COMP-5 VALUE 4.
+       01 TAB1.
+          05 ROW1 OCCURS 1 TO 4 DEPENDING CNT1
+                                  DESCENDING TAB1-NR.
+             10 TAB1-NR     PIC 99.
+             10 TAB-DATA    PIC X(5).
+             
+       PROCEDURE DIVISION.
+       A.
+           PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
+             MOVE K TO TAB1-NR(K)
+             MOVE 'BLA' TO TAB-DATA(K)
+           END-PERFORM             
+           
+           SORT ROW1.
+           
+           PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
+		     DISPLAY TAB1-NR(K) NO ADVANCING END-DISPLAY
+           END-PERFORM           
+           
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [04030201], [])
 
 AT_CLEANUP
 
@@ -1758,10 +2255,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([SORT nonexistent file])
 AT_KEYWORDS([runmisc])
@@ -1791,11 +2289,12 @@ AT_DATA([prog.cob], [
              STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 AT_CHECK([cat SORT-OUT], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([PIC ZZZ-, ZZZ+])
 AT_KEYWORDS([runmisc])
@@ -1844,61 +2343,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
 
-AT_SETUP([Larger REDEFINES lengths])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  Z            PIC 99.
-       01  XMAIN        PIC X(8).
-       01  XMAINRED REDEFINES XMAIN.
-           03  FILLER         PIC X(4).
-           03  XMAIN03.
-               05  XMAIN0501  PIC X(4).
-               05  XMAIN0502 REDEFINES XMAIN0501 PIC X(5).
-       PROCEDURE        DIVISION.
-           MOVE    LENGTH OF XMAIN       TO Z.                          FIXFORM
-           IF Z NOT = 8
-              DISPLAY "Test 1 " Z
-              END-DISPLAY
-           END-IF.
-           MOVE    LENGTH OF XMAINRED    TO Z.                          FIXFORM
-           IF Z NOT = 9
-              DISPLAY "Test 2 " Z
-              END-DISPLAY
-           END-IF.
-           MOVE    LENGTH OF XMAIN03     TO Z.                          FIXFORM
-           IF Z NOT = 5
-              DISPLAY "Test 3 " Z
-              END-DISPLAY
-           END-IF.
-           MOVE    LENGTH OF XMAIN0501   TO Z.                          FIXFORM
-           IF Z NOT = 4
-              DISPLAY "Test 4 " Z
-              END-DISPLAY
-           END-IF.
-           MOVE    LENGTH OF XMAIN0502   TO Z.                          FIXFORM
-           IF Z NOT = 5
-              DISPLAY "Test 5 " Z
-              END-DISPLAY
-           END-IF.
-           STOP RUN.                                                    FIXFORM
-])
-
-AT_CHECK([$COMPILE -std=mf -o prog prog.cob], [0], ,
-[prog.cob: 12: Warning: Size of 'XMAIN0502' larger than size of 'XMAIN0501'
-])
-AT_CHECK([./prog], [0])
-
-AT_CLEANUP
 
 AT_SETUP([PERFORM type OSVS])
 AT_KEYWORDS([runmisc])
@@ -1936,10 +2385,11 @@ AT_DATA([prog.cob], [
            EXIT.
 ])
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([Sticky LINKAGE])
 AT_KEYWORDS([runmisc])
@@ -1986,11 +2436,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE -conf=test.conf callee.cob])
-AT_CHECK([$COMPILE -conf=test.conf -o caller caller.cob])
+AT_CHECK([$COMPILE_MODULE -conf=test.conf callee.cob], [0], , [])
+AT_CHECK([$COMPILE -conf=test.conf -o caller caller.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([COB_PRE_LOAD test])
 AT_KEYWORDS([runmisc])
@@ -2011,11 +2462,90 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
 AT_CHECK([export COB_PRE_LOAD=callee; ./caller], [0])
 
 AT_CLEANUP
+
+
+AT_SETUP([COB_PRE_LOAD with entry points])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+
+        01 VAR1 PIC X(5) VALUE '12abc'.
+        01 VAR2 PIC X(2) VALUE '11'.
+
+        PROCEDURE DIVISION.
+        
+        ENTRY 'ent1'.
+        DISPLAY VAR1 END-DISPLAY
+        GOBACK.
+
+        ENTRY 'ent2'.
+        DISPLAY VAR2 END-DISPLAY
+        GOBACK.
+
+        .
+])
+
+AT_DATA([prog1.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog1.
+
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+
+        01 VAR2 PIC X(2) VALUE '55'.
+        01 VAR3 PIC X(5) VALUE 'xxxxx'.
+
+        PROCEDURE DIVISION.
+
+        ENTRY 'ent2'.
+        DISPLAY VAR2 END-DISPLAY
+        GOBACK.
+        
+        ENTRY 'ent3'.
+        DISPLAY VAR3 END-DISPLAY
+        GOBACK.
+
+        .
+])
+
+AT_DATA([main-prog.cob], [
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. main-prog.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        PROCEDURE DIVISION.
+
+        CALL 'ent1' END-CALL
+        CALL 'ent2' END-CALL
+        CALL 'ent3' END-CALL
+       
+        stop run.
+])
+
+AT_CHECK([$COMPILE_MODULE -std=default prog.cob], [0], , [prog.cob: 13: Warning: ENTRY is obsolete in GNU Cobol
+prog.cob: 17: Warning: ENTRY is obsolete in GNU Cobol
+])
+AT_CHECK([$COMPILE_MODULE -std=default prog1.cob], [0], , [prog1.cob: 13: Warning: ENTRY is obsolete in GNU Cobol
+prog1.cob: 17: Warning: ENTRY is obsolete in GNU Cobol
+])
+AT_CHECK([$COMPILE main-prog.cob], [0], [], [])
+AT_CHECK([export COB_PRE_LOAD="prog"$PATHSEP"prog1"; ./main-prog], [0], [12abc
+11
+xxxxx
+], [])
+
+AT_CLEANUP
+
 
 AT_SETUP([COB_LOAD_CASE=UPPER test])
 AT_KEYWORDS([runmisc])
@@ -2036,11 +2566,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE CALLEE.cob])
-AT_CHECK([$COMPILE caller.cob])
+AT_CHECK([$COMPILE_MODULE CALLEE.cob], [0], , [])
+AT_CHECK([$COMPILE caller.cob], [0], , [])
 AT_CHECK([export COB_LOAD_CASE=UPPER; ./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([88 level with FALSE IS clause])
 AT_KEYWORDS([runmisc])
@@ -2064,12 +2595,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
 
-AT_SETUP([ALLOCATE/FREE with BASED item (1)])
+
+AT_SETUP([ALLOCATE / FREE with BASED item (1)])
 AT_KEYWORDS([runmisc])
 
 AT_DATA([prog.cob], [
@@ -2090,13 +2622,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
 
 
-AT_SETUP([ALLOCATE/FREE with BASED item (2)])
+AT_SETUP([ALLOCATE / FREE with BASED item (2)])
 AT_KEYWORDS([runmisc])
 
 AT_DATA([prog.cob], [
@@ -2134,10 +2666,10 @@ AT_DATA([prog.cob], [
            END-IF.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 # Run both executable and module as we have a different code generation here
-AT_CHECK([$COMPILE_MODULE prog.cob])
+AT_CHECK([$COMPILE_MODULE prog.cob], [0], , [])
 AT_CHECK([$COBCRUN prog], [0])
 
 AT_CLEANUP
@@ -2178,35 +2710,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
 
-AT_SETUP([INITIALIZE with reference modification])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  MYFLD        PIC X(6) VALUE "ABCDEF".
-       PROCEDURE        DIVISION.
-       ASTART SECTION.
-       A01.
-           INITIALIZE MYFLD (1:2).
-           IF MYFLD NOT = "  CDEF"
-              DISPLAY MYFLD
-              END-DISPLAY
-           END-IF.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob])
-AT_CHECK([./prog], [0])
-
-AT_CLEANUP
 
 AT_SETUP([Initialized value with defaultbyte])
 AT_KEYWORDS([runmisc])
@@ -2227,10 +2735,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -fdefaultbyte=A prog.cob])
+AT_CHECK([$COMPILE -fdefaultbyte=A prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([CALL with OMITTED parameter])
 AT_KEYWORDS([runmisc])
@@ -2262,11 +2771,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o caller caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o caller caller.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([ANY LENGTH (1)])
 AT_KEYWORDS([runmisc])
@@ -2304,11 +2814,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o caller caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o caller caller.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([ANY LENGTH (2)])
 AT_KEYWORDS([runmisc])
@@ -2347,11 +2858,12 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE -o caller caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE -o caller caller.cob], [0], , [])
 AT_CHECK([./caller], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([BASED item non-ALLOCATED (debug)])
 AT_KEYWORDS([runmisc])
@@ -2368,12 +2880,13 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [1], ,
 [prog.cob: 8: libcob: BASED/LINKAGE item 'X' has NULL address
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([STOP RUN WITH NORMAL STATUS])
 AT_KEYWORDS([runmisc])
@@ -2387,10 +2900,11 @@ AT_DATA([prog.cob], [
            STOP RUN WITH NORMAL STATUS.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([STOP RUN WITH ERROR STATUS])
 AT_KEYWORDS([runmisc])
@@ -2404,10 +2918,11 @@ AT_DATA([prog.cob], [
            STOP RUN WITH ERROR STATUS.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [1])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECLARATIVES procedure referencing])
 AT_KEYWORDS([runmisc])
@@ -2443,10 +2958,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([DECLARATIVES procedure referencing (multiple)])
 AT_KEYWORDS([runmisc])
@@ -2486,10 +3002,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
+
 
 AT_SETUP([SYMBOLIC clause])
 AT_KEYWORDS([runmisc])
@@ -2522,7 +3039,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -2571,7 +3088,1023 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], , [])
+AT_CHECK([./prog], [0])
+
+AT_CLEANUP
+
+
+AT_SETUP([Computing of different USAGEs w/o decimal point])
+AT_KEYWORDS([runmisc
+BINARY-C-LONG BINARY-CHAR BINARY-DOUBLE BINARY-LONG
+COMP COMP-1 COMP-2 COMP-3 COMP-5 COMP-6
+FLOAT-DECIMAL-16 FLOAT-DECIMAL-34 FLOAT-LONG FLOAT-SHORT])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. 'prog'.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+
+      *
+       77  BCL-A           BINARY-C-LONG    VALUE 1.
+       77  BCL-B           BINARY-C-LONG    VALUE 10.
+       77  BCL-RES         BINARY-C-LONG.
+      *
+       77  BC-A            BINARY-CHAR      VALUE 1.
+       77  BC-B            BINARY-CHAR      VALUE 10.
+       77  BC-RES          BINARY-CHAR.
+      *
+       77  BD-A            BINARY-DOUBLE    VALUE 1.
+       77  BD-B            BINARY-DOUBLE    VALUE 10.
+       77  BD-RES          BINARY-DOUBLE.
+      *
+       77  BL-A            BINARY-LONG      VALUE 1.
+       77  BL-B            BINARY-LONG      VALUE 10.
+       77  BL-RES          BINARY-LONG.
+      *
+       77  C-A     PIC S99 COMP             VALUE 1.
+       77  C-B     PIC S99 COMP             VALUE 10.
+       77  C-RES   PIC S99 COMP.
+      *
+       77  C1-A            COMP-1           VALUE 1.
+       77  C1-B            COMP-1           VALUE 10.
+       77  C1-RES          COMP-1.
+      *
+       77  C2-A            COMP-2           VALUE 1.
+       77  C2-B            COMP-2           VALUE 10.
+       77  C2-RES          COMP-2.
+      *
+       77  C3-A    PIC S99 COMP-3           VALUE 1.
+       77  C3-B    PIC S99 COMP-3           VALUE 10.
+       77  C3-RES  PIC S99 COMP-3.
+      *
+       77  C5-A    PIC S99 COMP-5           VALUE 1.
+       77  C5-B    PIC S99 COMP-5           VALUE 10.
+       77  C5-RES  PIC S99 COMP-5.
+      *
+       77  C6-A    PIC  99 COMP-6           VALUE 1.
+       77  C6-B    PIC  99 COMP-6           VALUE 10.
+       77  C6-RES  PIC  99 COMP-6.
+      *
+       77  D-A     PIC  S99                 VALUE 1.
+       77  D-B     PIC  S99                 VALUE 10.
+       77  D-RES   PIC  S99.
+      *
+       77  FD16-A          FLOAT-DECIMAL-16 VALUE 1.
+       77  FD16-B          FLOAT-DECIMAL-16 VALUE 10.
+       77  FD16-RES        FLOAT-DECIMAL-16.
+      *
+       77  FD34-A          FLOAT-DECIMAL-34 VALUE 1.
+       77  FD34-B          FLOAT-DECIMAL-34 VALUE 10.
+       77  FD34-RES        FLOAT-DECIMAL-34.
+      *
+       77  FL-A            FLOAT-LONG       VALUE 1.
+       77  FL-B            FLOAT-LONG       VALUE 10.
+       77  FL-RES          FLOAT-LONG.
+      *
+       77  FS-A            FLOAT-SHORT      VALUE 1.
+       77  FS-B            FLOAT-SHORT      VALUE 10.
+       77  FS-RES          FLOAT-SHORT.
+      *
+       PROCEDURE DIVISION.
+      *
+           ADD  BCL-B  TO BCL-A END-ADD.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 11
+              DISPLAY 'ERROR BINARY-C-LONG + BINARY-C-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO BCL-A.
+           ADD  10    TO BCL-A END-ADD.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 11
+              DISPLAY 'ERROR BINARY-C-LONG + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BCL-A.
+           SUBTRACT BCL-B FROM BCL-A END-SUBTRACT.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 1
+              DISPLAY 'ERROR BINARY-C-LONG - BINARY-C-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BCL-A.
+           SUBTRACT 10   FROM BCL-A END-SUBTRACT.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 1
+              DISPLAY 'ERROR BINARY-C-LONG - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  BC-B  TO BC-A END-ADD.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 11
+              DISPLAY 'ERROR BINARY-CHAR + BINARY-CHAR'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO BC-A.
+           ADD  10    TO BC-A END-ADD.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 11
+              DISPLAY 'ERROR BINARY-CHAR + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BC-A.
+           SUBTRACT BC-B FROM BC-A END-SUBTRACT.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 1
+              DISPLAY 'ERROR BINARY-CHAR - BINARY-CHAR'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BC-A.
+           SUBTRACT 10   FROM BC-A END-SUBTRACT.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 1
+              DISPLAY 'ERROR BINARY-CHAR - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  BD-B  TO BD-A END-ADD.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 11
+              DISPLAY 'ERROR BINARY-DOUBLE + BINARY-DOUBLE'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO BD-A.
+           ADD  10    TO BD-A END-ADD.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 11
+              DISPLAY 'ERROR BINARY-DOUBLE + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BD-A.
+           SUBTRACT BD-B FROM BD-A END-SUBTRACT.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 1
+              DISPLAY 'ERROR BINARY-DOUBLE - BINARY-DOUBLE'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BD-A.
+           SUBTRACT 10   FROM BD-A END-SUBTRACT.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 1
+              DISPLAY 'ERROR BINARY-DOUBLE - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  BL-B  TO BL-A END-ADD.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 11
+              DISPLAY 'ERROR BINARY-LONG + BINARY-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO BL-A.
+           ADD  10    TO BL-A END-ADD.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 11
+              DISPLAY 'ERROR BINARY-LONG + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BL-A.
+           SUBTRACT BL-B FROM BL-A END-SUBTRACT.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 1
+              DISPLAY 'ERROR BINARY-LONG - BINARY-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO BL-A.
+           SUBTRACT 10   FROM BL-A END-SUBTRACT.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 1
+              DISPLAY 'ERROR BINARY-LONG - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C-B  TO C-A END-ADD.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 11
+              DISPLAY 'ERROR COMP + COMP'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO C-A.
+           ADD  10    TO C-A END-ADD.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 11
+              DISPLAY 'ERROR COMP + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C-A.
+           SUBTRACT C-B FROM C-A END-SUBTRACT.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 1
+              DISPLAY 'ERROR COMP - COMP'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C-A.
+           SUBTRACT 10   FROM C-A END-SUBTRACT.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 1
+              DISPLAY 'ERROR COMP - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C1-B  TO C1-A END-ADD.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 11
+              DISPLAY 'ERROR COMP-1 + COMP-1'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO C1-A.
+           ADD  10    TO C1-A END-ADD.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 11
+              DISPLAY 'ERROR COMP-1 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C1-A.
+           SUBTRACT C1-B FROM C1-A END-SUBTRACT.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 1
+              DISPLAY 'ERROR COMP-1 - COMP-1'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C1-A.
+           SUBTRACT 10   FROM C1-A END-SUBTRACT.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 1
+              DISPLAY 'ERROR COMP-1 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C2-B  TO C2-A END-ADD.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 11
+              DISPLAY 'ERROR COMP-2 + COMP-2'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO C2-A.
+           ADD  10    TO C2-A END-ADD.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 11
+              DISPLAY 'ERROR COMP-2 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C2-A.
+           SUBTRACT C2-B FROM C2-A END-SUBTRACT.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 1
+              DISPLAY 'ERROR COMP-2 - COMP-2'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C2-A.
+           SUBTRACT 10   FROM C2-A END-SUBTRACT.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 1
+              DISPLAY 'ERROR COMP-2 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C3-B  TO C3-A END-ADD.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 11
+              DISPLAY 'ERROR COMP-3 + COMP-3'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO C3-A.
+           ADD  10    TO C3-A END-ADD.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 11
+              DISPLAY 'ERROR COMP-3 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C3-A.
+           SUBTRACT C3-B FROM C3-A END-SUBTRACT.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 1
+              DISPLAY 'ERROR COMP-3 - COMP-3'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C3-A.
+           SUBTRACT 10   FROM C3-A END-SUBTRACT.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 1
+              DISPLAY 'ERROR COMP-3 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C5-B  TO C5-A END-ADD.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 11
+              DISPLAY 'ERROR COMP-5 + COMP-5'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO C5-A.
+           ADD  10    TO C5-A END-ADD.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 11
+              DISPLAY 'ERROR COMP-5 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C5-A.
+           SUBTRACT C5-B FROM C5-A END-SUBTRACT.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 1
+              DISPLAY 'ERROR COMP-5 - COMP-5'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C5-A.
+           SUBTRACT 10   FROM C5-A END-SUBTRACT.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 1
+              DISPLAY 'ERROR COMP-5 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C6-B  TO C6-A END-ADD.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 11
+              DISPLAY 'ERROR COMP-6 + COMP-6'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO C6-A.
+           ADD  10    TO C6-A END-ADD.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 11
+              DISPLAY 'ERROR COMP-6 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C6-A.
+           SUBTRACT C6-B FROM C6-A END-SUBTRACT.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 1
+              DISPLAY 'ERROR COMP-6 - COMP-6'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO C6-A.
+           SUBTRACT 10   FROM C6-A END-SUBTRACT.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 1
+              DISPLAY 'ERROR COMP-6 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  D-B  TO D-A END-ADD.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 11
+              DISPLAY 'ERROR DISPLAY + DISPLAY'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO D-A.
+           ADD  10    TO D-A END-ADD.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 11
+              DISPLAY 'ERROR DISPLAY + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO D-A.
+           SUBTRACT D-B FROM D-A END-SUBTRACT.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 1
+              DISPLAY 'ERROR DISPLAY - DISPLAY'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO D-A.
+           SUBTRACT 10   FROM D-A END-SUBTRACT.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 1
+              DISPLAY 'ERROR DISPLAY - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FD16-B  TO FD16-A END-ADD.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 + FLOAT-DECIMAL-16'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO FD16-A.
+           ADD  10    TO FD16-A END-ADD.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FD16-A.
+           SUBTRACT FD16-B FROM FD16-A END-SUBTRACT.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 - FLOAT-DECIMAL-16'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FD16-A.
+           SUBTRACT 10   FROM FD16-A END-SUBTRACT.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FD34-B  TO FD34-A END-ADD.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 + FLOAT-DECIMAL-34'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO FD34-A.
+           ADD  10    TO FD34-A END-ADD.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FD34-A.
+           SUBTRACT FD34-B FROM FD34-A END-SUBTRACT.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 - FLOAT-DECIMAL-34'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FD34-A.
+           SUBTRACT 10   FROM FD34-A END-SUBTRACT.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FL-B  TO FL-A END-ADD.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-LONG + FLOAT-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO FL-A.
+           ADD  10    TO FL-A END-ADD.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-LONG + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FL-A.
+           SUBTRACT FL-B FROM FL-A END-SUBTRACT.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-LONG - FLOAT-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FL-A.
+           SUBTRACT 10   FROM FL-A END-SUBTRACT.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-LONG - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FS-B  TO FS-A END-ADD.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-SHORT + FLOAT-SHORT'
+              END-DISPLAY
+           END-IF.
+           MOVE 1     TO FS-A.
+           ADD  10    TO FS-A END-ADD.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 11
+              DISPLAY 'ERROR FLOAT-SHORT + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FS-A.
+           SUBTRACT FS-B FROM FS-A END-SUBTRACT.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-SHORT - FLOAT-SHORT'
+              END-DISPLAY
+           END-IF.
+           MOVE 11    TO FS-A.
+           SUBTRACT 10   FROM FS-A END-SUBTRACT.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 1
+              DISPLAY 'ERROR FLOAT-SHORT - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], , [])
+AT_CHECK([./prog], [0])
+
+AT_CHECK([$COMPILE -fnotrunc prog.cob], [0], , [])
+AT_CHECK([./prog], [0])
+
+AT_CLEANUP
+
+
+AT_SETUP([Computing of different USAGEs w/- decimal point])
+AT_KEYWORDS([runmisc
+BINARY-C-LONG BINARY-CHAR BINARY-DOUBLE BINARY-LONG
+COMP COMP-1 COMP-2 COMP-3 COMP-5 COMP-6
+FLOAT-DECIMAL-16 FLOAT-DECIMAL-34 FLOAT-LONG FLOAT-SHORT])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. 'prog'.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+
+      *
+       77  BCL-A           BINARY-C-LONG    VALUE 1.0.
+       77  BCL-B           BINARY-C-LONG    VALUE 10.0.
+       77  BCL-RES         BINARY-C-LONG.
+      *
+       77  BC-A            BINARY-CHAR      VALUE 1.0.
+       77  BC-B            BINARY-CHAR      VALUE 10.0.
+       77  BC-RES          BINARY-CHAR.
+      *
+       77  BD-A            BINARY-DOUBLE    VALUE 1.0.
+       77  BD-B            BINARY-DOUBLE    VALUE 10.0.
+       77  BD-RES          BINARY-DOUBLE.
+      *
+       77  BL-A            BINARY-LONG      VALUE 1.0.
+       77  BL-B            BINARY-LONG      VALUE 10.0.
+       77  BL-RES          BINARY-LONG.
+      *
+       77  C-A     PIC S99 COMP             VALUE 1.0.
+       77  C-B     PIC S99 COMP             VALUE 10.0.
+       77  C-RES   PIC S99 COMP.
+      *
+       77  C1-A            COMP-1           VALUE 1.0.
+       77  C1-B            COMP-1           VALUE 10.0.
+       77  C1-RES          COMP-1.
+      *
+       77  C2-A            COMP-2           VALUE 1.0.
+       77  C2-B            COMP-2           VALUE 10.0.
+       77  C2-RES          COMP-2.
+      *
+       77  C3-A    PIC S99 COMP-3           VALUE 1.0.
+       77  C3-B    PIC S99 COMP-3           VALUE 10.0.
+       77  C3-RES  PIC S99 COMP-3.
+      *
+       77  C5-A    PIC S99 COMP-5           VALUE 1.0.
+       77  C5-B    PIC S99 COMP-5           VALUE 10.0.
+       77  C5-RES  PIC S99 COMP-5.
+      *
+       77  C6-A    PIC  99 COMP-6           VALUE 1.0.
+       77  C6-B    PIC  99 COMP-6           VALUE 10.0.
+       77  C6-RES  PIC  99 COMP-6.
+      *
+       77  D-A     PIC  S99                 VALUE 1.0.
+       77  D-B     PIC  S99                 VALUE 10.0.
+       77  D-RES   PIC  S99.
+      *
+       77  FD16-A          FLOAT-DECIMAL-16 VALUE 1.0.
+       77  FD16-B          FLOAT-DECIMAL-16 VALUE 10.0.
+       77  FD16-RES        FLOAT-DECIMAL-16.
+      *
+       77  FD34-A          FLOAT-DECIMAL-34 VALUE 1.0.
+       77  FD34-B          FLOAT-DECIMAL-34 VALUE 10.0.
+       77  FD34-RES        FLOAT-DECIMAL-34.
+      *
+       77  FL-A            FLOAT-LONG       VALUE 1.0.
+       77  FL-B            FLOAT-LONG       VALUE 10.0.
+       77  FL-RES          FLOAT-LONG.
+      *
+       77  FS-A            FLOAT-SHORT      VALUE 1.0.
+       77  FS-B            FLOAT-SHORT      VALUE 10.0.
+       77  FS-RES          FLOAT-SHORT.
+      *
+       PROCEDURE DIVISION.
+      *
+           ADD  BCL-B  TO BCL-A END-ADD.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-C-LONG + BINARY-C-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO BCL-A.
+           ADD  10.0  TO BCL-A END-ADD.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-C-LONG + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BCL-A.
+           SUBTRACT BCL-B FROM BCL-A END-SUBTRACT.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-C-LONG - BINARY-C-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BCL-A.
+           SUBTRACT 10.0 FROM BCL-A END-SUBTRACT.
+           MOVE BCL-A  TO BCL-RES.
+           IF BCL-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-C-LONG - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  BC-B  TO BC-A END-ADD.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-CHAR + BINARY-CHAR'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO BC-A.
+           ADD  10.0  TO BC-A END-ADD.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-CHAR + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BC-A.
+           SUBTRACT BC-B FROM BC-A END-SUBTRACT.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-CHAR - BINARY-CHAR'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BC-A.
+           SUBTRACT 10.0 FROM BC-A END-SUBTRACT.
+           MOVE BC-A  TO BC-RES.
+           IF BC-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-CHAR - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  BD-B  TO BD-A END-ADD.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-DOUBLE + BINARY-DOUBLE'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO BD-A.
+           ADD  10.0  TO BD-A END-ADD.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-DOUBLE + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BD-A.
+           SUBTRACT BD-B FROM BD-A END-SUBTRACT.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-DOUBLE - BINARY-DOUBLE'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BD-A.
+           SUBTRACT 10.0 FROM BD-A END-SUBTRACT.
+           MOVE BD-A  TO BD-RES.
+           IF BD-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-DOUBLE - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  BL-B  TO BL-A END-ADD.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-LONG + BINARY-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO BL-A.
+           ADD  10.0  TO BL-A END-ADD.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 11.0
+              DISPLAY 'ERROR BINARY-LONG + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BL-A.
+           SUBTRACT BL-B FROM BL-A END-SUBTRACT.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-LONG - BINARY-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO BL-A.
+           SUBTRACT 10.0 FROM BL-A END-SUBTRACT.
+           MOVE BL-A  TO BL-RES.
+           IF BL-RES NOT = 1.0
+              DISPLAY 'ERROR BINARY-LONG - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C-B  TO C-A END-ADD.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 11.0
+              DISPLAY 'ERROR COMP + COMP'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO C-A.
+           ADD  10.0  TO C-A END-ADD.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 11.0
+              DISPLAY 'ERROR COMP + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C-A.
+           SUBTRACT C-B FROM C-A END-SUBTRACT.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 1.0
+              DISPLAY 'ERROR COMP - COMP'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C-A.
+           SUBTRACT 10.0 FROM C-A END-SUBTRACT.
+           MOVE C-A  TO C-RES.
+           IF C-RES NOT = 1.0
+              DISPLAY 'ERROR COMP - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C1-B  TO C1-A END-ADD.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-1 + COMP-1'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO C1-A.
+           ADD  10.0  TO C1-A END-ADD.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-1 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C1-A.
+           SUBTRACT C1-B FROM C1-A END-SUBTRACT.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-1 - COMP-1'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C1-A.
+           SUBTRACT 10.0 FROM C1-A END-SUBTRACT.
+           MOVE C1-A  TO C1-RES.
+           IF C1-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-1 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C2-B  TO C2-A END-ADD.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-2 + COMP-2'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO C2-A.
+           ADD  10.0  TO C2-A END-ADD.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-2 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C2-A.
+           SUBTRACT C2-B FROM C2-A END-SUBTRACT.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-2 - COMP-2'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C2-A.
+           SUBTRACT 10.0 FROM C2-A END-SUBTRACT.
+           MOVE C2-A  TO C2-RES.
+           IF C2-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-2 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C3-B  TO C3-A END-ADD.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-3 + COMP-3'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO C3-A.
+           ADD  10.0  TO C3-A END-ADD.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-3 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C3-A.
+           SUBTRACT C3-B FROM C3-A END-SUBTRACT.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-3 - COMP-3'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C3-A.
+           SUBTRACT 10.0 FROM C3-A END-SUBTRACT.
+           MOVE C3-A  TO C3-RES.
+           IF C3-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-3 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C5-B  TO C5-A END-ADD.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-5 + COMP-5'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO C5-A.
+           ADD  10.0  TO C5-A END-ADD.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-5 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C5-A.
+           SUBTRACT C5-B FROM C5-A END-SUBTRACT.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-5 - COMP-5'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C5-A.
+           SUBTRACT 10.0 FROM C5-A END-SUBTRACT.
+           MOVE C5-A  TO C5-RES.
+           IF C5-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-5 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  C6-B  TO C6-A END-ADD.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-6 + COMP-6'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO C6-A.
+           ADD  10.0  TO C6-A END-ADD.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 11.0
+              DISPLAY 'ERROR COMP-6 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C6-A.
+           SUBTRACT C6-B FROM C6-A END-SUBTRACT.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-6 - COMP-6'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO C6-A.
+           SUBTRACT 10.0 FROM C6-A END-SUBTRACT.
+           MOVE C6-A  TO C6-RES.
+           IF C6-RES NOT = 1.0
+              DISPLAY 'ERROR COMP-6 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  D-B  TO D-A END-ADD.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 11.0
+              DISPLAY 'ERROR DISPLAY + DISPLAY'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO D-A.
+           ADD  10.0  TO D-A END-ADD.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 11.0
+              DISPLAY 'ERROR DISPLAY + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO D-A.
+           SUBTRACT D-B FROM D-A END-SUBTRACT.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 1.0
+              DISPLAY 'ERROR DISPLAY - DISPLAY'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO D-A.
+           SUBTRACT 10.0 FROM D-A END-SUBTRACT.
+           MOVE D-A  TO D-RES.
+           IF D-RES NOT = 1.0
+              DISPLAY 'ERROR DISPLAY - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FD16-B  TO FD16-A END-ADD.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 + FLOAT-DECIMAL-16'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO FD16-A.
+           ADD  10.0  TO FD16-A END-ADD.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FD16-A.
+           SUBTRACT FD16-B FROM FD16-A END-SUBTRACT.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 - FLOAT-DECIMAL-16'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FD16-A.
+           SUBTRACT 10.0 FROM FD16-A END-SUBTRACT.
+           MOVE FD16-A  TO FD16-RES.
+           IF FD16-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-16 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FD34-B  TO FD34-A END-ADD.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 + FLOAT-DECIMAL-34'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO FD34-A.
+           ADD  10.0  TO FD34-A END-ADD.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FD34-A.
+           SUBTRACT FD34-B FROM FD34-A END-SUBTRACT.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 - FLOAT-DECIMAL-34'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FD34-A.
+           SUBTRACT 10.0 FROM FD34-A END-SUBTRACT.
+           MOVE FD34-A  TO FD34-RES.
+           IF FD34-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-DECIMAL-34 - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FL-B  TO FL-A END-ADD.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-LONG + FLOAT-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO FL-A.
+           ADD  10.0  TO FL-A END-ADD.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-LONG + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FL-A.
+           SUBTRACT FL-B FROM FL-A END-SUBTRACT.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-LONG - FLOAT-LONG'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FL-A.
+           SUBTRACT 10.0 FROM FL-A END-SUBTRACT.
+           MOVE FL-A  TO FL-RES.
+           IF FL-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-LONG - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           ADD  FS-B  TO FS-A END-ADD.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-SHORT + FLOAT-SHORT'
+              END-DISPLAY
+           END-IF.
+           MOVE 1.0   TO FS-A.
+           ADD  10.0  TO FS-A END-ADD.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 11.0
+              DISPLAY 'ERROR FLOAT-SHORT + NUM'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FS-A.
+           SUBTRACT FS-B FROM FS-A END-SUBTRACT.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-SHORT - FLOAT-SHORT'
+              END-DISPLAY
+           END-IF.
+           MOVE 11.0  TO FS-A.
+           SUBTRACT 10.0 FROM FS-A END-SUBTRACT.
+           MOVE FS-A  TO FS-RES.
+           IF FS-RES NOT = 1.0
+              DISPLAY 'ERROR FLOAT-SHORT - NUM'
+              END-DISPLAY
+           END-IF.
+      *
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], , [])
+AT_CHECK([./prog], [0])
+
+AT_CHECK([$COMPILE -fnotrunc prog.cob], [0], , [])
 AT_CHECK([./prog], [0])
 
 AT_CLEANUP
@@ -3029,9 +4562,9 @@ AT_DATA([callee2.cob], [
            EXIT PROGRAM.
 ])
 
-AT_CHECK([$COMPILE_MODULE callee.cob])
-AT_CHECK([$COMPILE_MODULE callee2.cob])
-AT_CHECK([$COMPILE -o prog caller.cob])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], , [])
+AT_CHECK([$COMPILE_MODULE callee2.cob], [0], , [])
+AT_CHECK([$COMPILE -o prog caller.cob], [0], , [])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP

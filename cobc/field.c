@@ -2,20 +2,20 @@
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
 
-   This file is part of OpenCOBOL.
+   This file is part of GNU Cobol.
 
-   The OpenCOBOL compiler is free software: you can redistribute it
+   The GNU Cobol compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   OpenCOBOL is distributed in the hope that it will be useful,
+   GNU Cobol is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with OpenCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "cobc.h"
 #include "tree.h"
@@ -343,16 +344,6 @@ check_picture_item (cb_tree x, struct cb_field *f)
 			sprintf (pic, "X(%d)", (int)CB_FIELD_PTR (f->screen_from)->size);
 		} else if (f->screen_to) {
 			sprintf (pic, "X(%d)", (int)CB_FIELD_PTR (f->screen_to)->size);
-		} else {
-			f->flag_no_field = 1;
-			strcpy (pic, "X(1)");
-		}
-		f->pic = CB_PICTURE (cb_build_picture (pic));
-		return 0;
-	}
-	if(f->storage == CB_STORAGE_REPORT) {
-		if (f->values) {
-			sprintf (pic, "X(%d)", (int)CB_LITERAL(CB_VALUE(f->values))->size);
 		} else {
 			f->flag_no_field = 1;
 			strcpy (pic, "X(1)");
@@ -1096,9 +1087,13 @@ static int
 compute_size (struct cb_field *f)
 {
 	struct cb_field	*c;
-	int		size = 0;
+	int		size;
+	cob_u64_t	size_check;
 	int		align_size;
 	int		pad;
+
+	int maxsz;
+	struct cb_field *c0;
 
 	if (f->level == 66) {
 		/* Rename */
@@ -1112,15 +1107,12 @@ compute_size (struct cb_field *f)
 	}
 
 	if (f->children) {
-		if(f->storage == CB_STORAGE_REPORT
-		&& (f->report_flag && COB_REPORT_LINE) )
-			f->offset = 0;
 		/* Groups */
 		if (f->flag_synchronized && warningopt) {
 			cb_warning_x (CB_TREE(f), _("Ignoring SYNCHRONIZED for group item '%s'"),
 				    cb_name (CB_TREE (f)));
 		}
-		size = 0;
+		size_check = 0;
 		occur_align_size = 1;
 		for (c = f->children; c; c = c->sister) {
 			if (c->redefines) {
@@ -1134,10 +1126,15 @@ compute_size (struct cb_field *f)
 						cb_warning_x (CB_TREE (c),
 							      _("Size of '%s' larger than size of '%s'"),
 							      c->name, c->redefines->name);
-						size +=
-						    (c->size * c->occurs_max) -
-						    (c->redefines->size *
-						     c->redefines->occurs_max);
+						maxsz = c->redefines->size * c->redefines->occurs_max;
+						for (c0 = c->redefines->sister; c0 != c; c0 = c0->sister) {
+							if (c0->size * c0->occurs_max > maxsz) {
+								maxsz = c0->size * c0->occurs_max;
+							}
+						}
+						if (c->size * c->occurs_max > maxsz) {
+							size_check += (c->size * c->occurs_max) - maxsz;
+						}
 					} else {
 						cb_error_x (CB_TREE (c),
 							    _("Size of '%s' larger than size of '%s'"),
@@ -1145,13 +1142,8 @@ compute_size (struct cb_field *f)
 					}
 				}
 			} else {
-				c->offset = f->offset + size;
-				size += compute_size (c) * c->occurs_max;
-				if(c->storage == CB_STORAGE_REPORT
-				&& !(c->report_flag & COB_REPORT_COLUMN_PLUS)
-				&& c->report_column > 0) {	/* offset based on COLUMN value */
-					c->offset = c->report_column - 1;
-				}
+				c->offset = f->offset + (int) size_check;
+				size_check += compute_size (c) * c->occurs_max;
 
 				/* Word alignment */
 				if (c->flag_synchronized &&
@@ -1192,32 +1184,28 @@ compute_size (struct cb_field *f)
 					if (c->offset % align_size != 0) {
 						pad = align_size - (c->offset % align_size);
 						c->offset += pad;
-						size += pad;
+						size_check += pad;
 					}
 					if (align_size > occur_align_size) {
 						occur_align_size = align_size;
 					}
 				}
 			}
-			if(c->sister == NULL
-			&& c->storage == CB_STORAGE_REPORT) {	/* To set parent size */
-				if((c->offset + c->size) > size)
-					size = (c->offset + c->size);
-			}
 		}
-		if (f->occurs_max > 1 && (size % occur_align_size) != 0) {
-			pad = occur_align_size - (size % occur_align_size);
-			size += pad;
+		if (f->occurs_max > 1 && (size_check % occur_align_size) != 0) {
+			pad = occur_align_size - (size_check % occur_align_size);
+			size_check += pad;
 			f->offset += pad;
 		}
-		f->size = size;
+		/* size check for group items */
+		if (size_check > COB_MAX_FIELD_SIZE) {
+			cb_error_x (CB_TREE (f),
+					_("'%s' cannot be larger than %d bytes"),
+					f->name, COB_MAX_FIELD_SIZE);
+		}
+		f->size = (int) size_check;
 	} else {
 		/* Elementary item */
-		if(f->storage == CB_STORAGE_REPORT
-		&& !(f->report_flag & COB_REPORT_COLUMN_PLUS)
-		&& f->report_column > 0) {		/* offset based on COLUMN value */
-				f->offset = f->report_column - 1;	
-		}
 		switch (f->usage) {
 		case CB_USAGE_COMP_X:
 			if (f->pic->category == CB_CATEGORY_ALPHANUMERIC) {
@@ -1257,6 +1245,12 @@ compute_size (struct cb_field *f)
 			break;
 		case CB_USAGE_DISPLAY:
 			f->size = f->pic->size;
+			/* size check for single items */
+			if (f->size > COB_MAX_FIELD_SIZE) {
+				cb_error_x (CB_TREE (f),
+						_("'%s' cannot be larger than %d bytes"),
+						f->name, COB_MAX_FIELD_SIZE);
+			}
 			if (f->pic->have_sign && f->flag_sign_separate) {
 				f->size++;
 			}
