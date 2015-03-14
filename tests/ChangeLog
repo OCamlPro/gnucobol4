@@ -1,3 +1,7 @@
+2015-03-14  Brian Tiffin <btiffin@gnu.org>
+
+	* Added cobcrun -M dsopath/dso alternate-entry tests to run.src/misc.at
+
 2009-01-20  Roger While <simrw@sim-basis.de>
 
 	* OC tests for DPC and 78 levels
