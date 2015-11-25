@@ -192,7 +192,6 @@ static size_t		call_lastsize;
 static int			resolve_size;
 static unsigned int	name_convert;
 static unsigned int	cob_jmp_primed;
-static unsigned int	physical_cancel;
 
 #undef	COB_SYSTEM_GEN
 #if 1
@@ -308,7 +307,7 @@ do_cancel_module(call_hash * p, call_hash ** base_hash, call_hash * prev)
 	if(nocancel) {
 		return;
 	}
-	if(!physical_cancel) {
+	if (!cobglobptr->cob_physical_cancel) {
 		return;
 	}
 	if(p->no_phys_cancel) {
@@ -1131,7 +1130,7 @@ cob_init_call(cob_global * lptr)
 	resolve_size = 0;
 	name_convert = 0;
 	cob_jmp_primed = 0;
-	physical_cancel = 0;
+	cobglobptr->cob_physical_cancel = 0;
 
 	memset(valid_char, 0, sizeof(valid_char));
 	for(const unsigned char * pv = pvalid_char; *pv; ++pv) {
@@ -1152,13 +1151,13 @@ cob_init_call(cob_global * lptr)
 	char * s = getenv("COB_PHYSICAL_CANCEL");
 	if(s) {
 		if(*s == 'Y' || *s == 'y' || *s == '1') {
-			physical_cancel = 1;
+			cobglobptr->cob_physical_cancel = 1;
 		}
 	} else {
 		s = getenv("default_cancel_mode");
 		if(s) {
 			if(*s == '0') {
-				physical_cancel = 1;
+				cobglobptr->cob_physical_cancel = 1;
 			}
 		}
 	}

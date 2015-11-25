@@ -94,7 +94,9 @@ static void reorg_redef(cb_field * f, int level, cb_field ** base = 0)
 
 static char * reserved[] = {
 	"LC_NUMERIC",
+	"LC_NAME",
 	"PAGE_SIZE",
+	"ADJ_STATUS",
 	"EOF"
 };
 

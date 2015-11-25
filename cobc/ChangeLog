@@ -1,3 +1,9 @@
+2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #152 according 2015-05-06  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* codegen.cpp: fixed CALL after physical CANCEL
+	  by moving physical_cancel (defined in call.cpp) to cobglobptr->cob_physical_cancel
+	  for check in COBOL modules
+
 2014-12-20  Sergey Kashyrin <ska@kiska.net>
 
 	* cobc.cpp : Fixing bug in filtering MSVC output

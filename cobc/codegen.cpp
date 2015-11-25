@@ -3859,7 +3859,7 @@ output_call(cb_call * p)
 					break;
 				}
 			}
-			str += output("if(unlikely(call_%s.funcvoid == NULL)) {\n", callp);
+			str += output("if(unlikely(call_%s.funcvoid == NULL || cob_glob_ptr->cob_physical_cancel)) {\n", callp);
 			str += output_prefix();
 			if(nlp) {
 				str += output("  call_%s.funcint = (fintptr) %s_%d__;\n",

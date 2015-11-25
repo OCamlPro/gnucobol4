@@ -1,3 +1,10 @@
+
+2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #152 according 2015-05-06  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* common.h, call.cpp: fixed CALL after physical CANCEL
+	  by moving physical_cancel (defined in call.cpp) to cobglobptr->cob_physical_cancel
+	  for check in COBOL modules
+
 2015-01-12  Sergey Kashyrin <ska@kiska.net>
 
 	* intrinsic.cpp : Fix for Bug #120 - Function CURRENT-DATE
