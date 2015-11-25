@@ -1412,7 +1412,7 @@ output_integer(cb_tree x)
 			str += output_data(x);
 			str += output("))");
 #else
-			str += output("(*(void **)(");
+			str += output("(*(unsigned char **)(");
 			str += output_data(x);
 			str += output("))");
 #endif
