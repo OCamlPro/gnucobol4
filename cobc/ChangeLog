@@ -1,3 +1,8 @@
+2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #146
+
+	* codegen.cpp: output_size() correction
+	  didn't see attached 2015-07-03 by Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net> and wrote EXACTLY the same lines :-)
+
 2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #157
 
 	* codegen.cpp: cast program-pointer to unsigned char * and not to void *

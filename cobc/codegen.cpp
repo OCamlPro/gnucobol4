@@ -880,12 +880,8 @@ output_size(const cb_tree x)
 			}
 			if(r->length) {
 				str += output_integer(r->length);
-			} else if(r->offset) {
-				if(f->flag_any_length) {
-					str += output("%s%d.size - ", CB_PREFIX_FIELD, f->id);
-				} else {
-					str += output("%d - ", f->size);
-				}
+			} else if(r->offset && f->flag_any_length) {
+				str += output("%s%d.size - ", CB_PREFIX_FIELD, f->id);
 				str += output_index(r->offset);
 			} else {
 				cb_field * p = chk_field_variable_size(f);
@@ -916,6 +912,10 @@ again:
 						str += output(" + ");
 						goto again;
 					}
+				}
+				if(r->offset) {
+					str += output(" - ");
+					str += output_index(r->offset);
 				}
 			}
 		}
