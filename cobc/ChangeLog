@@ -1,11 +1,8 @@
-2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #146
 
-	* codegen.cpp: output_size() correction
-	  didn't see attached 2015-07-03 by Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net> and wrote EXACTLY the same lines :-)
+2015-11-25 Sergey Kashyrin <ska@kiska.net>
 
-2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #157
-
-	* codegen.cpp: cast program-pointer to unsigned char * and not to void *
+	* codegen.cpp (output_integer): cast program-pointer to unsigned char *,
+	  not to void *
 
 2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #152 according 2015-05-06  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
@@ -30,6 +27,9 @@
 2014-12-03  Sergey Kashyrin <ska@kiska.net>
 
 	* cobc.cpp : Bug "cobc -c prog.cob" compiling as "main" and not as "module"
+
+	* codegen.c (output_size): Fix Bug #146 reference modification
+	  ignored ODO size
 
 2014-11-18  Sergey Kashyrin <ska@kiska.net>
 
