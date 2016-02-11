@@ -214,6 +214,7 @@ cb_replace_list_add (struct cb_replace_list *list,
 	struct cb_replace_list *l;
 
 	p = cobc_malloc (sizeof (struct cb_replace_list));
+	p->line_num = cb_source_line;
 	p->old_text = old_text;
 	p->new_text = new_text;
 	p->next = NULL;

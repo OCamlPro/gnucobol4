@@ -38,6 +38,7 @@ print_error (char *file, int line, const char *prefix, const char *fmt, va_list 
 {
 	static struct cb_label *last_section = NULL;
 	static struct cb_label *last_paragraph = NULL;
+	char errmsg[BUFSIZ];
 
 	file = file ? file : cb_source_file;
 	line = line ? line : cb_source_line;
@@ -59,8 +60,36 @@ print_error (char *file, int line, const char *prefix, const char *fmt, va_list 
 
 	/* print the error */
 	fprintf (stderr, "%s:%d: %s", file, line, prefix);
-	vfprintf (stderr, fmt, ap);
-	fputs ("\n", stderr);
+	vsprintf (errmsg, fmt, ap);
+	fprintf (stderr, "%s\n", errmsg);
+	if (cb_listing_file) {
+		struct list_error *err;
+		struct list_files *cfile;
+		err = cobc_malloc (sizeof (struct list_error));
+		memset (err, 0, sizeof (struct list_error));
+		err->line = line;
+		strcpy (err->prefix, prefix);
+		strcpy (err->msg, errmsg);
+		cfile = cb_current_file;
+		if (strcmp (cfile->name, file)) {
+		   cfile = cfile->copy_head;
+		   while (cfile) {
+		      if (!strcmp (cfile->name, file)) {
+		         break;
+		      }
+		      cfile = cfile->next;
+		   }
+		}
+		if (cfile) {
+		   if (cfile->err_tail) {
+		      cfile->err_tail->next = err;
+		   }
+		   if (!cfile->err_head) {
+			cfile->err_head = err;
+		   }
+		   cfile->err_tail = err;
+		}
+	}
 }
 
 char *

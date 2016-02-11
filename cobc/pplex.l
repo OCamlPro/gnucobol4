@@ -47,6 +47,7 @@
 
 static char	*plexbuff1 = NULL;
 static char	*plexbuff2 = NULL;
+static struct list_files *old_list_file = NULL;
 static size_t	newline_count = 0;
 static size_t	within_comment = 0;
 static size_t	inside_bracket = 0;
@@ -61,6 +62,7 @@ static struct cb_text_list	*text_queue = NULL;
 
 static struct copy_info {
 	struct copy_info	*next;
+	struct list_files	*listfile;
 	char			*file;
 	int			line;
 	int			replacing;
@@ -100,7 +102,23 @@ ALNUM_LITERAL	\"[^\"\n]*\"|\'[^\'\n]*\'
   .*			{ cb_warning (_("PROCESS statement is ignored")); }
 }
 
-"COPY"			{ BEGIN COPY_STATE; return COPY; }
+"COPY" {
+	struct list_files *newfile;
+	BEGIN COPY_STATE;
+	newfile = cobc_malloc (sizeof (struct list_files));
+	memset (newfile, 0, sizeof (struct list_files));
+	newfile->copy_line = cb_source_line;
+	if (cb_current_file->copy_tail) {
+		cb_current_file->copy_tail->next = newfile;
+	}
+	if (!cb_current_file->copy_head) {
+		cb_current_file->copy_head = newfile;
+	}
+	cb_current_file->copy_tail = newfile;
+	old_list_file = cb_current_file;
+	cb_current_file = newfile;
+	return COPY;
+}
 "INCLUDE"		{ BEGIN COPY_STATE; return COPY; }
 "REPLACE"		{ BEGIN COPY_STATE; return REPLACE; }
 
@@ -226,6 +244,9 @@ ALNUM_LITERAL	\"[^\"\n]*\"|\'[^\'\n]*\'
 	if (p->replacing) {
 		pp_set_replace_list (NULL);
 	}
+	if (p->listfile) {
+	   cb_current_file = p->listfile;
+	}
 	switch_to_buffer (p->line, p->file, p->buffer);
 	quotation_mark = p->quotation_mark;
 
@@ -239,6 +260,32 @@ void
 pp_set_replace_list (struct cb_replace_list *list)
 {
 	current_replace_list = list;
+	if (list && cb_listing_file) {
+
+	   struct cb_replace_list *r;
+	   struct cb_text_list	*l;
+
+	   for (r = list; r; r = r->next) {
+	      struct list_replace *repl;
+
+	      repl = cobc_malloc (sizeof (struct list_replace));
+	      memset (repl, 0, sizeof (struct list_replace));
+	      repl->firstline = r->line_num;
+	      repl->lastline = cb_source_line;
+	      for (l = r->old_text; l; l = l->next) 
+		 strcat (repl->from, l->text);
+	      for (l = r->new_text; l; l = l->next) 
+		 strcat (repl->to, l->text);
+	      
+	      if (cb_current_file->replace_tail) {
+		 cb_current_file->replace_tail->next = repl;
+	      }
+	      if (!cb_current_file->replace_head) {
+		 cb_current_file->replace_head = repl;
+	      }
+	      cb_current_file->replace_tail = repl;
+	   }
+	}
 }
 
 static void
@@ -277,6 +324,8 @@ ppopen (const char *name, struct cb_replace_list *replace_list)
 		return -1;
 	}
 
+	strcpy (cb_current_file->name, name);
+
 	/* Add to dependency list */
 	if (cb_depend_file) {
 		cb_depend_list = cb_text_list_add (cb_depend_list, name);
@@ -290,7 +339,9 @@ ppopen (const char *name, struct cb_replace_list *replace_list)
 	p->buffer = YY_CURRENT_BUFFER;
 	p->quotation_mark = quotation_mark;
 	p->next = copy_stack;
+	p->listfile = old_list_file;
 	copy_stack = p;
+	cb_current_file->copy_line = cb_source_line;
 
 	/* Switch to new buffer */
 	if (replace_list) {
@@ -308,6 +359,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 	char			*s;
 	struct stat		st;
 
+	cb_current_file->copy_line = cb_source_line;
 	if (lib) {
 		if (!plexbuff1) {
 			plexbuff1 = cobc_malloc (COB_SMALL_BUFF);
@@ -394,6 +446,16 @@ check_directive (char *buff, int *line_size)
 			*line_size = strlen (buff);
 			newline_count = 0;
 		}
+		return;
+	}
+	if (!strncasecmp (s, "PAGE", 4)) {
+		for (cnt = 0; cnt < newline_count; cnt++) {
+			buff[cnt] = '\n';
+		}
+		buff[cnt] = 0;
+		strcat (buff, "      *> PAGE\n");
+		*line_size = strlen (buff);
+		newline_count = 0;
 		return;
 	}
 	memset (sbuff[0], 0, sizeof (sbuff));
@@ -742,7 +804,7 @@ ppecho (const char *text)
 			if (l == NULL) {
 				/* match */
 				for (l = r->new_text; l; l = l->next) {
-					fputs (l->text, ppout);
+				   fputs (l->text, ppout);
 				}
 /*
 				text_queue = queue ? queue->next : NULL;

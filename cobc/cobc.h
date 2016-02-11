@@ -37,6 +37,9 @@
 #endif
 #endif
 
+#define CB_MAX_LINES	55
+#define CB_MAX_FILES	100
+
 #define ABORT()		cobc_abort(__FILE__,__LINE__)
 
 /* Stringify macros */
@@ -77,6 +80,7 @@ struct cb_text_list {
 };
 
 struct cb_replace_list {
+	int 			line_num;
 	struct cb_text_list	*old_text;
 	struct cb_text_list	*new_text;
 	struct cb_replace_list	*next;
@@ -130,6 +134,10 @@ extern char			**cb_saveargv;
 extern int			cb_saveargc;
 
 extern FILE			*cb_listing_file;
+extern int			cb_listing_page;
+extern int			cb_listing_wide;
+extern char			cb_listing_date[48];
+
 extern FILE			*cb_depend_file;
 extern char			*cb_depend_target;
 extern struct cb_text_list	*cb_depend_list;
@@ -246,5 +254,49 @@ extern void	cb_warning (const char *fmt, ...) COB_A_FORMAT12;
 extern void	cb_error (const char *fmt, ...) COB_A_FORMAT12;
 
 extern int	cb_verify (const enum cb_support tag, const char *feature);
+
+/* Listing structures and externals */
+
+#define CB_LINE_LENGTH 1024
+#define CB_READ_AHEAD 32
+
+#define CB_INDICATOR	6
+#define CB_MARGIN_A	7
+#define CB_MARGIN_B	11
+#define CB_SEQUENCE	72
+
+#define IS_DEBUG_LINE(line) ((line)[CB_INDICATOR] == 'D')
+#define IS_CONTINUE_LINE(line) ((line)[CB_INDICATOR] == '-')
+#define IS_COMMENT_LINE(line) \
+   ((line)[CB_INDICATOR] == '*' || (line)[CB_INDICATOR] == '/')
+
+struct list_error {
+	struct list_error	*next;
+	int			line;
+	char			prefix[CB_LINE_LENGTH+2];
+	char			msg[CB_LINE_LENGTH+2];
+};
+struct list_replace {
+	struct list_replace	*next;
+	int			firstline;
+	int			lastline;
+	char			from[CB_LINE_LENGTH+2];
+	char			to[CB_LINE_LENGTH+2];
+};
+
+struct list_files {
+	struct list_files	*next;
+	struct list_files	*copy_head;
+	struct list_files	*copy_tail;
+	struct list_error	*err_head;
+	struct list_error	*err_tail;
+	struct list_replace	*replace_head;
+	struct list_replace	*replace_tail;
+	int 			copy_line;
+	char			name[CB_LINE_LENGTH+2];
+};
+
+extern struct list_files	*cb_listing_files;
+extern struct list_files	*cb_current_file;
 
 #endif /* CB_COBC_H */
