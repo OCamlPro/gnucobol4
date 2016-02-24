@@ -1,3 +1,9 @@
+2016-02-23  Dave Pitts <dpitts@cozx.com>
+
+   * cobc.c : Expanded listing line number to 5 digits. Remove carriage returns
+       from listing source input lines (DOS formatted source). Added PICTURE
+       display to print_fields.
+
 2016-01-08  Dave Pitts <dpitts@cozx.com>
 
    * pplex.l : Added PAGE directive in free format mode.

@@ -1639,8 +1639,9 @@ print_fields (int lvl, struct cb_field *top)
 		    strcpy (type, "UNKNOWN");
 	      }
 	      print_program_header();
-	      fprintf (cb_listing_file, "%04d %-20.20s   %02d  %s\n",
-		     top->size, type, top->level, lclname);
+	      fprintf (cb_listing_file, "%04d %-14.14s %02d   %-30.30s %s\n",
+		     top->size, type, top->level, lclname,
+		     top->pic ? top->pic->orig : " ");
 	      first = 0;
 	      oldlevel = top->level;
 	      if (top->children) print_fields (lvl+1, top->children);
@@ -1660,7 +1661,7 @@ print_program_trailer (void)
 	   /* Print file/symbol tables */
 
 	   strcpy (cb_listing_ttl,
-		   "SIZE TYPE                  LVL  NAME");
+	     "SIZE TYPE           LVL  NAME                           PICTURE");
 
 	   cb_listing_linecount = cb_lines_per_page;
 	   print_program_header();
@@ -1669,7 +1670,7 @@ print_program_trailer (void)
 	      strcpy (type, "FILE");
 	      for (; l; l = CB_CHAIN (l)) {
 		 print_program_header();
-	         fprintf (cb_listing_file, "%04d %-20.20s       %s\n",
+	         fprintf (cb_listing_file, "%04d %-14.14s      %s\n",
 			  CB_FILE(CB_VALUE(l))->record_max,
 			  type,
 			  CB_FILE(CB_VALUE(l))->name);
@@ -1742,6 +1743,7 @@ print_read (FILE *fd, char *line, int fixed)
    }
 
    if ((pl = strchr (iline, '\n')) != NULL) *pl = '\0';
+   if ((pl = strchr (iline, '\r')) != NULL) *pl = '\0';
 
    il = iline;
    pl = line;
@@ -1786,9 +1788,9 @@ print_line (struct list_files *cfile, char *line, int linenum, int incopy,
       }
       print_program_header();
       if (cb_listing_wide)
-	 fprintf (cb_listing_file, "%04d%c %s\n", linenum, pch, line);
+	 fprintf (cb_listing_file, "%05d%c %s\n", linenum, pch, line);
       else
-	 fprintf (cb_listing_file, "%04d%c %-72.72s\n", linenum, pch, line);
+	 fprintf (cb_listing_file, "%05d%c %-72.72s\n", linenum, pch, line);
    }
    else {
       int i;
@@ -1797,10 +1799,10 @@ print_line (struct list_files *cfile, char *line, int linenum, int incopy,
       for (i = 0; len > 0; i += max, len -= max) {
 	 print_program_header();
 	 if (cb_listing_wide)
-	    fprintf (cb_listing_file, "%04d%c %-114.114s\n",
+	    fprintf (cb_listing_file, "%05d%c %-114.114s\n",
 		     linenum, pch, &line[i]);
 	 else
-	    fprintf (cb_listing_file, "%04d%c %-74.74s\n",
+	    fprintf (cb_listing_file, "%05d%c %-74.74s\n",
 		     linenum, pch, &line[i]);
          pch = '+';
       }
@@ -2427,7 +2429,7 @@ process_translate (struct filename *fn)
 
 	cb_listing_page = 0;
         strcpy (cb_listing_filename, fn->source);
-	strcpy (cb_listing_ttl, "LINE  ");
+	strcpy (cb_listing_ttl, "LINE   ");
 	if (cb_source_format == CB_FORMAT_FIXED) {
 	   strcat (cb_listing_ttl,
 		   "PG/LN  A...B......................................"
