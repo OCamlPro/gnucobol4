@@ -34,7 +34,7 @@ LISTINGS="${abs_srcdir}/syntax.lst"
 FLAGS="-std=cobol2002 -debug -Wall ${COBOL_FLAGS}"
 COMPILE="${COBC} -x ${FLAGS}"
 COMPILE_ONLY="${COBC} -fsyntax-only ${FLAGS}"
-COMPILE_LIST="${COBC} -t /tmp/prog.lst -fsyntax-only ${FLAGS}"
+COMPILE_LIST="${COBC} -t prog.lst -fsyntax-only ${FLAGS}"
 COMPILE_MODULE="${COBC} -m ${FLAGS}"
 BUILD_DSO="${COBC} -b ${FLAGS}"
 
