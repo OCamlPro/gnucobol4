@@ -1,0 +1,29 @@
+
+LINE   PG/LN  A...B............................................................
+
+00001                                                                          
+00002         IDENTIFICATION   DIVISION.                                       
+00003         PROGRAM-ID.      prog.                                           
+00004         DATA             DIVISION.                                       
+00005         WORKING-STORAGE  SECTION.                                        
+00006         COPY "copy.inc"                                                  
+00007            REPLACING ==:TEST:== BY ==COLON==                             
+00008                      ==(TEST)== BY ==PAREN==.                            
+00001C                                                                         
+00002C        01 COLON-VAR PIC X(2) VALUE "OK".                                
+00003C        01 PAREN-VAR PIC X(2) VALUE "OK".                                
+00009         PROCEDURE        DIVISION.                                       
+00010             DISPLAY COLON-VAR NO ADVANCING                               
+00011             END-DISPLAY.                                                 
+00012             DISPLAY PAREN-VAR NO ADVANCING                               
+00013             END-DISPLAY.                                                 
+00014             STOP RUN.                                                    
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   COLON-VAR                      X(2)
+
+0002 ALPHANUMERIC   01   PAREN-VAR                      X(2)
+
+0 Warnings in program
+0 Errors in program

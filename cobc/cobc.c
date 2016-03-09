@@ -20,7 +20,7 @@
    Boston, MA 02110-1301 USA
 */
 
-//#define DEBUG_REPLACE
+/*#define DEBUG_REPLACE*/
 
 #include "config.h"
 #include "defaults.h"
@@ -1795,14 +1795,14 @@ print_line (struct list_files *cfile, char *line, int linenum, int incopy,
    else {
       int i;
       int len = strlen(line);
-      int max = cb_listing_wide ? 114 : 74;
+      int max = cb_listing_wide ? 112 : 72;
       for (i = 0; len > 0; i += max, len -= max) {
 	 print_program_header();
 	 if (cb_listing_wide)
-	    fprintf (cb_listing_file, "%05d%c %-114.114s\n",
+	    fprintf (cb_listing_file, "%05d%c %-112.112s\n",
 		     linenum, pch, &line[i]);
 	 else
-	    fprintf (cb_listing_file, "%05d%c %-74.74s\n",
+	    fprintf (cb_listing_file, "%05d%c %-72.72s\n",
 		     linenum, pch, &line[i]);
          pch = '+';
       }
@@ -2078,16 +2078,29 @@ print_replace_text (struct list_files *cfile, FILE *fd,
    }
 
    else {
+      int tokmatch = 0;
+      int subword = 0;
+
       strcpy (frmline, rfp);
       fp = print_token (frmline, ftoken, fterm);
+      if (ftoken[0] == ':' || ftoken[0] == '(')
+         subword = 1;
       for (tp = print_token (cmpline, ttoken, tterm); tp;
            tp = print_token (tp, ttoken, tterm)) {
 #ifdef DEBUG_REPLACE
 	 fprintf (stdout, "   tterm = '%s', ttoken = '%s', ftoken = '%s'\n",
 		  tterm, ttoken, ftoken);
 #endif
-         if (!strcasecmp (ttoken, ftoken)) {
+	 if (subword) {
+            tokmatch = !strncasecmp (ttoken, ftoken, strlen(ftoken));
+	 } else {
+            tokmatch = !strcasecmp (ttoken, ftoken);
+	 }
+         if (tokmatch) {
 	    strcat (newline, rep->to);
+	    if (subword) {
+	       strcat (newline, &ttoken[strlen(ftoken)]);
+	    }
 	    strcat (newline, tterm);
 	    match = 1;
 	 }
@@ -2392,6 +2405,23 @@ print_program_code (struct list_files *cfile, int incopy)
 	       if (cfile->copy_head) {
 		  cur = cfile->copy_head;
 		  if (cur->copy_line == linenum) {
+		     struct list_replace *repl;
+
+		     rep = cfile->replace_head;
+		     /*  COPY in COPY, add replacement text to new COPY */
+		     while (rep && incopy) {
+		        repl = cobc_malloc (sizeof (struct list_replace));
+		        memcpy (repl, rep, sizeof (struct list_replace));
+		        repl->next = NULL;
+		        if (cur->replace_tail) {
+			   cur->replace_tail->next = repl;
+		        }
+		        if (!cur->replace_head) {
+			   cur->replace_head = repl;
+		        }
+		        cur->replace_tail = repl;
+		        rep = rep->next;
+		     }
 		     print_program_code (cur, 1);
 		     cfile->copy_head = cur->next;
 		     free (cur);
@@ -2443,7 +2473,7 @@ process_translate (struct filename *fn)
 	      strcat (cb_listing_ttl, "................................");
 	   }
 	   strcat (cb_listing_ttl,
-		   ".....................SOURCE........................."
+		   ".....................SOURCE......................."
 		   "......................");
 	   if (cb_listing_wide) {
 		   strcat (cb_listing_ttl, "........");
@@ -2482,6 +2512,7 @@ process_translate (struct filename *fn)
 		return ret;
 	}
 	if (cb_flag_syntax_only || current_program->entry_list == NULL) {
+		print_program_trailer();
 		return 0;
 	}
 

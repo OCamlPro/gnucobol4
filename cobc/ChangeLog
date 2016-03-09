@@ -1,8 +1,19 @@
+2016-03-09 Dave Pitts <dpitts@cozx.com>
+
+   * cobc.c : Fixed syntax-only mode to call print_program_trailer().
+       Correct free format listing line lengths.
+       Fixed partial replacement ( ==:word:== ...).
+
+2016-03-03 Dave Pitts <dpitts@cozx.com>
+
+   * cobc.c : Added replacement text to a COPY doing recursive replacement.
+
 2016-02-23  Dave Pitts <dpitts@cozx.com>
 
-   * cobc.c : Expanded listing line number to 5 digits. Remove carriage returns
-       from listing source input lines (DOS formatted source). Added PICTURE
-       display to print_fields.
+   * cobc.c : Expanded listing line number to 5 digits.
+       Remove carriage returns from listing source input lines (DOS formatted
+       source).
+       Added PICTURE display to print_fields.
 
 2016-01-08  Dave Pitts <dpitts@cozx.com>
 

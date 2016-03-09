@@ -1,3 +1,7 @@
+2016-03-09  Dave Pitts <dpitts@cozx.com>
+
+	* Added test for listing options.
+
 2015-03-14  Brian Tiffin <btiffin@gnu.org>
 
 	* Added cobcrun -M dsopath/dso alternate-entry tests to run.src/misc.at
