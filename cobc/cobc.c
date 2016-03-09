@@ -1774,6 +1774,7 @@ print_line (struct list_files *cfile, char *line, int linenum, int incopy,
 	    int fixed)
 {
    char pch;
+   char buffer[133];
 
    if (fixed && line[CB_INDICATOR] == '/')
      cb_listing_linecount = cb_lines_per_page;
@@ -1782,28 +1783,42 @@ print_line (struct list_files *cfile, char *line, int linenum, int incopy,
 
    pch = incopy ? 'C' : ' ';
    if (fixed) {
+      int j;
+
       if (line[CB_INDICATOR] == '&') {
          line[CB_INDICATOR] = '-';
 	 pch = '+';
       }
       print_program_header();
       if (cb_listing_wide)
-	 fprintf (cb_listing_file, "%05d%c %s\n", linenum, pch, line);
+	 sprintf (buffer, "%05d%c %s", linenum, pch, line);
       else
-	 fprintf (cb_listing_file, "%05d%c %-72.72s\n", linenum, pch, line);
+	 sprintf (buffer, "%05d%c %-72.72s", linenum, pch, line);
+      for (j = strlen(buffer) - 1; j; j--) {
+         if (buffer[j] != ' ')
+	    break;
+         buffer[j] = 0;
+      }
+      fprintf (cb_listing_file, "%s\n", buffer);
    }
    else {
-      int i;
+      int i, j;
       int len = strlen(line);
       int max = cb_listing_wide ? 112 : 72;
       for (i = 0; len > 0; i += max, len -= max) {
 	 print_program_header();
 	 if (cb_listing_wide)
-	    fprintf (cb_listing_file, "%05d%c %-112.112s\n",
+	    sprintf (buffer, "%05d%c %-112.112s",
 		     linenum, pch, &line[i]);
 	 else
-	    fprintf (cb_listing_file, "%05d%c %-72.72s\n",
+	    sprintf (buffer, "%05d%c %-72.72s",
 		     linenum, pch, &line[i]);
+	 for (j = strlen(buffer) - 1; j; j--) {
+	    if (buffer[j] != ' ')
+	       break;
+	    buffer[j] = 0;
+	 }
+	 fprintf (cb_listing_file, "%s\n", buffer);
          pch = '+';
       }
    }

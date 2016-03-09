@@ -21,6 +21,24 @@
 AT_SETUP([COPY listing: within comment])
 AT_KEYWORDS([copy])
 
+AT_DATA([prog1.lst], [ 
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -30,6 +48,30 @@ AT_DATA([prog.cob], [
       *COPY "copy.inc".
        PROCEDURE        DIVISION.
            STOP RUN.
+])
+
+AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
+sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog1.lst prog.lis], [0], [], [])
+
+AT_DATA([prog2.lst], [ 
+LINE   .....................SOURCE.............................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+00006    *> COPY "copy.inc".
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
 ])
 
 AT_DATA([prog2.cob], [
@@ -42,38 +84,43 @@ AT_DATA([prog2.cob], [
   STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CHECK([cmp prog.lis ${LISTINGS}/prog1.lst], [0], [], [])
 
 AT_CHECK([$COMPILE_LIST -free prog2.cob], [0], [], [])
 sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CHECK([cmp prog.lis ${LISTINGS}/prog2.lst], [0], [], [])
-
-AT_CLEANUP
-
-AT_SETUP([COPY listing: file not found])
-AT_KEYWORDS([copy])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       COPY "copy.inc".
-       PROCEDURE        DIVISION.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE_LIST prog.cob], [1], ,
-[prog.cob:6: Error: copy.inc: No such file or directory
-])
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog2.lst prog.lis], [0], [], [])
 
 AT_CLEANUP
 
 
 AT_SETUP([COPY listing: replacement order])
 AT_KEYWORDS([copy])
+
+AT_DATA([prog3.lst], [ 
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc"
+00007            REPLACING ==TEST-VAR== BY ==FIRST-MATCH==
+00008                      ==TEST-VAR== BY ==SECOND-MATCH==.
+00001C
+00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
+00009         PROCEDURE        DIVISION.
+00010             DISPLAY FIRST-MATCH NO ADVANCING
+00011             END-DISPLAY.
+00012             STOP RUN.
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
+
+0 Warnings in program
+0 Errors in program
+])
 
 AT_DATA([copy.inc], [
        01 TEST-VAR PIC X(2) VALUE "OK".
@@ -95,13 +142,42 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
 sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CHECK([cmp prog.lis ${LISTINGS}/prog3.lst], [0], [], [])
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog3.lst prog.lis], [0], [], [])
 
 AT_CLEANUP
 
 
 AT_SETUP([COPY listing: separators])
 AT_KEYWORDS([copy])
+
+AT_DATA([prog4.lst], [ 
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc"
+00007            REPLACING ==TEST-VAR==, BY ==FIRST-MATCH==,
+00008                   ,  ==TEST-VAR==; BY ==SECOND-MATCH==;
+00009                   ;  ==TEST-VAR== , BY ==THIRD-MATCH==
+00010                      ==TEST-VAR== ; BY ==FOURTH-MATCH==.
+00001C
+00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
+00011         PROCEDURE        DIVISION.
+00012             DISPLAY FIRST-MATCH NO ADVANCING
+00013             END-DISPLAY.
+00014             STOP RUN.
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
+
+0 Warnings in program
+0 Errors in program
+])
 
 AT_DATA([copy.inc], [
        01 TEST-VAR PIC X(2) VALUE "OK".
@@ -125,13 +201,45 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
 sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CHECK([cmp prog.lis ${LISTINGS}/prog4.lst], [0], [], [])
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog4.lst prog.lis], [0], [], [])
 
 AT_CLEANUP
 
 
 AT_SETUP([COPY listing: partial replacement])
 AT_KEYWORDS([copy])
+
+AT_DATA([prog5.lst], [ 
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc"
+00007            REPLACING ==:TEST:== BY ==COLON==
+00008                      ==(TEST)== BY ==PAREN==.
+00001C
+00002C        01 COLON-VAR PIC X(2) VALUE "OK".
+00003C        01 PAREN-VAR PIC X(2) VALUE "OK".
+00009         PROCEDURE        DIVISION.
+00010             DISPLAY COLON-VAR NO ADVANCING
+00011             END-DISPLAY.
+00012             DISPLAY PAREN-VAR NO ADVANCING
+00013             END-DISPLAY.
+00014             STOP RUN.
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   COLON-VAR                      X(2)
+
+0002 ALPHANUMERIC   01   PAREN-VAR                      X(2)
+
+0 Warnings in program
+0 Errors in program
+])
 
 AT_DATA([copy.inc], [
        01 :TEST:-VAR PIC X(2) VALUE "OK".
@@ -156,13 +264,41 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
 sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CHECK([cmp prog.lis ${LISTINGS}/prog5.lst], [0], [], [])
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog5.lst prog.lis], [0], [], [])
 
 AT_CLEANUP
 
 
 AT_SETUP([COPY listing: recursive replacement])
 AT_KEYWORDS([copy])
+
+AT_DATA([prog6.lst], [ 
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy-1.inc"
+00007             REPLACING ==TEST-VAR== BY ==COPY-VAR==.
+00001C
+00002C        COPY "copy-2.inc".
+00001C
+00002C        01 COPY-VAR PIC X(2) VALUE "OK".
+00008         PROCEDURE        DIVISION.
+00009             DISPLAY COPY-VAR NO ADVANCING
+00010             END-DISPLAY.
+00011             STOP RUN.
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   COPY-VAR                       X(2)
+
+0 Warnings in program
+0 Errors in program
+])
 
 AT_DATA([copy-2.inc], [
        01 TEST-VAR PIC X(2) VALUE "OK".
@@ -187,6 +323,7 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
 sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CHECK([cmp prog.lis ${LISTINGS}/prog6.lst], [0], [], [])
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog6.lst prog.lis], [0], [], [])
 
 AT_CLEANUP

@@ -3,6 +3,7 @@
    * cobc.c : Fixed syntax-only mode to call print_program_trailer().
        Correct free format listing line lengths.
        Fixed partial replacement ( ==:word:== ...).
+       Trimmed trailing blanks from listing line.
 
 2016-03-03 Dave Pitts <dpitts@cozx.com>
 
