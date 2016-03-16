@@ -18,26 +18,11 @@
 
 ### GnuCOBOL Test Suite
 
-AT_SETUP([COPY listing: within comment])
-AT_KEYWORDS([copy])
+AT_SETUP([Listing: COPY within comment])
+AT_KEYWORDS([listing])
 
-AT_DATA([prog1.lst], [ 
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006        *COPY "copy.inc".
-00007         PROCEDURE        DIVISION.
-00008             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-
-0 Warnings in program
-0 Errors in program
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
 ])
 
 AT_DATA([prog.cob], [
@@ -50,22 +35,23 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CAPTURE_FILE(prog.lis)
-AT_CHECK([diff prog1.lst prog.lis], [0], [], [])
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [], [])
 
-AT_DATA([prog2.lst], [ 
-LINE   .....................SOURCE.............................................
+AT_DATA([prog1.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
 
 00001
-00002    IDENTIFICATION   DIVISION.
-00003    PROGRAM-ID.      prog2.
-00004    DATA             DIVISION.
-00005    WORKING-STORAGE  SECTION.
-00006    *> COPY "copy.inc".
-00007    PROCEDURE        DIVISION.
-00008    STOP RUN.
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
 
 SIZE TYPE           LVL  NAME                           PICTURE
 
@@ -73,6 +59,10 @@ SIZE TYPE           LVL  NAME                           PICTURE
 0 Warnings in program
 0 Errors in program
 ])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog1.lst prog.lis], [0], [], [])
 
 AT_DATA([prog2.cob], [
   IDENTIFICATION   DIVISION.
@@ -85,41 +75,43 @@ AT_DATA([prog2.cob], [
 ])
 
 
-AT_CHECK([$COMPILE_LIST -free prog2.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst -free prog2.cob], [0], [], [])
+
+AT_DATA([prog2.lst],
+[GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   .....................SOURCE.............................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+00006    *> COPY "copy.inc".
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 AT_CAPTURE_FILE(prog.lis)
 AT_CHECK([diff prog2.lst prog.lis], [0], [], [])
 
 AT_CLEANUP
 
 
-AT_SETUP([COPY listing: replacement order])
-AT_KEYWORDS([copy])
+AT_SETUP([Listing: COPY replacement order])
+AT_KEYWORDS([listing])
 
-AT_DATA([prog3.lst], [ 
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006         COPY "copy.inc"
-00007            REPLACING ==TEST-VAR== BY ==FIRST-MATCH==
-00008                      ==TEST-VAR== BY ==SECOND-MATCH==.
-00001C
-00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
-00009         PROCEDURE        DIVISION.
-00010             DISPLAY FIRST-MATCH NO ADVANCING
-00011             END-DISPLAY.
-00012             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
-
-0 Warnings in program
-0 Errors in program
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
 ])
 
 AT_DATA([copy.inc], [
@@ -140,18 +132,12 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CAPTURE_FILE(prog.lis)
-AT_CHECK([diff prog3.lst prog.lis], [0], [], [])
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [], [])
 
-AT_CLEANUP
+AT_DATA([prog3.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
 
-
-AT_SETUP([COPY listing: separators])
-AT_KEYWORDS([copy])
-
-AT_DATA([prog4.lst], [ 
 LINE   PG/LN  A...B............................................................
 
 00001
@@ -160,16 +146,15 @@ LINE   PG/LN  A...B............................................................
 00004         DATA             DIVISION.
 00005         WORKING-STORAGE  SECTION.
 00006         COPY "copy.inc"
-00007            REPLACING ==TEST-VAR==, BY ==FIRST-MATCH==,
-00008                   ,  ==TEST-VAR==; BY ==SECOND-MATCH==;
-00009                   ;  ==TEST-VAR== , BY ==THIRD-MATCH==
-00010                      ==TEST-VAR== ; BY ==FOURTH-MATCH==.
+00007            REPLACING ==TEST-VAR== BY ==FIRST-MATCH==
+00008                      ==TEST-VAR== BY ==SECOND-MATCH==.
 00001C
 00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
-00011         PROCEDURE        DIVISION.
-00012             DISPLAY FIRST-MATCH NO ADVANCING
-00013             END-DISPLAY.
-00014             STOP RUN.
+00009         PROCEDURE        DIVISION.
+00010             DISPLAY FIRST-MATCH NO ADVANCING
+00011             END-DISPLAY.
+00012             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
 
 SIZE TYPE           LVL  NAME                           PICTURE
 
@@ -177,6 +162,20 @@ SIZE TYPE           LVL  NAME                           PICTURE
 
 0 Warnings in program
 0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog3.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Listing: COPY separators])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
 ])
 
 AT_DATA([copy.inc], [
@@ -199,18 +198,12 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CAPTURE_FILE(prog.lis)
-AT_CHECK([diff prog4.lst prog.lis], [0], [], [])
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [], [])
 
-AT_CLEANUP
+AT_DATA([prog4.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
 
-
-AT_SETUP([COPY listing: partial replacement])
-AT_KEYWORDS([copy])
-
-AT_DATA([prog5.lst], [ 
 LINE   PG/LN  A...B............................................................
 
 00001
@@ -219,26 +212,38 @@ LINE   PG/LN  A...B............................................................
 00004         DATA             DIVISION.
 00005         WORKING-STORAGE  SECTION.
 00006         COPY "copy.inc"
-00007            REPLACING ==:TEST:== BY ==COLON==
-00008                      ==(TEST)== BY ==PAREN==.
+00007            REPLACING ==TEST-VAR==, BY ==FIRST-MATCH==,
+00008                   ,  ==TEST-VAR==; BY ==SECOND-MATCH==;
+00009                   ;  ==TEST-VAR== , BY ==THIRD-MATCH==
+00010                      ==TEST-VAR== ; BY ==FOURTH-MATCH==.
 00001C
-00002C        01 COLON-VAR PIC X(2) VALUE "OK".
-00003C        01 PAREN-VAR PIC X(2) VALUE "OK".
-00009         PROCEDURE        DIVISION.
-00010             DISPLAY COLON-VAR NO ADVANCING
-00011             END-DISPLAY.
-00012             DISPLAY PAREN-VAR NO ADVANCING
+00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
+00011         PROCEDURE        DIVISION.
+00012             DISPLAY FIRST-MATCH NO ADVANCING
 00013             END-DISPLAY.
 00014             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
 
 SIZE TYPE           LVL  NAME                           PICTURE
 
-0002 ALPHANUMERIC   01   COLON-VAR                      X(2)
-
-0002 ALPHANUMERIC   01   PAREN-VAR                      X(2)
+0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
 
 0 Warnings in program
 0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog4.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Listing: COPY partial replacement])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
 ])
 
 AT_DATA([copy.inc], [
@@ -262,18 +267,12 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
-AT_CAPTURE_FILE(prog.lis)
-AT_CHECK([diff prog5.lst prog.lis], [0], [], [])
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [], [])
 
-AT_CLEANUP
+AT_DATA([prog5.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
 
-
-AT_SETUP([COPY listing: recursive replacement])
-AT_KEYWORDS([copy])
-
-AT_DATA([prog6.lst], [ 
 LINE   PG/LN  A...B............................................................
 
 00001
@@ -281,23 +280,42 @@ LINE   PG/LN  A...B............................................................
 00003         PROGRAM-ID.      prog.
 00004         DATA             DIVISION.
 00005         WORKING-STORAGE  SECTION.
-00006         COPY "copy-1.inc"
-00007             REPLACING ==TEST-VAR== BY ==COPY-VAR==.
+00006         COPY "copy.inc"
+00007            REPLACING ==:TEST:== BY ==COLON==
+00008                      ==(TEST)== BY ==PAREN==.
 00001C
-00002C        COPY "copy-2.inc".
-00001C
-00002C        01 COPY-VAR PIC X(2) VALUE "OK".
-00008         PROCEDURE        DIVISION.
-00009             DISPLAY COPY-VAR NO ADVANCING
-00010             END-DISPLAY.
-00011             STOP RUN.
+00002C        01 COLON-VAR PIC X(2) VALUE "OK".
+00003C        01 PAREN-VAR PIC X(2) VALUE "OK".
+00009         PROCEDURE        DIVISION.
+00010             DISPLAY COLON-VAR NO ADVANCING
+00011             END-DISPLAY.
+00012             DISPLAY PAREN-VAR NO ADVANCING
+00013             END-DISPLAY.
+00014             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
 
 SIZE TYPE           LVL  NAME                           PICTURE
 
-0002 ALPHANUMERIC   01   COPY-VAR                       X(2)
+0002 ALPHANUMERIC   01   COLON-VAR                      X(2)
+
+0002 ALPHANUMERIC   01   PAREN-VAR                      X(2)
 
 0 Warnings in program
 0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog5.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Listing: COPY recursive replacement])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
 ])
 
 AT_DATA([copy-2.inc], [
@@ -321,9 +339,465 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_LIST prog.cob], [0], [], [])
-sed -e '/^GNU Cobol/d' -e '/^[\f]GNU Cobol/d' <prog.lst >prog.lis
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [], [])
+
+AT_DATA([prog6.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy-1.inc"
+00007             REPLACING ==TEST-VAR== BY ==COPY-VAR==.
+00001C
+00002C        COPY "copy-2.inc".
+00001C
+00002C        01 COPY-VAR PIC X(2) VALUE "OK".
+00008         PROCEDURE        DIVISION.
+00009             DISPLAY COPY-VAR NO ADVANCING
+00010             END-DISPLAY.
+00011             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   COPY-VAR                       X(2)
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 AT_CAPTURE_FILE(prog.lis)
 AT_CHECK([diff prog6.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+AT_SETUP([Listing: Eject page])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      /
+       PROCEDURE        DIVISION.
+           STOP RUN.
+])
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [], [])
+
+AT_DATA([prog7.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   PG/LN  A...B............................................................
+
+00006        /
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog7.lst prog.lis], [0], [], [])
+
+AT_DATA([prog2.cob], [
+  IDENTIFICATION   DIVISION.
+  PROGRAM-ID.      prog2.
+  DATA             DIVISION.
+  WORKING-STORAGE  SECTION.
+>>PAGE
+  PROCEDURE        DIVISION.
+  STOP RUN.
+])
+
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst -free prog2.cob], [0], [], [])
+
+AT_DATA([prog8.lst],
+[GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   .....................SOURCE.............................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   .....................SOURCE.............................................
+
+00006  >>PAGE
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog8.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+AT_SETUP([Listing: Wide listing])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      /
+       PROCEDURE        DIVISION.
+           STOP RUN.
+])
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -T prog.lst prog.cob], [0], [], [])
+
+AT_DATA([prog9.lst],
+[GNU Cobol 1.1.0   prog.cob                                                           DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................SEQUENCE
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog.cob                                                           DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   PG/LN  A...B............................................................SEQUENCE
+
+00006        /
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                                                           DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog9.lst prog.lis], [0], [], [])
+
+AT_DATA([prog2.cob], [
+  IDENTIFICATION   DIVISION.
+  PROGRAM-ID.      prog2.
+  DATA             DIVISION.
+  WORKING-STORAGE  SECTION.
+  >>PAGE
+  PROCEDURE        DIVISION.
+  STOP RUN.
+])
+
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -T prog.lst -free prog2.cob], [0], [], [])
+
+AT_DATA([prog10.lst],
+[GNU Cobol 1.1.0   prog2.cob                                                          DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   .....................................................SOURCE.....................................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog2.cob                                                          DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   .....................................................SOURCE.....................................................
+
+00006    >>PAGE
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+GNU Cobol 1.1.0   prog2.cob                                                          DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog10.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+AT_SETUP([Listing: Two source files])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      *COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           STOP RUN.
+])
+
+AT_DATA([prog1.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      *COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           STOP RUN.
+])
+
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob prog1.cob], [0], [], [])
+
+AT_DATA([prog11.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+GNU Cobol 1.1.0   prog1.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog1.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog11.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
+AT_SETUP([Listing: Error/Warning messages])
+AT_KEYWORDS([listing])
+
+AT_DATA([sed.txt],
+[s/@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@:@<:@0-9@:>@@<:@0-9@:>@ @<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@@<:@0-9@:>@/HH:MM:SS YYYY/g
+])
+
+AT_DATA([copy.inc], [
+       01 TEST-VAR PIC X(2) VULUE "OK".
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           DISPLAY FIRST-MATCH NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+])
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [1], [],
+[copy.inc:2: Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+])
+
+AT_DATA([prog12.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc".
+00001C
+00002C        01 TEST-VAR PIC X(2) VULUE "OK".
+Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+00007         PROCEDURE        DIVISION.
+00008             DISPLAY FIRST-MATCH NO ADVANCING
+00009             END-DISPLAY.
+00010             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+1 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog12.lst prog.lis], [0], [], [])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 TEST-VAR PIC X(2) VULUE "OK".
+       PROCEDURE        DIVISION.
+           DISPLAY FIRST-MATCH NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+])
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [1], [],
+[prog.cob:6: Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+])
+
+AT_DATA([prog13.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         01 TEST-VAR PIC X(2) VULUE "OK".
+Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+00007         PROCEDURE        DIVISION.
+00008             DISPLAY FIRST-MATCH NO ADVANCING
+00009             END-DISPLAY.
+00010             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+1 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog13.lst prog.lis], [0], [], [])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 TEST-VAR PIC 9(2) VALUE 'F1F2'.
+       PROCEDURE        DIVISION.
+           DISPLAY TEST-VAR NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+])
+
+daymon=`date +"%a %b %e"`
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [0], [],
+[prog.cob:6: Warning: Numeric value is expected
+])
+
+AT_DATA([prog14.lst],
+[GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         01 TEST-VAR PIC 9(2) VALUE 'F1F2'.
+Warning: Numeric value is expected
+00007         PROCEDURE        DIVISION.
+00008             DISPLAY TEST-VAR NO ADVANCING
+00009             END-DISPLAY.
+00010             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 NUMERIC        01   TEST-VAR                       9(2)
+
+1 Warnings in program
+0 Errors in program
+])
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+AT_CAPTURE_FILE(prog.lis)
+AT_CHECK([diff prog14.lst prog.lis], [0], [], [])
 
 AT_CLEANUP

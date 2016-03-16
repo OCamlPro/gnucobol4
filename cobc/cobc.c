@@ -287,6 +287,7 @@ static int		cb_listing_linecount = 10000;
 static int		cb_listing_eject = 0;
 static int		cb_inreplace = 0;
 static char		cb_listing_filename[FILENAME_MAX];
+static char		*cb_listing_outputfile = NULL;
 static char		cb_listing_ttl[133];	/* Listing subtitle */
 static void		print_program_code (struct list_files *, int);
 
@@ -1015,12 +1016,10 @@ process_command_line (const int argc, char *argv[])
 
 		case 't':
 			/* -t : Generate listing */
-			cb_listing_file = fopen (optarg, "w");
-			if (!cb_listing_file) {
-				perror (optarg);
-			} else {
+			{
 			   time_t curtime;		/* Compile time */
 
+			   cb_listing_outputfile = strdup (optarg);
 			   curtime = time(NULL);
 			   strcpy (cb_listing_date, ctime(&curtime));
 			   *strchr (cb_listing_date, '\n') = '\0';
@@ -1777,9 +1776,15 @@ print_line (struct list_files *cfile, char *line, int linenum, int incopy,
    char buffer[133];
 
    if (fixed && line[CB_INDICATOR] == '/')
-     cb_listing_linecount = cb_lines_per_page;
-   if (!fixed && !strncasecmp (line, ">>PAGE", 6))
-     cb_listing_linecount = cb_lines_per_page;
+      cb_listing_linecount = cb_lines_per_page;
+   if (!fixed) {
+      char *dp;
+
+      if ((dp = strchr (line, '>')) != NULL) {
+	 if (!strncasecmp (dp, ">>PAGE", 6))
+	    cb_listing_linecount = cb_lines_per_page;
+      }
+   }
 
    pch = incopy ? 'C' : ' ';
    if (fixed) {
@@ -3121,6 +3126,13 @@ main (int argc, char *argv[])
 	}
 #endif
 #endif
+
+	/* Open listing file */
+	if (cb_listing_outputfile) {
+		cb_listing_file = fopen (cb_listing_outputfile, "w");
+		if (!cb_listing_file)
+			cobc_terminate (cb_listing_outputfile);
+	}
 
 	/* processes COBCPY environment variable */
 	process_env_copy_path ();

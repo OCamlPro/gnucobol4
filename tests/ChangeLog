@@ -1,3 +1,9 @@
+2016-03-16  Dave Pitts <dpitts@cozx.com>
+
+	* Added Eject, Wide, Two source and Error/Warning tests.
+	* Changed to convert time/date in listings.
+	* Rearranged listing templates.
+
 2016-03-09  Dave Pitts <dpitts@cozx.com>
 
 	* Added test for listing options.

@@ -689,11 +689,15 @@ at_help_all="1;copy.at:24;COPY: file not found;copy;
 75;multiply.at:69;Category check of Format 2;multiply;
 76;multiply.at:110;Category check of literals;multiply;
 77;set.at:26;SET: misc;set;
-78;listings.at:21;COPY listing: within comment;copy;
-79;listings.at:96;COPY listing: replacement order;copy;
-80;listings.at:151;COPY listing: separators;copy;
-81;listings.at:210;COPY listing: partial replacement;copy;
-82;listings.at:273;COPY listing: recursive replacement;copy;
+78;listings.at:21;Listing: COPY within comment;listing;
+79;listings.at:110;Listing: COPY replacement order;listing;
+80;listings.at:174;Listing: COPY separators;listing;
+81;listings.at:242;Listing: COPY partial replacement;listing;
+82;listings.at:314;Listing: COPY recursive replacement;listing;
+83;listings.at:381;Listing: Eject page;listing;
+84;listings.at:477;Listing: Wide listing;listing;
+85;listings.at:573;Listing: Two source files;listing;
+86;listings.at:651;Listing: Error/Warning messages;listing;
 "
 # List of the all the test groups.
 at_groups_all=`$as_echo "$at_help_all" | sed 's/;.*//'`
@@ -707,7 +711,7 @@ at_fn_validate_ranges ()
   for at_grp
   do
     eval at_value=\$$at_grp
-    if test $at_value -lt 1 || test $at_value -gt 82; then
+    if test $at_value -lt 1 || test $at_value -gt 86; then
       $as_echo "invalid test group: $at_value" >&2
       exit 1
     fi
@@ -5887,7 +5891,7 @@ read at_status <"$at_status_file"
 #AT_STOP_77
 #AT_START_78
 at_fn_group_banner 78 'listings.at:21' \
-  "COPY listing: within comment" "                   "
+  "Listing: COPY within comment" "                   "
 at_xfail=no
 (
   $as_echo "78. $at_setup_line: testing $at_desc ..."
@@ -5895,24 +5899,8 @@ at_xfail=no
 
 
 
-cat >prog1.lst <<'_ATEOF'
-
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006        *COPY "copy.inc".
-00007         PROCEDURE        DIVISION.
-00008             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-
-0 Warnings in program
-0 Errors in program
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
 _ATEOF
 
 
@@ -5928,48 +5916,35 @@ cat >prog.cob <<'_ATEOF'
 _ATEOF
 
 
+daymon=`date +"%a %b %e"`
 { set +x
-$as_echo "$at_srcdir/listings.at:53: \$COMPILE_LIST prog.cob"
-at_fn_check_prepare_dynamic "$COMPILE_LIST prog.cob" "listings.at:53"
-( $at_check_trace; $COMPILE_LIST prog.cob
+$as_echo "$at_srcdir/listings.at:39: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:39"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:53"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:39"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
-sed -e '/^GNU Cobol/d' -e '/^\fGNU Cobol/d' <prog.lst >prog.lis
 
-{ set +x
-$as_echo "$at_srcdir/listings.at:56: diff prog1.lst prog.lis"
-at_fn_check_prepare_trace "listings.at:56"
-( $at_check_trace; diff prog1.lst prog.lis
-) >>"$at_stdout" 2>>"$at_stderr" 5>&-
-at_status=$? at_failed=false
-$at_check_filter
-at_fn_diff_devnull "$at_stderr" || at_failed=:
-at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:56"
-$at_failed && at_fn_log_failure  \
-"prog.lis"
-$at_traceon; }
+cat >prog1.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
 
-
-cat >prog2.lst <<'_ATEOF'
-
-LINE   .....................SOURCE.............................................
+LINE   PG/LN  A...B............................................................
 
 00001
-00002    IDENTIFICATION   DIVISION.
-00003    PROGRAM-ID.      prog2.
-00004    DATA             DIVISION.
-00005    WORKING-STORAGE  SECTION.
-00006    *> COPY "copy.inc".
-00007    PROCEDURE        DIVISION.
-00008    STOP RUN.
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
 
 SIZE TYPE           LVL  NAME                           PICTURE
 
@@ -5977,6 +5952,23 @@ SIZE TYPE           LVL  NAME                           PICTURE
 0 Warnings in program
 0 Errors in program
 _ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:65: diff prog1.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:65"
+( $at_check_trace; diff prog1.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:65"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
 
 
 cat >prog2.cob <<'_ATEOF'
@@ -5992,32 +5984,57 @@ _ATEOF
 
 
 
+daymon=`date +"%a %b %e"`
 { set +x
-$as_echo "$at_srcdir/listings.at:88: \$COMPILE_LIST -free prog2.cob"
-at_fn_check_prepare_dynamic "$COMPILE_LIST -free prog2.cob" "listings.at:88"
-( $at_check_trace; $COMPILE_LIST -free prog2.cob
+$as_echo "$at_srcdir/listings.at:79: \$COMPILE_ONLY -t prog.lst -free prog2.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst -free prog2.cob" "listings.at:79"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst -free prog2.cob
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:88"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:79"
 $at_failed && at_fn_log_failure  \
 "prog.lis"
 $at_traceon; }
 
-sed -e '/^GNU Cobol/d' -e '/^\fGNU Cobol/d' <prog.lst >prog.lis
+
+cat >prog2.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   .....................SOURCE.............................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+00006    *> COPY "copy.inc".
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 
 { set +x
-$as_echo "$at_srcdir/listings.at:91: diff prog2.lst prog.lis"
-at_fn_check_prepare_trace "listings.at:91"
+$as_echo "$at_srcdir/listings.at:105: diff prog2.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:105"
 ( $at_check_trace; diff prog2.lst prog.lis
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:91"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:105"
 $at_failed && at_fn_log_failure  \
 "prog.lis"
 $at_traceon; }
@@ -6029,8 +6046,8 @@ $at_traceon; }
 read at_status <"$at_status_file"
 #AT_STOP_78
 #AT_START_79
-at_fn_group_banner 79 'listings.at:96' \
-  "COPY listing: replacement order" "                "
+at_fn_group_banner 79 'listings.at:110' \
+  "Listing: COPY replacement order" "                "
 at_xfail=no
 (
   $as_echo "79. $at_setup_line: testing $at_desc ..."
@@ -6038,31 +6055,8 @@ at_xfail=no
 
 
 
-cat >prog3.lst <<'_ATEOF'
-
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006         COPY "copy.inc"
-00007            REPLACING ==TEST-VAR== BY ==FIRST-MATCH==
-00008                      ==TEST-VAR== BY ==SECOND-MATCH==.
-00001C
-00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
-00009         PROCEDURE        DIVISION.
-00010             DISPLAY FIRST-MATCH NO ADVANCING
-00011             END-DISPLAY.
-00012             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
-
-0 Warnings in program
-0 Errors in program
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
 _ATEOF
 
 
@@ -6088,31 +6082,63 @@ cat >prog.cob <<'_ATEOF'
 _ATEOF
 
 
+daymon=`date +"%a %b %e"`
 { set +x
-$as_echo "$at_srcdir/listings.at:143: \$COMPILE_LIST prog.cob"
-at_fn_check_prepare_dynamic "$COMPILE_LIST prog.cob" "listings.at:143"
-( $at_check_trace; $COMPILE_LIST prog.cob
+$as_echo "$at_srcdir/listings.at:136: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:136"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:143"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:136"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
-sed -e '/^GNU Cobol/d' -e '/^\fGNU Cobol/d' <prog.lst >prog.lis
+
+cat >prog3.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc"
+00007            REPLACING ==TEST-VAR== BY ==FIRST-MATCH==
+00008                      ==TEST-VAR== BY ==SECOND-MATCH==.
+00001C
+00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
+00009         PROCEDURE        DIVISION.
+00010             DISPLAY FIRST-MATCH NO ADVANCING
+00011             END-DISPLAY.
+00012             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 
 { set +x
-$as_echo "$at_srcdir/listings.at:146: diff prog3.lst prog.lis"
-at_fn_check_prepare_trace "listings.at:146"
+$as_echo "$at_srcdir/listings.at:169: diff prog3.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:169"
 ( $at_check_trace; diff prog3.lst prog.lis
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:146"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:169"
 $at_failed && at_fn_log_failure  \
 "prog.lis"
 $at_traceon; }
@@ -6124,8 +6150,8 @@ $at_traceon; }
 read at_status <"$at_status_file"
 #AT_STOP_79
 #AT_START_80
-at_fn_group_banner 80 'listings.at:151' \
-  "COPY listing: separators" "                       "
+at_fn_group_banner 80 'listings.at:174' \
+  "Listing: COPY separators" "                       "
 at_xfail=no
 (
   $as_echo "80. $at_setup_line: testing $at_desc ..."
@@ -6133,33 +6159,8 @@ at_xfail=no
 
 
 
-cat >prog4.lst <<'_ATEOF'
-
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006         COPY "copy.inc"
-00007            REPLACING ==TEST-VAR==, BY ==FIRST-MATCH==,
-00008                   ,  ==TEST-VAR==; BY ==SECOND-MATCH==;
-00009                   ;  ==TEST-VAR== , BY ==THIRD-MATCH==
-00010                      ==TEST-VAR== ; BY ==FOURTH-MATCH==.
-00001C
-00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
-00011         PROCEDURE        DIVISION.
-00012             DISPLAY FIRST-MATCH NO ADVANCING
-00013             END-DISPLAY.
-00014             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
-
-0 Warnings in program
-0 Errors in program
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
 _ATEOF
 
 
@@ -6187,10 +6188,11 @@ cat >prog.cob <<'_ATEOF'
 _ATEOF
 
 
+daymon=`date +"%a %b %e"`
 { set +x
-$as_echo "$at_srcdir/listings.at:202: \$COMPILE_LIST prog.cob"
-at_fn_check_prepare_dynamic "$COMPILE_LIST prog.cob" "listings.at:202"
-( $at_check_trace; $COMPILE_LIST prog.cob
+$as_echo "$at_srcdir/listings.at:202: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:202"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
@@ -6200,18 +6202,51 @@ at_fn_check_status 0 $at_status "$at_srcdir/listings.at:202"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
-sed -e '/^GNU Cobol/d' -e '/^\fGNU Cobol/d' <prog.lst >prog.lis
+
+cat >prog4.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc"
+00007            REPLACING ==TEST-VAR==, BY ==FIRST-MATCH==,
+00008                   ,  ==TEST-VAR==; BY ==SECOND-MATCH==;
+00009                   ;  ==TEST-VAR== , BY ==THIRD-MATCH==
+00010                      ==TEST-VAR== ; BY ==FOURTH-MATCH==.
+00001C
+00002C        01 FIRST-MATCH PIC X(2) VALUE "OK".
+00011         PROCEDURE        DIVISION.
+00012             DISPLAY FIRST-MATCH NO ADVANCING
+00013             END-DISPLAY.
+00014             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   FIRST-MATCH                    X(2)
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 
 { set +x
-$as_echo "$at_srcdir/listings.at:205: diff prog4.lst prog.lis"
-at_fn_check_prepare_trace "listings.at:205"
+$as_echo "$at_srcdir/listings.at:237: diff prog4.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:237"
 ( $at_check_trace; diff prog4.lst prog.lis
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:205"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:237"
 $at_failed && at_fn_log_failure  \
 "prog.lis"
 $at_traceon; }
@@ -6223,8 +6258,8 @@ $at_traceon; }
 read at_status <"$at_status_file"
 #AT_STOP_80
 #AT_START_81
-at_fn_group_banner 81 'listings.at:210' \
-  "COPY listing: partial replacement" "              "
+at_fn_group_banner 81 'listings.at:242' \
+  "Listing: COPY partial replacement" "              "
 at_xfail=no
 (
   $as_echo "81. $at_setup_line: testing $at_desc ..."
@@ -6232,36 +6267,8 @@ at_xfail=no
 
 
 
-cat >prog5.lst <<'_ATEOF'
-
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006         COPY "copy.inc"
-00007            REPLACING ==:TEST:== BY ==COLON==
-00008                      ==(TEST)== BY ==PAREN==.
-00001C
-00002C        01 COLON-VAR PIC X(2) VALUE "OK".
-00003C        01 PAREN-VAR PIC X(2) VALUE "OK".
-00009         PROCEDURE        DIVISION.
-00010             DISPLAY COLON-VAR NO ADVANCING
-00011             END-DISPLAY.
-00012             DISPLAY PAREN-VAR NO ADVANCING
-00013             END-DISPLAY.
-00014             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-0002 ALPHANUMERIC   01   COLON-VAR                      X(2)
-
-0002 ALPHANUMERIC   01   PAREN-VAR                      X(2)
-
-0 Warnings in program
-0 Errors in program
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
 _ATEOF
 
 
@@ -6290,31 +6297,68 @@ cat >prog.cob <<'_ATEOF'
 _ATEOF
 
 
+daymon=`date +"%a %b %e"`
 { set +x
-$as_echo "$at_srcdir/listings.at:265: \$COMPILE_LIST prog.cob"
-at_fn_check_prepare_dynamic "$COMPILE_LIST prog.cob" "listings.at:265"
-( $at_check_trace; $COMPILE_LIST prog.cob
+$as_echo "$at_srcdir/listings.at:271: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:271"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:265"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:271"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
-sed -e '/^GNU Cobol/d' -e '/^\fGNU Cobol/d' <prog.lst >prog.lis
+
+cat >prog5.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc"
+00007            REPLACING ==:TEST:== BY ==COLON==
+00008                      ==(TEST)== BY ==PAREN==.
+00001C
+00002C        01 COLON-VAR PIC X(2) VALUE "OK".
+00003C        01 PAREN-VAR PIC X(2) VALUE "OK".
+00009         PROCEDURE        DIVISION.
+00010             DISPLAY COLON-VAR NO ADVANCING
+00011             END-DISPLAY.
+00012             DISPLAY PAREN-VAR NO ADVANCING
+00013             END-DISPLAY.
+00014             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   COLON-VAR                      X(2)
+
+0002 ALPHANUMERIC   01   PAREN-VAR                      X(2)
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 
 { set +x
-$as_echo "$at_srcdir/listings.at:268: diff prog5.lst prog.lis"
-at_fn_check_prepare_trace "listings.at:268"
+$as_echo "$at_srcdir/listings.at:309: diff prog5.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:309"
 ( $at_check_trace; diff prog5.lst prog.lis
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:268"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:309"
 $at_failed && at_fn_log_failure  \
 "prog.lis"
 $at_traceon; }
@@ -6326,8 +6370,8 @@ $at_traceon; }
 read at_status <"$at_status_file"
 #AT_STOP_81
 #AT_START_82
-at_fn_group_banner 82 'listings.at:273' \
-  "COPY listing: recursive replacement" "            "
+at_fn_group_banner 82 'listings.at:314' \
+  "Listing: COPY recursive replacement" "            "
 at_xfail=no
 (
   $as_echo "82. $at_setup_line: testing $at_desc ..."
@@ -6335,32 +6379,8 @@ at_xfail=no
 
 
 
-cat >prog6.lst <<'_ATEOF'
-
-LINE   PG/LN  A...B............................................................
-
-00001
-00002         IDENTIFICATION   DIVISION.
-00003         PROGRAM-ID.      prog.
-00004         DATA             DIVISION.
-00005         WORKING-STORAGE  SECTION.
-00006         COPY "copy-1.inc"
-00007             REPLACING ==TEST-VAR== BY ==COPY-VAR==.
-00001C
-00002C        COPY "copy-2.inc".
-00001C
-00002C        01 COPY-VAR PIC X(2) VALUE "OK".
-00008         PROCEDURE        DIVISION.
-00009             DISPLAY COPY-VAR NO ADVANCING
-00010             END-DISPLAY.
-00011             STOP RUN.
-
-SIZE TYPE           LVL  NAME                           PICTURE
-
-0002 ALPHANUMERIC   01   COPY-VAR                       X(2)
-
-0 Warnings in program
-0 Errors in program
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
 _ATEOF
 
 
@@ -6391,31 +6411,64 @@ cat >prog.cob <<'_ATEOF'
 _ATEOF
 
 
+daymon=`date +"%a %b %e"`
 { set +x
-$as_echo "$at_srcdir/listings.at:324: \$COMPILE_LIST prog.cob"
-at_fn_check_prepare_dynamic "$COMPILE_LIST prog.cob" "listings.at:324"
-( $at_check_trace; $COMPILE_LIST prog.cob
+$as_echo "$at_srcdir/listings.at:343: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:343"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:324"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:343"
 $at_failed && at_fn_log_failure
 $at_traceon; }
 
-sed -e '/^GNU Cobol/d' -e '/^\fGNU Cobol/d' <prog.lst >prog.lis
+
+cat >prog6.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy-1.inc"
+00007             REPLACING ==TEST-VAR== BY ==COPY-VAR==.
+00001C
+00002C        COPY "copy-2.inc".
+00001C
+00002C        01 COPY-VAR PIC X(2) VALUE "OK".
+00008         PROCEDURE        DIVISION.
+00009             DISPLAY COPY-VAR NO ADVANCING
+00010             END-DISPLAY.
+00011             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 ALPHANUMERIC   01   COPY-VAR                       X(2)
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
 
 { set +x
-$as_echo "$at_srcdir/listings.at:327: diff prog6.lst prog.lis"
-at_fn_check_prepare_trace "listings.at:327"
+$as_echo "$at_srcdir/listings.at:377: diff prog6.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:377"
 ( $at_check_trace; diff prog6.lst prog.lis
 ) >>"$at_stdout" 2>>"$at_stderr" 5>&-
 at_status=$? at_failed=false
 $at_check_filter
 at_fn_diff_devnull "$at_stderr" || at_failed=:
 at_fn_diff_devnull "$at_stdout" || at_failed=:
-at_fn_check_status 0 $at_status "$at_srcdir/listings.at:327"
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:377"
 $at_failed && at_fn_log_failure  \
 "prog.lis"
 $at_traceon; }
@@ -6426,3 +6479,703 @@ $at_traceon; }
 ) 5>&1 2>&1 7>&- | eval $at_tee_pipe
 read at_status <"$at_status_file"
 #AT_STOP_82
+#AT_START_83
+at_fn_group_banner 83 'listings.at:381' \
+  "Listing: Eject page" "                            "
+at_xfail=no
+(
+  $as_echo "83. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
+_ATEOF
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      /
+       PROCEDURE        DIVISION.
+           STOP RUN.
+_ATEOF
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:399: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:399"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:399"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >prog7.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   PG/LN  A...B............................................................
+
+00006        /
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:429: diff prog7.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:429"
+( $at_check_trace; diff prog7.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:429"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog2.cob <<'_ATEOF'
+
+  IDENTIFICATION   DIVISION.
+  PROGRAM-ID.      prog2.
+  DATA             DIVISION.
+  WORKING-STORAGE  SECTION.
+>>PAGE
+  PROCEDURE        DIVISION.
+  STOP RUN.
+_ATEOF
+
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:443: \$COMPILE_ONLY -t prog.lst -free prog2.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst -free prog2.cob" "listings.at:443"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst -free prog2.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:443"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog8.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   .....................SOURCE.............................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   .....................SOURCE.............................................
+
+00006  >>PAGE
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+GNU Cobol 1.1.0   prog2.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:473: diff prog8.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:473"
+( $at_check_trace; diff prog8.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:473"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_83
+#AT_START_84
+at_fn_group_banner 84 'listings.at:477' \
+  "Listing: Wide listing" "                          "
+at_xfail=no
+(
+  $as_echo "84. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
+_ATEOF
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      /
+       PROCEDURE        DIVISION.
+           STOP RUN.
+_ATEOF
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:495: \$COMPILE_ONLY -T prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -T prog.lst prog.cob" "listings.at:495"
+( $at_check_trace; $COMPILE_ONLY -T prog.lst prog.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:495"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >prog9.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                                                           DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................SEQUENCE
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog.cob                                                           DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   PG/LN  A...B............................................................SEQUENCE
+
+00006        /
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                                                           DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:525: diff prog9.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:525"
+( $at_check_trace; diff prog9.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:525"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog2.cob <<'_ATEOF'
+
+  IDENTIFICATION   DIVISION.
+  PROGRAM-ID.      prog2.
+  DATA             DIVISION.
+  WORKING-STORAGE  SECTION.
+  >>PAGE
+  PROCEDURE        DIVISION.
+  STOP RUN.
+_ATEOF
+
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:539: \$COMPILE_ONLY -T prog.lst -free prog2.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -T prog.lst -free prog2.cob" "listings.at:539"
+( $at_check_trace; $COMPILE_ONLY -T prog.lst -free prog2.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:539"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog10.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog2.cob                                                          DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   .....................................................SOURCE.....................................................
+
+00001
+00002    IDENTIFICATION   DIVISION.
+00003    PROGRAM-ID.      prog2.
+00004    DATA             DIVISION.
+00005    WORKING-STORAGE  SECTION.
+GNU Cobol 1.1.0   prog2.cob                                                          DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+LINE   .....................................................SOURCE.....................................................
+
+00006    >>PAGE
+00007    PROCEDURE        DIVISION.
+00008    STOP RUN.
+GNU Cobol 1.1.0   prog2.cob                                                          DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:569: diff prog10.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:569"
+( $at_check_trace; diff prog10.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:569"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_84
+#AT_START_85
+at_fn_group_banner 85 'listings.at:573' \
+  "Listing: Two source files" "                      "
+at_xfail=no
+(
+  $as_echo "85. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
+_ATEOF
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      *COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           STOP RUN.
+_ATEOF
+
+
+cat >prog1.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+      *COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           STOP RUN.
+_ATEOF
+
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:602: \$COMPILE_ONLY -t prog.lst prog.cob prog1.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob prog1.cob" "listings.at:602"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob prog1.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:602"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >prog11.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+GNU Cobol 1.1.0   prog1.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006        *COPY "copy.inc".
+00007         PROCEDURE        DIVISION.
+00008             STOP RUN.
+GNU Cobol 1.1.0   prog1.cob                  DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:647: diff prog11.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:647"
+( $at_check_trace; diff prog11.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:647"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_85
+#AT_START_86
+at_fn_group_banner 86 'listings.at:651' \
+  "Listing: Error/Warning messages" "                "
+at_xfail=no
+(
+  $as_echo "86. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
+_ATEOF
+
+
+cat >copy.inc <<'_ATEOF'
+
+       01 TEST-VAR PIC X(2) VULUE "OK".
+_ATEOF
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       COPY "copy.inc".
+       PROCEDURE        DIVISION.
+           DISPLAY FIRST-MATCH NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+_ATEOF
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:675: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:675"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo >>"$at_stderr"; $as_echo "copy.inc:2: Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+" | \
+  $at_diff - "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/listings.at:675"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >prog12.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         COPY "copy.inc".
+00001C
+00002C        01 TEST-VAR PIC X(2) VULUE "OK".
+Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+00007         PROCEDURE        DIVISION.
+00008             DISPLAY FIRST-MATCH NO ADVANCING
+00009             END-DISPLAY.
+00010             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+1 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:708: diff prog12.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:708"
+( $at_check_trace; diff prog12.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:708"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 TEST-VAR PIC X(2) VULUE "OK".
+       PROCEDURE        DIVISION.
+           DISPLAY FIRST-MATCH NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+_ATEOF
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:723: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:723"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo >>"$at_stderr"; $as_echo "prog.cob:6: Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+" | \
+  $at_diff - "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/listings.at:723"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog13.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         01 TEST-VAR PIC X(2) VULUE "OK".
+Error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+00007         PROCEDURE        DIVISION.
+00008             DISPLAY FIRST-MATCH NO ADVANCING
+00009             END-DISPLAY.
+00010             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+
+0 Warnings in program
+1 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:754: diff prog13.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:754"
+( $at_check_trace; diff prog13.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:754"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 TEST-VAR PIC 9(2) VALUE 'F1F2'.
+       PROCEDURE        DIVISION.
+           DISPLAY TEST-VAR NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+_ATEOF
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:769: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:769"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo >>"$at_stderr"; $as_echo "prog.cob:6: Warning: Numeric value is expected
+" | \
+  $at_diff - "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:769"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+cat >prog14.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         01 TEST-VAR PIC 9(2) VALUE 'F1F2'.
+Warning: Numeric value is expected
+00007         PROCEDURE        DIVISION.
+00008             DISPLAY TEST-VAR NO ADVANCING
+00009             END-DISPLAY.
+00010             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0002 NUMERIC        01   TEST-VAR                       9(2)
+
+1 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:801: diff prog14.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:801"
+( $at_check_trace; diff prog14.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:801"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_86

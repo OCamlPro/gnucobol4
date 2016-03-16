@@ -1,3 +1,8 @@
+2016-03-10 Dave Pitts <dpitts@cozx.com>
+
+   * cobc.c : Defered listing file open until source file check.
+       Corrected free format directive scan.
+
 2016-03-09 Dave Pitts <dpitts@cozx.com>
 
    * cobc.c : Fixed syntax-only mode to call print_program_trailer().
