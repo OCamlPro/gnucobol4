@@ -1,5 +1,11 @@
 
-2015-11-25 Sergey Kashyrin <ska@kiska.net> Fix for Bug #152 according 2015-05-06  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+2016-03-21  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* common.c (cob_set_location, cob_trace_section, cob_exit_common): fix for
+	  bug #216 - store a duplicate of cob_last_sfile for tracing, free on exit
+
+2015-11-25  Sergey Kashyrin <ska@kiska.net> Fix for Bug #152 - merged:
+2015-05-06  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
 	* common.h, call.cpp: fixed CALL after physical CANCEL
 	  by moving physical_cancel (defined in call.cpp) to cobglobptr->cob_physical_cancel

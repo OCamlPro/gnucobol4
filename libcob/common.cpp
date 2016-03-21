@@ -1,7 +1,6 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2001-2013, 2015-2016 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
 
    This file is part of GNU Cobol C++.
 
@@ -241,6 +240,9 @@ cob_exit_common(void)
 	}
 
 	/* Free last stuff */
+	if (cob_last_sfile) {
+		delete [] cob_last_sfile;
+	}
 	if(runtime_err_str) {
 		delete [] runtime_err_str;
 	}
@@ -1122,7 +1124,10 @@ cob_set_location(const char * sfile, const unsigned int sline,
 			cob_check_trace_file();
 		}
 		if(!cob_last_sfile || strcmp(cob_last_sfile, sfile)) {
-			cob_last_sfile = sfile;
+			if (cob_last_sfile) {
+				delete [] cob_last_sfile;
+			}
+			cob_last_sfile = cob_strdup (sfile);
 			fprintf(cob_trace_file, "Source :    '%s'\n", sfile);
 		}
 		fprintf(cob_trace_file,
@@ -1144,7 +1149,10 @@ cob_trace_section(const char * para, const char * source, const int line)
 		}
 		if(source &&
 				(!cob_last_sfile || strcmp(cob_last_sfile, source))) {
-			cob_last_sfile = source;
+			if (cob_last_sfile) {
+				delete [] cob_last_sfile;
+			}
+			cob_last_sfile = cob_strdup (source);
 			fprintf(cob_trace_file, "Source:     '%s'\n", source);
 		}
 		fprintf(cob_trace_file, "Program-Id: %-16s ",
