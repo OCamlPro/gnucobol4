@@ -4740,7 +4740,7 @@ output_section_info(cb_label * lp)
 		if(!lp->flag_dummy_section) {
 			sprintf(string_buffer, "Section:   %s", lp->orig_name);
 		} else {
-			sprintf(string_buffer, "Section:  (None)");
+			sprintf(string_buffer, "Section:   (None)");
 		}
 	} else if(lp->flag_entry) {
 		sprintf(string_buffer, "Entry:     %s", lp->orig_name);
@@ -4748,7 +4748,7 @@ output_section_info(cb_label * lp)
 		if(!lp->flag_dummy_paragraph) {
 			sprintf(string_buffer, "Paragraph: %s", lp->orig_name);
 		} else {
-			sprintf(string_buffer, "Paragraph:(None)");
+			sprintf(string_buffer, "Paragraph: (None)");
 		}
 	}
 	if(lp->source_file) {
