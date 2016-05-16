@@ -3644,7 +3644,7 @@ indexed_read_next(cob_file * f, const int read_opts)
 #elif	defined(WITH_DB)
 
 	indexed_file * p = (indexed_file *) f->file;
-	unsigned int dupno;
+	unsigned int dupno = 0;
 	cob_u32_t nextprev = DB_NEXT;
 	int file_changed = 0;
 

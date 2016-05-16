@@ -2218,6 +2218,7 @@ file_stripext(char * buff)
 		}
 		if(*endp == '.') {
 			*endp = 0;
+			break;
 		}
 		--endp;
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2013 Sergey Kashyrin <ska@kiska.net>
+ * Copyright (C) 2006-2016 Sergey Kashyrin <ska@kiska.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ public:
 
 	~vvector()
 	{
-		delete data;
+		delete [] data;
 	}
 
 public:
@@ -104,16 +104,16 @@ public:
 public:
 	vholder(const char * nm, T val)
 	{
-		int i = (int) strlen(nm);
-		name = new char[i+1];
-		strcpy(name, nm);
+		size_t i = strlen(nm) + 1;
+		name = new char[i];
+		memcpy(name, nm, i);
 		obj = val;
 		next = NULL;
 	}
 
 	~vholder()
 	{
-		delete name;
+		delete [] name;
 	}
 };
 
