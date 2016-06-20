@@ -698,6 +698,7 @@ at_help_all="1;copy.at:24;COPY: file not found;copy;
 84;listings.at:477;Listing: Wide listing;listing;
 85;listings.at:573;Listing: Two source files;listing;
 86;listings.at:651;Listing: Error/Warning messages;listing;
+87;listings.at:805;Listing: Symbols;listing;
 "
 # List of the all the test groups.
 at_groups_all=`$as_echo "$at_help_all" | sed 's/;.*//'`
@@ -711,7 +712,7 @@ at_fn_validate_ranges ()
   for at_grp
   do
     eval at_value=\$$at_grp
-    if test $at_value -lt 1 || test $at_value -gt 86; then
+    if test $at_value -lt 1 || test $at_value -gt 87; then
       $as_echo "invalid test group: $at_value" >&2
       exit 1
     fi
@@ -7179,3 +7180,115 @@ $at_traceon; }
 ) 5>&1 2>&1 7>&- | eval $at_tee_pipe
 read at_status <"$at_status_file"
 #AT_STOP_86
+#AT_START_87
+at_fn_group_banner 87 'listings.at:805' \
+  "Listing: Symbols" "                               "
+at_xfail=no
+(
+  $as_echo "87. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+cat >sed.txt <<'_ATEOF'
+s/[0-9][0-9]:[0-9][0-9]:[0-9][0-9] [0-9][0-9][0-9][0-9]/HH:MM:SS YYYY/g
+_ATEOF
+
+
+cat >prog.cob <<'_ATEOF'
+
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 WS-ONE    PIC 9(4) VALUE 37.
+       01 WS-TWO    PIC A(4) VALUE 'HIGH'.
+       01 WS-THREE  PIC X(4) VALUE 'BAR'.
+       01 WS-FOUR            COMP-1 VALUE 37.
+       01 WS-FIVE            COMP-2 VALUE 37.
+       01 WS-SIX    PIC S999 COMP-3 VALUE -37.
+       01 WS-SEVEN  PIC $$,$$$,$$9.99 VALUE ZERO.
+       PROCEDURE        DIVISION.
+           STOP RUN.
+_ATEOF
+
+
+daymon=`date +"%a %b %e"`
+{ set +x
+$as_echo "$at_srcdir/listings.at:829: \$COMPILE_ONLY -t prog.lst prog.cob"
+at_fn_check_prepare_dynamic "$COMPILE_ONLY -t prog.lst prog.cob" "listings.at:829"
+( $at_check_trace; $COMPILE_ONLY -t prog.lst prog.cob
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:829"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >prog15.lst <<'_ATEOF'
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE   PG/LN  A...B............................................................
+
+00001
+00002         IDENTIFICATION   DIVISION.
+00003         PROGRAM-ID.      prog.
+00004         DATA             DIVISION.
+00005         WORKING-STORAGE  SECTION.
+00006         01 WS-ONE    PIC 9(4) VALUE 37.
+00007         01 WS-TWO    PIC A(4) VALUE 'HIGH'.
+00008         01 WS-THREE  PIC X(4) VALUE 'BAR'.
+00009         01 WS-FOUR            COMP-1 VALUE 37.
+00010         01 WS-FIVE            COMP-2 VALUE 37.
+00011         01 WS-SIX    PIC S999 COMP-3 VALUE -37.
+00012         01 WS-SEVEN  PIC $$,$$$,$$9.99 VALUE ZERO.
+00013         PROCEDURE        DIVISION.
+00014             STOP RUN.
+GNU Cobol 1.1.0   prog.cob                   DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE TYPE           LVL  NAME                           PICTURE
+
+0004 NUMERIC        01   WS-ONE                         9(4)
+
+0004 ALPHABETIC     01   WS-TWO                         A(4)
+
+0004 ALPHANUMERIC   01   WS-THREE                       X(4)
+
+0004 NUMERIC        01   WS-FOUR                        S9(7)V9(7)
+
+0008 NUMERIC        01   WS-FIVE                        S9(9)V9(9)
+
+0002 NUMERIC        01   WS-SIX                         S999
+
+0013 NUMERIC        01   WS-SEVEN                       $$,$$$,$$9.99
+
+0 Warnings in program
+0 Errors in program
+_ATEOF
+
+
+sed -e 's/'"$daymon"'/DDD MMM dd/g' -f sed.txt <prog.lst >prog.lis
+
+{ set +x
+$as_echo "$at_srcdir/listings.at:874: diff prog15.lst prog.lis"
+at_fn_check_prepare_trace "listings.at:874"
+( $at_check_trace; diff prog15.lst prog.lis
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/listings.at:874"
+$at_failed && at_fn_log_failure  \
+"prog.lis"
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_87
