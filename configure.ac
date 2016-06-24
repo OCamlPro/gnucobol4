@@ -1169,7 +1169,7 @@ AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
 	cobc/Makefile bin/Makefile po/Makefile.in doc/Makefile
 	config/Makefile copy/Makefile
 	tests/atlocal tests/Makefile tests/cobol85/Makefile
-	extras/Makefile])
+	extras/Makefile debugger/Makefile])
 
 AC_CONFIG_COMMANDS([chmod1], [chmod +x bin/cob-config])
 AC_CONFIG_COMMANDS([chmod2], [chmod +x tests/atconfig])

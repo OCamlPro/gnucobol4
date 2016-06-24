@@ -708,6 +708,11 @@ struct cb_field {
 	unsigned int flag_no_field	: 1;	/* SCREEN dummy field */
 	unsigned int flag_any_numeric	: 1;	/* Is ANY NUMERIC */
 	unsigned int flag_is_returning	: 1;	/* Is RETURNING item */
+
+	unsigned int flag_cached  : 1;    /* Is saved in any field cache, sometimes needed for debugger code generation */
+	unsigned int flag_anim_field_printed : 1; /* 1 if the corresponding debugger_field was printed to headers */
+	unsigned int flag_initialized_local : 1; /* 1 if the corresponding debugger_field was initialized with a base address */
+	unsigned int flag_linkage_init : 1; /* 1 if the linkage field has a local copy */
 };
 
 #define CB_FIELD(x)		(CB_TREE_CAST (CB_TAG_FIELD, struct cb_field, x))

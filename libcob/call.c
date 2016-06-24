@@ -184,6 +184,7 @@ static char*			physical_cancel_env;
 
 static char		module_ext[8];		/* EB */
 static int		cob_anim_logging;	/* EB */
+static int		cob_anim_tracing;	/* EB */
 
 #undef	COB_SYSTEM_GEN
 #if 0
@@ -617,6 +618,12 @@ cob_resolve_internal (const char *name, const char *dirent,
 	size_t			i;
 
 	FILE* anilog; /* Animator logging for debug purposes */
+	if(cob_anim_tracing) {
+		anilog = fopen("debugger-trace.log", "a");
+		fprintf(anilog, "Resolving %s ...\n", name);
+		fflush(anilog);
+	}
+
 
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
@@ -626,6 +633,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 	/* Search the cache */
 	func = lookup (name);
 	if (func) {
+		if(cob_anim_tracing) fclose(anilog);
 		return func;
 	}
 
@@ -677,6 +685,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 			insert (name, func, mainhandle, NULL, NULL, 1);
 			resolve_error = NULL;
 			cobglobptr->cob_first_init = 0;
+			if(cob_anim_tracing) fclose(anilog);
 			return func;
 		}
 	}
@@ -687,6 +696,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 		if (func != NULL) {
 			insert (name, func, preptr->handle,	NULL, preptr->path, 1);
 			resolve_error = NULL;
+			if(cob_anim_tracing) fclose(anilog);
 			return func;
 		}
 	}
@@ -701,6 +711,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 			insert (name, func, preptr->handle,
 				NULL, preptr->path, 1);
 			resolve_error = NULL;
+			if(cob_anim_tracing) fclose(anilog);
 			return func;
 		}
 	}
@@ -761,6 +772,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 			  "%s%s.%s", dirent, (char *)s, COB_MODULE_EXT);
 		if (access (call_filename_buff, R_OK) != 0) {
 			set_resolve_error (_("Cannot find module"), name);
+			if(cob_anim_tracing) fclose(anilog);
 			return NULL;
 		}
 		handle = lt_dlopen (call_filename_buff);
@@ -772,20 +784,20 @@ cob_resolve_internal (const char *name, const char *dirent,
 				insert (name, func, handle, NULL,
 					call_filename_buff, 0);
 				resolve_error = NULL;
+				if(cob_anim_tracing) fclose(anilog);
 				return func;
 			}
 		}
 		set_resolve_error (_("Cannot find entry point"),
 				   (const char *)s);
+		if(cob_anim_tracing) fclose(anilog);
 		return NULL;
 	}
 
-	if(cob_anim_logging) { /* EB */
-		anilog = fopen("animator.log", "a"); /* EB */
-	} /* EB */
+
 	for (i = 0; i < resolve_size; ++i) {
 		call_filename_buff[COB_NORMAL_MAX] = 0;
-		if(cob_anim_logging) { /* EB */
+		if(cob_anim_tracing) { /* EB */
         	fprintf(anilog, "Module Extension: %s\n", module_ext); /* EB */
         	fprintf(anilog, "cob_anim: %i\n", cobglobptr->cob_anim); /* EB */
 		} /* EB */
@@ -801,7 +813,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 				  COB_MODULE_EXT);
 		}
 
-		if(cob_anim_logging) {
+		if(cob_anim_tracing) {
         	fprintf(anilog, "Looping. Filename: %s\n", call_filename_buff);
 		}
 
@@ -815,7 +827,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 					insert (name, func, handle, NULL,
 						call_filename_buff, 0);
 					resolve_error = NULL;
-					if(cob_anim_logging) {
+					if(cob_anim_tracing) {
         				fprintf(anilog, "Loaded module %s ...\n", call_filename_buff);
         				fflush(anilog);
         				fclose(anilog);
@@ -826,7 +838,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 			set_resolve_error (_("Cannot find entry point"),
 					   (const char *)s);
 
-			if(cob_anim_logging) {
+			if(cob_anim_tracing) {
 				fprintf(anilog, "Cannot find module '%s'\n", name);
 				fflush(anilog);
 				fclose(anilog);
@@ -1366,6 +1378,12 @@ cob_init_call (cob_global *lptr, runtime_env* runtimeptr)
 		cob_anim_logging = 1; /* EB */
 	else /* EB */
 		cob_anim_logging = 0; /* EB */
+
+	s = getenv("COB_ANIM_TRACE"); /* EB */
+	if(s && (*s == 'Y' || *s == 'y' || *s == '1')) /* EB */
+		cob_anim_tracing = 1; /* EB */
+	else /* EB */
+		cob_anim_tracing = 0; /* EB */
 
 	call_filename_buff = cob_malloc ((size_t)COB_NORMAL_BUFF);
 	call_entry_buff = cob_malloc ((size_t)COB_SMALL_BUFF);

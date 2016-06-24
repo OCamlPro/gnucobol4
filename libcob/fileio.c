@@ -5637,6 +5637,22 @@ unique_copy (unsigned char *s1, const unsigned char *s2)
 	} while (--size);
 }
 
+/* Returns filesize */
+long int 
+get_filesize(const char* path) {
+	struct stat s;
+	int f = 0;
+
+	if((f = open(path, O_BINARY)) != 0) {
+		fstat(f, &s);
+		close(f);
+		return (long int) s.st_size;
+	}
+
+	close(f);
+	return -1;
+}
+
 static int
 cob_file_sort_compare (struct cobitem *k1, struct cobitem *k2, void *pointer)
 {

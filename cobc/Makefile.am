@@ -24,8 +24,7 @@ bin_PROGRAMS = cobc
 cobc_SOURCES = cobc.c cobc.h config.c tree.c tree.h reserved.c error.c \
 	parser.c parser.h scanner.c field.c typeck.c codegen.c ppparse.c \
 	ppparse.h pplex.c config.def flag.def warning.def codeoptim.def \
-	ppparse.def codeoptim.c animod.c animod.c.h animod.c.l.h printani.c \
-	printani.c.h printani.c.l.h
+	ppparse.def codeoptim.c
 
 dist_man_MANS = cobc.1
 

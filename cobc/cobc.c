@@ -213,7 +213,6 @@ char	module_ext[8];
 int	animflag_set = 0;
 int	anim_source_lines = 0;
 char	animcb[100];
-extern	void animod(char *animcb);
 /* EB END */
 
 
@@ -1381,13 +1380,6 @@ cobc_clean_up (const int status)
 	struct local_filename	*lf;
 	cob_u32_t		i;
 
-/* EB START */
-	if (status != 1 && animflag_set) {
-		animcb[0] = 'C';
-		animod(animcb);         // close ani file
-	}
-/* EB END */
-
 	if (cb_listing_file) {
 		fclose (cb_listing_file);
 		cb_listing_file = NULL;
@@ -2383,9 +2375,9 @@ process_command_line (const int argc, char **argv)
 	if (cb_config_name == NULL) {
 		sub_ret = cb_load_std ("default.conf");
 		if (sub_ret != 0) {
-#if 0 /* Simon: likely too verbose */
+//#if 0 /* Simon: likely too verbose */
 			configuration_error ("default.conf", 0, _("Failed to load the initial config file"));
-#endif
+//#endif
 			ret = sub_ret;
 		}
 	}
@@ -3326,19 +3318,7 @@ process_translate (struct filename *fn)
 
 /* EB START */
     if (animflag_set) {
-		sprintf(tmp, "%s.ani", fn->demangle_source);
-		unlink(tmp);
 		cob_init(0, NULL);
-		animcb[0] = 'O';
-		animcb[1] = 'O';
-		animcb[2] = 'O';
-		(void) strcpy(animcb + 3, tmp);
-		animod(animcb); 	// create ani file
-		if (animcb[1] != '0' || animcb[2] != '0')
-		{
-			fprintf(stderr, "Create ani error: %c%c\n", animcb[1], animcb[2]);
-			exit (1);
-		}
 	}
 /* EB END */
 
@@ -3397,14 +3377,6 @@ process_translate (struct filename *fn)
 	/* Close files */
 	if(unlikely(fclose (cb_storage_file) != 0)) {
 		cobc_terminate (cb_storage_file_name);
-	}
-
-	/* Remove temporary animator/debugger files */
-	if(animflag_set) { /* EB */
-		sprintf(tmp, "%s.ani.dat", fn->demangle_source); /* EB */
-		unlink(tmp); /* EB */
-		sprintf(tmp, "%s.ani.idx", fn->demangle_source); /* EB */
-		unlink(tmp); /* EB */
 	}
 
 	cb_storage_file = NULL;

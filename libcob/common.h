@@ -1133,9 +1133,64 @@ typedef struct {
 	int			curr_status;		/* Current status */
 } cob_report;
 
+/* Structure with pointers to the current runtime variables. */
+typedef struct runtime_env {
+	/* call.c */
+	unsigned int* physical_cancel;
+	char* physical_cancel_env;
+	unsigned int* name_convert;
+	char* name_convert_env;
+	char** resolve_path;	/* COB_LIBRARY_PATH */
+	char* cob_library_path_env;
+	size_t* resolve_size;	/* Array size of resolve_path*/
+	char* cob_preload_resolved;
+	char* cob_preload_env;
+
+	/* fileio.c */
+	unsigned int* cob_do_sync;
+	char* cob_do_sync_env;
+	unsigned int* cob_ls_uses_cr;
+	char* cob_ls_uses_cr_env;
+	size_t* cob_sort_memory;
+	char* cob_sort_memory_env;
+	size_t* cob_sort_chunk;
+	char* cob_sort_chunk_env;
+	char* cob_file_path;
+	char* cob_file_path_env;
+	unsigned int* cob_ls_nulls;
+	char* cob_ls_nulls_env;
+	unsigned int* cob_ls_fixed;
+	char* cob_ls_fixed_env;
+	size_t* cob_varseq_type;
+	char* cob_varseq_type_env;
+	char* cob_unix_lf_env;
+
+	/* move.c */
+	unsigned int* cob_local_edit;
+	char* cob_local_edit_env;
+
+	/* screenio.c */
+	cob_u32_t* cob_legacy;
+	char* cob_legacy_env;
+
+	/* others */
+	char *cob_line_trace_env;
+	char* cob_display_warn_env;
+	char* cob_env_mangle_env;
+
+    /* others rescanned on SET ENVIRONMENT */
+	char* cob_disp_to_stderr_env;
+	char* cob_beep_str_env;
+	char* cob_timeout_scale_env;
+	char* cob_accept_status_env;
+	char* cob_extended_status_env;
+	char* cob_use_esc_env;
+
+	char* cob_anim_env;
+
+} runtime_env;
 
 /* Global variable structure */
-
 typedef struct __cob_global {
 	cob_file		*cob_error_file;	/* Last error file */
 	cob_module		*cob_current_module;	/* Current module */
@@ -1180,6 +1235,8 @@ typedef struct __cob_global {
 
 	int cob_anim; /* Animator/Debugger mode flag (0 = No Debugging, 1 = Debugging */
 
+	runtime_env* current_environment; /* Current runtime environment values */
+
 } cob_global;
 
 
@@ -1204,7 +1261,7 @@ struct cobjmp_buf {
 };
 
 
-/* Animator/Debugger interface block structure */
+/* Debugger interface block structure */
 typedef struct interface_block {
     char anim_state;
     char cobol_src_name[30];
@@ -1218,15 +1275,25 @@ typedef struct interface_block {
     char dtf_value[280];
 } interface_block;
 
-/* Animator/Debugger cobol field representation */
+/* Flag structure for anim_field */
+typedef struct debug_field_flags {
+	int				occurs_flag; /* 1 if we have a table field with occurs clause */
+	int				occurs_max;	 /* Maximum number of rows in the table, 1 for non-table */
+} debug_field_flags;
+
+/* Debugger cobol field representation */
 typedef struct anim_field {
 	const char		*field_name;
-	unsigned char	*data;
+	cob_field		*src_field;
+	cob_u8_t			*base_field;
 	size_t			size;
 	size_t			usage;
 	const char		*program_id;
 	void			*previous;
+	void				*parent;
+	debug_field_flags	flags;
 } anim_field;
+
 
 /*******************************/
 
@@ -1356,7 +1423,7 @@ COB_EXPIMP void	cob_set_location	(const char *, const unsigned int,
 					 const char *);
 COB_EXPIMP void	cob_trace_section	(const char *, const char *, const int);
 
-COB_EXPIMP void			*cob_external_addr	(const char *, const int, int); /* EB */
+COB_EXPIMP void			*cob_external_addr	(const char *, const int);
 COB_EXPIMP unsigned char	*cob_get_pointer	(const void *);
 COB_EXPIMP void			*cob_get_prog_pointer	(const void *);
 COB_EXPIMP void			cob_ready_trace		(void);
@@ -1559,6 +1626,8 @@ COB_EXPIMP void cob_unlock_file	(cob_file *, cob_field *);
 COB_EXPIMP void cob_commit	(void);
 COB_EXPIMP void cob_rollback	(void);
 
+COB_EXPIMP long int get_filesize(const char*);
+
 /* File system routines */
 COB_EXPIMP int cob_sys_open_file	(unsigned char *, unsigned char *,
 					 unsigned char *, unsigned char *,
@@ -1744,5 +1813,19 @@ COB_EXPIMP cob_field *cob_intr_integer_of_formatted_date	(cob_field *,
 								 cob_field *);
 
 /*******************************/
+
+/* Functions in debugger.c */
+
+COB_EXPIMP void anidata(anim_field*, anim_field*, anim_field*, interface_block*, char*, char*, char*);
+COB_EXPIMP int string_contains(char*, char*);
+
+/*******************************/
+
+/* Functions in utils.c */
+COB_EXPIMP void		trim(char*);
+COB_EXPIMP void		ltrim(char*);
+COB_EXPIMP void		rtrim(char*);
+COB_EXPIMP void		all_to_upper(char*);
+
 
 #endif	/* COB_COMMON_H */

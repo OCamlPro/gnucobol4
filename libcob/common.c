@@ -2431,12 +2431,10 @@ cob_check_ref_mod (const int offset, const int length,
 }
 
 void *
-cob_external_addr (const char *exname, const int exlength, int source_line)
+cob_external_addr (const char *exname, const int exlength)
 {
 	static struct cob_external *basext = NULL;	/* EB */	
-	
 	struct cob_external *eptr;
-	int     _animdata_line;         /* EB */
 
 	/* Locate or allocate EXTERNAL item */
 	for (eptr = basext; eptr; eptr = eptr->next) {
@@ -2447,14 +2445,13 @@ cob_external_addr (const char *exname, const int exlength, int source_line)
 				cob_stop_run (1);
 			}
 			cobglobptr->cob_initial_external = 0;
-			_animdata_line = eptr->source_line;     /* EB */
 			return eptr->ext_alloc;
 		}
 	}
 	eptr = cob_malloc (sizeof (struct cob_external));
 	eptr->next = basext;
 	eptr->esize = exlength;
-	eptr->source_line = source_line;        /* EB */
+	eptr->source_line = 0;        /* EB */
 	eptr->ename = cob_malloc (strlen (exname) + 1U);
 	strcpy (eptr->ename, exname);
 	eptr->ext_alloc = cob_malloc ((size_t)exlength);
@@ -3946,7 +3943,9 @@ cob_strcat(char* str1, char* str2) {
 		temp2 = str2;
 	}
 
-	cob_free(strbuff);
+	if(strbuff)
+		cob_free(strbuff);
+	
 	strbuff = (char*) cob_fast_malloc(l);
 
 	sprintf(strbuff, "%s%s", temp1, temp2);
@@ -4527,6 +4526,10 @@ cob_init (const int argc, char **argv)
 	if (!cob_user_name) {
 		cob_user_name = cob_strdup (_("Unknown"));
 	}
+
+	/* Save runtime_env to cobglobptr */
+	cobglobptr->current_environment = runtimeptr;
+
 
 	/* This must be last in this function as we do early return */
 	/* from certain ifdef's */
