@@ -394,7 +394,7 @@ static const char	*const cob_csyns[] = {
 
 #define COB_NUM_CSYNS	sizeof(cob_csyns) / sizeof(char *)
 
-static const char short_options[] = "hVivECScbmxjdFOPgwo:I:L:l:D:K:k:";
+static const char short_options[] = "hVivECScbmxjdFOPgwo:I:L:l:D:K:k:a";
 
 #define	CB_NO_ARG	no_argument
 #define	CB_RQ_ARG	required_argument
@@ -416,6 +416,7 @@ static const struct option long_options[] = {
 	{"conf",		CB_RQ_ARG, NULL, '&'},
 	{"cb_conf",		CB_RQ_ARG, NULL, '%'},
 	{"debug",		CB_NO_ARG, NULL, 'd'},
+	{"animate",		CB_NO_ARG, NULL, 'a'},
 	{"ext",			CB_RQ_ARG, NULL, 'e'},
 	{"free",		CB_NO_ARG, &cb_source_format, CB_FORMAT_FREE},
 	{"fixed",		CB_NO_ARG, &cb_source_format, CB_FORMAT_FIXED},
@@ -1808,6 +1809,7 @@ cobc_print_usage (char * prog)
 	puts (_("  -O, -O2, -Os          enable optimization"));
 	puts (_("  -g                    enable C compiler debug / stack check / trace"));
 	puts (_("  -d, -debug            enable all run-time error checking"));
+	puts (_("  -a, -animate          prepare program for being animated"));
 	puts (_("  -o <file>             place the output into <file>"));
 	puts (_("  -b                    combine all input files into a single\n"
 			"                        dynamically loadable module"));

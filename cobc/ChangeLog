@@ -1,4 +1,8 @@
 
+2016-06-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: added "-a, animate" to option list and help
+
 2016-05-21 Brian Tiffin <btiffin@gnu.org>
 
 	* codegen.c: improving CALL BY VALUE. One step of many, more to do.
