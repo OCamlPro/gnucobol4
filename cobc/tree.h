@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2015 Simon Sobisch
 
    This file is part of GNU Cobol.
 
@@ -152,7 +153,7 @@ enum cb_system_name_category {
 #define CB_DEVICE_SYSOUT	1
 #define CB_DEVICE_SYSERR	2
 #define CB_DEVICE_CONSOLE	3
-/* Switches */
+/* Switches (max. must match COB_SWITCH_MAX) */
 #define CB_SWITCH_0		0
 #define CB_SWITCH_1		1
 #define CB_SWITCH_2		2
@@ -169,6 +170,27 @@ enum cb_system_name_category {
 #define CB_SWITCH_13		13
 #define CB_SWITCH_14		14
 #define CB_SWITCH_15		15
+#define CB_SWITCH_16		16
+#define CB_SWITCH_17		17
+#define CB_SWITCH_18		18
+#define CB_SWITCH_19		19
+#define CB_SWITCH_20		20
+#define CB_SWITCH_21		21
+#define CB_SWITCH_22		22
+#define CB_SWITCH_23		23
+#define CB_SWITCH_24		24
+#define CB_SWITCH_25		25
+#define CB_SWITCH_26		26
+#define CB_SWITCH_27		27
+#define CB_SWITCH_28		28
+#define CB_SWITCH_29		29
+#define CB_SWITCH_30		30
+#define CB_SWITCH_31		31
+#define CB_SWITCH_32		32
+#define CB_SWITCH_33		33
+#define CB_SWITCH_34		34
+#define CB_SWITCH_35		35
+#define CB_SWITCH_36		36
 /* Features */
 #define CB_FEATURE_FORMFEED	0
 #define CB_FEATURE_CONVENTION	1
@@ -919,7 +941,7 @@ struct cb_binary_op {
 struct cb_funcall {
 	struct cb_tree_common	common;		/* Common values */
 	const char		*name;		/* Function name */
-	cb_tree			argv[10];	/* Function arguments */
+	cb_tree			argv[11];	/* Function arguments */
 	int			argc;		/* Number of arguments */
 	int			varcnt;		/* Variable argument count */
 	unsigned int		screenptr;	/* SCREEN usage */
@@ -1104,6 +1126,7 @@ struct cb_attr_struct {
 	cb_tree			scroll;		/* SCROLL */
 	cb_tree			timeout;	/* TIMEOUT */
 	cb_tree			prompt;		/* PROMPT */
+	cb_tree			size_is;        /* [PROTECTED] SIZE [IS] */
 	int			dispattrs;	/* Attributes */
 };
 
@@ -1418,7 +1441,8 @@ extern cb_tree			cb_build_funcall (const char *, const int,
 						  const cb_tree, const cb_tree,
 						  const cb_tree, const cb_tree,
 						  const cb_tree, const cb_tree,
-						  const cb_tree, const cb_tree);
+						  const cb_tree, const cb_tree,
+						  const cb_tree);
 
 extern cb_tree			cb_build_cast (const enum cb_cast_type,
 					       const cb_tree);
@@ -1744,43 +1768,47 @@ extern struct cb_field	*check_level_78 (const char *);
 
 #define CB_BUILD_FUNCALL_0(f)					\
 	cb_build_funcall (f, 0, NULL, NULL, NULL, NULL, NULL,	\
-			  NULL, NULL, NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_1(f,a1)				\
 	cb_build_funcall (f, 1, a1, NULL, NULL, NULL, NULL,	\
-			  NULL, NULL, NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_2(f,a1,a2)				\
 	cb_build_funcall (f, 2, a1, a2, NULL, NULL, NULL,	\
-			  NULL, NULL, NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_3(f,a1,a2,a3)				\
-	cb_build_funcall (f, 3, a1, a2, a3, NULL, NULL,		\
+	cb_build_funcall (f, 3, a1, a2, a3, NULL, NULL, NULL,	\
 			  NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_4(f,a1,a2,a3,a4)			\
 	cb_build_funcall (f, 4, a1, a2, a3, a4, NULL,		\
-			  NULL, NULL, NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_5(f,a1,a2,a3,a4,a5)			\
 	cb_build_funcall (f, 5, a1, a2, a3, a4, a5,		\
-			  NULL, NULL, NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_6(f,a1,a2,a3,a4,a5,a6)			\
 	cb_build_funcall (f, 6, a1, a2, a3, a4, a5, a6,		\
-			  NULL, NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_7(f,a1,a2,a3,a4,a5,a6,a7)		\
 	cb_build_funcall (f, 7, a1, a2, a3, a4, a5, a6, a7,	\
-			  NULL, NULL, NULL)
+			  NULL, NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_8(f,a1,a2,a3,a4,a5,a6,a7,a8)		\
 	cb_build_funcall (f, 8, a1, a2, a3, a4, a5, a6, a7, a8,	\
-			  NULL, NULL)
+			  NULL, NULL, NULL)
 
 #define CB_BUILD_FUNCALL_9(f,a1,a2,a3,a4,a5,a6,a7,a8,a9)	\
 	cb_build_funcall (f, 9, a1, a2, a3, a4, a5, a6, a7, a8,	\
-			  a9, NULL)
+			  a9, NULL, NULL)
+			  
+#define CB_BUILD_FUNCALL_10(f,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)	\
+	cb_build_funcall (f, 10, a1, a2, a3, a4, a5, a6, a7, a8,	\
+			  a9, a10, NULL)
 
 /* Miscellanous defines */
 

@@ -191,6 +191,77 @@
 extern "C" {
 #endif
 
+/* Structure with pointers to the current runtime variables. */
+typedef struct runtime_env {
+	/* call.c */
+	char* physical_cancel_env;
+	unsigned int* name_convert;
+	char* name_convert_env;
+	char** resolve_path;	/* COB_LIBRARY_PATH */
+	char* cob_library_path_env;
+	size_t* resolve_size;	/* Array size of resolve_path*/
+	char* cob_preload_resolved;
+	char* cob_preload_env;
+
+	/* fileio.c */
+	unsigned int* cob_do_sync;
+	char* cob_do_sync_env;
+	unsigned int* cob_ls_uses_cr;
+	char* cob_ls_uses_cr_env;
+	size_t* cob_sort_memory;
+	char* cob_sort_memory_env;
+	size_t* cob_sort_chunk;
+	char* cob_sort_chunk_env;
+	char* cob_file_path;
+	char* cob_file_path_env;
+	unsigned int* cob_ls_nulls;
+	char* cob_ls_nulls_env;
+	unsigned int* cob_ls_fixed;
+	char* cob_ls_fixed_env;
+	size_t* cob_varseq_type;
+	char* cob_varseq_type_env;
+	char* cob_unix_lf_env;
+
+	/* move.c */
+	unsigned int* cob_local_edit;
+	char* cob_local_edit_env;
+
+	/* screenio.c */
+	cob_u32_t* cob_legacy;
+	char* cob_legacy_env;
+
+	/* others */
+	char *cob_line_trace_env;
+	char* cob_display_warn_env;
+	char* cob_env_mangle_env;
+
+    /* others rescanned on SET ENVIRONMENT */
+	char* cob_disp_to_stderr_env;
+	char* cob_beep_str_env;
+	char* cob_timeout_scale_env;
+	char* cob_accept_status_env;
+	char* cob_extended_status_env;
+	char* cob_use_esc_env;
+
+	char* cob_anim_env;
+
+} runtime_env;
+
+/* Datetime structure */
+struct cob_time
+{
+	int	year;
+	int	month; /* 1 = Jan ... 12 = Dec */
+	int	day_of_month; /* 1 ... 31 */
+	int	day_of_week; /* 1 = Monday ... 7 = Sunday */
+	int	hour;
+	int	minute;
+	int	second;
+	int	nanosecond;
+	int	offset_known;
+	int	utc_offset; /* in minutes */
+};
+
 /* Local function prototypes */
 COB_HIDDEN void		cob_init_numeric	(cob_global *);
 COB_HIDDEN void		cob_init_termio		(cob_global *);
@@ -234,6 +305,9 @@ COB_HIDDEN void		cob_runtime_error	(const char *, ...) COB_A_FORMAT12;
 
 COB_HIDDEN char*	cob_save_env_value	(char*, char*);
 
+COB_HIDDEN int		cob_ctoi		(const char);
+
+COB_HIDDEN struct cob_time cob_get_current_date_and_time	(void);
 
 #ifdef __cplusplus
 }

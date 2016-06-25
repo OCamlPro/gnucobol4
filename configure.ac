@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
 # Copyright (C) 2007-2012 Roger While
-# Copyright (C) 2014 Simon Sobisch
+# Copyright (C) 2014,2015 Simon Sobisch
 #
 # This file is part of GNU Cobol.
 #
@@ -32,6 +32,7 @@ AC_CONFIG_SRCDIR([libcob.h])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_TESTDIR([tests])
 AC_CONFIG_MACRO_DIR([m4])
+AC_CONFIG_AUX_DIR([build_aux])
 
 # Note for SUN Solaris (gcc)
 # export/setenv CFLAGS "-m64 -mptr64"
@@ -58,21 +59,21 @@ AM_INIT_AUTOMAKE([gnu no-texinfo.tex])
 AM_MAINTAINER_MODE
 
 # Autoheader templates
-AH_TEMPLATE([WITH_DB], [Compile with the Berkeley DB library])
+AH_TEMPLATE([COB_EXPERIMENTAL], [Enable experimental code (Developers only!)])
+AH_TEMPLATE([COB_PARAM_CHECK], [Enable CALL parameter checking])
+AH_TEMPLATE([PATCH_LEVEL], [Define a patch level])
 AH_TEMPLATE([WITH_INDEX_EXTFH], [Compile with an external ISAM handler])
 AH_TEMPLATE([WITH_SEQRA_EXTFH], [Compile with an external SEQ/RAN handler])
+AH_TEMPLATE([WITH_DB], [Use Berkeley DB library as emulation of ISAM handler])
 AH_TEMPLATE([WITH_CISAM], [Use CISAM as ISAM handler])
 AH_TEMPLATE([WITH_DISAM], [Use DISAM as ISAM handler])
 AH_TEMPLATE([WITH_VBISAM], [Use VBISAM as ISAM handler])
-AH_TEMPLATE([COB_EXPERIMENTAL], [Enable experimental code (Developers only!)])
-AH_TEMPLATE([COB_PARAM_CHECK], [Enable CALL parameter checking])
 AH_TEMPLATE([COB_EXPORT_DYN], [Compile/link option for exporting symbols])
 AH_TEMPLATE([COB_PIC_FLAGS], [Compile/link option for PIC code])
 AH_TEMPLATE([COB_SHARED_OPT], [Compile/link option for shared code])
 AH_TEMPLATE([COB_STRIP_CMD], [Strip command])
 AH_TEMPLATE([USE_LIBDL], [Use system dynamic loader])
 AH_TEMPLATE([HAVE_DLADDR], [Has dladdr function])
-AH_TEMPLATE([PATCH_LEVEL], [Define a patch level])
 AH_TEMPLATE([WITH_VARSEQ], [Define variable sequential file format])
 AH_TEMPLATE([HAVE_PSIGN_OPT], [Has -Wno-pointer-sign])
 AH_TEMPLATE([HAVE_ATTRIBUTE_ALIGNED], [Has __attribute__((aligned))])
@@ -89,6 +90,7 @@ AH_TEMPLATE([HAVE_CURSES_FREEALL], [ncurses has _nc_freeall function])
 AH_TEMPLATE([HAVE_USE_LEGACY_CODING], [ncurses has use_legacy_coding function])
 AH_TEMPLATE([HAVE_DESIGNATED_INITS], [Has designated initializers])
 AH_TEMPLATE([HAVE_NANO_SLEEP], [Has nanosleep function])
+AH_TEMPLATE([HAVE_CLOCK_GETTIME], [Has clock_gettime function and CLOCK_REALTIME])
 AH_TEMPLATE([HAVE_MP_GET_MEMORY_FUNCTIONS], [Do we have mp_get_memory_functions in gmp])
 #AH_TEMPLATE([HAVE_RAISE], [Has raise function])
 AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
@@ -239,6 +241,43 @@ fi
 
 # Configure options.
 
+AC_ARG_ENABLE([debug],
+  [  --enable-debug          (GNU Cobol) Enable -g C compiler debug option],
+  [],
+  [enable_debug=no])
+
+AC_ARG_ENABLE([experimental],
+  [  --enable-experimental   (GNU Cobol) Enable experimental code (Developers only!)],
+  [if test "$enable_experimental" = "yes"
+   then
+	AC_DEFINE([COB_EXPERIMENTAL], [1])
+   fi],
+  [])
+
+AC_ARG_ENABLE([param-check],
+  [  --enable-param-check    (GNU Cobol) Enable CALL parameter checking (default no)],
+  [if test "$enable_param_check" = "yes"
+   then
+	AC_DEFINE([COB_PARAM_CHECK], [1])
+   fi],
+  [])
+
+AC_ARG_WITH([patch-level],
+  [  --with-patch-level      (GNU Cobol) Define a patch level (default 0)],
+  [case $with_patch_level in  
+    yes)	AC_MSG_ERROR([[You must give --with-patch-level an argument.]])
+		;;
+    no)		AC_MSG_ERROR([[--without-patch-level not supported.]])
+		;;
+    [[0-9]]*)
+		;;
+    *)		AC_MSG_ERROR([[You must use a numeric patch level]])
+		;;
+  esac],
+  [with_patch_level=0])
+
+AC_DEFINE_UNQUOTED([PATCH_LEVEL], [$with_patch_level])
+
 AC_ARG_WITH([curses],
   [  --with-curses           (GNU Cobol) Used curses library for extended SCREEN I/O (default=check)],
   [case "$with_curses" in
@@ -248,7 +287,7 @@ AC_ARG_WITH([curses],
     *)
 		AC_MSG_ERROR([Wrong value for --with-curses, must be one of the following
   ncursesw, ncurses, pdcurses, curses  (use only the specified library)
-  check  (use whatever curses libary is usable, disable if no curses usable)
+  check  (use whatever curses library is usable, disable if no one usable)
   no  (disable curses usage)])
 		;;
   esac],
@@ -263,7 +302,7 @@ AC_ARG_WITH([seqra-extfh],
   [])
 
 AC_ARG_WITH([cisam],
-  [  --with-cisam            (GNU Cobol) Use CISAM for ISAM I/O (Experimental)],
+  [  --with-cisam            (GNU Cobol) Use CISAM for ISAM I/O],
   [ if test "$with_cisam" = "yes"
     then
 	AC_CHECK_HEADERS([isam.h], [],
@@ -278,7 +317,7 @@ AC_ARG_WITH([cisam],
 if test "$with_cisam" != "yes"
 then
   AC_ARG_WITH([disam],
-  [  --with-disam            (GNU Cobol) Use DISAM for ISAM I/O (Experimental)],
+  [  --with-disam            (GNU Cobol) Use DISAM for ISAM I/O],
   [ if test "$with_disam" = "yes"
     then
 	AC_CHECK_HEADERS([disam.h], [],
@@ -294,7 +333,7 @@ fi
 if test "$with_cisam" != "yes" -a "$with_disam" != "yes"
 then
   AC_ARG_WITH([vbisam],
-  [  --with-vbisam           (GNU Cobol) Use VBISAM for ISAM I/O (Experimental)],
+  [  --with-vbisam           (GNU Cobol) Use VBISAM for ISAM I/O],
   [ if test "$with_vbisam" = "yes"
     then
 	AC_CHECK_HEADERS([vbisam.h], [],
@@ -337,43 +376,6 @@ AC_ARG_WITH([dl],
 		;;
    esac],
   [with_dl=yes])
-
-AC_ARG_ENABLE([debug],
-  [  --enable-debug          (GNU Cobol) Enable -g C compiler debug option],
-  [],
-  [enable_debug=no])
-
-AC_ARG_ENABLE([experimental],
-  [  --enable-experimental   (GNU Cobol) Enable experimental code (Developers only!)],
-  [if test "$enable_experimental" = "yes"
-   then
-	AC_DEFINE([COB_EXPERIMENTAL], [1])
-   fi],
-  [])
-
-AC_ARG_ENABLE([param-check],
-  [  --enable-param-check    (GNU Cobol) Enable CALL parameter checking (default no)],
-  [if test "$enable_param_check" = "yes"
-   then
-	AC_DEFINE([COB_PARAM_CHECK], [1])
-   fi],
-  [])
-
-AC_ARG_WITH([patch-level],
-  [  --with-patch-level      (GNU Cobol) Define a patch level (default 0)],
-  [case $with_patch_level in  
-    yes)	AC_MSG_ERROR([[You must give --with-patch-level an argument.]])
-		;;
-    no)		AC_MSG_ERROR([[--without-patch-level not supported.]])
-		;;
-    [[0-9]]*)
-		;;
-    *)		AC_MSG_ERROR([[You must use a numeric patch level]])
-		;;
-  esac],
-  [with_patch_level=0])
-
-AC_DEFINE_UNQUOTED([PATCH_LEVEL], [$with_patch_level])
 
 AC_ARG_WITH([varseq],
   [  --with-varseq           (GNU Cobol) Define variable sequential format (default 0)],
@@ -484,6 +486,12 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <time.h>]],
      fi
    fi])
 
+AC_MSG_CHECKING([for clock_gettime and CLOCK_REALTIME])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <time.h>]],
+  [[clock_gettime (CLOCK_REALTIME, NULL);]])],
+  [AC_DEFINE([HAVE_CLOCK_GETTIME], [1]) AC_MSG_RESULT([yes])],
+  [AC_MSG_RESULT([no])])
+
 # Check for raise (optional) --> done via AC_CHECK_FUNCS
 #AC_MSG_CHECKING([for raise])
 #AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <signal.h>]],
@@ -528,7 +536,7 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[])
 
 AM_GNU_GETTEXT([external])
-AM_GNU_GETTEXT_VERSION([0.17])
+AM_GNU_GETTEXT_VERSION([0.18.3])
 if test "x$LTLIBINTL" != "x"
 then
   COBC_LIBS="$COBC_LIBS $LTLIBINTL"
@@ -619,7 +627,7 @@ then
   if test "x$ac_cv_lib_curses_initscr" = "xyes"
   then
     AC_CHECK_HEADERS([curses.h], [USE_NCURSES="curses"],
-      [if test "$USE_NCURSES" = "pdcurses"
+      [if test "$USE_NCURSES" = "curses"
        then
          USE_NCURSES="missing_header"
        fi], [])
@@ -638,12 +646,28 @@ fi
 case "$USE_NCURSES" in
   check)
 	USE_NCURSES="not_found"
+	AC_DEFINE([WITH_CURSES], ["no curses found"])
+	;;
+  no)
+	AC_DEFINE([WITH_CURSES], ["disabled"])
 	;;
   missing_lib)
 	AC_MSG_ERROR([[Not able to link configured library $with_curses]])
 	;;
   missing_header)
 	AC_MSG_ERROR([[No header found for configured library $with_curses]])
+	;;
+  ncursesw)
+	AC_DEFINE([WITH_CURSES], ["ncursesw"])
+	;;
+  ncurses)
+	AC_DEFINE([WITH_CURSES], ["ncurses"])
+	;;
+  pdcurses)
+	AC_DEFINE([WITH_CURSES], ["pdcurses"])
+	;;
+  curses)
+	AC_DEFINE([WITH_CURSES], ["curses"])
 	;;
 esac
 
@@ -1202,9 +1226,9 @@ then
 fi
 if test "${DEFINE_DL}" = "yes" 
 then
-  AC_MSG_NOTICE([ Dynamic loading:  System])
+  AC_MSG_NOTICE([ Dynamic loading:                             System])
 else
-  AC_MSG_NOTICE([ Dynamic loading:  Libtool])
+  AC_MSG_NOTICE([ Dynamic loading:                             Libtool])
 fi
 AC_MSG_NOTICE([ Use gettext for international messages:      ${USE_NLS}])
 AC_MSG_NOTICE([ Use fcntl for file locking:                  ${ac_cv_func_fcntl}])
@@ -1213,7 +1237,7 @@ case "$USE_NCURSES" in
     AC_MSG_NOTICE([ screen I/O (no curses found):                NO])
 	;;
   no)
-    AC_MSG_NOTICE([ screen I/O (disabled)       :                NO])
+    AC_MSG_NOTICE([ screen I/O (disabled):                       NO])
 	;;
   *)
     AC_MSG_NOTICE([ Use ncurses/pdcurses/curses for screen I/O:  ${USE_NCURSES}])

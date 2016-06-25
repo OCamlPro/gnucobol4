@@ -1,7 +1,7 @@
 /*
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2014 Simon Sobisch
+   Copyright (C) 2014,2015 Simon Sobisch
 
    This file is part of GNU Cobol.
 
@@ -129,6 +129,7 @@ struct cb_statement		*current_statement = NULL;
 struct cb_label			*current_section = NULL;
 struct cb_label			*current_paragraph = NULL;
 char				*cobc_glob_line = NULL;
+int				cb_exp_line = 0;
 
 cb_tree				cobc_printer_node = NULL;
 int				functions_are_all = 0;
@@ -608,28 +609,38 @@ bit_set_attr (const cb_tree onoff, const int attrval)
 
 static void
 check_attribs (cb_tree fgc, cb_tree bgc, cb_tree scroll,
-	       cb_tree timeout, cb_tree prompt, int attrib)
+	       cb_tree timeout, cb_tree prompt, cb_tree size_is, int attrib)
 {
 	/* Attach attribute to current_statement */
 	if (!current_statement->attr_ptr) {
 		current_statement->attr_ptr =
 			cobc_parse_malloc (sizeof(struct cb_attr_struct));
 	}
+	/* [WITH] FOREGROUND-COLOR [IS] */
 	if (fgc) {
 		current_statement->attr_ptr->fgc = fgc;
 	}
+	/* [WITH] BACKGROUND-COLOR [IS] */
 	if (bgc) {
 		current_statement->attr_ptr->bgc = bgc;
 	}
+	/* [WITH] SCROLL UP | DOWN */
 	if (scroll) {
 		current_statement->attr_ptr->scroll = scroll;
 	}
+	/* [WITH] TIMEOUT [AFTER] */
 	if (timeout) {
 		current_statement->attr_ptr->timeout = timeout;
 	}
+	/* [WITH] PROMPT CHARACTER [IS] */
 	if (prompt) {
 		current_statement->attr_ptr->prompt = prompt;
 	}
+	/* [WITH] SIZE [IS] */
+	if (size_is) {
+		current_statement->attr_ptr->size_is = size_is;
+	}
+	/* Attribute */
 	current_statement->attr_ptr->dispattrs |= attrib;
 }
 
@@ -743,6 +754,14 @@ check_headers_present (const unsigned int lev1, const unsigned int lev2,
 			check_relaxed_syntax (lev4);
 		}
 	}
+}
+
+static int
+has_relative_pos (struct cb_field const *field)
+{
+	return !!(field->screen_flag
+		& (COB_SCREEN_LINE_PLUS | COB_SCREEN_LINE_MINUS
+		   | COB_SCREEN_COLUMN_PLUS | COB_SCREEN_COLUMN_MINUS));
 }
 
 %}
@@ -1039,6 +1058,7 @@ check_headers_present (const unsigned int lev1, const unsigned int lev2,
 %token NOT
 %token NOT_END			"NOT END"
 %token NOT_EOP			"NOT EOP"
+%token NOT_ESCAPE		"NOT ESCAPE"
 %token NOT_EQUAL		"NOT EQUAL"
 %token NOT_EXCEPTION		"NOT EXCEPTION"
 %token NOT_INVALID_KEY		"NOT INVALID KEY"
@@ -1092,6 +1112,7 @@ check_headers_present (const unsigned int lev1, const unsigned int lev2,
 %token PROGRAM_POINTER		"PROGRAM-POINTER"
 %token PROHIBITED
 %token PROMPT
+%token PROTECTED		"PROTECTED"
 %token QUOTE
 %token RANDOM
 %token RD
@@ -1318,6 +1339,7 @@ check_headers_present (const unsigned int lev1, const unsigned int lev2,
 
 %nonassoc NOT_END
 %nonassoc NOT_EOP
+%nonassoc NOT_ESCAPE
 %nonassoc NOT_INVALID_KEY
 %nonassoc NOT_OVERFLOW
 %nonassoc NOT_SIZE_ERROR
@@ -1596,9 +1618,6 @@ program_identification:
 function_identification:
   FUNCTION_ID TOK_DOT program_name as_literal TOK_DOT
   {
-#if	0	/* RXWRXW - FUNCTION-ID */
-	cb_error (_("FUNCTION-ID is not yet implemented"));
-#endif
 	current_section = NULL;
 	current_paragraph = NULL;
 	if (CB_LITERAL_P ($3)) {
@@ -1694,7 +1713,7 @@ configuration_header:
 	check_headers_present (COBC_HD_ENVIRONMENT_DIVISION, 0, 0, 0);
 	header_check |= COBC_HD_CONFIGURATION_SECTION;
 	if (current_program->nested_level) {
-		cb_error (_("CONFIGURATION SECTION not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "CONFIGURATION SECTION");
 	}
   }
 ;
@@ -1916,7 +1935,7 @@ special_names_paragraph:
 			       COBC_HD_CONFIGURATION_SECTION, 0, 0);
 	header_check |= COBC_HD_SPECIAL_NAMES;
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	}
   }
 ;
@@ -1956,16 +1975,25 @@ special_name:
 mnemonic_name_clause:
   WORD
   {
+	char system_name[16];
 	check_headers_present (COBC_HD_ENVIRONMENT_DIVISION,
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
+	check_duplicate = 0;
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 		save_tree = NULL;
 	} else {
-		save_tree = lookup_system_name (CB_NAME ($1));
+		/* get system name and revert word-combination of scanner.l,
+		   if necessary (e.g. SWITCH A <--> SWITCH_A) */
+		strncpy(system_name, CB_NAME ($1), 15);
+		if (system_name [6] == '_') {
+			system_name [6] = ' ';
+		}
+		/* lookup system name */
+		save_tree = lookup_system_name (system_name);
 		if (!save_tree) {
-			cb_error_x ($1, _("Invalid system-name '%s'"), CB_NAME ($1));
+			cb_error_x ($1, _("Invalid system-name '%s'"), system_name);
 		}
 	}
   }
@@ -2019,6 +2047,11 @@ on_off_clauses:
 	/* cb_define_switch_name checks param validity */
 	x = cb_define_switch_name ($3, save_tree, $1 == cb_int1);
 	if (x) {
+		if ($1 == cb_int1) {
+			check_repeated ("ON", SYN_CLAUSE_1);
+		} else {
+			check_repeated ("OFF", SYN_CLAUSE_2);
+		}
 		CB_CHAIN_PAIR (current_program->mnemonic_spec_list, $3, x);
 	}
   }
@@ -2029,6 +2062,11 @@ on_off_clauses:
 	/* cb_define_switch_name checks param validity */
 	x = cb_define_switch_name ($4, save_tree, $2 == cb_int1);
 	if (x) {
+		if ($2 == cb_int1) {
+			check_repeated ("ON", SYN_CLAUSE_1);
+		} else {
+			check_repeated ("OFF", SYN_CLAUSE_2);
+		}
 		CB_CHAIN_PAIR (current_program->mnemonic_spec_list, $4, x);
 	}
   }
@@ -2043,7 +2081,7 @@ alphabet_name_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 		$$ = NULL;
 	} else {
 		/* Returns null on error */
@@ -2165,7 +2203,7 @@ symbolic_characters_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else if ($1) {
 		CB_CHAIN_PAIR (current_program->symbolic_char_list, $1, $2);
 	}
@@ -2261,7 +2299,7 @@ class_name_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		/* Returns null on error */
 		x = cb_build_class_name ($2, $4);
@@ -2312,7 +2350,7 @@ locale_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		/* Returns null on error */
 		l = cb_build_locale_name ($2, $4);
@@ -2336,7 +2374,7 @@ currency_sign_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 		error_ind = 1;
 	}
 	check_repeated ("CURRENCY", SYN_CLAUSE_1);
@@ -2427,7 +2465,7 @@ decimal_point_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		check_repeated ("DECIMAL-POINT", SYN_CLAUSE_2);
 		current_program->decimal_point = ',';
@@ -2446,7 +2484,7 @@ numeric_sign_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		current_program->flag_trailing_separate = 1;
 	}
@@ -2462,7 +2500,7 @@ cursor_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		check_repeated ("CURSOR", SYN_CLAUSE_3);
 		current_program->cursor_pos = $3;
@@ -2480,7 +2518,7 @@ crt_status_clause:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		check_repeated ("CRT STATUS", SYN_CLAUSE_4);
 		current_program->crt_status = $4;
@@ -2498,7 +2536,7 @@ screen_control:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		check_repeated ("SCREEN CONTROL", SYN_CLAUSE_5);
 		PENDING ("SCREEN CONTROL");
@@ -2515,7 +2553,7 @@ event_status:
 			       COBC_HD_CONFIGURATION_SECTION,
 			       COBC_HD_SPECIAL_NAMES, 0);
 	if (current_program->nested_level) {
-		cb_error (_("SPECIAL-NAMES not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		check_repeated ("EVENT STATUS", SYN_CLAUSE_6);
 		PENDING ("EVENT STATUS");
@@ -3135,7 +3173,7 @@ file_description_clause:
 	}
 #endif
 	if (current_program->prog_type == CB_FUNCTION_TYPE) {
-		cb_error (_("GLOBAL is invalid in a user FUNCTION"));
+		cb_error (_("%s is invalid in a user FUNCTION"), "GLOBAL");
 	} else {
 		current_file->flag_global = 1;
 		current_program->flag_file_global = 1;
@@ -3444,7 +3482,7 @@ report_clause:
   report_keyword rep_name_list
   {
 	check_repeated ("REPORT", SYN_CLAUSE_11);
-	cb_warning (_("REPORT WRITER not implemented"));
+	PENDING("REPORT WRITER");
 	if (current_file->organization != COB_ORG_LINE_SEQUENTIAL &&
 	    current_file->organization != COB_ORG_SEQUENTIAL) {
 		cb_error (_("REPORT clause with wrong file type"));
@@ -3647,7 +3685,7 @@ const_global:
 | _is GLOBAL
   {
 	if (current_program->prog_type == CB_FUNCTION_TYPE) {
-		cb_error (_("GLOBAL is invalid in a user FUNCTION"));
+		cb_error (_("%s is invalid in a user FUNCTION"), "GLOBAL");
 		$$= NULL;
 	} else {
 		$$ = cb_null;
@@ -3843,21 +3881,21 @@ external_clause:
   {
 	check_pic_repeated ("EXTERNAL", SYN_CLAUSE_2);
 	if (current_storage != CB_STORAGE_WORKING) {
-		cb_error (_("EXTERNAL not allowed here"));
+		cb_error (_("%s not allowed here"), "EXTERNAL");
 	} else if (current_field->level != 1 && current_field->level != 77) {
-		cb_error (_("EXTERNAL only allowed at 01/77 level"));
+		cb_error (_("%s only allowed at 01/77 level"), "EXTERNAL");
 	} else if (!qualifier) {
-		cb_error (_("EXTERNAL requires a data name"));
+		cb_error (_("%s requires a data name"), "EXTERNAL");
 #if	0	/* RXWRXW - Global/External */
 	} else if (current_field->flag_is_global) {
-		cb_error (_("GLOBAL and EXTERNAL are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "GLOBAL", "EXTERNAL");
 #endif
 	} else if (current_field->flag_item_based) {
-		cb_error (_("BASED and EXTERNAL are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "EXTERNAL");
 	} else if (current_field->redefines) {
-		cb_error (_("EXTERNAL and REDEFINES are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "EXTERNAL", "REDEFINES");
 	} else if (current_field->flag_occurs) {
-		cb_error (_("EXTERNAL and OCCURS are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "EXTERNAL", "OCCURS");
 	} else {
 		current_field->flag_external = 1;
 		current_program->flag_has_external = 1;
@@ -3883,17 +3921,17 @@ global_clause:
   {
 	check_pic_repeated ("GLOBAL", SYN_CLAUSE_3);
 	if (current_field->level != 1 && current_field->level != 77) {
-		cb_error (_("GLOBAL only allowed at 01/77 level"));
+		cb_error (_("%s only allowed at 01/77 level"), "GLOBAL");
 	} else if (!qualifier) {
-		cb_error (_("GLOBAL requires a data name"));
+		cb_error (_("%s requires a data name"), "GLOBAL");
 #if	0	/* RXWRXW - Global/External */
 	} else if (current_field->flag_external) {
-		cb_error (_("GLOBAL and EXTERNAL are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "GLOBAL", "EXTERNAL");
 #endif
 	} else if (current_program->prog_type == CB_FUNCTION_TYPE) {
-		cb_error (_("GLOBAL is invalid in a user FUNCTION"));
+		cb_error (_("%s is invalid in a user FUNCTION"), "GLOBAL");
 	} else if (current_storage == CB_STORAGE_LOCAL) {
-		cb_error (_("GLOBAL not allowed here"));
+		cb_error (_("%s not allowed here"), "GLOBAL");
 	} else {
 		current_field->flag_is_global = 1;
 	}
@@ -4159,9 +4197,9 @@ occurs_clause:
 			  COB_MAX_SUBSCRIPTS);
 	}
 	if (current_field->flag_item_based) {
-		cb_error (_("BASED and OCCURS are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "OCCURS");
 	} else if (current_field->flag_external) {
-		cb_error (_("EXTERNAL and OCCURS are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "EXTERNAL", "OCCURS");
 	}
 	current_field->flag_occurs = 1;
   }
@@ -4177,9 +4215,9 @@ occurs_clause:
 			  COB_MAX_SUBSCRIPTS);
 	}
 	if (current_field->flag_item_based) {
-		cb_error (_("BASED and OCCURS are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "OCCURS");
 	} else if (current_field->flag_external) {
-		cb_error (_("EXTERNAL and OCCURS are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "EXTERNAL", "OCCURS");
 	}
 	current_field->flag_occurs = 1;
   }
@@ -4328,19 +4366,19 @@ based_clause:
 	if (current_storage != CB_STORAGE_WORKING &&
 	    current_storage != CB_STORAGE_LINKAGE &&
 	    current_storage != CB_STORAGE_LOCAL) {
-		cb_error (_("BASED not allowed here"));
+		cb_error (_("%s not allowed here"), "BASED");
 	} else if (current_field->level != 1 && current_field->level != 77) {
-		cb_error (_("BASED only allowed at 01/77 level"));
+		cb_error (_("%s only allowed at 01/77 level"), "BASED");
 	} else if (!qualifier) {
-		cb_error (_("BASED requires a data name"));
+		cb_error (_("%s requires a data name"), "BASED");
 	} else if (current_field->flag_external) {
-		cb_error (_("BASED and EXTERNAL are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "EXTERNAL");
 	} else if (current_field->redefines) {
-		cb_error (_("BASED and REDEFINES are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "REDEFINES");
 	} else if (current_field->flag_any_length) {
-		cb_error (_("BASED and ANY LENGTH are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "ANY LENGTH");
 	} else if (current_field->flag_occurs) {
-		cb_error (_("BASED and OCCURS are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "OCCURS");
 	} else {
 		current_field->flag_item_based = 1;
 	}
@@ -4420,7 +4458,7 @@ any_length_clause:
   {
 	check_pic_repeated ("ANY", SYN_CLAUSE_14);
 	if (current_field->flag_item_based) {
-		cb_error (_("BASED and ANY clause are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "ANY clause");
 	} else {
 		current_field->flag_any_length = 1;
 	}
@@ -4429,7 +4467,7 @@ any_length_clause:
   {
 	check_pic_repeated ("ANY", SYN_CLAUSE_14);
 	if (current_field->flag_item_based) {
-		cb_error (_("BASED and ANY clause are mutually exclusive"));
+		cb_error (_("%s and %s are mutually exclusive"), "BASED", "ANY clause");
 	} else {
 		current_field->flag_any_length = 1;
 		current_field->flag_any_numeric = 1;
@@ -4446,7 +4484,7 @@ local_storage_section:
 	header_check |= COBC_HD_LOCAL_STORAGE_SECTION;
 	current_storage = CB_STORAGE_LOCAL;
 	if (current_program->nested_level) {
-		cb_error (_("LOCAL-STORAGE not allowed in nested programs"));
+		cb_error (_("%s not allowed in nested programs"), "LOCAL-STORAGE");
 	}
   }
   record_description_list
@@ -4480,7 +4518,7 @@ linkage_section:
 report_section:
 | REPORT SECTION TOK_DOT
   {
-	cb_warning (_("REPORT SECTION not implemented"));
+	PENDING("REPORT SECTION");
 	current_storage = CB_STORAGE_REPORT;
 	cb_clear_real_field ();
   }
@@ -4841,8 +4879,7 @@ opt_screen_description_list:
 
 screen_description_list:
   screen_description TOK_DOT
-| screen_description_list
-  screen_description TOK_DOT
+| screen_description_list screen_description TOK_DOT
 ;
 
 screen_description:
@@ -4903,10 +4940,13 @@ screen_description:
 	if (!description_field) {
 		description_field = current_field;
 	}
+	if (current_field->flag_occurs && !has_relative_pos (current_field)) {
+		cb_error ("Relative LINE/COLUMN clause required with OCCURS");
+	}
   }
 | level_number error TOK_DOT
   {
-	/* Free tree assocated with level number */
+	/* Free tree associated with level number */
 	cobc_parse_free ($1);
 	yyerrok;
 	cb_unput_dot ();
@@ -4970,10 +5010,12 @@ screen_option:
 | OVERLINE
   {
 	check_screen_attr ("OVERLINE", COB_SCREEN_OVERLINE);
+	PENDING ("OVERLINE");
   }
 | LEFTLINE
   {
 	check_screen_attr ("LEFTLINE", COB_SCREEN_LEFTLINE);
+	PENDING ("LEFTLINE");
   }
 | AUTO
   {
@@ -4986,10 +5028,12 @@ screen_option:
 | REQUIRED
   {
 	check_screen_attr ("REQUIRED", COB_SCREEN_REQUIRED);
+	PENDING ("REQUIRED");
   }
 | FULL
   {
 	check_screen_attr ("FULL", COB_SCREEN_FULL);
+	PENDING ("FULL");
   }
 | PROMPT CHARACTER _is id_or_lit
   {
@@ -5243,7 +5287,7 @@ procedure_type:
 | _by VALUE
   {
 	if (current_program->flag_chained) {
-		cb_error (_("BY VALUE not allowed in CHAINED program"));
+		cb_error (_("%s not allowed in CHAINED programs"), "BY VALUE");
 	} else {
 		call_mode = CB_CALL_BY_VALUE;
 	}
@@ -5724,10 +5768,10 @@ accept_statement:
   {
 	begin_statement ("ACCEPT", TERM_ACCEPT);
 	if (cb_accept_update) {
-		check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UPDATE);
+		check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UPDATE);
 	}
 	if (cb_accept_auto) {
-		check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_AUTO);
+		check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_AUTO);
 	}
 
   }
@@ -5844,11 +5888,11 @@ at_line_column:
 | _at column_number line_number { $$ = CB_BUILD_PAIR ($3, $2); }
 | _at line_number		{ $$ = CB_BUILD_PAIR ($2, cb_int0); }
 | _at column_number		{ $$ = CB_BUILD_PAIR (cb_int0, $2); }
-| AT simple_value		{ $$ = $2; }
+| AT num_id_or_lit		{ $$ = $2; }
 ;
 
 line_number:
-  LINE _number num_id_or_lit		{ $$ = $3; }
+  LINE _number num_id_or_lit	{ $$ = $3; }
 ;
 
 column_number:
@@ -5879,7 +5923,7 @@ accp_attrs:
 accp_attr:
   AUTO
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_AUTO);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_AUTO);
   }
 | TAB
   {
@@ -5889,11 +5933,11 @@ accp_attr:
   }
 | BELL
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BELL);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BELL);
   }
 | BLINK
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLINK);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLINK);
   }
 | CONVERSION
   {
@@ -5901,55 +5945,63 @@ accp_attr:
   }
 | FULL
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_FULL);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_FULL);
   }
 | HIGHLIGHT
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_HIGHLIGHT);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_HIGHLIGHT);
   }
 | LEFTLINE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LEFTLINE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LEFTLINE);
   }
 | LOWER
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LOWER);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LOWER);
   }
 | LOWLIGHT
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LOWLIGHT);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LOWLIGHT);
   }
 | NO_ECHO
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_NO_ECHO);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_NO_ECHO);
   }
 | OVERLINE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_OVERLINE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_OVERLINE);
   }
 | PROMPT CHARACTER _is id_or_lit
   {
-	check_attribs (NULL, NULL, NULL, NULL, $4, COB_SCREEN_PROMPT);
+	check_attribs (NULL, NULL, NULL, NULL, $4, NULL, COB_SCREEN_PROMPT);
   }
 | PROMPT
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_PROMPT);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_PROMPT);
   }
 | REQUIRED
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_REQUIRED);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_REQUIRED);
   }
 | REVERSE_VIDEO
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_REVERSE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_REVERSE);
   }
 | SECURE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_SECURE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_SECURE);
+  }
+| PROTECTED SIZE _is num_id_or_lit
+  {
+	check_attribs (NULL, NULL, NULL, NULL, NULL, $4, 0);
+  }
+| SIZE _is num_id_or_lit
+  {
+	check_attribs (NULL, NULL, NULL, NULL, NULL, $3, 0);
   }
 | UNDERLINE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UNDERLINE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UNDERLINE);
   }
 | NO update_default
   {
@@ -5959,31 +6011,31 @@ accp_attr:
   }
 | update_default
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UPDATE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UPDATE);
   }
 | UPPER
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UPPER);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UPPER);
   }
 | FOREGROUND_COLOR _is num_id_or_lit
   {
-	check_attribs ($3, NULL, NULL, NULL, NULL, 0);
+	check_attribs ($3, NULL, NULL, NULL, NULL, NULL, 0);
   }
 | BACKGROUND_COLOR _is num_id_or_lit
   {
-	check_attribs (NULL, $3, NULL, NULL, NULL, 0);
+	check_attribs (NULL, $3, NULL, NULL, NULL, NULL, 0);
   }
 | SCROLL UP _opt_scroll_lines
   {
-	check_attribs (NULL, NULL, $3, NULL, NULL, 0);
+	check_attribs (NULL, NULL, $3, NULL, NULL, NULL, 0);
   }
 | SCROLL DOWN _opt_scroll_lines
   {
-	check_attribs (NULL, NULL, $3, NULL, NULL, COB_SCREEN_SCROLL_DOWN);
+	check_attribs (NULL, NULL, $3, NULL, NULL, NULL, COB_SCREEN_SCROLL_DOWN);
   }
 | TIMEOUT _after positive_id_or_lit
   {
-	check_attribs (NULL, NULL, NULL, $3, NULL, 0);
+	check_attribs (NULL, NULL, NULL, $3, NULL, NULL, 0);
   }
 ;
 
@@ -6251,7 +6303,7 @@ call_type:
   {
 	if (current_program->flag_chained) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("BY CONTENT not allowed in CHAINED program"));
+			    _("%s not allowed in CHAINED programs"), "BY CONTENT");
 	} else {
 		call_mode = CB_CALL_BY_CONTENT;
 	}
@@ -6260,7 +6312,7 @@ call_type:
   {
 	if (current_program->flag_chained) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("BY VALUE not allowed in CHAINED program"));
+			    _("%s not allowed in CHAINED programs"), "BY VALUE");
 	} else {
 		call_mode = CB_CALL_BY_VALUE;
 	}
@@ -6626,19 +6678,19 @@ disp_attrs:
 disp_attr:
   BELL
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BELL);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BELL);
   }
 | BLANK LINE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLANK_LINE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLANK_LINE);
   }
 | BLANK SCREEN
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLANK_SCREEN);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLANK_SCREEN);
   }
 | BLINK
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLINK);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_BLINK);
   }
 | CONVERSION
   {
@@ -6646,47 +6698,51 @@ disp_attr:
   }
 | ERASE EOL
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_ERASE_EOL);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_ERASE_EOL);
   }
 | ERASE EOS
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_ERASE_EOS);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_ERASE_EOS);
   }
 | HIGHLIGHT
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_HIGHLIGHT);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_HIGHLIGHT);
   }
 | LOWLIGHT
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LOWLIGHT);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_LOWLIGHT);
   }
 | OVERLINE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_OVERLINE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_OVERLINE);
   }
 | REVERSE_VIDEO
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_REVERSE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_REVERSE);
+  }
+| SIZE _is num_id_or_lit
+  {
+	check_attribs (NULL, NULL, NULL, NULL, NULL, $3, 0);
   }
 | UNDERLINE
   {
-	check_attribs (NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UNDERLINE);
+	check_attribs (NULL, NULL, NULL, NULL, NULL, NULL, COB_SCREEN_UNDERLINE);
   }
 | FOREGROUND_COLOR _is num_id_or_lit
   {
-	check_attribs ($3, NULL, NULL, NULL, NULL, 0);
+	check_attribs ($3, NULL, NULL, NULL, NULL, NULL, 0);
   }
 | BACKGROUND_COLOR _is num_id_or_lit
   {
-	check_attribs (NULL, $3, NULL, NULL, NULL, 0);
+	check_attribs (NULL, $3, NULL, NULL, NULL, NULL, 0);
   }
 | SCROLL UP _opt_scroll_lines
   {
-	check_attribs (NULL, NULL, $3, NULL, NULL, 0);
+	check_attribs (NULL, NULL, $3, NULL, NULL, NULL, 0);
   }
 | SCROLL DOWN _opt_scroll_lines
   {
-	check_attribs (NULL, NULL, $3, NULL, NULL, COB_SCREEN_SCROLL_DOWN);
+	check_attribs (NULL, NULL, $3, NULL, NULL, NULL, COB_SCREEN_SCROLL_DOWN);
   }
 ;
 
@@ -6763,9 +6819,9 @@ entry_body:
   LITERAL call_using
   {
 	if (current_program->nested_level) {
-		cb_error (_("ENTRY is invalid in nested program"));
+		cb_error (_("%s is invalid in nested program"), "ENTRY");
 	} else if (current_program->prog_type == CB_FUNCTION_TYPE) {
-		cb_error (_("ENTRY is invalid in a user FUNCTION"));
+		cb_error (_("%s is invalid in a user FUNCTION"), "ENTRY");
 	} else if (cb_verify (cb_entry_statement, "ENTRY")) {
 		if (!cobc_check_valid_name ((char *)(CB_LITERAL ($1)->data), 1U)) {
 			emit_entry ((char *)(CB_LITERAL ($1)->data), 1, $2);
@@ -7611,7 +7667,7 @@ open_body:
 
 	if ($2 && $4) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("SHARING and LOCK clauses are mutually exclusive"));
+			    _("%s and %s are mutually exclusive"), "SHARING", "LOCK clauses");
 	}
 	if ($4) {
 		x = $4;
@@ -7632,7 +7688,7 @@ open_body:
 
 	if ($3 && $5) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("SHARING and LOCK clauses are mutually exclusive"));
+			    _("%s and %s are mutually exclusive"), "SHARING", "LOCK clauses");
 	}
 	if ($5) {
 		x = $5;
@@ -8510,7 +8566,7 @@ stop_statement:
 	cb_verify (cb_stop_literal_statement, "STOP literal");
 	cb_emit_display (CB_LIST_INIT ($2), cb_int0, cb_int1, NULL,
 			 NULL);
-	cb_emit_accept (NULL, NULL, NULL);
+	cb_emit_accept (cb_null, NULL, NULL);
 	cobc_cs_check = 0;
   }
 ;
@@ -8871,7 +8927,7 @@ use_global:
 | GLOBAL
   {
 	if (current_program->prog_type == CB_FUNCTION_TYPE) {
-		cb_error (_("GLOBAL is invalid in a user FUNCTION"));
+		cb_error (_("%s is invalid in a user FUNCTION"), "GLOBAL");
 	} else {
 		use_global_ind = 1;
 		current_program->flag_global_use = 1;
@@ -9039,7 +9095,7 @@ use_start_end:
   _at PROGRAM program_start_end
   {
 	if (current_program->nested_level) {
-		cb_error (_("USE AT is invalid in nested program"));
+		cb_error (_("%s is invalid in nested program"), "USE AT");
 	}
   }
 ;
@@ -9162,7 +9218,7 @@ on_accp_exception:
 ;
 
 opt_on_accp_exception:
-| EXCEPTION
+| escape_or_exception
   statement_list
   {
 	current_statement->handler_id = COB_EC_IMP_ACCEPT;
@@ -9170,14 +9226,24 @@ opt_on_accp_exception:
   }
 ;
 
+escape_or_exception:
+  ESCAPE
+| EXCEPTION
+;
+
 opt_not_on_accp_exception:
   %prec SHIFT_PREFER
-| NOT_EXCEPTION
+| not_escape_or_not_exception
   statement_list
   {
 	current_statement->handler_id = COB_EC_IMP_ACCEPT;
 	current_statement->handler2 = $2;
   }
+;
+
+not_escape_or_not_exception:
+  NOT_ESCAPE
+| NOT_EXCEPTION
 ;
 
 on_disp_exception:
@@ -9374,6 +9440,7 @@ expr:
 partial_expr:
   {
 	current_expr = NULL;
+	cb_exp_line = cb_source_line;
   }
   expr_tokens
   {
@@ -10136,11 +10203,10 @@ refmod:
 integer:
   LITERAL %prec SHIFT_PREFER
   {
-	if (cb_tree_category ($1) != CB_CATEGORY_NUMERIC) {
-		cb_error (_("Integer value expected"));
-		$$ = cb_int1;
-	} else if (CB_LITERAL ($1)->sign < 0 || CB_LITERAL ($1)->scale) {
-		cb_error (_("Integer value expected"));
+	if (cb_tree_category ($1) != CB_CATEGORY_NUMERIC
+	    || CB_LITERAL ($1)->sign < 0
+	    || CB_LITERAL ($1)->scale) {
+		cb_error (_("Non-negative integer value expected"));
 		$$ = cb_int1;
 	} else {
 		$$ = $1;
@@ -10176,16 +10242,15 @@ report_integer:
   {
 	int	n;
 
-	if (cb_tree_category ($1) != CB_CATEGORY_NUMERIC) {
-		cb_error (_("Integer value expected"));
-		$$ = cb_int1;
-	} else if (CB_LITERAL ($1)->sign || CB_LITERAL ($1)->scale) {
-		cb_error (_("Integer value expected"));
+	if (cb_tree_category ($1) != CB_CATEGORY_NUMERIC
+	    || CB_LITERAL ($1)->sign
+	    || CB_LITERAL ($1)->scale) {
+		cb_error (_("Unsigned positive integer value expected"));
 		$$ = cb_int1;
 	} else {
 		n = cb_get_int ($1);
 		if (n < 1) {
-			cb_error (_("Invalid integer"));
+			cb_error (_("Unsigned positive integer value expected"));
 			$$ = cb_int1;
 		} else {
 			$$ = $1;

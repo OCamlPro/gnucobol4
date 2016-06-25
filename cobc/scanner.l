@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2014,2015 Simon Sobisch
 
    This file is part of GNU Cobol.
 
@@ -214,6 +215,8 @@ static void	read_literal (const int);
 static int	scan_x (char *, const int);
 static int	scan_z (char *, const int, const cob_u32_t);
 static int	scan_h (char *, const int);
+static int	scan_b (char *, const int);
+static int	scan_o (char *);
 static int	scan_numeric (char *);
 static int	scan_floating_numeric (const char *);
 static void	scan_picture (char *);
@@ -338,6 +341,41 @@ H\"[^\"\n]*\" {
 	return scan_h (yytext + 2, yytext[1]);
 }
 
+B\'[^\'\n]*\' |
+B\"[^\"\n]*\" {
+	/* B boolean/numeric literal */
+	cb_verify (cb_numeric_boolean, _("Numeric boolean literal"));
+	cobc_force_literal = 0;
+	return scan_b (yytext + 2, yytext[1]);
+}
+
+B#[0-9]* {
+	/*
+	  To avoid subtle silent errors, such as B#021, this rule (and the ones
+	  following) here admit some invalid literals which emit errors when
+	  they are processed.
+	*/
+	/* ACUCOBOL binary numeric literal */
+	cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"));
+	cobc_force_literal = 0;
+	return scan_b (yytext + 2, '\0');
+}
+
+O#[0-9]* {
+	/* ACUCOBOL octal numeric literal */
+	cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"));
+	cobc_force_literal = 0;
+	return scan_o (yytext + 2);
+}
+
+X#[0-9A-Za-z]* |
+H#[0-9A-Za-z]* {
+	/* ACUCOBOL hexadecimal numeric literal */
+	cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"));
+	cobc_force_literal = 0;
+	return scan_h (yytext + 2, '\0');
+}
+
 \( {
 	inside_bracket++;
 	return TOK_OPEN_PAREN;
@@ -373,8 +411,15 @@ H\"[^\"\n]*\" {
 	/* Ignore */
 }
 
-<DECIMAL_IS_PERIOD>[+-]?[0-9]+\.[0-9]*E[+-]?[0-9]+ {
+<DECIMAL_IS_PERIOD>[+-]?[0-9]*\.[0-9]*E[+-]?[0-9]+ {
 	/* Numeric floating point literal */
+	return scan_floating_numeric (yytext);
+}
+
+<DECIMAL_IS_PERIOD>[+-]?[0-9]*\.[0-9]*E[+-]?[0-9]+\.[0.9]* {
+	/* Invalid numeric floating point literal */
+	cb_error (_("Exponent has decimal point"));
+	/* Accept anyway, to avoid unhelpful syntax errors */
 	return scan_floating_numeric (yytext);
 }
 
@@ -390,8 +435,15 @@ H\"[^\"\n]*\" {
 	/* Ignore */
 }
 
-<DECIMAL_IS_COMMA>[+-]?[0-9]+,[0-9]*E[+-]?[0-9]+ {
+<DECIMAL_IS_COMMA>[+-]?[0-9]*,[0-9]*E[+-]?[0-9]+ {
 	/* Numeric floating point literal */
+	return scan_floating_numeric (yytext);
+}
+
+<DECIMAL_IS_COMMA>[+-]?[0-9]*,[0-9]*E[+-]?[0-9]+,[0.9]* {
+	/* Invalid numeric floating point literal */
+	cb_error (_("Exponent has decimal point"));
+	/* Accept anyway, to avoid unhelpful syntax errors */
 	return scan_floating_numeric (yytext);
 }
 
@@ -537,10 +589,21 @@ H\"[^\"\n]*\" {
 	return SIZE_ERROR;
 }
 
+"NOT"[ ,;\n]+"ON"[ ,;\n]+"ESCAPE"[ ,;\n] |
+"NOT"[ ,;\n]+"ESCAPE"[ ,;\n] {
+	count_lines (yytext);
+	return NOT_ESCAPE;
+}
+
 "NOT"[ ,;\n]+"ON"[ ,;\n]+"EXCEPTION"[ ,;\n] |
 "NOT"[ ,;\n]+"EXCEPTION"[ ,;\n] {
 	count_lines (yytext);
 	return NOT_EXCEPTION;
+}
+
+"ON"[ ,;\n]+"ESCAPE"[ ,;\n] {
+	count_lines (yytext);
+	return ESCAPE;
 }
 
 "ON"[ ,;\n]+"EXCEPTION"[ ,;\n] {
@@ -652,100 +715,37 @@ H\"[^\"\n]*\" {
 	/* Ignore */
 }
 
-"SWITCH"[ ]+"0" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('0');
-	} else {
-		yylval = cb_build_reference ("SWITCH-0");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
+"SWITCH"[ ]+([0-9][0-9]?|[A-Z])[ ,;\n] {
+	/* ACUCOBOL extension: switch-names with space and with letter */
+	char suffix[3] = "";
+	char name[10] = "";
 
-"SWITCH"[ ]+"1" {
+	unput (yytext[yyleng-1]); /* unput seperator */
 	if (cobc_in_procedure) {
+		 /* unput characters */
 		yylval = cb_build_reference ("SWITCH");
-		unput ('1');
+		if (isdigit((unsigned char)yytext[yyleng-3])) {
+			unput (yytext[yyleng-2]);
+			unput (yytext[yyleng-3]);
+		} else {
+			unput (yytext[yyleng-2]);
+		}
 	} else {
-		yylval = cb_build_reference ("SWITCH-1");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"2" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('2');
-	} else {
-		yylval = cb_build_reference ("SWITCH-2");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"3" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('3');
-	} else {
-		yylval = cb_build_reference ("SWITCH-3");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"4" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('4');
-	} else {
-		yylval = cb_build_reference ("SWITCH-4");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"5" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('5');
-	} else {
-		yylval = cb_build_reference ("SWITCH-5");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"6" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('6');
-	} else {
-		yylval = cb_build_reference ("SWITCH-6");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"7" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('7');
-	} else {
-		yylval = cb_build_reference ("SWITCH-7");
-	}
-	SET_LOCATION (yylval);
-	return WORD;
-}
-
-"SWITCH"[ ]+"8" {
-	if (cobc_in_procedure) {
-		yylval = cb_build_reference ("SWITCH");
-		unput ('8');
-	} else {
-		yylval = cb_build_reference ("SWITCH-8");
+		 /* we need to return a single word, reverted later in parser.y */
+		if (yytext[yyleng-3] == ' ' && isdigit((unsigned char)yytext[yyleng-2])) {
+			/* SWITCH 0  to SWITCH 9 */
+			suffix[0] = yytext[yyleng-2];
+		} else if (isdigit((unsigned char)yytext[yyleng-3])) {
+			/* SWITCH 00 to SWITCH 99 */
+			suffix[0] = yytext[yyleng-3];
+			suffix[1] = yytext[yyleng-2];
+		} else {
+			suffix[0] = yytext[yyleng-2];
+		}
+		strncpy(name, yytext, 6);
+		strcat(name, "_");
+		strcat(name, suffix);
+		yylval = cb_build_reference (name);
 	}
 	SET_LOCATION (yylval);
 	return WORD;
@@ -1083,6 +1083,13 @@ read_literal (const int mark)
 	SET_LOCATION (yylval);
 }
 
+static void
+invalid_char_error (const char *literal_type, const char c)
+{
+	cb_error (_("%s literal contains invalid character '%c'"),
+		  literal_type, c);	
+}
+
 static int
 scan_x (char *text, const int mark)
 {
@@ -1091,6 +1098,7 @@ scan_x (char *text, const int mark)
 	size_t			currlen;
 	int			high;
 	int			c;
+	int			invalid_char = 0;
 
 	currlen = strlen (text);
 	if (currlen > plexsize) {
@@ -1109,7 +1117,12 @@ scan_x (char *text, const int mark)
 		} else if ('a' <= c && c <= 'f') {
 			c = c - 'a' + 10;
 		} else {
-			goto error;
+			invalid_char_error ("X", c);
+		        invalid_char = 1;
+			continue;
+			/* By not breaking immediately, we detect any following
+			   invalid chars
+			*/
 		}
 		if (high) {
 			*dst = (cob_u8_t)(c << 4);
@@ -1119,14 +1132,23 @@ scan_x (char *text, const int mark)
 		high = 1 - high;
 	}
 
+	if (!high) {
+		/* This is non-standard behaviour */
+		cb_error (_("X literal does not have an even number of digits"));
+		goto error;
+	} else if (invalid_char) {
+		goto error;
+	}
+	
 	if (high) {
 		yylval = cb_build_alphanumeric_literal (plexbuff, (size_t)(dst - plexbuff));
 		SET_LOCATION (yylval);
 		return LITERAL;
 	}
-	/* Fall through */
+
+	/* Fall through (to suppress compiler warning?) */
+
 error:
-	cb_error (_("Invalid X literal: %s"), text);
 	yylval = cb_error_node;
 	return LITERAL;
 }
@@ -1161,16 +1183,15 @@ scan_z (char *text, const int mark, const cob_u32_t llit)
 static int
 scan_h (char *text, const int mark)
 {
-	unsigned char	*p;
-	cob_u64_t	val;
-	size_t		size;
+	unsigned char	*p = (unsigned char *)text;
+	cob_u64_t	val = 0;
+	size_t		size = 1;
 	int		c;
+	int		invalid_char = 0;
 
-	p = (unsigned char *)text;
-	val = 0;
-	size = 0;
 	for (; (int)*p != mark; p++, size++) {
-		if (size > 15) {
+		if (size > 16) {
+			cb_error (_("Hexadecimal literal is longer than 16 digits"));
 			goto error;
 		}
 		c = (int)*p;
@@ -1181,21 +1202,128 @@ scan_h (char *text, const int mark)
 		} else if ('a' <= c && c <= 'f') {
 			c = c - 'a' + 10;
 		} else {
-			goto error;
+			invalid_char_error ("Hexadecimal", c);
+		        invalid_char = 1;
+			continue;
 		}
+
 		val = (val << 4) + c;
 	}
 
+	if (invalid_char) {
+		goto error;
+	}
+	
+	/* Duplication? */
+	sprintf ((char *)plexbuff, CB_FMT_LLU, val);
+	yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
+
+	SET_LOCATION (yylval);
+	return LITERAL;
+
+error:
+	yylval = cb_error_node;
+	return LITERAL;
+}
+
+static int
+scan_b (char *text, const int mark)
+{
+	size_t		size = 1;
+	cob_u64_t	val = 0;
+	int		c;
+	int		invalid_char = 0;
+
+	for (; *text != mark; text++, size++) {
+		if (size > 64) {
+			cb_error (_("B literal too long; 64 bits max"));
+			goto error;
+		}
+		c = (int) *text;
+		if (c == '0') {
+			c = 0;
+		} else if (c == '1') {
+			c = 1;
+		} else {
+			invalid_char_error ("B", c);
+			invalid_char = 1;
+			continue;
+		}
+
+		val = (val << 1) + c;
+	}
+
+	if (invalid_char) {
+		goto error;
+	}
+	
+	sprintf ((char *)plexbuff, CB_FMT_LLU, val);
+	yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
+
+	SET_LOCATION (yylval);
+	return LITERAL;
+
+ error:
+	yylval = cb_error_node;
+	return LITERAL;
+}
+
+static int
+scan_o (char *text)
+{
+	cob_u64_t	val = 0;
+	size_t		size = 1;
+	int		c;
+	int		invalid_char = 0;
+
+	for (; *text != '\0'; text++, size++) {
+		if (size > 22) {
+			cb_error (_("O literal too long; 22 digits max"));
+			goto error;
+		}
+		c = (int) *text;
+		if (!('0' <= c && c <= '7')) {
+			invalid_char_error ("O", c);
+			invalid_char = 1;
+			continue;
+		}
+		
+		c = c - '0';
+		val = (val << 3) + c;
+	}
+
+	if (invalid_char) {
+		goto error;
+	}
+	
 	sprintf ((char *)plexbuff, CB_FMT_LLU, val);
 	yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
 	SET_LOCATION (yylval);
 	return LITERAL;
 
-error:
-	cb_error (_("Invalid H literal: %s"), text);
+ error:
 	yylval = cb_error_node;
 	return LITERAL;
 }
+
+static int
+get_sign (const char sign)
+{
+	if (sign == '+') {
+		return 1;
+	} else if (sign == '-') {
+		return -1;
+	} else {
+		return 0;
+	}
+}
+
+#define INCREMENT_IF_SIGNED(text, sign) \
+	do {				\
+		if (sign) {		\
+			(text)++;	\
+		}			\
+	} while (0);
 
 static int
 scan_numeric (char *text)
@@ -1205,10 +1333,8 @@ scan_numeric (char *text)
 	int		scale;
 
 	/* Get sign */
-	sign = (*text == '+') ? 1 : (*text == '-') ? -1 : 0;
-	if (sign) {
-		text++;
-	}
+	sign = get_sign (*text);
+	INCREMENT_IF_SIGNED (text, sign);
 
 	/* Get decimal point */
 	scale = 0;
@@ -1241,75 +1367,112 @@ num_zero:
 }
 
 static int
+all_zeroes (const char *str)
+{
+	int	i;
+
+	for (i = 0; str[i] != '\0'; ++i) {
+		if (str[i] != '0') {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+static int
+significand_is_zero (const char *int_part, const char *dec_part)
+{
+	return all_zeroes (int_part)
+		&& all_zeroes (dec_part);
+}
+
+static int
 scan_floating_numeric (const char *text)
 {
-	size_t		size1;
-	size_t		size2;
-	int		sign;
+	size_t		sig_int_len;
+	size_t		sig_dec_len;
+	int		sig_sign;
+	int		exp_sign;
 	int		scale;
-	int		exponent;
+	int		exponent = 0;
 	int		n;
-	char		significand_int[40];
-	char		significand_dec[40];
+	char		significand_int[40] = { '0' };
+	char		significand_dec[40] = { '0' };
+	char		exponent_str[7];
 	char		result[128];
 	char		decpoint[4];
 	char		junk[4];
 
 	/* Get sign */
-	sign = (*text == '+') ? 1 : (*text == '-') ? -1 : 0;
-	if (sign) {
-		text++;
-	}
 
-	exponent = 0;
-	significand_dec[0] = '0';
-	significand_dec[1] = 0;
+	sig_sign = get_sign (*text);
+	INCREMENT_IF_SIGNED (text, sig_sign);
 
 	/* Separate components */
-	n = sscanf (text, "%[^.,]%[,.]%[^Ee]%[Ee]%d", significand_int, decpoint,
-		    significand_dec, junk, &exponent);
-	if (n != 5) {
+	n = sscanf (text, "%[^.,]%[,.]%[^Ee]%[Ee]%6s", significand_int, decpoint,
+		    significand_dec, junk, exponent_str);
+	if (n == 0) {
+		/* No integer part in significand */
+		n = sscanf (text, "%[,.]%[^Ee]%[Ee]%6s", decpoint,
+			    significand_dec, junk, exponent_str);
+
+		/* Ensure that the number of digits does not include the default
+		   0 initialised in significand_int.
+		*/
+		significand_int[0] = '\0';
+	} else if (n != 5) {
 		/* No decimals in significand */
-		n = sscanf (text, "%[^.,]%[,.]%[Ee]%d", significand_int,
-			    decpoint, junk, &exponent);
+		n = sscanf (text, "%[^.,]%[,.]%[Ee]%6s", significand_int,
+			    decpoint, junk, exponent_str);
 	}
 
 	/* Validation */
-	size1 = strlen (significand_int);
-	if (size1 > 17U) {
-		size1 = 17;
-		significand_int[17] = 0;
-		cb_error (_("Invalid floating-point literal"));
+	sig_int_len = strlen (significand_int);
+	sig_dec_len = strlen (significand_dec);
+	if (sig_int_len + sig_dec_len > 34U) {
+		cb_error (_("Significand has more than 34 digits"));
 	}
-	size2 = strlen (significand_dec);
-	if (size2 > 17U) {
-		size2 = 17;
-		significand_dec[17] = 0;
-		cb_error (_("Invalid floating-point literal"));
+
+	exp_sign = get_sign (*exponent_str);
+	if (strlen (exponent_str + abs (exp_sign)) > 4) {
+		cb_error (_("Exponent has more than 4 digits"));
+		exponent_str[0] = '0';
+		exponent_str[1] = '\0';
 	}
-	if ((size1 + size2) > 18U) {
-		cb_error (_("Invalid floating-point literal"));
+
+	sscanf (exponent_str, "%d", &exponent);
+	if (!(-78 <= exponent && exponent <= 76)) {
+		cb_error (_("Exponent not between -78 and 76"));
+		exponent = 0;
 	}
-	if (exponent > 76) {
-		exponent = 76;
-		cb_error (_("Invalid floating-point literal"));
-	}
-	if (exponent < -78) {
-		exponent = -78;
-		cb_error (_("Invalid floating-point literal"));
+
+	if (significand_is_zero (significand_int, significand_dec)) {
+		if (exponent != 0) {
+			cb_error (_("Exponent of 0 is not 0"));
+			exponent = 0;
+		}
+
+		if (sig_sign == -1) {
+			cb_error (_("Significand of 0 is negative"));
+			sig_sign = 0;
+		}
+		if (exp_sign == -1) {
+			cb_error (_("Exponent of 0 is negative"));
+		}
 	}
 
 	/* Determine scale */
-	/* Base scale is decimal part of the significand */
-	scale = (int)size2;
+	/* Base scale is decimal part of the significant */
+	scale = (int)sig_dec_len;
 	/* Adjust according to exponent */
 	if (exponent < 0) {
 		/* Decimals; power down by scale difference */
 		exponent = -exponent;
 		scale += exponent;
 		result[0] = 0;
-		if (exponent > (int)size1) {
-			n = exponent - (int)size1;
+		if (exponent > (int)sig_int_len) {
+			n = exponent - (int)sig_int_len;
 			for (; n; --n) {
 				strcat (result, "0");
 			}
@@ -1335,7 +1498,7 @@ scan_floating_numeric (const char *text)
 		strcat (result, significand_dec);
 	}
 
-	yylval = cb_build_numeric_literal (sign, result,
+	yylval = cb_build_numeric_literal (sig_sign, result,
 					   scale);
 	SET_LOCATION (yylval);
 	return LITERAL;
@@ -1574,10 +1737,8 @@ scan_define_options (const char *text)
 		x = cb_build_alphanumeric_literal (s + 1, size);
 	} else {
 		/* Get sign */
-		sign = (*s == '+') ? 1 : (*s == '-') ? -1 : 0;
-		if (sign) {
-			s++;
-		}
+		sign = get_sign (*s);
+		INCREMENT_IF_SIGNED (s, sign);
 
 		/* Get decimal point */
 		scale = 0;
@@ -1611,6 +1772,8 @@ freevar:
 	cobc_free (p);
 	cobc_free (var);
 }
+
+#undef INCREMENT_IF_SIGNED
 
 /* Global functions */
 

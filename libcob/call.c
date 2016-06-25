@@ -179,7 +179,6 @@ static size_t			resolve_size;
 static unsigned int		name_convert;
 static char*			name_convert_env;
 static unsigned int		cob_jmp_primed;
-static unsigned int		physical_cancel;
 static char*			physical_cancel_env;
 
 static char		module_ext[8];		/* EB */
@@ -357,7 +356,7 @@ cob_set_library_path (const char *path)
 
 		if (!flag) {
 			resolve_path[resolve_size++] = p;
-        }
+		}
 	}
 }
 
@@ -394,7 +393,7 @@ do_cancel_module (struct call_hash *p, struct call_hash **base_hash,
 	if (nocancel) {
 		return;
 	}
-	if (!physical_cancel) {
+	if (!cobglobptr->cob_physical_cancel) {
 		return;
 	}
 	if (p->no_phys_cancel) {
@@ -916,7 +915,7 @@ cob_resolve_error (void)
 	const char	*p;
 
 	if (!resolve_error) {
-		p = _("Indeterminable error");
+		p = _("Indeterminable error in resolve of COBOL CALL");
 	} else {
 		p = resolve_error;
 		resolve_error = NULL;
@@ -997,7 +996,7 @@ cob_resolve_func (const char *name)
 
 	p = cob_resolve_internal (name, NULL, 0);
 	if (unlikely(!p)) {
-		cob_runtime_error (_("User function '%s' not found"), name);
+		cob_runtime_error (_("User FUNCTION '%s' not found"), name);
 		cob_stop_run (1);
 	}
 	return p;
@@ -1071,7 +1070,7 @@ cob_cancel (const char *name)
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
 	if (unlikely(!name)) {
-		cob_runtime_error (_("NULL parameter passed to 'cob_cancel'"));
+		cob_runtime_error (_("NULL parameter passed to '%s'"), "cob_cancel");
 		cob_stop_run (1);
 	}
 	entry = cob_chk_dirp (name);
@@ -1137,11 +1136,11 @@ cob_call (const char *name, const int argc, void **argv)
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
 	if (argc < 0 || argc > COB_MAX_FIELD_PARAMS) {
-		cob_runtime_error (_("Invalid number of arguments to 'cob_call'"));
+		cob_runtime_error (_("Invalid number of arguments to '%s'"), "cob_call");
 		cob_stop_run (1);
 	}
 	if (unlikely(!name)) {
-		cob_runtime_error (_("NULL name parameter passed to 'cob_call'"));
+		cob_runtime_error (_("NULL parameter passed to '%s'"), "cob_call");
 		cob_stop_run (1);
 	}
 	unifunc.funcvoid = cob_resolve_cobol (name, 0, 1);
@@ -1187,7 +1186,7 @@ cob_savenv (struct cobjmp_buf *jbuf)
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
 	if (unlikely(!jbuf)) {
-		cob_runtime_error (_("NULL parameter passed to 'cob_savenv'"));
+		cob_runtime_error (_("NULL parameter passed to '%s'"), "cob_savenv");
 		cob_stop_run (1);
 	}
 	if (cob_jmp_primed) {
@@ -1213,7 +1212,7 @@ cob_longjmp (struct cobjmp_buf *jbuf)
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
 	if (unlikely(!jbuf)) {
-		cob_runtime_error (_("NULL parameter passed to 'cob_longjmp'"));
+		cob_runtime_error (_("NULL parameter passed to '%s'"), "cob_longjmp");
 		cob_stop_run (1);
 	}
 	if (!cob_jmp_primed) {
@@ -1357,7 +1356,7 @@ cob_init_call (cob_global *lptr, runtime_env* runtimeptr)
 	resolve_size = 0;
 	name_convert = 0;
 	cob_jmp_primed = 0;
-	physical_cancel = 0;
+	cobglobptr->cob_physical_cancel = 0;
 
 #ifndef	HAVE_DESIGNATED_INITS
 	memset (valid_char, 0, sizeof(valid_char));
@@ -1393,13 +1392,13 @@ cob_init_call (cob_global *lptr, runtime_env* runtimeptr)
 		physical_cancel_env = cob_save_env_value(physical_cancel_env, s);
 
 		if (*s == 'Y' || *s == 'y' || *s == '1') {
-			physical_cancel = 1;
+			cobglobptr->cob_physical_cancel = 1;
 		}
 	} else {
 		s = getenv ("default_cancel_mode");
 		if (s) {
 			if (*s == '0') {
-				physical_cancel = 1;
+				cobglobptr->cob_physical_cancel = 1;
 			}
 		}
 	}
@@ -1468,7 +1467,6 @@ cob_init_call (cob_global *lptr, runtime_env* runtimeptr)
 	call_buffer = cob_fast_malloc ((size_t)CALL_BUFF_SIZE);
 	call_lastsize = CALL_BUFF_SIZE;
 
-	runtimeptr->physical_cancel = &physical_cancel;
 	runtimeptr->physical_cancel_env = physical_cancel_env;
 	runtimeptr->name_convert = &name_convert;
 	runtimeptr->name_convert_env = name_convert_env;

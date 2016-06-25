@@ -117,6 +117,12 @@
 #define	CB_CS_STOP			(1U << 14)
 #define	CB_CS_WITH			(1U << 15)
 
+/* Support for cobc from stdin */
+#define COB_DASH			"-"
+#define COB_DASH_NAME			"a.cob"
+#define COB_DASH_OUT			"a.out"
+
+
 /* Operand operation type */
 enum cb_operation_type {
 	CB_OPERATION_READ = 0,
@@ -200,6 +206,7 @@ struct filename {
 	unsigned int		need_translate;		/* Needs parse */
 	unsigned int		need_assemble;		/* Needs C compile */
 	int			has_error;		/* Error detected */
+	int			file_is_stdin;		/* dash used as filename */
 };
 
 /* Exception structure */
@@ -267,6 +274,7 @@ extern int			cobc_flag_main;
 extern int			cb_flag_functions_all;
 extern int			cb_flag_main;
 extern int			cobc_wants_debug;
+extern int			cobc_seen_stdin;
 
 extern int			errorcount;
 extern int			warningcount;
@@ -300,6 +308,7 @@ extern struct cb_program	*current_program;
 extern struct cb_statement	*current_statement;
 extern struct cb_label		*current_section;
 extern struct cb_label		*current_paragraph;
+extern int			cb_exp_line;
 extern int			functions_are_all;
 
 /* Functions */

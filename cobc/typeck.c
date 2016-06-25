@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
    Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2012,2014-2015 Simon Sobisch
 
    This file is part of GNU Cobol.
 
@@ -1046,6 +1047,7 @@ cb_build_registers (void)
 #if !defined(__linux__) && !defined(__CYGWIN__) && defined(HAVE_TIMEZONE)
 	long	contz;
 #endif
+	cb_tree         r;
 	cb_tree		x;
 	struct tm	*tlt;
 	time_t		t;
@@ -1073,6 +1075,19 @@ cb_build_registers (void)
 	CB_FIELD_PTR (x)->special_index = 2;
 	current_program->cb_call_params = x;
 
+	/* TALLY */
+	if (current_program->nested_level == 0) {
+		r = cb_build_reference ("TALLY");
+		x = cb_build_field (r);
+		CB_FIELD_PTR (x)->usage = CB_USAGE_BINARY;
+		CB_FIELD_PTR (x)->pic = CB_PICTURE (cb_build_picture ("9(5)"));
+		cb_validate_field (CB_FIELD_PTR (x));
+		CB_FIELD_PTR (x)->values = CB_LIST_INIT (cb_zero);
+		CB_FIELD_PTR (x)->flag_no_init = 1;
+		CB_FIELD_PTR (x)->flag_is_global = 1;
+		CB_FIELD_ADD (current_program->working_storage, CB_FIELD_PTR (x));
+	}
+		
 	t = time (NULL);
 	tlt = localtime (&t);
 	/* Leap seconds ? */
@@ -1494,7 +1509,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 		}
 	}
 
-	/* Subscript check */
+	/* Subscript check and setting of table offset*/
 	if (!r->flag_all && r->subs) {
 		l = r->subs;
 		for (p = f; p; p = p->parent) {
@@ -1519,6 +1534,10 @@ cb_build_identifier (cb_tree x, const int subchk)
 				if (n < 1 || n > p->occurs_max) {
 					cb_error_x (x, _("Subscript of '%s' out of bounds: %d"),
 						    name, n);
+				}
+				if (p==f) {
+					/* Only valid for single subscript (!) */ 
+					f->mem_offset = f->size * (n - 1);
 				}
 			}
 
@@ -2473,6 +2492,9 @@ cb_validate_program_data (struct cb_program *prog)
 				if (!CB_REF_OR_FIELD_P(x)) {
 					cb_error (_("Invalid RECORD DEPENDING item"));
 				}
+#if	0			/* RXWRXW */
+				}
+#endif
 			}
 		}
 	}
@@ -3052,6 +3074,10 @@ cb_expr_finish (void)
 		cb_error (_("Invalid expression"));
 		return cb_error_node;
 	}
+	
+	expr_stack[3].value->source_file = cb_source_file;
+	expr_stack[3].value->source_line = cb_exp_line;
+
 	return expr_stack[3].value;
 }
 
@@ -3693,8 +3719,7 @@ cb_build_cond (cb_tree x)
 			return cb_build_cond (build_cond_88 (x));
 		}
 
-		cb_error_x (x, _("Invalid expression"));
-		return cb_error_node;
+		break;
 	case CB_TAG_BINARY_OP:
 		p = CB_BINARY_OP (x);
 		if (!p->x || p->x == cb_error_node) {
@@ -4166,28 +4191,98 @@ output_screen_to (struct cb_field *p, const unsigned int sisters)
 
 /* ACCEPT statement */
 
+static COB_INLINE COB_A_INLINE int
+is_less_than_four_or_is_six (int x)
+{
+	return x <= 4 || x == 6;
+}
+
+static COB_INLINE COB_A_INLINE int
+is_reference_with_value (cb_tree pos)
+{
+	return CB_REFERENCE_P (pos)
+		&& (CB_REFERENCE (pos))->value != NULL;
+
+}
+
+static COB_INLINE COB_A_INLINE int
+value_is_numeric_field (cb_tree pos)
+{
+	return CB_FIELD_P ((CB_REFERENCE (pos))->value)
+		&& (CB_REFERENCE (pos))->value->category == CB_CATEGORY_NUMERIC;
+
+}
+
+static COB_INLINE COB_A_INLINE int
+value_has_picture_clause (cb_tree pos)
+{
+	return (CB_FIELD ((CB_REFERENCE (pos))->value))->pic != NULL;
+}
+
+static COB_INLINE COB_A_INLINE int
+value_pic_has_no_scale (cb_tree pos)
+{
+	return (CB_PICTURE ((CB_FIELD ((CB_REFERENCE (pos))->value))->pic))->scale == 0;
+}
+
+static int
+valid_screen_pos_type (cb_tree pos)
+{
+	return is_reference_with_value (pos)
+		&& value_is_numeric_field (pos)
+		&& value_has_picture_clause (pos)
+		&& value_pic_has_no_scale (pos);
+}
+
+static int
+valid_screen_pos (cb_tree pos)
+{
+	int	size;
+	
+	/* Find size of pos value, if possible */
+	if (CB_NUMERIC_LITERAL_P (pos)) {
+		size = (CB_LITERAL (pos))->size;
+	} else if (valid_screen_pos_type (pos)) {
+		size = (CB_PICTURE ((CB_FIELD ((CB_REFERENCE (pos))->value))->pic))->size;
+	} else {
+		cb_error (_("Invalid value in AT clause"));
+		return 0;
+	}
+
+	/* Check if size is valid. If it isn't, display error. */
+	if (size == 5) {
+		cb_error (_("Value in AT clause may not have 5 digits"));
+		return 0;
+	} else if (size > 6) {
+		cb_error (_("Value in AT clause may not be longer than 6 digits"));
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
 static void
 cb_gen_field_accept (cb_tree var, cb_tree pos, cb_tree fgc, cb_tree bgc,
 		     cb_tree scroll, cb_tree timeout, cb_tree prompt,
-		     int dispattrs)
+		     cb_tree size_is, int dispattrs)
 {
 	cb_tree		line;
 	cb_tree		column;
 
 	if (!pos) {
-		cb_emit (CB_BUILD_FUNCALL_9 ("cob_field_accept",
+		cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
 			var, NULL, NULL, fgc, bgc, scroll,
-			timeout, prompt, cb_int (dispattrs)));
+			timeout, prompt, size_is, cb_int (dispattrs)));
 	} else if (CB_LIST_P (pos)) {
 		line = CB_PAIR_X (pos);
 		column = CB_PAIR_Y (pos);
-		cb_emit (CB_BUILD_FUNCALL_9 ("cob_field_accept",
+		cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
 			var, line, column, fgc, bgc, scroll,
-			timeout, prompt, cb_int (dispattrs)));
-	} else {
-		cb_emit (CB_BUILD_FUNCALL_9 ("cob_field_accept",
+			timeout, prompt, size_is, cb_int (dispattrs)));
+	} else if (valid_screen_pos (pos)) {
+		cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
 			var, pos, NULL, fgc, bgc, scroll,
-			timeout, prompt, cb_int (dispattrs)));
+			timeout, prompt, size_is, cb_int (dispattrs)));
 	}
 }
 
@@ -4200,7 +4295,8 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 	cb_tree		bgc;
 	cb_tree		scroll;
 	cb_tree		timeout;
-	cb_tree		prompt;
+	cb_tree		prompt;		
+	cb_tree		size_is;	/* WITH SIZE IS */
 	int		dispattrs;
 
 	if (attr_ptr) {
@@ -4208,14 +4304,16 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 		bgc = attr_ptr->bgc;
 		scroll = attr_ptr->scroll;
 		timeout = attr_ptr->timeout;
-		prompt = attr_ptr->prompt;
+		prompt = attr_ptr->prompt;     
+		size_is = attr_ptr->size_is;   
 		dispattrs = attr_ptr->dispattrs;
 	} else {
 		fgc = NULL;
 		bgc = NULL;
 		scroll = NULL;
 		timeout = NULL;
-		prompt = NULL;
+		prompt = NULL;     
+		size_is = NULL;    
 		dispattrs = 0;
 	}
 
@@ -4239,7 +4337,10 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 	}
 	if (cb_validate_one (prompt)) {
 		return;
-	}
+	}  
+	if (cb_validate_one (size_is)) {
+		return;
+	}  
 
 	if (prompt) {
 		/* PROMPT character - 1 character identifier or literal */
@@ -4278,7 +4379,7 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 					column = CB_PAIR_Y (pos);
 					cb_emit (CB_BUILD_FUNCALL_4 ("cob_screen_accept",
 						var, line, column, timeout));
-				} else {
+				} else if (valid_screen_pos (pos)) {
 					cb_emit (CB_BUILD_FUNCALL_4 ("cob_screen_accept",
 						var, pos, NULL, timeout));
 				}
@@ -4294,12 +4395,12 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 			}
 			if (pos || fgc || bgc || scroll || dispattrs) {
 				cb_gen_field_accept (var, pos, fgc, bgc, scroll,
-						     timeout, prompt, dispattrs);
+						     timeout, prompt, size_is, dispattrs);
 			} else {
-				cb_emit (CB_BUILD_FUNCALL_9 ("cob_field_accept",
+				cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
 					var, NULL, NULL, fgc, bgc,
 					scroll, timeout, prompt,
-					cb_int (dispattrs)));
+					size_is, cb_int (dispattrs)));
 			}
 		}
 	} else if (pos || fgc || bgc || scroll || dispattrs) {
@@ -4311,13 +4412,13 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 			var = NULL;
 		}
 		cb_gen_field_accept (var, pos, fgc, bgc, scroll,
-				     timeout, prompt, dispattrs);
+				     timeout, prompt, size_is, dispattrs);
 	} else {
 		if (var == cb_null) {
 			var = NULL;
 		}
 		cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept", var));
-	}
+	}	  
 }
 
 void
@@ -4849,7 +4950,7 @@ cb_emit_close (cb_tree file, cb_tree opt)
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("Operation not allowed on SORT files"));
+				_("%s not allowed on %s files"), "CLOSE", "SORT");
 	}
 
 	cb_emit (CB_BUILD_FUNCALL_4 ("cob_close", file,
@@ -4900,11 +5001,11 @@ cb_emit_delete (cb_tree file)
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("Operation not allowed on SORT files"));
+				_("%s not allowed on %s files"), "DELETE", "SORT");
 		return;
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL) {
 		cb_warning_x (CB_TREE (current_statement),
-			    _("Operation not allowed on LINE SEQUENTIAL files"));
+				_("%s not allowed on %s files"), "DELETE", "LINE SEQUENTIAL");
 	}
 
 	/* Check for file debugging */
@@ -4931,7 +5032,7 @@ cb_emit_delete_file (cb_tree file)
 	}
 	if (CB_FILE (file)->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("Operation not allowed on SORT files"));
+				_("%s not allowed on %s files"), "DELETE FILE", "SORT");
 		return;
 	}
 
@@ -4997,17 +5098,20 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv, cb_tree pos,
 	cb_tree		fgc;
 	cb_tree		bgc;
 	cb_tree		scroll;
+	cb_tree		size_is;	/* WITH SIZE IS */ 
 	int		dispattrs;
 
 	if (attr_ptr) {
 		fgc = attr_ptr->fgc;
 		bgc = attr_ptr->bgc;
 		scroll = attr_ptr->scroll;
+		size_is = attr_ptr->size_is; 
 		dispattrs = attr_ptr->dispattrs;
 	} else {
 		fgc = NULL;
 		bgc = NULL;
 		scroll = NULL;
+		size_is = NULL; 
 		dispattrs = 0;
 	}
 
@@ -5024,6 +5128,9 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv, cb_tree pos,
 		return;
 	}
 	if (cb_validate_one (scroll)) {
+		return;
+	}
+	if (cb_validate_one (size_is)) {
 		return;
 	}
 	for (l = values; l; l = CB_CHAIN (l)) {
@@ -5068,7 +5175,7 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv, cb_tree pos,
 				}
 				cb_emit (CB_BUILD_FUNCALL_3 ("cob_screen_display",
 					 x, line, column));
-			} else {
+			} else if (valid_screen_pos (pos)) {
 				cb_emit (CB_BUILD_FUNCALL_3 ("cob_screen_display",
 					 x, pos, NULL));
 			}
@@ -5077,44 +5184,51 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv, cb_tree pos,
 				NULL, NULL));
 		}
 		gen_screen_ptr = 0;
-	} else if (pos || fgc || bgc || scroll || dispattrs || upon == cb_null) {
+	} else if (pos || fgc || bgc || scroll || size_is || dispattrs || upon == cb_null) {
 		for (l = values; l; l = CB_CHAIN (l)) {
 			x = CB_VALUE (l);
-			if (x == cb_space) {
-				dispattrs |= COB_SCREEN_ERASE_EOS;
-				dispattrs |= COB_SCREEN_NO_DISP;
-			} else if (x == cb_low) {
-				dispattrs |= COB_SCREEN_NO_DISP;
-			} else if (CB_LITERAL_P (x) && CB_LITERAL (x)->all &&
-				   CB_LITERAL (x)->size == 1) {
-				if (CB_LITERAL (x)->data[0] == 1) {
-					dispattrs |= COB_SCREEN_ERASE_EOL;
-					dispattrs |= COB_SCREEN_NO_DISP;
-				} else if (CB_LITERAL (x)->data[0] == 2) {
-					cb_emit (CB_BUILD_FUNCALL_0 ("cob_sys_clear_screen"));
-					return;
-				} else if (CB_LITERAL (x)->data[0] == 7) {
-					dispattrs |= COB_SCREEN_BELL;
-					dispattrs |= COB_SCREEN_NO_DISP;
-				}
+			/* low-values position cursor, size does not matter */
+			if (x == cb_low) {
+			  dispattrs |= COB_SCREEN_NO_DISP;
+			}
+			/* no WITH SIZE then SPACE clears to end of screen */
+			if (!(size_is)) {
+			  if (x == cb_space) {
+				  dispattrs |= COB_SCREEN_ERASE_EOS;
+				  dispattrs |= COB_SCREEN_NO_DISP;
+			  } else if (x == cb_low) {
+				  dispattrs |= COB_SCREEN_NO_DISP;
+			  } else if (CB_LITERAL_P (x) && CB_LITERAL (x)->all &&
+				    CB_LITERAL (x)->size == 1) {
+				  if (CB_LITERAL (x)->data[0] == 1) {
+					  dispattrs |= COB_SCREEN_ERASE_EOL;
+					  dispattrs |= COB_SCREEN_NO_DISP;
+				  } else if (CB_LITERAL (x)->data[0] == 2) {
+					  cb_emit (CB_BUILD_FUNCALL_0 ("cob_sys_clear_screen"));
+					  return;
+				  } else if (CB_LITERAL (x)->data[0] == 7) {
+					  dispattrs |= COB_SCREEN_BELL;
+					  dispattrs |= COB_SCREEN_NO_DISP;
+				  }
+			  }
 			}
 			if (!pos) {
-				cb_emit (CB_BUILD_FUNCALL_7 ("cob_field_display",
+				cb_emit (CB_BUILD_FUNCALL_8 ("cob_field_display",
 					x, NULL, NULL, fgc, bgc,
-					scroll, cb_int (dispattrs)));
+					scroll, size_is, cb_int (dispattrs)));
 			} else if (CB_PAIR_P (pos)) {
 				line = CB_PAIR_X (pos);
 				column = CB_PAIR_Y (pos);
 				if (line == cb_int0) {
 					line = NULL;
 				}
-				cb_emit (CB_BUILD_FUNCALL_7 ("cob_field_display",
+				cb_emit (CB_BUILD_FUNCALL_8 ("cob_field_display",
 					x, line, column, fgc, bgc,
-					scroll, cb_int (dispattrs)));
-			} else {
-				cb_emit (CB_BUILD_FUNCALL_7 ("cob_field_display",
+					scroll, size_is, cb_int (dispattrs)));
+			} else if (valid_screen_pos (pos)) {
+				cb_emit (CB_BUILD_FUNCALL_8 ("cob_field_display",
 					x, pos, NULL, fgc, bgc,
-					scroll, cb_int (dispattrs)));
+					scroll, size_is, cb_int (dispattrs)));
 			}
 		}
 	} else {
@@ -5481,6 +5595,7 @@ cb_emit_initialize (cb_tree vars, cb_tree fillinit, cb_tree value,
 	cb_tree		l;
 	unsigned int	no_fill_init;
 	unsigned int	def_init;
+	cb_tree		x;
 
 	if (cb_validate_list (vars)) {
 		return;
@@ -5491,7 +5606,14 @@ cb_emit_initialize (cb_tree vars, cb_tree fillinit, cb_tree value,
 	no_fill_init = (fillinit == NULL);
 	def_init = (def != NULL);
 	for (l = vars; l; l = CB_CHAIN (l)) {
-		cb_emit (cb_build_initialize (CB_VALUE (l), value, replacing,
+		x = CB_VALUE (l);
+		if (!(CB_REFERENCE_P (x) && CB_FIELD_P (CB_REFERENCE (x)->value)) &&
+		    !CB_FIELD_P (x)) {
+			cb_error_x (CB_TREE (current_statement), _("Invalid INITIALIZE statement"));
+			return;
+		}
+
+		cb_emit (cb_build_initialize (x , value, replacing,
 					      def_init, 1, no_fill_init));
 	}
 }
@@ -5607,7 +5729,7 @@ cb_emit_inspect (cb_tree var, cb_tree body, cb_tree replacing,
 			break;
 		default:
 			cb_error_x (CB_TREE (current_statement),
-				    _("Invalid target for INSPECT"));
+					_("Invalid target for %s"), "CONVERTING");
 			return;
 		}
 		break;
@@ -5777,29 +5899,29 @@ warning_destination (cb_tree x)
 		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
 			      f->name, f->pic->orig);
 	} else if (f->usage == CB_USAGE_FLOAT) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT");
 	} else if (f->usage == CB_USAGE_DOUBLE) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE DOUBLE"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "DOUBLE");
 	} else if (f->usage == CB_USAGE_LONG_DOUBLE) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT EXTENDED"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT EXTENDED");
 	} else if (f->usage == CB_USAGE_FP_BIN32) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT-BINARY-7"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT-BINARY-7");
 	} else if (f->usage == CB_USAGE_FP_BIN64) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT-BINARY-16"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT-BINARY-16");
 	} else if (f->usage == CB_USAGE_FP_BIN128) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT-BINARY-34"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT-BINARY-34");
 	} else if (f->usage == CB_USAGE_FP_DEC64) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT-DECIMAL-16"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT-DECIMAL-16");
 	} else if (f->usage == CB_USAGE_FP_DEC128) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE FLOAT-DECIMAL-34"),
-			      f->name);
+		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+			      f->name, "FLOAT-DECIMAL-34");
 	} else if (f->pic) {
 		cb_warning_x (loc, _("'%s' defined here as PIC %s"),
 			      cb_name (loc), f->pic->orig);
@@ -5869,20 +5991,13 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 	struct cb_field	*f1;
 	struct cb_field	*ff1;
 	struct cb_field	*ff2;
+	struct cb_reference *r;
 	cb_tree		loc;
 	int		src_size;
 	int		dst_size;
 	int		src_off;
 	int		dst_off;
 
-	src_size = cb_field_size (src);
-	dst_size = cb_field_size (dst);
-
-	if (src_size <= 0 || dst_size <= 0 ||
-	    cb_field_variable_size (src_f) ||
-	    cb_field_variable_size (dst_f)) {
-		return 0;
-	}
 	/* Check basic overlapping */
 	for (f1 = src_f->children; f1; f1 = f1->sister) {
 		if (f1 == dst_f) {
@@ -5905,19 +6020,44 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 	if (ff1 != ff2) {
 		return 0;
 	}
+
+	src_size = cb_field_size (src);
+	dst_size = cb_field_size (dst);
+
+	if (src_size <= 0 || dst_size <= 0 ||
+	    cb_field_variable_size (src_f) ||
+	    cb_field_variable_size (dst_f)) {
+		return 1; /* overlapping possible, would need more checks */
+	}
 	/* Check literal occurs? */
-	if (src_f->indexes || dst_f->indexes) {
-		return 0;
+	if ((src_f->flag_occurs && !src_f->mem_offset) ||
+		(dst_f->flag_occurs && !dst_f->mem_offset)) {
+		return 1; /* overlapping possible, would need more checks */
 	}
-	/* Check reference modification ? */
-	if (CB_REFERENCE_P (src) && CB_REFERENCE(src)->offset) {
-		return 0;
-	}
-	if (CB_REFERENCE_P (dst) && CB_REFERENCE(dst)->offset) {
-		return 0;
-	}
+	
+	/* Same field - Check offsets */
 	src_off = src_f->offset;
 	dst_off = dst_f->offset;
+
+	/* Adjusting offsets by occurs and reference modification */
+	src_off += src_f->mem_offset ;
+	r = CB_REFERENCE (src);
+	if (r->offset) {
+		if (CB_LITERAL_P (r->offset)) {
+			src_off += cb_get_int (r->offset) - 1;
+		} else {
+			goto overlapret;
+		}
+	}
+	dst_off += dst_f->mem_offset;
+	r = CB_REFERENCE (dst);
+	if (r->offset) {
+		if (CB_LITERAL_P (r->offset)) {
+			dst_off += cb_get_int (r->offset) - 1;
+		} else {
+			goto overlapret;
+		}
+	}
 	if (src_off >= dst_off && src_off < (dst_off + dst_size)) {
 		goto overlapret;
 	}
@@ -6516,7 +6656,9 @@ cb_build_move_copy (cb_tree src, cb_tree dst)
 	}
 	if (overlapping 
 	|| CB_FIELD_PTR (src)->storage == CB_STORAGE_LINKAGE
-	|| CB_FIELD_PTR (dst)->storage == CB_STORAGE_LINKAGE) {
+	|| CB_FIELD_PTR (dst)->storage == CB_STORAGE_LINKAGE
+	|| CB_FIELD_PTR (src)->flag_item_based
+	|| CB_FIELD_PTR (dst)->flag_item_based) {
 		overlapping = 0;
 		return CB_BUILD_FUNCALL_3 ("memmove",
 					   CB_BUILD_CAST_ADDRESS (dst),
@@ -7242,12 +7384,12 @@ cb_emit_open (cb_tree file, cb_tree mode, cb_tree sharing)
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("Operation not allowed on SORT files"));
+				_("%s not allowed on %s files"), "OPEN", "SORT");
 		return;
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL &&
 		   mode == cb_int (COB_OPEN_I_O)) {
 		cb_warning_x(CB_TREE (current_statement),
-			    _("OPEN I-O not allowed on LINE SEQUENTIAL files"));
+				_("%s not allowed on %s files"), "OPEN I-O", "LINE SEQUENTIAL");
 		/*cb_error_x (CB_TREE (current_statement),
 			    _("OPEN I-O not allowed on LINE SEQUENTIAL files"));*/
 		//return;
@@ -7384,7 +7526,7 @@ cb_emit_read (cb_tree ref, cb_tree next, cb_tree into,
 	rec = cb_build_field_reference (f->record, ref);
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("Operation not allowed on SORT files"));
+				_("%s not allowed on %s files"), "READ", "SORT");
 		return;
 	}
 	if (next == cb_int1 || next == cb_int2 ||
@@ -7488,12 +7630,12 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 	}
 	if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
 		cb_error_x (CB_TREE (current_statement),
-			_("REWRITE requires a record name as subject"));
+			_("%s requires a record name as subject"), "REWRITE");
 		return;
 	}
 	if (CB_FIELD_PTR (record)->storage != CB_STORAGE_FILE) {
 		cb_error_x (CB_TREE (current_statement),
-			_("REWRITE subject does not refer to a record name"));
+			_("%s subject does not refer to a record name"), "REWRITE");
 		return;
 	}
 
@@ -7507,11 +7649,11 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-		_("Operation not allowed on SORT files"));
+				_("%s not allowed on %s files"), "REWRITE", "SORT");
 		return;
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL) {
 		cb_warning_x (CB_TREE (current_statement),
-			    _("Operation not allowed on LINE SEQUENTIAL files"));
+				_("%s not allowed on %s files"), "REWRITE", "LINE SEQUENTIAL");
 	} else if (current_statement->handler_id == COB_EC_I_O_INVALID_KEY &&
 		  (f->organization != COB_ORG_RELATIVE &&
 		   f->organization != COB_ORG_INDEXED)) {
@@ -7559,13 +7701,13 @@ cb_emit_release (cb_tree record, cb_tree from)
 	}
 	if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
 		cb_error_x (CB_TREE (current_statement),
-			_("RELEASE requires a record name as subject"));
+			_("%s requires a record name as subject"), "RELEASE");
 		return;
 	}
 	f = CB_FIELD_PTR (record);
 	if (f->storage != CB_STORAGE_FILE) {
 		cb_error_x (CB_TREE (current_statement),
-			_("RELEASE subject does not refer to a record name"));
+			_("%s subject does not refer to a record name"), "RELEASE");
 		return;
 	}
 	file = CB_TREE (f->file);
@@ -8199,7 +8341,7 @@ cb_emit_start (cb_tree file, cb_tree op, cb_tree key, cb_tree keylen)
 	if (f->organization != COB_ORG_INDEXED &&
 	    f->organization != COB_ORG_RELATIVE) {
 		cb_error_x (CB_TREE (current_statement),
-			    _("START not allowed on SEQUENTIAL files"));
+				_("%s not allowed on %s files"), "START", "SEQUENTIAL");
 		return;
 	}
 	if (keylen && f->organization != COB_ORG_INDEXED) {
@@ -8378,12 +8520,12 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 	}
 	if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
 		cb_error_x (CB_TREE (current_statement),
-			_("WRITE requires a record name as subject"));
+			_("%s requires a record name as subject"), "WRITE");
 		return;
 	}
 	if (CB_FIELD_PTR (record)->storage != CB_STORAGE_FILE) {
 		cb_error_x (CB_TREE (current_statement),
-			_("WRITE subject does not refer to a record name"));
+			_("%s subject does not refer to a record name"), "WRITE");
 		return;
 	}
 	file = CB_TREE (CB_FIELD (cb_ref (record))->file);
@@ -8395,7 +8537,7 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
-		_("Operation not allowed on SORT files"));
+		_("%s not allowed on %s files"), "WRITE", "SORT");
 	} else if (current_statement->handler_id == COB_EC_I_O_INVALID_KEY &&
 		  (f->organization != COB_ORG_RELATIVE &&
 		   f->organization != COB_ORG_INDEXED)) {

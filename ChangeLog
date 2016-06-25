@@ -1,4 +1,58 @@
 
+2015-09-15  Brian Tiffin <btiffin@gnu.org>
+
+	* configure.ac, moved COB_DASH names to cobc/cobc.h
+
+2015-08-03  Brian Tiffin <btiffin@gnu.org>
+
+	* configure.ac: added COB_DASH, COB_DASH_NAME, COB_DASH_OUT
+	  to support compile from stdin
+
+2015-07-10  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* general: moved additional build-scripts to build_aux,
+	  regenerated all Makefiles
+	* configure.ac: added AC_CONFIG_AUX_DIR([build_aux])
+
+2015-06-08  Luke Smith <cobcoder@users.sourceforge.net>
+
+	* Add WITH SIZE to extended ACCEPT and DISPLAY. (see wish list #37)
+	  Updated the info gnucobol and added Index at end. 
+	* cobc/parser.y:
+	* cobc/reserved.c:
+	* cobc/tree.c:
+	* cobc/tree.h:
+	* cobc/typeck.c:
+	* doc/gnucobol.info:
+	* doc/gnucobol.texi:
+	* libcob/common.h:
+	* libcob/screenio.c:
+	* libcob/termio.c:
+	* tests/testsuite.src/syn_misc.at:
+
+2015-02-27  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* general: removed "Experimental" marker from CISAM/DISAM/VBISAM
+	* configure.ac: define WITH_CURSES for printing library for screenio
+
+2014-08-07  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* general: message strings revised (not all done yet);
+	  similar message strings combined (23 translatable strings removed);
+	  removed line breaks from translatable strings
+
+2015-03-06  gettextize  <bug-gnu-gettext@gnu.org>
+
+	* m4/gettext.m4: Upgrade to gettext-0.19.4.
+	* m4/iconv.m4: Upgrade to gettext-0.19.4.
+	* m4/lib-ld.m4: Upgrade to gettext-0.19.4.
+	* m4/lib-link.m4: Upgrade to gettext-0.19.4.
+	* m4/lib-prefix.m4: Upgrade to gettext-0.19.4.
+	* m4/nls.m4: Upgrade to gettext-0.19.4.
+	* m4/po.m4: Upgrade to gettext-0.19.4.
+	* m4/progtest.m4: Upgrade to gettext-0.19.4.
+	* configure.ac (AM_GNU_GETTEXT_VERSION): Bump to 0.19.4.
+
 2014-12-04  Edward Hart <edward-h@users.sf.net>
 
 	* configure.ac : #44 Disable optimisation with --enable-debug

@@ -79,6 +79,28 @@
 #define	cob_screen_ptr		cob_screen *
 #define	cob_file_key_ptr	cob_file_key *
 
+/* Readable compiler version defines */
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1400
+#define COB_USE_VC2005_OR_GREATER 1
+#else
+#define COB_USE_VC2005_OR_GREATER 0
+#endif
+
+#if _MSC_VER >= 1500
+#define COB_USE_VC2008_OR_GREATER 1
+#else
+#define COB_USE_VC2008_OR_GREATER 0
+#endif
+
+#if _MSC_VER >= 1800
+#define COB_USE_VC2013_OR_GREATER 1
+#else
+#define COB_USE_VC2013_OR_GREATER 0
+#endif
+#endif
+
 /* Byte swap functions */
 
 /*
@@ -223,7 +245,7 @@
 
 #endif
 
-#elif defined(_MSC_VER) && (_MSC_VER >= 1400)
+#elif defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 
 #define COB_BSWAP_16(val) (_byteswap_ushort (val))
 #define COB_BSWAP_32(val) (_byteswap_ulong (val))
@@ -692,7 +714,7 @@ enum cob_exception_id {
 #define COB_ASCENDING		0
 #define COB_DESCENDING		1
 
-#define COB_FILE_MODE		0644
+#define COB_FILE_MODE		0666
 
 /* Organization */
 
@@ -820,6 +842,7 @@ enum cob_exception_id {
 /* End File attributes */
 
 /* Number store defines */
+
 #define COB_STORE_ROUND			(1 << 0)
 #define COB_STORE_KEEP_ON_OVERFLOW	(1 << 1)
 #define COB_STORE_TRUNC_ON_OVERFLOW	(1 << 2)
@@ -838,6 +861,7 @@ enum cob_exception_id {
 	 COB_STORE_TRUNC_ON_OVERFLOW)
 
 /* Screen attribute defines */
+
 #define COB_SCREEN_BLACK		0
 #define COB_SCREEN_BLUE			1
 #define COB_SCREEN_GREEN		2
@@ -941,7 +965,6 @@ typedef struct {
 } cob_decimal;
 
 /* Perform stack structure */
-
 struct cob_frame {
 	void		*return_address_ptr;	/* Return address pointer */
 	unsigned int	perform_through;	/* Perform number */
@@ -1133,64 +1156,9 @@ typedef struct {
 	int			curr_status;		/* Current status */
 } cob_report;
 
-/* Structure with pointers to the current runtime variables. */
-typedef struct runtime_env {
-	/* call.c */
-	unsigned int* physical_cancel;
-	char* physical_cancel_env;
-	unsigned int* name_convert;
-	char* name_convert_env;
-	char** resolve_path;	/* COB_LIBRARY_PATH */
-	char* cob_library_path_env;
-	size_t* resolve_size;	/* Array size of resolve_path*/
-	char* cob_preload_resolved;
-	char* cob_preload_env;
-
-	/* fileio.c */
-	unsigned int* cob_do_sync;
-	char* cob_do_sync_env;
-	unsigned int* cob_ls_uses_cr;
-	char* cob_ls_uses_cr_env;
-	size_t* cob_sort_memory;
-	char* cob_sort_memory_env;
-	size_t* cob_sort_chunk;
-	char* cob_sort_chunk_env;
-	char* cob_file_path;
-	char* cob_file_path_env;
-	unsigned int* cob_ls_nulls;
-	char* cob_ls_nulls_env;
-	unsigned int* cob_ls_fixed;
-	char* cob_ls_fixed_env;
-	size_t* cob_varseq_type;
-	char* cob_varseq_type_env;
-	char* cob_unix_lf_env;
-
-	/* move.c */
-	unsigned int* cob_local_edit;
-	char* cob_local_edit_env;
-
-	/* screenio.c */
-	cob_u32_t* cob_legacy;
-	char* cob_legacy_env;
-
-	/* others */
-	char *cob_line_trace_env;
-	char* cob_display_warn_env;
-	char* cob_env_mangle_env;
-
-    /* others rescanned on SET ENVIRONMENT */
-	char* cob_disp_to_stderr_env;
-	char* cob_beep_str_env;
-	char* cob_timeout_scale_env;
-	char* cob_accept_status_env;
-	char* cob_extended_status_env;
-	char* cob_use_esc_env;
-
-	char* cob_anim_env;
-
-} runtime_env;
 
 /* Global variable structure */
+
 typedef struct __cob_global {
 	cob_file		*cob_error_file;	/* Last error file */
 	cob_module		*cob_current_module;	/* Current module */
@@ -1218,6 +1186,7 @@ typedef struct __cob_global {
 	unsigned int		cob_display_warn;	/* Display warnings */
 	unsigned int		cob_first_init;		/* First call after init */
 	unsigned int		cob_env_mangle;		/* Mangle env names */
+	unsigned int		cob_physical_cancel;	/* Unloading of modules */
 
 	/* Library routine variables */
 
@@ -1234,8 +1203,6 @@ typedef struct __cob_global {
 	int			cob_max_x;		/* Screen max x */
 
 	int cob_anim; /* Animator/Debugger mode flag (0 = No Debugging, 1 = Debugging */
-
-	runtime_env* current_environment; /* Current runtime environment values */
 
 } cob_global;
 
@@ -1590,11 +1557,12 @@ COB_EXPIMP void cob_screen_display	(cob_screen *, cob_field *,
 COB_EXPIMP void cob_screen_accept	(cob_screen *, cob_field *,
 					 cob_field *, cob_field *);
 COB_EXPIMP void cob_field_display	(cob_field *, cob_field *, cob_field *,
-					 cob_field *, cob_field *, cob_field *,
-					 const int);
+					 cob_field *, cob_field *, cob_field *, 
+					 cob_field *, const int);
 COB_EXPIMP void cob_field_accept	(cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
-					 cob_field *, cob_field *, const int);
+					 cob_field *, cob_field *, cob_field *,
+					 const int);
 COB_EXPIMP void cob_accept_escape_key	(cob_field *);
 COB_EXPIMP int	cob_sys_clear_screen	(void);
 COB_EXPIMP int	cob_sys_sound_bell	(void);
@@ -1680,8 +1648,8 @@ COB_EXPIMP cob_field *cob_intr_binop			(cob_field *, const int,
 							 cob_field *);
 
 COB_EXPIMP int cob_valid_date_format			(const char *);
-COB_EXPIMP int cob_valid_datetime_format		(const char *);
-COB_EXPIMP int cob_valid_time_format			(const char *);
+COB_EXPIMP int cob_valid_datetime_format		(const char *, const char);
+COB_EXPIMP int cob_valid_time_format			(const char *, const char);
 
 COB_EXPIMP cob_field *cob_intr_current_date		(const int, const int);
 COB_EXPIMP cob_field *cob_intr_when_compiled		(const int, const int,

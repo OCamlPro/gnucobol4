@@ -3851,7 +3851,7 @@ output_call (struct cb_call *p)
 					break;
 				}
 			}
-			output ("if (unlikely(call_%s.funcvoid == NULL || physical_cancel == 1)) {\n", callp);
+			output ("if (unlikely(call_%s.funcvoid == NULL || cob_glob_ptr->cob_physical_cancel)) {\n", callp);
 			output_prefix ();
 			if (nlp) {
 				output ("  call_%s.funcint = %s_%d__;\n",
@@ -4913,7 +4913,7 @@ output_stmt (cb_tree x)
 					output_line("\tmodule->cob_procedure_params[0] = &f_cb;");	/* EB */
 					output_line("\tmodule->cob_procedure_params[1] = &f_ct;");	/* EB */
 					output_line("\tcob_glob_ptr->cob_call_params = 2;");		/* EB */
-					output_line("\tif (unlikely(call_Xanim.funcvoid == NULL || physical_cancel == 1)) {");	/* EB */
+					output_line("\tif (unlikely(call_Xanim.funcvoid == NULL || cob_glob_ptr->cob_physical_cancel == 1)) {");	/* EB */
 					output_line("\t  call_Xanim.funcvoid = cob_resolve ((const char *)\"gc-debugger\");");			/* EB */
 					output_line("\t}");		/* EB */
 					output_line("\ttmp_ret = call_Xanim.funcint (b_cb, b_ct);");	/* EB */
@@ -6588,9 +6588,6 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		/* Module initialization indicator */
 		output_local ("/* Module initialization indicator */\n");
 		output_local ("static unsigned int\tinitialized = 0;\n\n");
-		/* Physical Cancel mode */
-		output_local ("/* Module initialization indicator */\n");
-		output_local ("static unsigned int\tphysical_cancel = 0;\n\n");
 	}
 
 	output_local ("/* Module structure pointer */\n");
@@ -6666,7 +6663,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		}
 	}
 
-	/* Files */
+	/* Allocate files */
 	if (prog->file_list) {
 		i = 0;
 		for (l = prog->file_list; l; l = CB_CHAIN (l)) {
@@ -6857,6 +6854,16 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 #endif
 	output_newline ();
 
+	/* Check INITIAL programms being non-recursive */
+	if (CB_EXCEPTION_ENABLE (COB_EC_PROGRAM_RECURSIVE_CALL)
+		&& prog->flag_initial) {
+		output_line ("/* Check active count */");
+		output_line ("if (unlikely(module->module_active)) {");
+		/* FIXME: Should raise COB_EC_PROGRAM_RECURSIVE_CALL instead */
+		output_line ("\tcob_fatal_error (COB_FERROR_RECURSIVE);");
+		output_line ("}");
+	}
+
 	/* Recursive module initialization */
 	if (prog->flag_recursive) {
 		output_module_init (prog);
@@ -6915,10 +6922,50 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	}
 	output_newline ();
 
+
+	/* Set up LOCAL-STORAGE size */
+	if (prog->local_storage) {
+		for (f = prog->local_storage; f; f = f->sister) {
+			if (f->flag_item_based || f->flag_local_alloced) {
+				continue;
+			}
+			if (f->redefines) {
+				continue;
+			}
+			if (f->flag_item_78) {
+				cobc_abort_pr (_("Unexpected CONSTANT item"));
+				COBC_ABORT ();
+			}
+			f->flag_local_storage = 1;
+			f->flag_local_alloced = 1;
+			f->mem_offset = local_mem;
+			/* Round up to COB_MALLOC_ALIGN + 1 bytes */
+			/* Caters for current types */
+			local_mem += ((f->memory_size + COB_MALLOC_ALIGN) &
+					~COB_MALLOC_ALIGN);
+		}
+	}
+
 	/* Initialization */
-	output_line ("/* Initialize program */");
-	output_line("physical_cancel = *(cob_glob_ptr->current_environment->physical_cancel);");
-	output_line ("if (unlikely(initialized == 0 || physical_cancel == 1)) {");
+	
+	/* Allocate and initialize LOCAL storage */
+	if (prog->local_storage) {
+		if (local_mem) {
+			output_line ("/* Allocate LOCAL storage */");
+			output_line ("cob_local_ptr = cob_malloc (%dU);",
+				     local_mem);
+			if (prog->flag_global_use) {
+				output_line ("cob_local_save = cob_local_ptr;");
+			}
+		}
+		output_newline ();
+		output_line ("/* Initialize LOCAL storage */");
+		output_initial_values (prog->local_storage);
+		output_newline ();
+	}
+
+	output_line ("/* Initialize rest of program */");
+	output_line ("if (unlikely(initialized == 0)) {");
 	output_line ("\tgoto P_initialize;");
 	if (prog->flag_chained) {
 		output_line ("} else {");
@@ -6957,29 +7004,6 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		}
 		output_line ("memset (b_cb + 66, ' ', 280);\t// datafield-value\n");	/* EB */
 		anim_first_stmt = 0;	/* EB */
-	}
-
-	/* Set up LOCAL-STORAGE size */
-	if (prog->local_storage) {
-		for (f = prog->local_storage; f; f = f->sister) {
-			if (f->flag_item_based || f->flag_local_alloced) {
-				continue;
-			}
-			if (f->redefines) {
-				continue;
-			}
-			if (f->flag_item_78) {
-				cobc_abort_pr (_("Unexpected CONSTANT item"));
-				COBC_ABORT ();
-			}
-			f->flag_local_storage = 1;
-			f->flag_local_alloced = 1;
-			f->mem_offset = local_mem;
-			/* Round up to COB_MALLOC_ALIGN + 1 bytes */
-			/* Caters for current types */
-			local_mem += ((f->memory_size + COB_MALLOC_ALIGN) &
-					~COB_MALLOC_ALIGN);
-		}
 	}
 
 	if (prog->decimal_index_max) {
@@ -7040,7 +7064,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_newline ();
 	}
 
-	/* Initialize W/S unconditionally when INITIAL program */
+	/* Initialize W/S and files unconditionally when INITIAL program */
 	if (prog->flag_initial) {
 		output_line ("/* Initialize INITIAL program WORKING-STORAGE */");
 		output_initial_values (prog->working_storage);
@@ -7048,22 +7072,6 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		for (l = prog->file_list; l; l = CB_CHAIN (l)) {
 			output_file_initialization (CB_FILE (CB_VALUE (l)));
 		}
-		output_newline ();
-	}
-
-	/* Allocate / initialize LOCAL storage */
-	if (prog->local_storage) {
-		if (local_mem) {
-			output_line ("/* Allocate LOCAL storage */");
-			output_line ("cob_local_ptr = cob_malloc (%dU);",
-				     local_mem);
-			if (prog->flag_global_use) {
-				output_line ("cob_local_save = cob_local_ptr;");
-			}
-		}
-		output_newline ();
-		output_line ("/* Initialize LOCAL storage */");
-		output_initial_values (prog->local_storage);
 		output_newline ();
 	}
 
@@ -7147,7 +7155,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 			     f->usage == CB_USAGE_PACKED ||
 			     f->usage == CB_USAGE_COMP_6)) {
 				output_line ("cob_check_numeric (&%s%d, %s%d);",
-					     CB_PREFIX_FIELD 
+					     CB_PREFIX_FIELD
 					     f->id,
 					     CB_PREFIX_STRING,
 					     lookup_string (f->name));
@@ -7346,11 +7354,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 
 	if (prog->flag_recursive) {
 		output_line ("/* Free cob_module structure */");
-#if	1	/* RXWRXW Mod */
 		output_line ("cob_cache_free (module);");
-#else
-		output_line ("cob_free (module);");
-#endif
 		output_newline ();
 	}
 
@@ -7702,10 +7706,8 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output (" = 0;\n");
 	}
 
-#if	1	/* RXWRXW Mod */
 	output_line ("cob_cache_free (module);");
 	output_line ("module = NULL;");
-#endif
 	output_newline ();
 
 cancel_end:

@@ -42,6 +42,18 @@ AT_DATA([prog.cob], [
            END-DISPLAY.
            DISPLAY -12.3
            END-DISPLAY.
+           DISPLAY 1.23E0
+           END-DISPLAY.
+           DISPLAY +1.23E0
+           END-DISPLAY.
+           DISPLAY -1.23E0
+           END-DISPLAY.
+           DISPLAY 12.3E-2
+           END-DISPLAY.
+           DISPLAY +12.3E-2
+           END-DISPLAY.
+           DISPLAY -12.3E-2
+           END-DISPLAY.
            STOP RUN.
 ])
 
@@ -54,6 +66,12 @@ AT_CHECK([./prog], [0],
 12.3
 +12.3
 -12.3
+1.23
++1.23
+-1.23
+.123
++.123
+-.123
 ])
 
 AT_CLEANUP
@@ -76,6 +94,12 @@ AT_DATA([prog.cob], [
            END-DISPLAY.
            DISPLAY -12,3
            END-DISPLAY.
+           DISPLAY 1,23E0
+           END-DISPLAY.
+           DISPLAY +1,23E0
+           END-DISPLAY.
+           DISPLAY -1,23E0
+           END-DISPLAY.
            STOP RUN.
 ])
 
@@ -84,6 +108,9 @@ AT_CHECK([./prog], [0],
 [12,3
 +12,3
 -12,3
+1,23
++1,23
+-1,23
 ])
 
 AT_CLEANUP
@@ -1488,8 +1515,14 @@ AT_DATA([prog.cob], [
        PROCEDURE        DIVISION.
            CALL "prog2"
            END-CALL.
-           CANCEL "prog2"
-           CANCEL "prog2"
+           CALL "prog2"
+           END-CALL.
+           CANCEL "prog2".
+           CALL "prog2"
+           END-CALL.
+           CANCEL "prog2".
+           DISPLAY "NG" NO ADVANCING
+           END-DISPLAY.
            STOP RUN.
 ])
 
@@ -1498,16 +1531,18 @@ AT_DATA([prog2.cob], [
        PROGRAM-ID.      prog2.
        DATA DIVISION.
        WORKING-STORAGE SECTION.
+       77  VAR          PIC 9(01) value 1.
        PROCEDURE        DIVISION.
-           DISPLAY "NG" NO ADVANCING
+           DISPLAY VAR NO ADVANCING
            END-DISPLAY.
+           ADD  1 TO VAR END-ADD.
            GOBACK.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], , [])
 AT_CHECK([$COMPILE_MODULE prog2.cob], [0], , [])
-AT_CHECK([./prog], [0], [NG], [])
-AT_CHECK([export COB_PHYSICAL_CANCEL=1; ./prog], [0], [NG], [])
+AT_CHECK([./prog], [0], [121NG], [])
+AT_CHECK([export COB_PHYSICAL_CANCEL=1; ./prog], [0], [121NG], [])
 
 AT_CLEANUP
 
