@@ -5557,9 +5557,6 @@ cob_init (const int argc, char **argv)
 	}
 #endif
 
-	/* Copy COB_ANIM from settings (internal) to global structure */
-	cobglobptr->cob_anim = cobsetptr->cob_anim;
-
 #ifdef	ENABLE_NLS
 	localedir = getenv("LOCALEDIR");
 	if (localedir != NULL) {
@@ -5590,6 +5587,9 @@ cob_init (const int argc, char **argv)
 
 	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
 	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;
+
+	/* Copy COB_ANIM from settings (internal) to global structure */
+	cobglobptr->cob_anim = cobsetptr->cob_anim;
 
 	/* Call inits with cobsetptr to get the adresses of all */
 	/* Screen-IO might be needed for error outputs */
