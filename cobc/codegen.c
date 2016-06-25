@@ -9634,19 +9634,12 @@ codegen (struct cb_program *prog, const int nested)
 	}
 	if (animflag_set && !nested) { /* EB */
 		//output("static int\t_callanim(int, char, cob_module*);\n"); /* EB */
-#ifdef WIN32
 		encoded_prog_name = cb_encode_program_id(prog->orig_program_id);
 		if(encoded_prog_name[0] == '_')
 			encoded_prog_name++;
-		output("__declspec(dllexport) int get_aniline_%s (unsigned long int*, char*);\n", encoded_prog_name);
-		output("__declspec(dllexport) int get_linecount_%s ();\n", encoded_prog_name);
-		output("__declspec(dllexport) void anidata_%s (char*, char*, char*);\n", encoded_prog_name);
-#else
-		output("int get_aniline_%s (unsigned long int*, char*);\n", encoded_prog_name);
-		output("int get_linecount_%s ();\n", encoded_prog_name);
-		output("void anidata_%s (char*, char*, char*);\n", encoded_prog_name);
-#endif
-		
+		output("COB_EXPIMP int get_aniline_%s (unsigned long int*, char*);\n", encoded_prog_name);
+		output("COB_EXPIMP int get_linecount_%s ();\n", encoded_prog_name);
+		output("COB_EXPIMP void anidata_%s (char*, char*, char*);\n", encoded_prog_name);
 	}
 
 	/* Functions */
