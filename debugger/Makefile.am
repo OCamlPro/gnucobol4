@@ -27,5 +27,5 @@ CLEANFILES = $(extras_DATA)
 SUFFIXES = .cob .$(COB_MODULE_EXT)
 .cob.$(COB_MODULE_EXT):
 	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
-		cobc -m -Wall -std=mf -O -o $@ $<
+		cobc -m -Wall -O -o $@ $<
 

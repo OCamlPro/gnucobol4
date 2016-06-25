@@ -546,7 +546,7 @@ uninstall-am: uninstall-animDATA
 
 .cob.$(COB_MODULE_EXT):
 	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
-		cobc -m -Wall -std=mf -O -o $@ $<
+		cobc -m -Wall -O -o $@ $<
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

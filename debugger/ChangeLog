@@ -3,6 +3,7 @@
 
 	* Makefile.am: same procedure as in extras: compile and link from
 	  COBOL source via cobc from built-directory
+	* gc-debugger.cob: fixed compile error (max-length > 31)
 
 2015-??-??  Philipp Böhme <phi.boehme@googlemail.com>
 

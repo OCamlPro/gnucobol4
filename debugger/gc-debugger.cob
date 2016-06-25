@@ -389,8 +389,9 @@
             move spaces to codelines-data.
             
             move spaces to headline.
-            string "GNU COBOL 2.0 Debugger  --  " delimited by size 
-                cobol-src-name delimited by spaces
+            string "GnuCOBOL 2.0 Debugger  --  "
+                   cobol-src-name
+                   delimited by size
                 into headline
             end-string
             
@@ -466,7 +467,7 @@
         process-interface-block section.
             perform log-interface-block.
 
-            perform process-interface-block-count-depth.
+            perform process-interface-block-cdepth.
             
             if SINGLE-STEP-MODE
                 if cob-anim-logging = 'Y'
@@ -549,7 +550,7 @@
             continue.
             
       ***************************************************************
-        process-interface-block-count-depth section.
+        process-interface-block-cdepth section.
             if anim-state = 'X'
       *          if call-depth > 0 
       *              subtract 1 from call-depth end-subtract
@@ -578,9 +579,9 @@
                     end-if
                     
                     move spaces to headline
-                    string "GNU COBOL 2.0 Debugger  --  " 
-                        delimited by size
-                        cobol-src-name delimited by spaces
+                    string "GnuCOBOL 2.0 Debugger  --  "
+                           cobol-src-name
+                           delimited by size
                         into headline
                     end-string
                     
