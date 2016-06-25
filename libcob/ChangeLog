@@ -1,4 +1,43 @@
 
+2015-12-14  Brian Tiffin <btiffin@gnu.org>
+
+	* numeric.c (cob_print_realbin): bug #171 - unsigned values fail with high bit set
+
+2015-11-08  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* intrinsic.c (cob_intr_current_date): bug #161 - offset for CURRENT-DATE
+
+2015-12-07  Edward Hart <edward.dan.hart@gmail.com>
+
+	* common.c (cob_get_current_date_and_time): fixed bug where offset_known
+	  was not set to 1 on Unix systems.
+
+2015-12-07  Edward Hart <edward.dan.hart@gmail.com>
+
+	* intrinsic.c: fixed bug #170 - added detection of whether offset_known
+	  is true or not - and added detection of EC-IMP-UTC-UNKNOWN exception.
+	* exception.def: added EC-IMP-UTC-UNKNOWN.
+
+2015-12-05  Edward Hart <edward.dan.hart@gmail.com>
+
+	* intrinsic.c: added support for optional offset parameter for
+	  FORMATTED-(DATE)TIME functions (defaults to zero).
+
+2015-12-03  Edward Hart <edward.dan.hart@gmail.com>
+
+	* intrinsic.c: fixed bug #169 - added correct implementation of times
+	  ending with Z (i.e. to return the UTC time).
+
+2015-10-28  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* common.c (cob_check_linkage): add function for check of linkage items
+	  (currently checking only access to not passed OPTIONAL items)
+
+2015-10-25  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* common.c (cob_init)[WIN32]: resolve COB_UNIX_LF before reading runtime
+	  configuration as error messages would have wrong LF otherwise
+
 2015-10-24  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
 	* common.c (conf_runtime_error): add function for configuration specific
@@ -36,6 +75,11 @@
 	  October (month #10). Also fixed unreported bug where
 	  TEST-FORMATTED-DATETIME rejected dates followed by whitespace.
 
+2015-09-21  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* common.h: cast PATHSEPC PATHSEPS SLASH_INT SLASH_STR with appropriate type
+	  and rename the first three to PATHSEP_CHAR PATHSEP_STR SLASH_CHAR
+
 2015-08-21  Edward Hart <edward.dan.hart@gmail.com>
 
 	* screenio.c: implemented LOWLIGHT.
@@ -46,6 +90,11 @@
 	  EC-SCREEN-STARTING-COLUMN and EC-SCREEN-ITEM-TRUNCATED.
 	* screenio.c, common.h: refactored functions implementing ACCEPT and
 	  DISPLAY.
+
+2015-09-21  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* call.c (cob_init_call): Don't add the current directory "." to resolve_path
+	  if it's already set (either via runtime configuration or default value)
 
 2015-06-24  Edward Hart <edward.dan.hart@gmail.com>
 
@@ -85,7 +134,7 @@
 	* common.c (cob_load_config_file, cob_load_config): respect environment
 	  COB_CONFIG_DIR when loading runtime configuration
 
-2015-05-12  Ron Norman <rjn@inglenet.com> 
+2015-05-12  Ron Norman <rjn@inglenet.com>
 
 	* common.c: changed to be more specific about acceptable values for
 	  runtime boolean options
@@ -128,7 +177,7 @@
 	* fileio.c: use COB_FILE_MODE as permission for all cases where
 	  files are possibly created (fixes bug #126)
 
-2015-03-14  Ron Norman <rjn@inglenet.com> 
+2015-03-14  Ron Norman <rjn@inglenet.com>
 
 	* common.c: new code for table driven processing of runtime.cfg
 	  (runtime configuration) file and environment variables

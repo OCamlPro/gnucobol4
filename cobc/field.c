@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -530,7 +530,7 @@ validate_field_1 (struct cb_field *f)
 		/* The data item that contains a OCCURS DEPENDING clause shall not
 		   be subordinate to a data item that has an OCCURS clause */
 		for (p = f->parent; p; p = p->parent) {
-			if (p->flag_occurs) {
+			if (p->flag_occurs && !cb_flag_odoslide) {
 				cb_error_x (CB_TREE (p),
 					    _("'%s' cannot have the OCCURS clause due to '%s'"),
 					    cb_name (CB_TREE (p)),

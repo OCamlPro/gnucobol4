@@ -2038,23 +2038,23 @@ int pp_flex_debug = 0;
 char *pptext;
 #line 1 "pplex.l"
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 #line 52 "pplex.l"
 #undef	YY_READ_BUF_SIZE
@@ -4417,9 +4417,7 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 	char			*s;
 	char			*dname;
 
-#ifdef	_WIN32
 	unsigned char		bom[4];
-#endif
 
 	if (ppin) {
 		for (; newline_count > 0; newline_count--) {
@@ -4451,16 +4449,18 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 		}
 		return -1;
 	}
-#ifdef	_WIN32
-	/* Check for BOM */
-	if (fread (bom, 3, 1, ppin) == 1) {
-		if (bom[0] != 0xEF || bom[1] != 0xBB || bom[2] != 0xBF) {
+
+	/* Check for BOM - *not* for input from stdin as rewind() clears the input
+	  buffer if used on stdin and output in console has normally no BOM at all */
+	if (strcmp(name, COB_DASH) != 0) {
+		if (fread (bom, 3, 1, ppin) == 1) {
+			if (bom[0] != 0xEF || bom[1] != 0xBB || bom[2] != 0xBF) {
+				rewind (ppin);
+			}
+		} else {
 			rewind (ppin);
 		}
-	} else {
-		rewind (ppin);
 	}
-#endif
 
 	/* Preserve the current buffer */
 	p = cobc_malloc (sizeof (struct copy_info));

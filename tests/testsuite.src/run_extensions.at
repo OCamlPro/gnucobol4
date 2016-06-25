@@ -1,23 +1,22 @@
-## Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-## Copyright (C) 2007-2012 Roger While
-## Copyright (C) 2014,2015 Simon Sobisch
+## Copyright (C) 2003-2012, 2014-2015 Free Software Foundation, Inc.
+## Written by Keisuke Nishida, Roger While, Simon Sobisch
 ##
-## This file is part of GNU Cobol.
+## This file is part of GnuCOBOL.
 ##
-## The GNU Cobol compiler is free software: you can redistribute it
+## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
 ##
-## GNU Cobol is distributed in the hope that it will be useful,
+## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
 ##
 ## You should have received a copy of the GNU General Public License
-## along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
-### GNU Cobol Test Suite
+### GnuCOBOL Test Suite
 
 ### Non-standard extensions
 
@@ -3503,3 +3502,41 @@ AT_CHECK([$COMPILE -DACTIVATE2 prog.cob], [0],
 ])
 
 AT_CLEANUP
+
+
+AT_SETUP([Nested ODO subscripts])
+AT_KEYWORDS([extensions runsubscripts subscripts])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  n            PIC 9 VALUE 2.
+       01  m            PIC 9 VALUE 3.
+
+       01  a-table      VALUE "ABCDEFGHIJ".
+           03  rows     OCCURS 0 TO 2 TIMES
+                        DEPENDING ON n.
+                05  chars OCCURS 0 TO 5 TIMES
+                          DEPENDING ON m
+                          PIC X.
+
+       01  vals         PIC X(3).
+
+       PROCEDURE DIVISION.
+           MOVE chars (1, 2) TO vals (1:1)
+           MOVE chars (2, 1) TO vals (2:1)
+           MOVE chars (2, 3) TO vals (3:1)
+           IF  vals <> "BFH"
+               DISPLAY "Vals wrong: " vals
+               END-DISPLAY
+           END-IF
+           .
+])
+
+AT_CHECK([$COMPILE -fodoslide prog.cob], [0], [], [])
+AT_CHECK([./prog], [0])
+
+AT_CLEANUP
+

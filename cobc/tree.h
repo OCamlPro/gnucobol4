@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2015 Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -719,6 +718,7 @@ struct cb_field {
 	unsigned int flag_is_verified	: 1;	/* Has been verified */
 	unsigned int flag_is_c_long	: 1;	/* Is BINARY-C-LONG */
 	unsigned int flag_is_pdiv_parm	: 1;	/* Is PROC DIV USING */
+	unsigned int flag_is_pdiv_opt	: 1;	/* Is PROC DIV USING OPTIONAL */
 	unsigned int flag_local_alloced	: 1;	/* LOCAL storage is allocated */
 	unsigned int flag_no_init	: 1;	/* No initialize unless used */
 
@@ -978,13 +978,13 @@ struct cb_assign {
 struct cb_intrinsic_table {
 	const char		*name;		/* FUNCTION NAME */
 	const char		*intr_routine;	/* Routine name */
-	const int		args;		/* 0-n, negative = variable */
-	const int		implemented;	/* Have we implemented it? */
 	const enum cb_intr_enum	intr_enum;	/* Enum intrinsic */
+	const int		token;		/* Token value */
+	const int		implemented;	/* Have we implemented it? */
+	const int		args;		/* Maximum number of arguments, -1 = unlimited */
+	const int		min_args;	/* Minimum number of arguments */
 	const enum cb_category	category;	/* Category */
 	const unsigned int	refmod;		/* Can be refmodded */
-	const int		min_args;	/* Minimum number of args */
-	const int		token;		/* Token value */
 };
 
 struct cb_intrinsic {

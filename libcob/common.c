@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2014,2015 Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol runtime library is free software: you can redistribute it
+   The GnuCOBOL runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "config.h"
@@ -233,7 +232,7 @@ static char	varseq_dflt[8] = "0";
 /*
  * Table of possible environment variables and/or runtime.cfg parameters
    Env Var name, Name used in run-time config file, Default value (NULL for aliases), Table of Alternate values,
-   Grouping for display of run-time options, Data type, Location within structure, Length of referenced field,
+   Grouping for display of run-time options, Data type, Location within structure (adds computed length of referenced field),
    Set by which runtime.cfg file, value set by a different keyword,
    optional: Minimum accepted value, Maximum accepted value
  */
@@ -255,6 +254,7 @@ static struct config_tbl gc_conf[] = {
 	{"COB_TIMEOUT_SCALE","timeout_scale",	"0",	timeopts,GRP_SCREEN,ENV_INT,SETPOS(cob_timeout_scale)},
 	{"COB_TRACE_FILE","trace_file",		NULL,	NULL,GRP_MISC,ENV_STR,SETPOS(cob_trace_filename)},
 #ifdef  _WIN32
+	/* checked before configuration load if set from environment in cob_init() */
 	{"COB_UNIX_LF","unix_lf",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_unix_lf)},
 #endif
 	{"COB_VARSEQ_FORMAT","varseq_format",	varseq_dflt,varseqopts,GRP_FILE,ENV_INT|ENV_ENUM,SETPOS(cob_varseq_type)},
@@ -271,8 +271,7 @@ static struct config_tbl gc_conf[] = {
 	{"OS","ostype",			NULL,	NULL,GRP_SYSENV,ENV_STR,SETPOS(cob_sys_type)},
 #endif
 	{"COB_FILE_PATH","file_path",		NULL,	NULL,GRP_FILE,ENV_PATH,SETPOS(cob_file_path)},
-	{"COB_LIBRARY_PATH","library_path",	"." PATHSEPS COB_LIBRARY_PATH,
-							NULL,GRP_CALL,ENV_PATH,SETPOS(cob_library_path)},
+	{"COB_LIBRARY_PATH","library_path",	NULL,	NULL,GRP_CALL,ENV_PATH,SETPOS(cob_library_path)}, /* default value set in cob_init_call() */
 	{"COB_LS_FIXED","ls_fixed",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_ls_fixed)},
 	{"STRIP_TRAILING_SPACES","strip_trailing_spaces",		NULL,	NULL,GRP_HIDE,ENV_BOOL|ENV_NOT,SETPOS(cob_ls_fixed)},
 	{"COB_LS_NULLS","ls_nulls",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_ls_nulls)},
@@ -1138,8 +1137,9 @@ cob_rescan_env_vals (void)
 	cob_source_file = sv_src_file;
 
 	/* Extended ACCEPT status returns */
-	if(cobsetptr->cob_extended_status == 0)
+	if (cobsetptr->cob_extended_status == 0) {
 		cobsetptr->cob_use_esc = 0;
+	}
 }
 
 static int
@@ -2529,7 +2529,25 @@ void
 cob_check_based (const unsigned char *x, const char *name)
 {
 	if (!x) {
-		cob_runtime_error (_("BASED/LINKAGE item '%s' has NULL address"), name);
+      /* name includes '' already and can be ... 'x' (addressed by 'y'= */
+		cob_runtime_error (_("BASED/LINKAGE item %s has NULL address"), name);
+		cob_stop_run (1);
+	}
+}
+
+void
+cob_check_linkage (const unsigned char *x, const char *name, const int check_type)
+{
+	if (!x) {
+		/* name includes '' already and can be ... 'x' of 'y' */
+		switch(check_type) {
+		case 0: /* check for passed items and size on module entry */
+			cob_runtime_error (_("LINKAGE item %s not passed by caller"), name);
+			break;
+		case 1: /* check for passed OPTIONAL items on item use */
+			cob_runtime_error (_("LINKAGE item %s not passed by caller"), name);
+			break;
+		}
 		cob_stop_run (1);
 	}
 }
@@ -2739,6 +2757,7 @@ cob_get_current_date_and_time (void)
 		set_unknown_offset (&cb_time);
 	} else {
 		/* Convert the timezone string into minutes from UTC */
+		cb_time.offset_known = 1;
 		cb_time.utc_offset =
 			cob_ctoi (iso_timezone[1]) * 60 * 10
 			+ cob_ctoi (iso_timezone[2]) * 60
@@ -3242,10 +3261,10 @@ cob_temp_name (char *filename, const char *ext)
 	/* Set temporary file name */
 	if (ext) {
 		snprintf (filename, (size_t)COB_FILE_MAX, "%s%ccob%d_%d%s",
-			cob_gettmpdir(), SLASH_INT, cob_sys_getpid(), cob_temp_iteration, ext);
+			cob_gettmpdir(), SLASH_CHAR, cob_sys_getpid(), cob_temp_iteration, ext);
 	} else {
 		snprintf (filename, (size_t)COB_FILE_MAX, "%s%ccobsort%d_%d",
-			cob_gettmpdir(), SLASH_INT, cob_sys_getpid(), cob_temp_iteration);
+			cob_gettmpdir(), SLASH_CHAR, cob_sys_getpid(), cob_temp_iteration);
 	}
 }
 
@@ -3776,6 +3795,8 @@ cob_sys_calledby (void *data)
 	COB_CHK_PARMS (C$CALLEDBY, 1);
 
 	if (!COB_MODULE_PTR->cob_procedure_params[0]) {
+		/* check what ACU ccbl/runcbl returns, 
+		   the documentation doesn't say anything about this */
 		return -1;
 	}
 	size = COB_MODULE_PTR->cob_procedure_params[0]->size;
@@ -3921,7 +3942,7 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 	temp = (char*) &return_value;
 	
 	/*
-	 * Write data back to Cobol
+	 * Write data back to COBOL
 	 */
 	if (temp[0] == '?' || temp[0] == ':' || temp[0] == 'W' 
 		|| temp[0] == -1 || temp[0] == 0) exit_status = return_value;
@@ -4566,7 +4587,7 @@ set_config_val(char *value, int pos)
 
 /* Set runtime setting by name with given value */
 static int					/* returns 1 if any error, else 0 */
-set_config_val_by_name(char *value, const char *name, const char *func)
+set_config_val_by_name (char *value, const char *name, const char *func)
 {
 	int	i;
 	int ret = 1;
@@ -4574,9 +4595,11 @@ set_config_val_by_name(char *value, const char *name, const char *func)
 	for (i = 0; i < NUM_CONFIG; i++) {
 		if (!strcmp(gc_conf[i].conf_name,name)) {
 			ret = set_config_val(value, i);
-			gc_conf[i].data_type |= STS_FNCSET;
-			gc_conf[i].set_by = FUNC_NAME_IN_DEFAULT;
-			gc_conf[i].default_val = func;
+			if (func) {
+				gc_conf[i].data_type |= STS_FNCSET;
+				gc_conf[i].set_by = FUNC_NAME_IN_DEFAULT;
+				gc_conf[i].default_val = func;
+			}
 			break;
 		}
 	}
@@ -4585,7 +4608,7 @@ set_config_val_by_name(char *value, const char *name, const char *func)
 
 /* Return setting value as a 'string' */
 static char *
-get_config_val(char *value, int pos, char *orgvalue)
+get_config_val (char *value, int pos, char *orgvalue)
 {
 	void 	*data;
 	char	*str;
@@ -4878,14 +4901,14 @@ cob_load_config_file (const char *config_file, int isoptional)
 	int			line;
 	FILE			*conf_fd;
 
-	for (i=0; config_file[i] != 0 && config_file[i] != SLASH_INT; i++);
+	for (i=0; config_file[i] != 0 && config_file[i] != SLASH_CHAR; i++);
 	if (config_file[i] == 0) {			/* Just a name, No directory */
 		if (access(config_file, F_OK) != 0) {	/* and file does not exist */
 			/* check for path of previous configuration file (for includes) */
 			filename[0] = 0;
 			if (cobsetptr->cob_config_cur != 0) {
 				strcpy(buff, cobsetptr->cob_config_file[cobsetptr->cob_config_cur - 1]);
-				for (i = strlen(buff); i != 0 && buff[i] != SLASH_INT; i--);
+				for (i = strlen(buff); i != 0 && buff[i] != SLASH_CHAR; i--);
 				if (i != 0) {
 					buff[i] = 0;
 					snprintf(filename, (size_t)COB_MEDIUM_MAX, "%s%s%s", buff, SLASH_STR, config_file);
@@ -4984,7 +5007,7 @@ cob_load_config_file (const char *config_file, int isoptional)
 }
 
 /*
- * Load the GNU Cobol runtime configuration information
+ * Load the GnuCOBOL runtime configuration information
  */
 int
 cob_load_config (void)
@@ -5033,7 +5056,7 @@ cob_load_config (void)
 					set_config_val((char*)gc_conf[i].default_val,i);
 				}
 			} else {
-				set_config_val((char*)gc_conf[i].default_val,i); /*Set default value */
+				set_config_val((char*)gc_conf[i].default_val,i); /* Set default value */
 			}
 		}
 	}
@@ -5067,9 +5090,8 @@ print_version (void)
 
 	printf ("libcob (%s) %s.%d\n",
 		PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
-	puts ("Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida");
-	puts ("Copyright (C) 2006-2012 Roger While");
-	puts ("Copyright (C) 2009,2010,2012,2014,2015 Simon Sobisch");
+	puts ("Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.");
+	puts ("Written by Keisuke Nishida, Roger While, Simon Sobisch");
 	puts (_("This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
 	printf (_("Built     %s"), cobc_buffer);
@@ -5098,7 +5120,7 @@ print_info (void)
 	printf (_("C version %s%s"), OC_C_VERSION_PRF, OC_C_VERSION);
 	putchar ('\n');
 
-	puts (_("GNU Cobol information"));
+	puts (_("GnuCOBOL information"));
 
 	var_print ("COB_MODULE_EXT", COB_MODULE_EXT, "", 0);
 #if 0 /* only relevant for cobc */
@@ -5421,14 +5443,6 @@ cob_init (const int argc, char **argv)
 	}
 #endif
 
-	/* Load runtime configuration file */
-	if (unlikely(cob_load_config() < 0)) {
-		cob_stop_run (1);
-	}
-
-	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
-	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;
-
 	/* Copy COB_ANIM from settings (internal) to global structure */
 	cobglobptr->cob_anim = cobsetptr->cob_anim;
 
@@ -5443,12 +5457,25 @@ cob_init (const int argc, char **argv)
 #endif
 
 #ifdef	_WIN32
+	/* cob_unix_lf needs to be set before configuration load, 
+	   possible error messages would have wrong line endings otherwise */
+	if ((s = getenv("COB_UNIX_LF")) != NULL) {
+		set_config_val_by_name (s, "unix_lf", NULL);
+	}
 	if (cobsetptr->cob_unix_lf) {
 			_setmode (_fileno (stdin), _O_BINARY);
 			_setmode (_fileno (stdout), _O_BINARY);
 			_setmode (_fileno (stderr), _O_BINARY);
 		}
 #endif
+
+	/* Load runtime configuration file */
+	if (unlikely(cob_load_config() < 0)) {
+		cob_stop_run (1);
+	}
+
+	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
+	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;
 
 	/* Call inits with cobsetptr to get the adresses of all */
 	/* Screen-IO might be needed for error outputs */

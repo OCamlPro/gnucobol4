@@ -1,23 +1,22 @@
-## Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-## Copyright (C) 2007-2012 Roger While
-## Copyright (C) 2014-2015 Simon Sobisch
+## Copyright (C) 2003-2012, 2014-2015 Free Software Foundation, Inc.
+## Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
 ##
-## This file is part of GNU Cobol.
+## This file is part of GnuCOBOL.
 ##
-## The GNU Cobol compiler is free software: you can redistribute it
+## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
 ##
-## GNU Cobol is distributed in the hope that it will be useful,
+## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
 ##
 ## You should have received a copy of the GNU General Public License
-## along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
-### GNU Cobol Test Suite
+### GnuCOBOL Test Suite
 
 ### ISO+IEC+1989-2002 15 Intrinsic Functions
 ### ISO+IEC+1989-2002 9.4 User-Defined Functions
@@ -900,10 +899,19 @@ AT_DATA([prog.cob], [
            END-IF
 
            MOVE FUNCTION FORMATTED-DATETIME
-                    ("YYYYDDDThhmmss.sssssssssZ", 1, 45296.789012345)
+                    ("YYYYDDDThhmmss+hhmm", 1, 45296)
                TO str
-           IF str <> "1601001T123456.789012345Z"
+           IF str <> "1601001T123456+0000"
                DISPLAY "Test 4 failed: " str END-DISPLAY
+           END-IF
+
+           *> Test underflow to next day due to offset
+           MOVE FUNCTION FORMATTED-DATETIME
+                    ("YYYYDDDThhmmss.sssssssssZ", 150846, 0,
+                     1)
+               TO str
+           IF str <> "2013365T235900.000000000Z"
+               DISPLAY "Test 5 failed: " str END-DISPLAY
            END-IF
 
            STOP RUN.
@@ -962,12 +970,13 @@ AT_DATA([prog.cob], [
                DISPLAY "Test 2 failed: " str END-DISPLAY
            END-IF
 
-           MOVE FUNCTION FORMATTED-TIME ( "hhmmssZ", 45296 ) TO str
-           IF str <> "123456Z"
+           MOVE FUNCTION FORMATTED-TIME ( "hhmmssZ", 86399, -1 ) TO str
+           IF str <> "000059Z"
                DISPLAY "Test 3 failed: " str END-DISPLAY
            END-IF
 
-           MOVE FUNCTION FORMATTED-TIME ( "hh:mm:ssZ", 45296 ) TO str
+           MOVE FUNCTION FORMATTED-TIME ( "hh:mm:ssZ", 45296)
+               TO str
            IF str <> "12:34:56Z"
                DISPLAY "Test 4 failed: " str END-DISPLAY
            END-IF
@@ -977,13 +986,13 @@ AT_DATA([prog.cob], [
                DISPLAY "Test 5 failed: " str END-DISPLAY
            END-IF
 
-           MOVE FUNCTION FORMATTED-TIME ( "hh:mm:ss.ssZ", 45296.78 )
+           MOVE FUNCTION FORMATTED-TIME ( "hh:mm:ss.ssZ", 0, 120)
                TO str
-           IF str <> "12:34:56.78Z"
+           IF str <> "22:00:00.00Z"
                DISPLAY "Test 6 failed: " str END-DISPLAY
            END-IF
 
-           MOVE FUNCTION FORMATTED-TIME ( "hhmmss+hhmm", 45296, 0 )
+           MOVE FUNCTION FORMATTED-TIME ( "hhmmss+hhmm", 45296)
                TO str
            IF str <> "123456+0000"
                DISPLAY "Test 7 failed: " str END-DISPLAY
@@ -1006,7 +1015,7 @@ AT_DATA([prog.cob], [
                TO str
            IF str <> SPACES
                   OR FUNCTION EXCEPTION-STATUS <> "EC-ARGUMENT-FUNCTION"
-                  OR FUNCTION EXCEPTION-LOCATION <> "prog; ; 59"
+                  OR FUNCTION EXCEPTION-LOCATION <> "prog; ; 60"
                DISPLAY "Test 10 failed: " str END-DISPLAY
            END-IF
 
@@ -1014,7 +1023,7 @@ AT_DATA([prog.cob], [
                TO str
            IF str <> SPACES
                   OR FUNCTION EXCEPTION-STATUS <> "EC-ARGUMENT-FUNCTION"
-                  OR FUNCTION EXCEPTION-LOCATION <> "prog; ; 67"
+                  OR FUNCTION EXCEPTION-LOCATION <> "prog; ; 68"
                DISPLAY "Test 11 failed: " str END-DISPLAY
            END-IF
 

@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2003-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -821,12 +821,8 @@ output_size (const cb_tree x)
 		}
 		if (r->length) {
 			output_integer (r->length);
-		} else if (r->offset) {
-			if (f->flag_any_length) {
-				output ("%s%d.size - ", CB_PREFIX_FIELD, f->id);
-			} else {
-				output ("%d - ", f->size);
-			}
+		} else if (r->offset && f->flag_any_length) {
+			output ("%s%d.size - ", CB_PREFIX_FIELD, f->id);
 			output_index (r->offset);
 		} else {
 			p = chk_field_variable_size (f);
@@ -858,6 +854,10 @@ again:
 					output (" + ");
 					goto again;
 				}
+			}
+			if (r->offset) {
+				output (" - ");
+				output_index (r->offset);
 			}
 		}
 		break;
@@ -1345,7 +1345,7 @@ output_integer (cb_tree x)
 			output_data (x);
 			output ("))");
 #else
-			output ("(*(void **) (");
+			output ("(*(unsigned char **) (");
 			output_data (x);
 			output ("))");
 #endif
@@ -8360,8 +8360,8 @@ output_header (FILE *fp, const char *locbuff, const struct cb_program *cp)
 		if (animflag_set)	/* EB */
 			fprintf (fp, "/* Generated animating module */\n");	/* EB */
 		fprintf (fp, "/* Generated at            %s */\n", locbuff);
-		fprintf (fp, "/* GNU Cobol build date    %s */\n", cb_oc_build_stamp);
-		fprintf (fp, "/* GNU Cobol package date  %s */\n", COB_TAR_DATE);
+		fprintf (fp, "/* GnuCOBOL build date    %s */\n", cb_oc_build_stamp);
+		fprintf (fp, "/* GnuCOBOL package date  %s */\n", COB_TAR_DATE);
 		fprintf (fp, "/* Compile command         ");
 		for (i = 0; i < cb_saveargc; i++) {
 			fprintf (fp, "%s ", cb_saveargv[i]);

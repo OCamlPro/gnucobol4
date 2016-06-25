@@ -1,27 +1,35 @@
 @verbatim
-Usage: cobc [options] file ...
+Usage: /d/Programme/Entwicklung/GnuCOBOL/gnu-cobol-2.0_ultraclean2/cobc/.libs/cobc [options]... file...
+
+GnuCOBOL compiler for most COBOL dialects with lots of extensions
 
 Options:
-  -help                 Display this message
-  -version, -V          Display compiler version
-  -info, -i             Display compiler build information
-  -v                    Display the commands invoked by the compiler
+  -h, -help             Display this help and exit
+  -V, -version          Display compiler version and exit
+  -i, -info             Display compiler information (build/environment)
+  -v, -verbose          Display the commands invoked by the compiler
+  -vv                   Display compiler version and display the commands
+                        invoked by the compiler
   -x                    Build an executable program
   -m                    Build a dynamically loadable module (default)
-  -std=<dialect>        Warnings/features for a specific dialect :
-                          cobol2002   Cobol 2002
-                          cobol85     Cobol 85
+  -j                    Run job, after build
+  -std=<dialect>        Warnings/features for a specific dialect:
+                          cobol2002   COBOL 2002
+                          cobol2014   COBOL 2014
+                          cobol85     COBOL 85
                           ibm         IBM Compatible
                           mvs         MVS Compatible
                           bs2000      BS2000 Compatible
                           mf          Micro Focus Compatible
+                          acu         ACUCOBOL-GT Compatible
                           default     When not specified
                         See config/default.conf and config/*.conf
   -free                 Use free source format
   -fixed                Use fixed source format (default)
+  -F                    Alias (short option) for -free
   -O, -O2, -Os          Enable optimization
   -g                    Enable C compiler debug / stack check / trace
-  -debug                Enable all run-time error checking
+  -d, -debug            Enable all run-time error checking
   -o <file>             Place the output into <file>
   -b                    Combine all input files into a single
                         dynamically loadable module
@@ -40,6 +48,7 @@ Options:
   -D <define>           DEFINE <define> to the COBOL compiler
   -K <entry>            Generate CALL to <entry> as static
   -conf=<file>          User defined dialect configuration - See -std=
+  -cb_conf=<tag:value>  Override configuration entry
   -list-reserved        Display reserved words
   -list-intrinsics      Display intrinsic functions
   -list-mnemonics       Display mnemonic names
@@ -102,6 +111,8 @@ Options:
 			- Default : BEFORE 1
   -fmfcomment           '*' or '/' in column 1 treated as comment
 			- FIXED format only
+  -facucomment          '$' in indicator area treated as '*',
+			'|' treated as floating comment
   -fnotrunc             Allow numeric field overflow
 			- Non-ANSI behaviour
   -fodoslide            Adjust items following OCCURS DEPENDING

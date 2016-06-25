@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2002-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol runtime library is free software: you can redistribute it
+   The GnuCOBOL runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Freecob_freetware Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -535,8 +535,8 @@ cob_chk_file_mapping (void)
 		if ((p = cob_chk_file_env (src)) != NULL) {
 			strncpy (file_open_name, p, (size_t)COB_FILE_MAX);
 		} else if (cobsetptr->cob_file_path) {
-			snprintf (file_open_buff, (size_t)COB_FILE_MAX, "%s%s%s",
-				  cobsetptr->cob_file_path, SLASH_STR, file_open_name);
+			snprintf (file_open_buff, (size_t)COB_FILE_MAX, "%s%c%s",
+				  cobsetptr->cob_file_path, SLASH_CHAR, file_open_name);
 			strncpy (file_open_name, file_open_buff,
 				 (size_t)COB_FILE_MAX);
 		}
@@ -2668,11 +2668,11 @@ bdb_nofile (const char *filename)
 	for (i = 0; bdb_data_dir && bdb_data_dir[i]; ++i) {
 		bdb_buff[COB_SMALL_MAX] = 0;
 		if (is_absolute (bdb_data_dir[i])) {
-			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%s%s",
-				  bdb_data_dir[i], SLASH_STR, filename);
+			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%c%s",
+				  bdb_data_dir[i], SLASH_CHAR, filename);
 		} else {
-			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%s%s%s%s",
-				  cobsetptr->bdb_home, SLASH_STR, bdb_data_dir[i], SLASH_STR, filename);
+			snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%c%s%c%s",
+				  cobsetptr->bdb_home, SLASH_CHAR, bdb_data_dir[i], SLASH_CHAR, filename);
 		}
 		errno = 0;
 		if (access (bdb_buff, F_OK) == 0 || errno != ENOENT) {
@@ -2681,8 +2681,8 @@ bdb_nofile (const char *filename)
 	}
 	if (i == 0) {
 		bdb_buff[COB_SMALL_MAX] = 0;
-		snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%s%s",
-			  cobsetptr->bdb_home, SLASH_STR, filename);
+		snprintf (bdb_buff, (size_t)COB_SMALL_MAX, "%s%c%s",
+			  cobsetptr->bdb_home, SLASH_CHAR, filename);
 		errno = 0;
 		if (access (bdb_buff, F_OK) == 0 || errno != ENOENT) {
 			return 0;

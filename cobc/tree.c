@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -26,6 +26,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "cobc.h"
 #include "tree.h"
@@ -561,32 +562,6 @@ try_get_constant_data (cb_tree val)
 }
 
 static int
-offset_time_format (const char *format)
-{
-	char	decimal_point = current_program->decimal_point;
-
-	if (cob_valid_time_format (format, decimal_point)
-	    || cob_valid_datetime_format (format, decimal_point)) {
-		/* Only offset time formats contain a '+'. */
-		return strchr (format, '+') !=	NULL;
-	} else {
-		return 0;
-	}
-}
-
-static int
-offset_arg_param_num (const enum cb_intr_enum intr)
-{
-	if (intr == CB_INTR_FORMATTED_TIME) {
-		return 3;
-	} else if (intr == CB_INTR_FORMATTED_DATETIME) {
-		return 4;
-	} else {
-		return 0;
-	}
-}
-
-static int
 valid_const_date_time_args (const cb_tree tree, const struct cb_intrinsic_table *intr,
 			    cb_tree args)
 {
@@ -598,14 +573,10 @@ valid_const_date_time_args (const cb_tree tree, const struct cb_intrinsic_table 
 
 	data = try_get_constant_data (arg);
 	if (data != NULL) {
-		if(!valid_format (intr->intr_enum, data)) {
+		if (!valid_format (intr->intr_enum, data)) {
 			cb_error_x (tree, _("FUNCTION '%s' has invalid date/time format"),
 				    intr->name);
 			error_found = 1;
-		} else if (offset_time_format (data)
-			   && cb_list_length (args) < offset_arg_param_num (intr->intr_enum)) {
-			cb_error_x (tree, _("FUNCTION '%s' does not have an offset time"),
-				    intr->name);
 		}
 	} else {
 		cb_warning_x (tree, _("FUNCTION '%s' has format in variable"),
@@ -1053,10 +1024,8 @@ int
 cb_get_int (const cb_tree x)
 {
 	struct cb_literal	*l;
-#if	0	/* RXWRXW Fixme SZ */
 	const char		*s;
 	size_t			size;
-#endif
 	size_t			i;
 	int			val;
 
@@ -1071,16 +1040,42 @@ cb_get_int (const cb_tree x)
 		}
 	}
 
-#if	0	/* RXWRXW Fixme SZ */
-	if (l->sign < 0) {
-		s = "2147483648";
-	} else {
-		s = "2147483647";
-	}
 	size = l->size - i;
-	if (size > 10U || (size == 10U && memcmp (&l->data[i], s, 10) > 0)) {
-		cobc_abort_pr (_("Numeric literal exceeds limit - Aborting"));
-		COBC_ABORT ();
+#if INT_MAX >= 9223372036854775807
+	if (size >= 19U) {
+		if (l->sign < 0) {
+			s = "9223372036854775808";
+		} else {
+			s = "9223372036854775807";
+		}
+		if (size > 19U || memcmp (&l->data[i], s, (size_t)19) > 0) {
+			cb_error (_("Numeric literal '%s' exceeds limit '%s'"), &l->data[i], s);
+			return INT_MAX;
+		}
+	}
+#elif INT_MAX >= 2147483647
+	if (size >= 10U) {
+		if (l->sign < 0) {
+			s = "2147483648";
+		} else {
+			s = "2147483647";
+		}
+		if (size > 10U || memcmp (&l->data[i], s, (size_t)10) > 0) {
+			cb_error (_ ("Numeric literal '%s' exceeds limit '%s'"), &l->data[i], s);
+			return INT_MAX;
+		}
+	}
+#else
+	if (size >= 5U) {
+		if (l->sign < 0) {
+			s = "32768";
+		} else {
+			s = "32767";
+		}
+		if (size == 5U || memcmp (&l->data[i], s, (size_t)5) > 0) {
+			cb_error (_ ("Numeric literal '%s' exceeds limit '%s'"), &l->data[i], s);
+			return INT_MAX;
+		}
 	}
 #endif
 
@@ -1115,19 +1110,15 @@ cb_get_long_long (const cb_tree x)
 	}
 
 	size = l->size - i;
-	if (size > 19U) {
-		cobc_abort_pr (_("Numeric literal exceeds limit - Aborting"));
-		COBC_ABORT ();
-	}
-	if (size == 19U) {
+	if (size >= 19U) {
 		if (l->sign < 0) {
 			s = "9223372036854775808";
 		} else {
 			s = "9223372036854775807";
 		}
-		if (memcmp (&(l->data[i]), s, (size_t)19) > 0) {
-			cobc_abort_pr (_("Numeric literal exceeds limit - Aborting"));
-			COBC_ABORT ();
+		if (size == 19U || memcmp (&(l->data[i]), s, (size_t)19) > 0) {
+			cb_error (_ ("Numeric literal '%s' exceeds limit '%s'"), &l->data[i], s);
+			return LLONG_MAX;
 		}
 	}
 
@@ -1145,6 +1136,7 @@ cob_u64_t
 cb_get_u_long_long (const cb_tree x)
 {
 	struct cb_literal	*l;
+	const char		*s;
 	size_t			i;
 	size_t			size;
 	cob_u64_t		val;
@@ -1157,14 +1149,11 @@ cb_get_u_long_long (const cb_tree x)
 	}
 
 	size = l->size - i;
-	if (size > 20U) {
-		cobc_abort_pr (_("Numeric literal exceeds limit - Aborting"));
-		COBC_ABORT ();
-	}
-	if (size == 20U) {
-		if (memcmp (&(l->data[i]), "18446744073709551615", (size_t)20) > 0) {
-			cobc_abort_pr (_("Numeric literal exceeds limit - Aborting"));
-			COBC_ABORT ();
+	if (size >= 20U) {
+		s = "18446744073709551615";
+		if (size == 20U || memcmp (&(l->data[i]), s, (size_t)20) > 0) {
+			cb_error (_ ("Numeric literal '%s' exceeds limit '%s'"), &l->data[i], s);
+			return ULLONG_MAX;
 		}
 	}
 	val = 0;
@@ -2245,7 +2234,7 @@ void
 validate_file (struct cb_file *f, cb_tree name)
 {
 	/* Check ASSIGN clause
-		Currently break's GNU COBOL's extension for SORT FILEs having no need
+		Currently break's GnuCOBOL's extension for SORT FILEs having no need
 		for an ASSIGN clause (tested in run_extensions "SORT ASSIGN ..."
 		According to the Programmer's Guide for 1.1 the ASSIGN is totally
 		ignored as the SORT is either done in memory (if there's enough space)
@@ -3167,18 +3156,27 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 			    cbp->name);
 		return cb_error_node;
 	}
-	if ((cbp->args >= 0 && numargs != cbp->args) ||
-	    (cbp->args < 0 && numargs < cbp->min_args)) {
-		cb_error_x (name,
-			    _("FUNCTION '%s' has wrong number of arguments"),
-			    cbp->name);
-		return cb_error_node;
+	if ((cbp->args == -1)) {
+		if (numargs < cbp->min_args) {
+			cb_error_x (name,
+				_ ("FUNCTION '%s' has wrong number of arguments"),
+				cbp->name);
+			return cb_error_node;
+		}
+	} else {
+		if (numargs > cbp->args || numargs < cbp->min_args) {
+			cb_error_x (name,
+					_("FUNCTION '%s' has wrong number of arguments"),
+					cbp->name);
+			return cb_error_node;
+		}
 	}
 	if (refmod) {
 		if (!cbp->refmod) {
 			cb_error_x (name, _("FUNCTION '%s' can not have reference modification"), cbp->name);
 			return cb_error_node;
 		}
+		/* TODO: better check needed, see typeck.c (cb_build_identifier) */
 		if (CB_LITERAL_P(CB_PAIR_X(refmod)) &&
 		    cb_get_int (CB_PAIR_X(refmod)) < 1) {
 			cb_error_x (name, _("FUNCTION '%s' has invalid reference modification"), cbp->name);

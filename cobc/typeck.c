@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2012,2014-2015 Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -1415,6 +1414,8 @@ cb_build_identifier (cb_tree x, const int subchk)
 	struct cb_field		*f;
 	struct cb_field		*p;
 	const char		*name;
+	char		full_name[COB_MAX_WORDLEN * 2 + 10];
+	cb_tree			xr;
 	cb_tree			v;
 	cb_tree			e1;
 	cb_tree			e2;
@@ -1454,21 +1455,38 @@ cb_build_identifier (cb_tree x, const int subchk)
 	}
 	f = CB_FIELD (v);
 
-	/* BASED check */
-	if (current_statement && CB_EXCEPTION_ENABLE (COB_EC_DATA_PTR_NULL)) {
+	/* BASED check and check for OPTIONAL LINKAGE items */
+	if (current_statement &&
+	    (CB_EXCEPTION_ENABLE (COB_EC_DATA_PTR_NULL) ||
+	     CB_EXCEPTION_ENABLE (COB_EC_PROGRAM_ARG_OMITTED))) {
 		p = cb_field_founder (f);
 		if (p->redefines) {
 			p = p->redefines;
 		}
-		if (!current_statement->flag_no_based) {
+		if (p == f) {
+			sprintf(full_name, "'%s'", name);
+		} else {
+			sprintf(full_name, _("'%s' (accessed by '%s')"), p->name, name);
+		}
+		xr = cb_build_reference(full_name);
+		
+		if (CB_EXCEPTION_ENABLE (COB_EC_DATA_PTR_NULL) &&
+		    !current_statement->flag_no_based) {
 			if (p->flag_item_based ||
-			   (f->storage == CB_STORAGE_LINKAGE &&
+			   (p->storage == CB_STORAGE_LINKAGE &&
 				  !p->flag_is_pdiv_parm)) {
 				current_statement->null_check = CB_BUILD_FUNCALL_2 (
 					"cob_check_based",
 					cb_build_address (cb_build_field_reference (p, NULL)),
-					CB_BUILD_STRING0 (name));
+					CB_BUILD_STRING0 (CB_REFERENCE(xr)->word->name));
 			}
+		}
+		if (CB_EXCEPTION_ENABLE (COB_EC_PROGRAM_ARG_OMITTED) &&
+		    p->flag_is_pdiv_opt) {
+			current_statement->null_check = CB_BUILD_FUNCALL_3 (
+				"cob_check_linkage",
+				cb_build_address (cb_build_field_reference (p, NULL)),
+				CB_BUILD_STRING0 (CB_REFERENCE(xr)->word->name), cb_int1);
 		}
 	}
 

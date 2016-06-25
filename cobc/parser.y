@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2014,2015 Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch
 
-   This file is part of GNU Cobol.
+   This file is part of GnuCOBOL.
 
-   The GNU Cobol compiler is free software: you can redistribute it
+   The GnuCOBOL compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol is distributed in the hope that it will be useful,
+   GnuCOBOL is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 %expect 0
@@ -5273,7 +5272,15 @@ procedure_param_list:
 procedure_param:
   procedure_type size_optional procedure_optional WORD
   {
-	$$ = CB_BUILD_PAIR (cb_int (call_mode), cb_build_identifier ($4, 0));
+	cb_tree		x;
+	struct cb_field	*f;
+
+	x = cb_build_identifier ($4, 0);
+	if ($3 == cb_int1 && CB_VALID_TREE (x) && cb_ref (x) != cb_error_node) {
+		f = CB_FIELD (cb_ref (x));
+		f->flag_is_pdiv_opt = 1;
+	}
+	$$ = CB_BUILD_PAIR (cb_int (call_mode), x);
 	CB_SIZES ($$) = size_mode;
   }
 ;
@@ -5382,10 +5389,16 @@ size_optional:
 
 procedure_optional:
   /* empty */
+  {
+	$$ = cb_int0;
+  }
 | OPTIONAL
   {
 	if (call_mode != CB_CALL_BY_REFERENCE) {
 		cb_error (_("OPTIONAL only allowed for BY REFERENCE items"));
+		$$ = cb_int0;
+	} else {
+		$$ = cb_int1;
 	}
   }
 ;
