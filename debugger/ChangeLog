@@ -1,0 +1,24 @@
+
+2016-06-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: same procedure as in extras: compile and link from
+	  COBOL source via cobc from built-directory
+
+2015-??-??  Philipp Böhme <phi.boehme@googlemail.com>
+
+	* gc-debugger.cob: heavily updated, added fulltext-search and watchpoints,
+	  moved different sections to copybooks: screen, breakpoints,
+	  view-variable
+	* breakpoints.cpy, fulltext-search.cpy, helpers.cpy, logging.cpy,
+	  screen.cpy, view-variable.cpy, watchpoints.cpy: added
+	* animod.cob, printani.cob: removed
+
+2014-12-07  Philipp Böhme <phi.boehme@googlemail.com>
+
+	* gc-debugger.cob: updated
+
+2014-12-01  Philipp Böhme <phi.boehme@googlemail.com>
+
+	* gc-debugger.cob, animod.cob, printani.cob: first version of 
+	  animator program (inspired by Ed Borchert & Ronald Heirbaut;
+	  Federico Priolo)

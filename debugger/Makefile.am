@@ -1,10 +1,9 @@
 #
 # Makefile gnucobol/gc-debugger
 #
-# Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-# Copyright (C) 2008-2012 Roger While
+# Copyright (C) 2014-2016 Free Software Foundation
 #
-# This file is part of GNU Cobol.
+# This file is part of GnuCOBOL.
 #
 # The GNU Cobol compiler is free software: you can redistribute it
 # and/or modify it under the terms of the GNU General Public License
@@ -19,14 +18,14 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
 
-lib_LTLIBRARIES = gc-debugger.la
-gc_debugger_la_SOURCES = gc-debugger.c gc-debugger.c.h gc-debugger.c.l.h
+animdir = @COB_LIBRARY_PATH@
+anim_DATA = gc-debugger.$(COB_MODULE_EXT)
 
-gc_debugger_la_CFLAGS = $(AM_CFLAGS) -I$(top_srcdir)
-gc_debugger_la_LIBADD = $(top_builddir)/libcob/libcob.la
-gc_debugger_la_LDFLAGS = $(COB_FIX_LIBTOOL) -version-info 4:0:0 -no-undefined -module
-AM_LDFLAGS = $(COB_FIX_LIB)
+EXTRA_DIST = gc-debugger.cob
+CLEANFILES = $(extras_DATA)
 
-pkgincludedir = $(includedir)/debugger
-pkginclude_HEADERS = gc-debugger.c.h gc-debugger.c.l.h
+SUFFIXES = .cob .$(COB_MODULE_EXT)
+.cob.$(COB_MODULE_EXT):
+	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
+		cobc -m -Wall -std=mf -O -o $@ $<
 
