@@ -1,14 +1,16 @@
-This is gnucobol.info, produced by makeinfo version 4.13 from
+This is gnucobol.info, produced by makeinfo version 5.2 from
 gnucobol.texi.
 
 INFO-DIR-SECTION Software development
 START-INFO-DIR-ENTRY
 * cobc: (gnucobol)Compile.      The GNU COBOL compiler.
 END-INFO-DIR-ENTRY
+
 INFO-DIR-SECTION COBOL
 START-INFO-DIR-ENTRY
 * GNU Cobol: (gnucobol).        A COBOL compiler
 END-INFO-DIR-ENTRY
+
 INFO-DIR-SECTION GnuCOBOL
 START-INFO-DIR-ENTRY
 * Overview: (gnucobol).         COBOL compiler overview.
@@ -1088,16 +1090,17 @@ File: gnucobol.info,  Node: Extended ACCEPT,  Next: ACCEPT Special,  Prev: Index
 6.3 Extended ACCEPT statement
 =============================
 
-Extended ACCEPT statements allow for full control of items accepted
-from the screen.  Items accept by line and column positioning.
+Extended ACCEPT statements allow for full control of items accepted from
+the screen.  Items accept by line and column positioning.
 
 
-ACCEPT variable-1
-   LINE <line> COLUMN <column>
-   WITH
-      AUTO-SKIP | AUTO
-      [PROTECTED] SIZE [IS] variable-2 | literal-2
-END-ACCEPT.
+     ACCEPT variable-1
+        LINE <line> COLUMN <column>
+        WITH
+           AUTO-SKIP | AUTO
+           [PROTECTED] SIZE [IS] variable-2 | literal-2
+     END-ACCEPT.
+
 
 6.3.1 AUTO-SKIP
 ---------------
@@ -1127,7 +1130,8 @@ PROTECTED is ignored.  It is optional.
 
 The size of variable-1 to accept from the screen.  It is optional.
 
-`SIZE <greater than zero>'
+'SIZE <greater than zero>'
+
      If SIZE is less than the length of variable-1 then only the SIZE
      number of characters accept into the field.  Variable-1 pads with
      spaces after SIZE to the end of the field.
@@ -1135,10 +1139,10 @@ The size of variable-1 to accept from the screen.  It is optional.
      If SIZE is greater than variable-1, then the screen pads with
      spaces after variable-1 to the SIZE length.
 
-`SIZE ZERO'
-`<SIZE option not specified>'
-     The variable-1 field accepts with its length.
+'SIZE ZERO'
+'<SIZE option not specified>'
 
+     The variable-1 field accepts with its length.
 
 
 File: gnucobol.info,  Node: ACCEPT Special,  Next: Extended DISPLAY,  Prev: Extended ACCEPT,  Up: Extensions
@@ -1158,13 +1162,13 @@ cursor stops at the beginning of the field.  With AUTO-SKIP it returns
 with the COB-SCR-KEY-LEFT value of 2009.  *Note AUTO-SKIP: Extended
 ACCEPT.
 
-   The Alt-Left-Arrow key is the same as Left-Arrow except that it
-never returns, even for AUTO-SKIP.
+   The Alt-Left-Arrow key is the same as Left-Arrow except that it never
+returns, even for AUTO-SKIP.
 
-   The Right-Arrow key moves the cursor to the right.  Without
-AUTO-SKIP the cursor stops at the end of the field.  With AUTO-SKIP it
-returns with the COB-SCR-KEY-RIGHT value of 2010.  *Note AUTO-SKIP:
-Extended ACCEPT.
+   The Right-Arrow key moves the cursor to the right.  Without AUTO-SKIP
+the cursor stops at the end of the field.  With AUTO-SKIP it returns
+with the COB-SCR-KEY-RIGHT value of 2010.  *Note AUTO-SKIP: Extended
+ACCEPT.
 
    The Alt-Right-Arrow key is the same as Right-Arrow except that it
 never returns, even for AUTO-SKIP.
@@ -1178,11 +1182,11 @@ the left.
 6.4.3 Delete keys
 -----------------
 
-The Delete key deletes the cursor's character and moves the remainder
-of the text to the left.  The cursor does not move.
+The Delete key deletes the cursor's character and moves the remainder of
+the text to the left.  The cursor does not move.
 
-   The Alt-Delete key deletes all text from the cursor to the end of
-the field.
+   The Alt-Delete key deletes all text from the cursor to the end of the
+field.
 
 6.4.4 End keys
 --------------
@@ -1235,13 +1239,14 @@ Extended DISPLAY statements allow for full control of items that display
 on the screen.  Items display by line and column positioning.
 
 
-DISPLAY variable-1 | literal-1 | figurative constant
-   LINE <line> COLUMN <column>
-   WITH BELL
-        BLANK LINE | SCREEN
-        ERASE EOL | EOS
-        SIZE [IS] variable-2 | literal-2
-END-DISPLAY.
+     DISPLAY variable-1 | literal-1 | figurative constant
+        LINE <line> COLUMN <column>
+        WITH BELL
+             BLANK LINE | SCREEN
+             ERASE EOL | EOS
+             SIZE [IS] variable-2 | literal-2
+     END-DISPLAY.
+
 
 6.5.1 BELL
 ----------
@@ -1253,25 +1258,27 @@ Ring the bell.  It is optional.
 
 Clear the whole line or screen.  It is optional.
 
-`BLANK LINE'
+'BLANK LINE'
+
      Clear the line from the beginning of the line to the end of the
      line.
 
-`BLANK SCREEN'
-     Clear the whole screen.
+'BLANK SCREEN'
 
+     Clear the whole screen.
 
 6.5.3 ERASE
 -----------
 
-Clear the line or screen from LINE and COLUMN.  It is optional.
+Clear the line or screen from LINE and COLUMN. It is optional.
 
-`ERASE EOL'
+'ERASE EOL'
+
      Clear the line from LINE and COLUMN to the end of the line.
 
-`ERASE EOS'
-     Clear the screen from LINE and COLUMN to the end of the screen.
+'ERASE EOS'
 
+     Clear the screen from LINE and COLUMN to the end of the screen.
 
 6.5.4 SIZE
 ----------
@@ -1279,41 +1286,41 @@ Clear the line or screen from LINE and COLUMN.  It is optional.
 The size of variable-1, literal-1, or figurative constant to display
 onto the screen.  It is optional.
 
-`SIZE <greater than zero>'
+'SIZE <greater than zero>'
+
      If SIZE is less than the length of variable-1 or literal-1 then
      only the SIZE number of characters display.
 
-     If SIZE is greater than the length of variable-1 or literal-1,
-     then the screen pads with spaces after the field to the SIZE
-     length.
+     If SIZE is greater than the length of variable-1 or literal-1, then
+     the screen pads with spaces after the field to the SIZE length.
 
      Figurative constants display repeatedly the number of times in
-     SIZE.  Except that LOW-VALUES always positions the cursor (see
-     SIZE ZERO below).
+     SIZE. Except that LOW-VALUES always positions the cursor (see SIZE
+     ZERO below).
 
-`SIZE ZERO'
-`<SIZE option not specified>'
+'SIZE ZERO'
+'<SIZE option not specified>'
+
      Variable-1 or literal-1 displays with the field length.
 
      Certain figurative constants have special functions.
 
-     SPACE  Display spaces from LINE and COLUMN to the end of the
-     screen.  This is the same as WITH ERASE EOS.
+     SPACE Display spaces from LINE and COLUMN to the end of the screen.
+     This is the same as WITH ERASE EOS.
 
-     LOW-VALUE  Position the cursor to LINE and COLUMN.  The next
-     DISPLAY statement does not need a LINE or COLUMN to display at
-     that position.
+     LOW-VALUE Position the cursor to LINE and COLUMN. The next DISPLAY
+     statement does not need a LINE or COLUMN to display at that
+     position.
 
-     ALL "1"  Display spaces from LINE and COLUMN to the end of the
-     line.  This is the same as WITH ERASE EOL.
+     ALL "1" Display spaces from LINE and COLUMN to the end of the line.
+     This is the same as WITH ERASE EOL.
 
-     ALL "2"  Clear the whole screen.  This is the same as WITH BLANK
+     ALL "2" Clear the whole screen.  This is the same as WITH BLANK
      SCREEN.
 
-     ALL "7"  Ring the bell.  This is the same as WITH BELL.
+     ALL "7" Ring the bell.  This is the same as WITH BELL.
 
      All other figurative constants display as a single character.
-
 
 
 File: gnucobol.info,  Node: System routines,  Next: Appendix A,  Prev: Extended DISPLAY,  Up: Top
@@ -1393,52 +1400,47 @@ Now we have the tools to run CBL_OC_GETOPT within the procedure
 division.
 
              procedure division.
-                 move "version" to optionname(1).
-                 move 0 to has-value(1).
-                 move "v" to return-value(1).
+                 move "version" to optionname   (1).
+                 move 0         to has-value    (1).
+                 move "v"       to return-value (1).
 
-                 move "verbose" to optionname(2).
-                 move 0 to has-value(2).
-                 move "V" to return-value(2).
+                 move "verbose" to optionname   (2).
+                 move 0         to has-value    (2).
+                 move "V"       to return-value (2).
 
-                 perform with test before until counter > 5
+                 perform with test after until return-code = -1
                      call 'CBL_OC_GETOPT' using
-                     by reference shortoptions longoptions longind
-                     by value long-only
-                     by reference return-char opt-val
+                        by reference shortoptions longoptions longind
+                        by value long-only
+                        by reference return-char opt-val
                      end-call
 
                      display return-char end-display
-                     display opt-val end-display
-
-                     add 1 to counter end-add
+                     display opt-val     end-display
                  end-perform
                  stop run.
 
-
-
-
    The example shows how we initialize all parameters and call the
-routine.  We call getopt 6 times as we have 5 options to recognize and
-one additional call just to see that getopt returns '-1' in this case.
-
+routine until as CBL_OC_GETOPT doesn't find any option, returning '-1'
+in this case.
 The return-char might contain the following:
    * regular character if an option was recognized
-   * '?'   if we have got an undefined option
-   * '1'   if got a non-option
+   * '?'   if we have got an undefined or ambiguous option
+   * '1'   if got a non-option (only if first byte of so is '-')
    * '0'   if valpoint != NULL and we are writing the return value to
      the specified address
-   * '-1'  if we don't have any more options
-
+   * '-1'  if we don't have any more options (or reach the first
+     non-option if first byte of so is '+')
 
    The return-codes of CBL_OC_GETOPT are:
-   * '1'   if we've got a non-option
-   * '0'   if valpoint != NULL and we are writing the return value to
-     the specified address
-   * '-1'  if we don't have any more options
-   * '2'   if we have got an truncated option value in opt-val (because
+   * 1   if we've got a non-option (only if first byte of so is '-')
+   * 0   if valpoint != NULL and we are writing the return value to the
+     specified address
+   * -1  if we don't have any more options (or reach the first
+     non-option if first byte of so is '+')
+   * 2   if we have got an truncated option value in opt-val (because
      opt-val was too small)
-   * '3'   if we got a regular answer from getopt
+   * 3   if we got a regular answer from getopt
 
 
 
@@ -2611,16 +2613,16 @@ Index
 
 * ACCEPT special keys:                   ACCEPT Special.       (line  6)
 * Arrow keys:                            ACCEPT Special.       (line 13)
-* AUTO:                                  Extended ACCEPT.      (line 20)
-* AUTO-SKIP:                             Extended ACCEPT.      (line 20)
+* AUTO:                                  Extended ACCEPT.      (line 21)
+* AUTO-SKIP:                             Extended ACCEPT.      (line 21)
 * Backspace key:                         ACCEPT Special.       (line 32)
-* BELL:                                  Extended DISPLAY.     (line 21)
-* BLANK LINE:                            Extended DISPLAY.     (line 26)
-* BLANK SCREEN:                          Extended DISPLAY.     (line 26)
+* BELL:                                  Extended DISPLAY.     (line 22)
+* BLANK LINE:                            Extended DISPLAY.     (line 27)
+* BLANK SCREEN:                          Extended DISPLAY.     (line 27)
 * Delete keys:                           ACCEPT Special.       (line 38)
 * End keys:                              ACCEPT Special.       (line 47)
-* ERASE EOL:                             Extended DISPLAY.     (line 39)
-* ERASE EOS:                             Extended DISPLAY.     (line 39)
+* ERASE EOL:                             Extended DISPLAY.     (line 41)
+* ERASE EOS:                             Extended DISPLAY.     (line 41)
 * Extended ACCEPT statement:             Extended ACCEPT.      (line  6)
 * Extended DISPLAY statement:            Extended DISPLAY.     (line  6)
 * Extensions:                            Extensions.           (line  6)
@@ -2629,67 +2631,67 @@ Index
 * Indexed:                               Indexed.              (line  6)
 * Indexed file packages:                 Indexed.              (line  6)
 * Insert key:                            ACCEPT Special.       (line 61)
-* PROTECTED:                             Extended ACCEPT.      (line 38)
+* PROTECTED:                             Extended ACCEPT.      (line 39)
 * SELECT:                                SELECT.               (line  6)
 * SELECT ASSIGN TO:                      SELECT.               (line  6)
-* SIZE <1>:                              Extended DISPLAY.     (line 51)
-* SIZE:                                  Extended ACCEPT.      (line 43)
+* SIZE:                                  Extended ACCEPT.      (line 44)
+* SIZE <1>:                              Extended DISPLAY.     (line 54)
 * Tab keys:                              ACCEPT Special.       (line 81)
 
 
 
 Tag Table:
-Node: Top1274
-Node: Getting Started4013
-Node: Hello World!4190
-Node: Compile5574
-Node: Compiler Options5933
-Node: Help Options6607
-Ref: Help Options-Footnote-18248
-Node: Built Target8291
-Ref: Built Target-Footnote-110406
-Node: Source Format10459
-Node: Warning Options11369
-Node: Configuration Options12553
-Node: Debug Switches13298
-Node: Miscellaneous14384
-Node: Multiple Sources15194
-Node: Static Linking15874
-Node: Dynamic Linking17399
-Ref: Dynamic Linking-Footnote-118797
-Ref: Dynamic Linking-Footnote-218850
-Node: Building Library18903
-Node: Using Library19286
-Node: C Interface19857
-Node: Main C Program20201
-Node: Static C to COBOL21116
-Node: Dynamic C to COBOL22603
-Node: Static COBOL to C24053
-Node: Dynamic COBOL to C25485
-Node: Customize25890
-Node: Customizing Compiler26114
-Node: Customizing Library26692
-Node: Optimize27006
-Node: Optimize Options27309
-Node: Optimize Call27849
-Node: Optimize Binary28227
-Node: Debug28807
-Node: Debug Options28966
-Node: Extensions29328
-Node: SELECT29775
-Node: Indexed29940
-Node: Extended ACCEPT30120
-Node: ACCEPT Special31703
-Node: Extended DISPLAY34260
-Node: System routines36646
-Node: CBL_OC_GETOPT36829
-Node: Appendix A40581
-Node: Appendix B46470
-Node: Appendix C48126
-Node: Appendix D57823
-Node: Appendix E60238
-Node: Appendix F61191
-Node: Appendix G62546
-Node: Index66814
+Node: Top1272
+Node: Getting Started4052
+Node: Hello World!4229
+Node: Compile5613
+Node: Compiler Options5972
+Node: Help Options6646
+Ref: Help Options-Footnote-18282
+Node: Built Target8325
+Ref: Built Target-Footnote-110439
+Node: Source Format10492
+Node: Warning Options11402
+Node: Configuration Options12586
+Node: Debug Switches13331
+Node: Miscellaneous14417
+Node: Multiple Sources15226
+Node: Static Linking15906
+Node: Dynamic Linking17431
+Ref: Dynamic Linking-Footnote-118829
+Ref: Dynamic Linking-Footnote-218882
+Node: Building Library18935
+Node: Using Library19318
+Node: C Interface19889
+Node: Main C Program20275
+Node: Static C to COBOL21190
+Node: Dynamic C to COBOL22677
+Node: Static COBOL to C24127
+Node: Dynamic COBOL to C25559
+Node: Customize25964
+Node: Customizing Compiler26188
+Node: Customizing Library26762
+Node: Optimize27076
+Node: Optimize Options27379
+Node: Optimize Call27919
+Node: Optimize Binary28297
+Node: Debug28877
+Node: Debug Options29036
+Node: Extensions29398
+Node: SELECT29845
+Node: Indexed30010
+Node: Extended ACCEPT30190
+Node: ACCEPT Special31805
+Node: Extended DISPLAY34362
+Node: System routines36772
+Node: CBL_OC_GETOPT36955
+Node: Appendix A41066
+Node: Appendix B46956
+Node: Appendix C48612
+Node: Appendix D58309
+Node: Appendix E60724
+Node: Appendix F61677
+Node: Appendix G63032
+Node: Index67300
 
 End Tag Table
