@@ -81,13 +81,14 @@
 
 /* Readable compiler version defines */
 
-#if defined (_MSC_VER)
+#if defined(_MSC_VER)
+
 #if _MSC_VER >= 1500
 #define COB_USE_VC2008_OR_GREATER 1
-#define COB_USE_VC2008_OR_GREATER 
+#else
+#define COB_USE_VC2008_OR_GREATER 0
 #if _MSC_VER < 1400
 #error Support for Visual Studio 2003 and earlier dropped with GnuCOBOL 2.0
-#define COB_USE_VC2008_OR_GREATER 0
 #endif
 #endif
 
@@ -242,7 +243,6 @@
 
 #endif
 #elif defined(_MSC_VER)
-#elif defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 
 #define COB_BSWAP_16(val) (_byteswap_ushort (val))
 #define COB_BSWAP_32(val) (_byteswap_ulong (val))
@@ -278,15 +278,15 @@
 #define strncasecmp		_strnicmp
 #define strcasecmp		_stricmp
 #define snprintf		_snprintf
-#if defined COB_USE_VC2005_OR_GREATER
+#define getpid			_getpid
+#define access			_access
 /* remark: _putenv_s always overwrites, add a check for overwrite = 1 if necessary later*/
 #define setenv(name,value,overwrite)	_putenv_s(name,value)
-#endif
-#define access			_access
+#define unsetenv(name)					_putenv_s(name,"")
 #if defined COB_USE_VC2013_OR_GREATER
+#define timezone			_timezone
 #define tzname				_tzname
 #define daylight			_daylight
-#define timezone			_timezone
 #endif
 
 #define __attribute__(x)
@@ -356,14 +356,14 @@
 #if	defined(__GNUC__) || (defined(__xlc__) && __IBMC__ >= 700)
 #define	COB_A_NORETURN	__attribute__((noreturn))
 #define	COB_A_FORMAT12	__attribute__((format(printf, 1, 2)))
-#define	COB_A_FORMAT34	__attribute__((format(printf, 3, 4)))
 #define	COB_A_FORMAT23	__attribute__((format(printf, 2, 3)))
+#define	COB_A_FORMAT34	__attribute__((format(printf, 3, 4)))
 #define	COB_A_FORMAT45	__attribute__((format(printf, 4, 5)))
 #else
 #define	COB_A_NORETURN
 #define	COB_A_FORMAT12
-#define	COB_A_FORMAT34
 #define	COB_A_FORMAT23
+#define	COB_A_FORMAT34
 #define	COB_A_FORMAT45
 #endif
 
@@ -515,6 +515,7 @@
 #else
 #undef	COB_EBCDIC_MACHINE
 #endif
+
 /* Macro to prevent compiler warning "conditional expression is constant" */
 #if defined (_MSC_VER) && _MSC_VER >= 1500
 #define ONCE_COB \
@@ -550,9 +551,9 @@ __pragma( warning(pop) )
 
 /* Maximum size of file records */
 #define	MAX_FD_RECORD		65535
+
 /* Maximum number of parameters, possible values: 16,36,56,76,96 */
 #define	COB_MAX_FIELD_PARAMS	36	/* ToDo: move to config.h */
-#define	COB_MAX_FIELD_PARAMS	36
 
 /* Maximum number of field digits */
 #define	COB_MAX_DIGITS		38
@@ -917,8 +918,8 @@ enum cob_exception_id {
 #define COB_SCREEN_NO_DISP		(1 << 26)
 #define COB_SCREEN_EMULATE_NL		(1 << 27)
 #define COB_SCREEN_UPPER		(1 << 28)
-#define COB_SCREEN_GRID			(1 << 30)
 #define COB_SCREEN_LOWER		(1 << 29)
+#define COB_SCREEN_GRID			(1 << 30)
 
 #define COB_SCREEN_TYPE_GROUP		0
 #define COB_SCREEN_TYPE_FIELD		1
@@ -1021,10 +1022,10 @@ struct cob_call_struct {
 
 /* Screen structure */
 typedef struct __cob_screen {
-	struct __cob_screen	*prev;		/* Pointer to previous */
 	struct __cob_screen	*next;		/* Pointer to next */
-	struct __cob_screen	*parent;	/* Pointer to parent */
+	struct __cob_screen	*prev;		/* Pointer to previous */
 	struct __cob_screen	*child;		/* For COB_SCREEN_TYPE_GROUP */
+	struct __cob_screen	*parent;	/* Pointer to parent */
 	cob_field		*field;		/* For COB_SCREEN_TYPE_FIELD */
 	cob_field		*value;		/* For COB_SCREEN_TYPE_VALUE */
 	cob_field		*line;		/* LINE */
@@ -1282,8 +1283,8 @@ COB_EXPIMP void print_info(void);
 COB_EXPIMP void print_version(void);
 COB_EXPIMP int cob_load_config(void);
 COB_EXPIMP void print_runtime_env(void);
-void cob_set_exception(const int);
 
+void cob_set_exception(const int);
 
 char* cob_int_to_string(int, char*);
 char* cob_int_to_formatted_bytestring(int, char*);
@@ -1302,8 +1303,8 @@ COB_EXPIMP void	cob_module_leave		(cob_module *);
 DECLNORET COB_EXPIMP void	cob_stop_run	(const int) COB_A_NORETURN;
 DECLNORET COB_EXPIMP void	cob_fatal_error	(const int) COB_A_NORETURN;
 
-COB_EXPIMP void	*cob_realloc			(void *, const size_t, const size_t) COB_A_MALLOC;
 COB_EXPIMP void	*cob_malloc			(const size_t) COB_A_MALLOC;
+COB_EXPIMP void	*cob_realloc			(void *, const size_t, const size_t) COB_A_MALLOC;
 COB_EXPIMP void	cob_free			(void *);
 COB_EXPIMP void	*cob_fast_malloc		(const size_t) COB_A_MALLOC;
 COB_EXPIMP void	*cob_cache_malloc		(const size_t) COB_A_MALLOC;
@@ -1364,11 +1365,11 @@ COB_EXPIMP void	cob_temp_name			(char *, const char *);
 /* System routines */
 COB_EXPIMP int	cob_sys_exit_proc	(const void *, const void *);
 COB_EXPIMP int	cob_sys_error_proc	(const void *, const void *);
+COB_EXPIMP int	cob_sys_system		(const void *);
 /**
  * Return some hosted C variables, argc, argv, stdin, stdout, stderr.
  */
 COB_EXPIMP int	cob_sys_hosted		(void *, const void *);
-COB_EXPIMP int	cob_sys_system		(const void *);
 COB_EXPIMP int	cob_sys_and		(const void *, void *, const int);
 COB_EXPIMP int	cob_sys_or		(const void *, void *, const int);
 COB_EXPIMP int	cob_sys_nor		(const void *, void *, const int);
@@ -1501,8 +1502,8 @@ COB_EXPIMP cob_s64_t	cob_get_llint	(cob_field *);
 /* Functions in numeric.c */
 
 COB_EXPIMP void	cob_decimal_init	(cob_decimal *);
-COB_EXPIMP void cob_decimal_set_ullint	(cob_decimal *, const cob_u64_t);
 COB_EXPIMP void cob_decimal_set_llint	(cob_decimal *, const cob_s64_t);
+COB_EXPIMP void cob_decimal_set_ullint	(cob_decimal *, const cob_u64_t);
 COB_EXPIMP void	cob_decimal_set_field	(cob_decimal *, cob_field *);
 COB_EXPIMP int	cob_decimal_get_field	(cob_decimal *, cob_field *, const int);
 COB_EXPIMP void	cob_decimal_add		(cob_decimal *, cob_decimal *);
@@ -1670,10 +1671,10 @@ COB_EXPIMP void		cob_get_indirect_field		(cob_field *);
 COB_EXPIMP cob_field *cob_switch_value			(const int);
 COB_EXPIMP cob_field *cob_intr_binop			(cob_field *, const int,
 							 cob_field *);
+
 COB_EXPIMP int cob_check_numval				(const cob_field *,
 							 const cob_field *,
 							 const int, const int);
-
 
 COB_EXPIMP int cob_valid_date_format			(const char *);
 COB_EXPIMP int cob_valid_datetime_format		(const char *, const char);
