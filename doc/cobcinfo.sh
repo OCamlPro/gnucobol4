@@ -26,12 +26,16 @@ _create_file () {
 	case "$1" in
 		"cbhelp.tex")
 			echo "@verbatim"               > $1.tmp
-			cobc --help                    >>$1.tmp
+			cobc --help \
+			| sed -e 's/\(: \).*\/\(cobc .\?options\)/\1\2/g' \
+			                               >>$1.tmp
 			echo "@end verbatim"           >>$1.tmp
 			;;
 		"cbchelp.tex")
 			echo "@verbatim"               > $1.tmp
-			cobcrun --help                 >>$1.tmp
+			cobcrun --help \
+			| sed -e 's/\(: \).*\/\(cobcrun .\?options\)/\1\2/g' \
+			                               >>$1.tmp
 			echo "@end verbatim"           >>$1.tmp
 			;;
 		"cbrese.tex")
@@ -75,8 +79,7 @@ _create_file () {
 			      -e 's/  \([^ ].*\)$/ @code{\1}/g' \
 			      -e 's/^$/@\*/g' \
 			                               > $1.tmp
-			declare -i lines=$(cat $1.tmp | wc -l)
-			lines=$lines+20
+            lines=$(expr 20 + $(cat $1.tmp | wc -l))
 			# All other sections
 			echo "@verbatim"               >>$1.tmp
 			tail -n +$lines $confdir/runtime.cfg \

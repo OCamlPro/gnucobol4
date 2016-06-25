@@ -1,4 +1,19 @@
 
+2016-05-16  Brian Tiffin <btiffin@gnu.org>
+
+	* cobcrun.c : replaced non-portable strndup, and fixed free with cob_free
+
+2016-05-15  Brian Tiffin <btiffin@gnu.org>
+
+	* cobcrun.c : Added -M path/module command line option
+	  if path/ found, prepend to COB_LIBRARY_PATH
+	  if module (no slash) found, prepend to COB_PRE_LOAD
+	  may set both.
+
+2016-01-30  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net> 
+
+	* cobcrun.c (cobcrun_print_version): changed generation of build stamp
+
 2015-03-06  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net> 
 
 	* cobcrun.c : new option --config=<file> / -c <file> for setting the

@@ -24,7 +24,7 @@
 %defines
 %error-verbose
 %verbose
-%name-prefix="pp"
+%name-prefix "pp"
 
 %{
 #include "config.h"
@@ -42,7 +42,7 @@
 #define	_STDLIB_H 1
 #endif
 
-#define pperror cb_error
+#define pperror(x)	cb_error ("%s", x)
 
 #define COND_EQ		0
 #define COND_LT		1U

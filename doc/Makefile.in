@@ -17,7 +17,7 @@
 #
 # Makefile gnu-cobol/doc
 #
-# Copyright (C) 2003-2012, 2015 Free Software Foundation, Inc.
+# Copyright (C) 2003-2012, 2015-2016 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
@@ -207,7 +207,6 @@ am__uninstall_files_from_dir = { \
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
-ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
@@ -230,6 +229,7 @@ COB_FIX_LIB = @COB_FIX_LIB@
 COB_FIX_LIBTOOL = @COB_FIX_LIBTOOL@
 COB_HAS_CURSES = @COB_HAS_CURSES@
 COB_HAS_ISAM = @COB_HAS_ISAM@
+COB_HAS_UTC_OFFSET = @COB_HAS_UTC_OFFSET@
 COB_KEYWORD_INLINE = @COB_KEYWORD_INLINE@
 COB_LDFLAGS = @COB_LDFLAGS@
 COB_LIBRARY_PATH = @COB_LIBRARY_PATH@
@@ -845,7 +845,7 @@ cbconf.tex: $(top_srcdir)/config/default.conf cobcinfo.sh
 cbrunt.tex: $(top_srcdir)/config/runtime.cfg cobcinfo.sh
 	$(COBCINFOSH) $@
 
-cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex.tex: \
+cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex: \
 	$(top_srcdir)/cobc/cobc.c $(top_srcdir)/cobc/reserved.c cobcinfo.sh
 	$(COBCINFOSH) $@
 

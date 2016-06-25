@@ -1,8 +1,8 @@
 #
 # Makefile gnucobol/tests/cobol85
 #
-# Copyright (C) 2003-2012 Free Software Foundation, Inc.
-# Written by Keisuke Nishida, Roger While
+# Copyright (C) 2003-2012, 2015 Free Software Foundation, Inc.
+# Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
 #
@@ -68,6 +68,20 @@ if COB_MAKE_IX
 else
 	diff $(srcdir)/summarynoix.txt summary.log
 endif
+
+newcob.val:
+	if ! test -f "newcob.val"; then \
+	   if ! test -f "newcob.val.Z"; then \
+	      wget "http://www.itl.nist.gov/div897/ctg/suites/newcob.val.Z"; \
+	   fi; \
+	   if test -f "newcob.val.Z"; then \
+	      gunzip newcob.val.Z || gzip -d newcob.val.Z || uncompress newcob.val.Z; \
+	   fi; \
+	   if ! test -f "newcob.val"; then \
+	      echo "newcob.val missing, automatic download and uncompress did not work"; \
+	      exit 1; \
+	   fi; \
+	fi
 
 clean-local:
 	rm -rf copy copyalt $(MODULES) EXEC85 summary.log EXEC85.cob

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -26,6 +26,8 @@ CB_CONFIG_STRING  (cb_config_name, "name")
 CB_CONFIG_INT (cb_tab_width, "tab-width")
 CB_CONFIG_INT (cb_text_column, "text-column")
 CB_CONFIG_INT (cb_word_length, "word-length")
+CB_CONFIG_INT (cb_lit_length, "literal-length")
+CB_CONFIG_INT (cb_numlit_length, "numeric-literal-length")
 CB_CONFIG_ANY (unsigned int, cb_assign_clause, "assign-clause")
 CB_CONFIG_ANY (unsigned int, cb_binary_size, "binary-size")
 CB_CONFIG_ANY (unsigned int, cb_binary_byteorder, "binary-byteorder")
@@ -40,11 +42,11 @@ CB_CONFIG_BOOLEAN (cb_relaxed_syntax_check, "relaxed-syntax-check")
 CB_CONFIG_BOOLEAN (cb_perform_osvs, "perform-osvs")
 CB_CONFIG_BOOLEAN (cb_sticky_linkage, "sticky-linkage")
 CB_CONFIG_BOOLEAN (cb_relax_level_hierarchy, "relax-level-hierarchy")
-CB_CONFIG_BOOLEAN (cb_cobol85_reserved, "cobol85-reserved")
 CB_CONFIG_BOOLEAN (cb_host_sign, "hostsign")
 CB_CONFIG_BOOLEAN (cb_accept_update, "accept-update")
 CB_CONFIG_BOOLEAN (cb_accept_auto, "accept-auto")
-CB_CONFIG_SUPPORT (cb_author_paragraph, "author-paragraph")
+CB_CONFIG_BOOLEAN (cb_specify_all_reserved, "specify-all-reserved")
+CB_CONFIG_SUPPORT (cb_comment_paragraphs, "comment-paragraphs")
 CB_CONFIG_SUPPORT (cb_memory_size_clause, "memory-size-clause")
 CB_CONFIG_SUPPORT (cb_multiple_file_tape_clause, "multiple-file-tape-clause")
 CB_CONFIG_SUPPORT (cb_label_records_clause, "label-records-clause")
@@ -63,5 +65,7 @@ CB_CONFIG_SUPPORT (cb_move_noninteger_to_alphanumeric, "move-noninteger-to-alpha
 CB_CONFIG_SUPPORT (cb_odo_without_to, "odo-without-to")
 CB_CONFIG_SUPPORT (cb_section_segments, "section-segments")
 CB_CONFIG_SUPPORT (cb_alter_statement, "alter-statement")
+CB_CONFIG_SUPPORT (cb_call_overflow, "call-overflow")
 CB_CONFIG_SUPPORT (cb_numeric_boolean, "numeric-boolean")
 CB_CONFIG_SUPPORT (cb_acucobol_literals, "acucobol-literals")
+CB_CONFIG_SUPPORT (cb_word_continuation, "word-continuation")

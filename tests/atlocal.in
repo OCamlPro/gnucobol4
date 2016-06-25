@@ -29,11 +29,9 @@ COBCRUN="${abs_top_builddir}/bin/cobcrun"
 TEMPLATE="${abs_srcdir}/testsuite.src"
 
 FLAGS="-debug -Wall ${COBOL_FLAGS}"
-STD="-std=cobol2002"
-COMPILE="${COBC} -x ${STD} ${FLAGS}"
-COMPILE_ONLY="${COBC} -fsyntax-only ${STD} ${FLAGS}"
-COMPILE_ONLY_WITHOUTSTD="${COBC} -fsyntax-only ${FLAGS}"
-COMPILE_MODULE="${COBC} -m ${FLAGS} ${STD}"
+COMPILE="${COBC} -x ${FLAGS}"
+COMPILE_ONLY="${COBC} -fsyntax-only ${FLAGS}"
+COMPILE_MODULE="${COBC} -m ${FLAGS}"
 
 OBJECT_EXT="@COB_OBJECT_EXT@"
 
@@ -63,4 +61,5 @@ export COB_LIBRARY_PATH="${abs_top_builddir}/extras:$COB_LIBRARY_PATH"
 export COB_UNIX_LF=YES
 export COB_HAS_ISAM
 export COB_HAS_CURSES
+export COB_HAS_UTC_OFFSET
 export LC_ALL=C

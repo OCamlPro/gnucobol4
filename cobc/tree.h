@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -98,7 +98,9 @@ enum cb_tag {
 	CB_TAG_LIST,		/* 32 List */
 	CB_TAG_DIRECT,		/* 33 Code output or comment */
 	CB_TAG_DEBUG,		/* 34 Debug item set */
-	CB_TAG_DEBUG_CALL	/* 35 Debug callback */
+	CB_TAG_DEBUG_CALL,	/* 35 Debug callback */
+	CB_TAG_PROGRAM,		/* 36 Program */
+	CB_TAG_FUNC_PROTOTYPE	/* 37 Function prototype */
 };
 
 /* Alphabet type */
@@ -413,12 +415,12 @@ enum cb_perform_type {
 
 /* Reserved word list structure */
 struct cobc_reserved {
-	const char		*name;		/* Word */
-	const unsigned short	nodegen;	/* Statement with END-xxx */
-	const unsigned short	context_sens;	/* Context sensitive */
-	const int		token;		/* Token */
-	const unsigned int	context_set;	/* Set context sensitive */
-	const unsigned int	context_test;	/* Test context sensitive */
+	const char	*name;		/* Word */
+	unsigned short	nodegen;	/* Statement with END-xxx */
+	unsigned short	context_sens;	/* Context sensitive */
+	int		token;		/* Token */
+	unsigned int	context_set;	/* Set context sensitive */
+	unsigned int	context_test;	/* Test context sensitive */
 };
 
 /* Basic common tree structure */
@@ -671,8 +673,8 @@ struct cb_field {
 	int			level;		/* Level number */
 	int			memory_size;	/* Memory size */
 	int			offset;		/* Byte offset from 01 level */
-	int			occurs_min;	/* OCCURS <max> */
-	int			occurs_max;	/* or OCCURS <min> TO <max> */
+	int			occurs_min;	/* OCCURS <max> (without <min> TO )*/
+	int			occurs_max;	/* OCCURS <min> TO <max> */
 	int			indexes;	/* Indices count (OCCURS) */
 
 	int			source_line; /* source line number */ /* EB */
@@ -683,6 +685,9 @@ struct cb_field {
 	int			screen_flag;	/* Flags used in SCREEN SECTION */
 	int			step_count;	/* STEP in REPORT */
 	unsigned int		vaddr;		/* Variable address cache */
+	unsigned int		odo_level;	/* ODO level (0 = no ODO item)
+									   could be direct ODO (check via depending)
+									   or via subordinate) */
 	cob_u32_t		special_index;	/* Special field */
 
 	enum cb_storage		storage;	/* Storage section */
@@ -724,7 +729,8 @@ struct cb_field {
 
 	unsigned int flag_vsize_done	: 1;	/* Variable size cached */
 	unsigned int flag_vaddr_done	: 1;	/* Variable address cached */
-	unsigned int flag_odo_item	: 1;	/* ODO item */
+	unsigned int flag_odo_relative	: 1;	/* complex-odo: item address depends
+							on size of a different (ODO) item */
 	unsigned int flag_field_debug	: 1;	/* DEBUGGING */
 	unsigned int flag_all_debug	: 1;	/* DEBUGGING */
 	unsigned int flag_no_field	: 1;	/* SCREEN dummy field */
@@ -838,6 +844,7 @@ struct cb_file {
 	struct cb_program	*handler_prog;		/* Prog where defined */
 	struct cb_label		*debug_section;		/* DEBUG SECTION */
 	struct cb_alphabet_name	*code_set;		/* CODE-SET */
+	struct cb_list		*code_set_items;	/* CODE-SET FOR items */
 	int			record_min;		/* RECORD CONTAINS */
 	int			record_max;		/* RECORD CONTAINS */
 	int			optional;		/* OPTIONAL */
@@ -1236,11 +1243,14 @@ struct nested_list {
 };
 
 struct cb_program {
+	struct cb_tree_common	common;		/* Common values */
+
 	/* Program variables */
 	struct cb_program	*next_program;		/* Nested/contained */
-	const char		*program_id;		/* Demangled PROGRAM-ID */
+	const char		*program_name;		/* Internal program-name */
+	const char		*program_id;		/* Demangled external PROGRAM-ID */
 	char			*source_name;		/* Source name */
-	char			*orig_program_id;	/* Original PROGRAM-ID */
+	char			*orig_program_id;	/* Original external PROGRAM-ID */
 	struct cb_word		**word_table;		/* Name hash table */
 	struct local_filename	*local_include;		/* Local include info */
 	struct nested_list	*nested_prog_list;	/* Callable contained */
@@ -1318,8 +1328,23 @@ struct cb_program {
 	unsigned int	flag_gen_debug		: 1;	/* DEBUGGING MODE */
 
 	unsigned int	flag_save_exception	: 1;	/* Save execption code */
+	unsigned int	flag_report		: 1;	/* Have REPORT SECTION */
+	unsigned int	flag_void		: 1;	/* void return for subprogram */
 };
 
+#define CB_PROGRAM(x)	(CB_TREE_CAST (CB_TAG_PROGRAM, struct cb_program, x))
+
+/* Function prototype */
+struct cb_func_prototype {
+	struct cb_tree_common	common;
+	/* Name of prototype in the REPOSITORY */
+	const char		*name;
+	/* External name of the prototype/definition */
+	const char		*ext_name;
+};
+
+#define CB_FUNC_PROTOTYPE(x)	(CB_TREE_CAST (CB_TAG_FUNC_PROTOTYPE, struct cb_func_prototype, x))
+#define CB_FUNC_PROTOTYPE_P(x)	(CB_TREE_TAG (x) == CB_TAG_FUNC_PROTOTYPE)
 
 /* Functions/variables */
 
@@ -1453,6 +1478,8 @@ extern cb_tree			cb_build_assign (const cb_tree, const cb_tree);
 
 extern cb_tree			cb_build_intrinsic (cb_tree, cb_tree,
 						    cb_tree, const int);
+extern cb_tree			cb_build_func_prototype (const cb_tree,
+							 const cb_tree);
 extern cb_tree			cb_build_any_intrinsic (cb_tree);
 
 extern cb_tree			cb_build_search (const int,
@@ -1637,6 +1664,8 @@ extern void		cb_emit_commit (void);
 extern void		cb_emit_continue (void);
 extern void		cb_emit_delete (cb_tree);
 extern void		cb_emit_delete_file (cb_tree);
+extern void		cb_emit_display_omitted (cb_tree,
+						 struct cb_attr_struct *);
 extern void		cb_emit_display (cb_tree, cb_tree,
 					 cb_tree, cb_tree,
 					 struct cb_attr_struct *);
@@ -1718,6 +1747,7 @@ extern void		cb_emit_set_false (cb_tree);
 extern void		cb_emit_set_attribute (cb_tree, const int, const int);
 extern cb_tree		cb_build_set_attribute (const struct cb_field *,
 						const int, const int);
+extern void		cb_emit_set_last_exception_to_off (void);
 
 extern void		cb_emit_sort_init (cb_tree, cb_tree, cb_tree);
 extern void		cb_emit_sort_using (cb_tree, cb_tree);
@@ -1764,6 +1794,9 @@ extern void		cb_reset_78 (void);
 extern void		cb_reset_global_78 (void);
 extern struct cb_field	*check_level_78 (const char *);
 
+extern struct cb_program	*cb_find_defined_program_by_name (const char *);
+extern struct cb_program	*cb_find_defined_program_by_id (const char *);
+
 /* Function defines */
 
 #define CB_BUILD_FUNCALL_0(f)					\
@@ -1805,7 +1838,7 @@ extern struct cb_field	*check_level_78 (const char *);
 #define CB_BUILD_FUNCALL_9(f,a1,a2,a3,a4,a5,a6,a7,a8,a9)	\
 	cb_build_funcall (f, 9, a1, a2, a3, a4, a5, a6, a7, a8,	\
 			  a9, NULL, NULL)
-			  
+
 #define CB_BUILD_FUNCALL_10(f,a1,a2,a3,a4,a5,a6,a7,a8,a9,a10)	\
 	cb_build_funcall (f, 10, a1, a2, a3, a4, a5, a6, a7, a8,	\
 			  a9, a10, NULL)

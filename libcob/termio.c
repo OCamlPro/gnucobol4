@@ -55,8 +55,8 @@ static void
 display_numeric (cob_field *f, FILE *fp)
 {
 	int		i;
-	int		digits;
-	int		scale;
+	unsigned short	digits;
+	signed short	scale;
 	int		size;
 	cob_field_attr	attr;
 	cob_field	temp;
@@ -92,8 +92,8 @@ pretty_display_numeric (cob_field *f, FILE *fp)
 	unsigned char	*p;
 	unsigned char	*q;
 	int		i;
-	int		digits;
-	int		scale;
+	unsigned short	digits;
+	signed short	scale;
 	int		size;
 	cob_field_attr	attr;
 	cob_field	temp;
@@ -331,11 +331,13 @@ cob_accept (cob_field *f)
 		p[size++] = (char) ipchr;
 	}
 	temp.size = size;
+#if	0	/* BWT, this test breaks numeric input */
 	if (COB_FIELD_TYPE(f) == COB_TYPE_NUMERIC_DISPLAY) {
 		if (temp.size > f->size) {
 			temp.size = f->size;
 		}
 	}
+#endif
 	cob_move (&temp, f);
 }
 

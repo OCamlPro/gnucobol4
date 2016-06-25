@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -139,9 +139,43 @@ cb_plex_error (const size_t sline, const char *fmt, ...)
 	}
 }
 
-/* Error for config.c */
+/* Warning/Error for config.c */
 void
-configuration_error (const int finish_error, const char *fname, const int line, const char *fmt, ...)
+configuration_warning (const char *fname, const int line, const char *fmt, ...)
+{
+	va_list args;
+
+	conf_error_displayed = 0;
+	fputs (_("Configuration Warning"), stderr);
+	fputs (": ", stderr);
+
+
+	/* Prefix */
+	if (fname != last_error_file
+		|| line != last_error_line) {
+		last_error_file = fname;
+		last_error_line = line;
+		if (fname) {
+			fprintf (stderr, "%s: ", fname);
+		} else {
+			fputs ("cb_conf: ", stderr);
+		}
+		if (line) {
+			fprintf (stderr, "%d: ", line);
+		}
+	}
+
+	/* Body */
+	va_start(args, fmt);
+	vfprintf (stderr, fmt, args);
+	va_end(args);
+
+	/* Postfix */
+	putc('\n', stderr);
+	fflush(stderr);
+}
+void
+configuration_error (const char *fname, const int line, const int finish_error, const char *fmt, ...)
 {
 	va_list args;
 
@@ -215,6 +249,7 @@ cb_verify (const enum cb_support tag, const char *feature)
 	case CB_OK:
 		return 1;
 	case CB_WARNING:
+		cb_warning (_("%s used"), feature);
 		return 1;
 	case CB_ARCHAIC:
 		if (cb_warn_archaic) {
@@ -234,6 +269,7 @@ cb_verify (const enum cb_support tag, const char *feature)
 		}
 		return 0;
 	case CB_ERROR:
+		cb_error (_("%s used"), feature);
 		return 0;
 	case CB_UNCONFORMABLE:
 		cb_error (_("%s does not conform to %s"), feature, cb_config_name);
@@ -288,6 +324,7 @@ undefined_error (cb_tree x)
 	}
 	r = CB_REFERENCE (x);
 	snprintf (errnamebuff, (size_t)COB_NORMAL_MAX, "'%s'", CB_NAME (x));
+	errnamebuff[COB_NORMAL_MAX] = 0;
 	for (c = r->chain; c; c = CB_REFERENCE (c)->chain) {
 		strcat (errnamebuff, " in '");
 		strcat (errnamebuff, CB_NAME (c));
@@ -316,6 +353,7 @@ ambiguous_error (cb_tree x)
 		}
 		/* Display error the first time */
 		snprintf (errnamebuff, (size_t)COB_NORMAL_MAX, "'%s'", CB_NAME (x));
+		errnamebuff[COB_NORMAL_MAX] = 0;
 		for (l = CB_REFERENCE (x)->chain; l; l = CB_REFERENCE (l)->chain) {
 			strcat (errnamebuff, " in '");
 			strcat (errnamebuff, CB_NAME (l));
@@ -329,6 +367,7 @@ ambiguous_error (cb_tree x)
 			y = CB_VALUE (l);
 			snprintf (errnamebuff, (size_t)COB_NORMAL_MAX,
 				  "'%s' ", w->name);
+			errnamebuff[COB_NORMAL_MAX] = 0;
 			switch (CB_TREE_TAG (y)) {
 			case CB_TAG_FIELD:
 				for (p = CB_FIELD (y)->parent; p; p = p->parent) {
@@ -350,7 +389,7 @@ ambiguous_error (cb_tree x)
 				break;
 			}
 			strcat (errnamebuff, _("defined here"));
-			cb_error_x (y, errnamebuff);
+			cb_error_x (y, "%s", errnamebuff);
 		}
 	}
 }

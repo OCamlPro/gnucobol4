@@ -1,4 +1,34 @@
 
+2016-05-15  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/used_binaries.at: added tests for cobcrun -M <module>
+
+2016-04-23  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/data_binary.at: added test for binary-double unsigned
+	  compare when high bit set.
+
+2016-02-01  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* testsuite.at, tests/syn_reportwriter.at: RW checks earlier skipped are
+	  now only comments - will be added back in 2.1 with more and better checks
+
+2016-01-12  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* Makefile.am: added targets "test" (running ANSI testsuite) and
+	  "checkall" (running both GnuCOBOL and ANSI testsuite)
+
+2015-12-23  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* general: remove -std=cobol2002 for compiling (effectively using default),
+	  checked with cobol2014 where checking for standard behaviour,
+	  used -cb_conf when checking single compiler configurations instead
+	  of creating+using a test.conf or loading a completely different -std,
+	  check stdout+stderr where missing, removed the ifdef for __INTEL_COMPILER
+	  as this is included via libcob.h now
+	* configuration.at: check for all standard configurations -std to
+	  be usable
+
 2015-12-15  Brian Tiffin <btiffin@gnu.org>
 
 	* testsuite.src/run_misc.at: command line option -a replaced with -R
@@ -17,7 +47,7 @@
 	* atlocal_win: set tests to skip (via COB_HAS_ISAM / COB_HAS_CURSES)
 	  depending on available features (parsing cobc --info)
 
-22015-10-25  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+2015-10-25  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
 	* testsuite.src/configuration.at: mayor update including runtime
 	  configuration
@@ -48,6 +78,11 @@
 	* moved tests for checking compiler configuration from
 	  testsuite.src/syn_misc.at to testsuite.src/configuration.at, updated
 	  tests and added new ones
+
+2015-02-11  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* cobol85/Makefile.am: added target for decompressing newcob.val.Z and
+	  download it
 
 2014-12-01  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 

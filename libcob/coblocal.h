@@ -145,7 +145,7 @@
 	field.size = x; \
 	field.data = y; \
 	field.attr = z; \
-	} while (0)
+	} ONCE_COB
 
 #define COB_ATTR_INIT(u,v,x,y,z)	do { \
 	attr.type = u; \
@@ -153,12 +153,12 @@
 	attr.scale = x; \
 	attr.flags = y; \
 	attr.pic = z; \
-	} while (0)
+	} ONCE_COB
 
 #define COB_GET_SIGN(f)		\
 	(COB_FIELD_HAVE_SIGN (f) ? cob_real_get_sign (f) : 0)
 #define COB_PUT_SIGN(f,s)	\
-	do { if (COB_FIELD_HAVE_SIGN (f)) cob_real_put_sign (f, s); } while (0)
+	do { if (COB_FIELD_HAVE_SIGN (f)) cob_real_put_sign (f, s); } ONCE_COB
 
 #ifdef	COB_PARAM_CHECK
 #define	COB_CHK_PARMS(x,z)	\
@@ -346,7 +346,6 @@ COB_HIDDEN void		cob_print_realbin	(const cob_field *, FILE *,
 						 const int);
 
 COB_HIDDEN void		cob_screen_set_mode	(const cob_u32_t);
-COB_HIDDEN void		cob_set_exception	(const int);
 COB_HIDDEN int		cob_get_exception_code	(void);
 COB_HIDDEN int		cob_check_env_true	(char*);
 COB_HIDDEN int		cob_check_env_false	(char*);

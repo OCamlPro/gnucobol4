@@ -1,25 +1,49 @@
-## Copyright (C) 2007-2012, 2014 Free Software Foundation, Inc.
+## Copyright (C) 2007-2012, 2014-2015 Free Software Foundation, Inc.
 ## Written by Roger While, Simon Sobisch, Edward Hart
-## 
+##
 ## This file is part of GnuCOBOL.
-## 
+##
 ## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
-## 
+##
 ## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU General Public License
 ## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
 ### GnuCOBOL Test Suite
 
 
-AT_SETUP([REPOSITORY])
+AT_SETUP([ANY LENGTH as function RETURNING item])
+AT_KEYWORDS([functions ANY LENGTH])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       FUNCTION-ID.   func.
+
+       DATA           DIVISION.
+       LINKAGE        SECTION.
+       01  any-len    PIC 9 ANY LENGTH.
+
+       PROCEDURE      DIVISION RETURNING any-len.
+           CONTINUE
+           .
+       END FUNCTION   func.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 9: Error: Function RETURNING item may not be ANY LENGTH
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([REPOSITORY INTRINSIC phrase])
 AT_KEYWORDS([functions])
 
 AT_DATA([prog.cob], [
@@ -27,9 +51,7 @@ AT_DATA([prog.cob], [
        PROGRAM-ID.      prog.
        ENVIRONMENT DIVISION.
        CONFIGURATION SECTION.
-       SPECIAL-NAMES.
        REPOSITORY.
-           FUNCTION rxwfun
            FUNCTION pi e intrinsic
            .
        DATA             DIVISION.
@@ -41,7 +63,119 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+AT_CLEANUP
 
+
+AT_SETUP([REPOSITORY FUNCTION phrase])
+AT_KEYWORDS([functions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       FUNCTION-ID. x AS "y".
+
+       DATA DIVISION.
+       LINKAGE SECTION.
+       01  ret PIC 9(4).
+
+       PROCEDURE DIVISION RETURNING ret.
+           MOVE 100 TO ret
+           .
+       END FUNCTION x.
+
+       IDENTIFICATION DIVISION.
+       FUNCTION-ID. z.
+
+       DATA DIVISION.
+       LINKAGE SECTION.
+       01  ret PIC 9(5).
+
+       PROCEDURE DIVISION RETURNING ret.
+           MOVE 1 TO ret
+           .
+       END FUNCTION z.
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. testing.
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       REPOSITORY.
+           FUNCTION y AS "y"
+           FUNCTION z
+           .
+       PROCEDURE DIVISION.
+           DISPLAY FUNCTION y
+           DISPLAY FUNCTION z
+           .
+       END PROGRAM testing.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+AT_CLEANUP
+
+
+AT_SETUP([Redundant REPOSITORY FUNCTION phrase])
+AT_KEYWORDS([functions])
+
+AT_DATA([prog.cob], [
+       FUNCTION-ID. beta.
+       END FUNCTION beta.
+
+       IDENTIFICATION DIVISION.
+       FUNCTION-ID. alpha.
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           ALPHABET gamma IS ASCII
+           .
+       REPOSITORY.
+           FUNCTION alpha
+           FUNCTION beta
+           FUNCTION beta
+           FUNCTION beta AS "alpha"
+           FUNCTION gamma
+           .
+       END FUNCTION alpha.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 14: Warning: Prototype has same name as current function and will be ignored
+prog.cob: 16: Warning: Duplicate REPOSITORY entry for 'beta'
+prog.cob: 17: Error: Duplicate REPOSITORY entries for 'beta' do not match
+prog.cob: 19: Warning: No definition/prototype seen for function 'gamma'
+prog.cob: 18: Error: Redefinition of 'gamma'
+prog.cob: 11: Error: 'gamma' previously defined here
+])
+AT_CLEANUP
+
+
+AT_SETUP([Missing function prototype/definition])
+AT_KEYWORDS([functions prototypes])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       FUNCTION-ID. blah.
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       REPOSITORY.
+           FUNCTION x.
+
+       DATA DIVISION.
+       LINKAGE SECTION.
+       01  ret PIC X.
+           
+       PROCEDURE DIVISION RETURNING ret.
+           MOVE FUNCTION x TO ret
+           MOVE FUNCTION x TO ret
+           .
+       END FUNCTION blah.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 8: Warning: No definition/prototype seen for function 'x'
+])
 AT_CLEANUP
 
 
@@ -72,7 +206,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 10: Error: FUNCTION 'PI' has wrong number of arguments
 prog.cob: 11: Error: FUNCTION 'ABS' has wrong number of arguments
 prog.cob: 13: Error: FUNCTION 'ABS' has wrong number of arguments
@@ -104,7 +238,7 @@ AT_KEYWORDS([functions])
 #           STOP RUN.
 #])
 #
-#AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+#AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 #[prog.cob: 8: Error: FUNCTION 'PI' can not have reference modification
 #prog.cob: 9: Error: FUNCTION 'NUMVAL-C' can not have reference modification
 #prog.cob: 10: Error: FUNCTION 'REVERSE' has invalid reference modification
@@ -125,7 +259,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 8: Error: FUNCTION 'REVERSE' has invalid reference modification
 prog.cob: 9: Error: FUNCTION 'REVERSE' has invalid reference modification
 ])
@@ -149,7 +283,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 8: Error: FUNCTION 'ABS' has invalid parameter
 ])
 
@@ -205,7 +339,7 @@ AT_DATA([prog.cob], [
 
            DISPLAY FUNCTION INTEGER-OF-FORMATTED-DATE ( Time-Format, 1)
            END-DISPLAY
- 
+
            DISPLAY FUNCTION SECONDS-FROM-FORMATTED-TIME
                ( Date-Format, 1)
            END-DISPLAY
@@ -217,7 +351,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 12: Error: FUNCTION 'FORMATTED-DATE' has invalid date/time format
 prog.cob: 14: Error: FUNCTION 'FORMATTED-TIME' has invalid date/time format
 prog.cob: 16: Error: FUNCTION 'FORMATTED-DATETIME' has invalid date/time format
@@ -263,7 +397,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 15: Error: FUNCTION 'FORMATTED-TIME' has invalid date/time format
 prog.cob: 17: Error: FUNCTION 'FORMATTED-DATETIME' has invalid date/time format
 ])
@@ -271,3 +405,25 @@ prog.cob: 17: Error: FUNCTION 'FORMATTED-DATETIME' has invalid date/time format
 AT_CLEANUP
 
 
+AT_SETUP([Specified offset and SYSTEM-OFFSET])
+AT_KEYWORDS([functions FORMATTED-TIME FORMATTED-DATETIME])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       PROCEDURE        DIVISION.
+           DISPLAY FUNCTION FORMATTED-DATETIME
+                       ("YYYYDDDThhmmssZ", 1, 1, 1, SYSTEM-OFFSET)
+           END-DISPLAY
+           DISPLAY FUNCTION FORMATTED-TIME
+                       ("hhmmssZ", 1, 1, SYSTEM-OFFSET)
+           END-DISPLAY
+           .
+])
+
+AT_CHECK([$COMPILE -o prog prog.cob], [1], [],
+[prog.cob: 6: Error: Cannot specify offset and SYSTEM-OFFSET at the same time.
+prog.cob: 9: Error: Cannot specify offset and SYSTEM-OFFSET at the same time.
+])
+
+AT_CLEANUP

@@ -1,4 +1,20 @@
 
+2016-05-04  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* general: removed project files and references to Visual C < 2005
+	  (GC 2+ will not build with these versions) including define of
+	  COB_USE_VC2005_OR_GREATER
+
+2016-01-30  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* configure.ac: removed AC_FUNC_ALLOCA
+
+2016-01-12  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* Makefile.am: added targets "test" (running ANSI testsuite) and
+	  "checkall" (running both GnuCOBOL and ANSI testsuite), both do a
+	  full build of GnuCOBOL if necessary
+
 2015-12-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* Taken into account all copyright assignments and rechecking the dates

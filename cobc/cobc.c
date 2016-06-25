@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2016 Free Software Foundation, Inc.
 
    Authors:
    Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Brian Tiffin
@@ -159,8 +159,6 @@ FILE			*cb_listing_file = NULL;
 char			*source_name = NULL;
 #endif
 
-struct noreserve	*cobc_nores_base = NULL;
-
 int			cb_source_format = CB_FORMAT_FIXED;	/* Default format */
 int			cb_id = 0;
 int			cb_attr_id = 0;
@@ -288,11 +286,10 @@ static size_t		verbose_output = 0;
 static size_t		cob_optimize = 0;
 
 #ifdef	_MSC_VER
-#if	defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 static const char	*manicmd;
-#endif
 static const char	*manilink;
 static size_t		manilink_len;
+#define PATTERN_DELIM '|'
 #endif
 
 static size_t		strip_output = 0;
@@ -467,7 +464,7 @@ static const struct option long_options[] = {
 #undef	CB_ARG_OP
 
 /* Prototype */
-static void COB_A_NORETURN	cobc_abort_terminate (void);
+DECLNORET static void COB_A_NORETURN	cobc_abort_terminate (void);
 
 /* cobc functions */
 
@@ -668,7 +665,7 @@ cobc_free(void * mptr)
 {
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!mptr)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_free"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_free");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -683,7 +680,7 @@ cobc_strdup (const char *dupstr)
 
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!dupstr)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_strdup"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_strdup");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -734,7 +731,7 @@ cobc_main_strdup (const char *dupstr)
 
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!dupstr)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_main_strdup"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_main_strdup");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -797,8 +794,13 @@ cobc_main_free (void *prevptr)
 		}
 		prev = curr;
 	}
-	if (!curr) {
+	if (unlikely(!curr)) {
+#ifdef	COB_TREE_DEBUG
+		cobc_abort_pr (_("Call to %s with invalid pointer, as it is missing in list"), "cobc_main_free");
+		cobc_abort_terminate ();
+#else
 		return;
+#endif
 	}
 	if (prev) {
 		prev->next = curr->next;
@@ -836,7 +838,7 @@ cobc_parse_strdup (const char *dupstr)
 
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!dupstr)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_parse_strdup"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_parse_strdup");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -899,8 +901,13 @@ cobc_parse_free (void *prevptr)
 		}
 		prev = curr;
 	}
-	if (!curr) {
+	if (unlikely(!curr)) {
+#ifdef	COB_TREE_DEBUG
+		cobc_abort_pr (_("Call to %s with invalid pointer, as it is missing in list"), "cobc_parse_free");
+		cobc_abort_terminate ();
+#else
 		return;
+#endif
 	}
 	if (prev) {
 		prev->next = curr->next;
@@ -937,7 +944,7 @@ cobc_plex_strdup (const char *dupstr)
 
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!dupstr)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_plex_strdup"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_plex_strdup");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -954,7 +961,7 @@ cobc_check_string (const char *dupstr)
 
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!dupstr)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_check_string"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_check_string");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -1225,7 +1232,7 @@ cobc_deciph_optarg (const char *p, const int allow_quote)
 	return n;
 }
 
-static void COB_A_NORETURN
+DECLNORET static void COB_A_NORETURN
 cobc_err_exit (const char *fmt, ...)
 {
 	va_list		ap;
@@ -1290,7 +1297,7 @@ cobc_stradd_dup (const char *str1, const char *str2)
 
 #ifdef	COB_TREE_DEBUG
 	if (unlikely(!str1 || !str2)) {
-		cobc_abort_pr (_("Call to %s with NULL pointer", "cobc_stradd_dup"));
+		cobc_abort_pr (_("Call to %s with NULL pointer"), "cobc_stradd_dup");
 		cobc_abort_terminate ();
 	}
 #endif
@@ -1366,6 +1373,7 @@ cobc_check_action (const char *name)
 
 		snprintf (temp_buff, (size_t)COB_MEDIUM_MAX,
 			  "%s%s%s", save_temps_dir, SLASH_STR, name);
+		temp_buff[COB_MEDIUM_MAX] = 0;
 		/* Remove possible target file - ignore return */
 		(void)unlink (temp_buff);
 		if (rename (name, temp_buff)) {
@@ -1446,10 +1454,12 @@ cobc_clean_up (const int status)
 				   know the number of local include files */
 				snprintf (cobc_buffer, cobc_buffer_size,
 					 "%s.l.h", fn->translate);
+				cobc_buffer[cobc_buffer_size] = 0;
 				for (i = 0; i < 30U; ++i) {
 					if (i) {
 						snprintf (cobc_buffer, cobc_buffer_size,
 							 "%s.l%u.h", fn->translate, i);
+						cobc_buffer[cobc_buffer_size] = 0;
 					}
 					if (!access (cobc_buffer, F_OK)) {
 						unlink (cobc_buffer);
@@ -1464,7 +1474,7 @@ cobc_clean_up (const int status)
 	file_list = NULL;
 }
 
-static void COB_A_NORETURN
+DECLNORET static void COB_A_NORETURN
 cobc_terminate (const char *str)
 {
 	int	save_errno;
@@ -1479,7 +1489,7 @@ cobc_terminate (const char *str)
 	exit (1);
 }
 
-static void COB_A_NORETURN
+DECLNORET static void COB_A_NORETURN
 cobc_abort_terminate (void)
 {
 	if (cb_source_file) {
@@ -1491,7 +1501,7 @@ cobc_abort_terminate (void)
 }
 
 #ifdef	HAVE_SIGNAL_H
-static void COB_A_NORETURN
+DECLNORET static void COB_A_NORETURN
 cobc_sig_handler (int sig)
 {
 #if	defined(HAVE_SIGACTION) && !defined(SA_RESETHAND)
@@ -1539,10 +1549,11 @@ cobc_print_version (void)
 {
 	printf ("cobc (%s) %s.%d\n",
 		PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
-	puts ("Copyright (C) 2001-2015 Free Software Foundation, Inc.");
-	puts ("Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch");
-	puts (_("This is free software; see the source for copying conditions.  There is NO\n\
-warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
+	puts ("Copyright (C) 2016 Free Software Foundation, Inc.");
+	puts (_("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>"));
+	puts (_("This is free software; see the source for copying conditions.  There is NO\n"
+	        "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
+	printf (_("Written by %s\n"), "Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Edward Hart");
 	printf (_("Built     %s"), cb_oc_build_stamp);
 	putchar ('\n');
 	printf (_("Packaged  %s"), COB_TAR_DATE);
@@ -1590,14 +1601,14 @@ cobc_var_print (const char *msg, const char *val, const unsigned int env)
 	char	*p;
 	char	*token;
 	size_t	n;
-	size_t	lablen;
+	int 	lablen;
 	size_t	toklen;
 
 	if (!env) {
 		printf ("%-*.*s : ", CB_IMSG_SIZE, CB_IMSG_SIZE, msg);
 	} else {
 		printf ("  %s: ", _("env"));
-		lablen = CB_IMSG_SIZE - 2 - strlen(_("env")) - 2;
+		lablen = CB_IMSG_SIZE - 2 - (int)strlen(_("env")) - 2;
 		printf ("%-*.*s : ", lablen, lablen, msg);
 	}
 	if (strlen(val) <= CB_IVAL_SIZE) {
@@ -1608,7 +1619,7 @@ cobc_var_print (const char *msg, const char *val, const unsigned int env)
 	n = 0;
 	token = strtok (p, " ");
 	for (; token; token = strtok (NULL, " ")) {
-		toklen = strlen (token) + 1;
+		toklen = (int)strlen (token) + 1;
 		if ((n + toklen) > CB_IVAL_SIZE) {
 			if (n) {
 				printf ("\n%*.*s", CB_IMSG_SIZE + 3,
@@ -1631,8 +1642,8 @@ cobc_print_info (void)
 
 	cobc_print_version ();
 	putchar ('\n');
-	puts (_("Build information"));
-	cobc_var_print (_("Build environment"),	COB_BLD_BUILD, 0);
+	puts (_("build information"));
+	cobc_var_print (_("build environment"),	COB_BLD_BUILD, 0);
 	cobc_var_print ("CC",			COB_BLD_CC, 0);
 	cobc_var_print ("CPPFLAGS",		COB_BLD_CPPFLAGS, 0);
 	cobc_var_print ("CFLAGS",		COB_BLD_CFLAGS, 0);
@@ -1736,17 +1747,6 @@ cobc_print_info (void)
 #else
 	cobc_var_print (_("ISAM handler"),		_("Not available"), 0);
 #endif
-
-#ifdef	WITH_INDEX_EXTFH
-#endif
-#ifdef	WITH_DB
-#endif
-#ifdef	WITH_CISAM
-#endif
-#ifdef	WITH_DISAM
-#endif
-#ifdef	WITH_VBISAM
-#endif
 }
 
 static void
@@ -1782,70 +1782,64 @@ cobc_print_flag (const char *name, const char *doc,
 static void
 cobc_print_usage (char * prog)
 {
-	printf (_("Usage: %s [options]... file..."), prog);
+	puts (_("GnuCOBOL compiler for most COBOL dialects with lots of extensions"));
+	putchar ('\n');
+	printf (_("usage: %s [options]... file..."), prog);
 	putchar ('\n');
 	putchar ('\n');
-	printf (_("%s compiler for most COBOL dialects with lots of extensions"), PACKAGE_NAME);
-	putchar ('\n');
-	putchar ('\n');
-	puts (_("Options:"));
-	puts (_("  -h, -help             Display this help and exit"));
-	puts (_("  -V, -version          Display compiler version and exit"));
-	puts (_("  -i, -info             Display compiler information (build/environment)"));
-	puts (_("  -v, -verbose          Display the commands invoked by the compiler"));
-	puts (_("  -vv                   Display compiler version and display the commands"));
-	puts (_("                        invoked by the compiler"));
-	puts (_("  -x                    Build an executable program"));
-	puts (_("  -m                    Build a dynamically loadable module (default)"));
-	puts (_("  -j                    Run job, after build"));
-	puts (_("  -std=<dialect>        Warnings/features for a specific dialect:"));
-	puts (_("                          cobol2002   COBOL 2002"));
-	puts (_("                          cobol2014   COBOL 2014"));
-	puts (_("                          cobol85     COBOL 85"));
-	puts (_("                          ibm         IBM Compatible"));
-	puts (_("                          mvs         MVS Compatible"));
-	puts (_("                          bs2000      BS2000 Compatible"));
-	puts (_("                          mf          Micro Focus Compatible"));
-	puts (_("                          acu         ACUCOBOL-GT Compatible"));
-	puts (_("                          default     When not specified"));
-	puts (_("                        See config/default.conf and config/*.conf"));
-	puts (_("  -free                 Use free source format"));
-	puts (_("  -fixed                Use fixed source format (default)"));
-	puts (_("  -F                    Alias (short option) for -free"));
-	puts (_("  -O, -O2, -Os          Enable optimization"));
-	puts (_("  -g                    Enable C compiler debug / stack check / trace"));
-	puts (_("  -d, -debug            Enable all run-time error checking"));
-	puts (_("  -o <file>             Place the output into <file>"));
-	puts (_("  -b                    Combine all input files into a single"));
-	puts (_("                        dynamically loadable module"));
-	puts (_("  -E                    Preprocess only; do not compile or link"));
-	puts (_("  -C                    Translation only; convert COBOL to C"));
-	puts (_("  -S                    Compile only; output assembly file"));
-	puts (_("  -c                    Compile and assemble, but do not link"));
-	puts (_("  -P(=<dir or file>)    Generate preprocessed program listing (.lst)"));
-	puts (_("  -Xref                 Generate cross reference through 'cobxref'"));
-	puts (_("                        (V. Coen's 'cobxref' must be in path)"));
-	puts (_("  -I <directory>        Add <directory> to copy/include search path"));
-	puts (_("  -L <directory>        Add <directory> to library search path"));
-	puts (_("  -l <lib>              Link the library <lib>"));
-	puts (_("  -A <options>          Add <options> to the C compile phase"));
-	puts (_("  -Q <options>          Add <options> to the C link phase"));
-	puts (_("  -D <define>           DEFINE <define> to the COBOL compiler"));
-	puts (_("  -K <entry>            Generate CALL to <entry> as static"));
-	puts (_("  -conf=<file>          User defined dialect configuration - See -std="));
-	puts (_("  -cb_conf=<tag:value>  Override configuration entry"));
-	puts (_("  -list-reserved        Display reserved words"));
-	puts (_("  -list-intrinsics      Display intrinsic functions"));
-	puts (_("  -list-mnemonics       Display mnemonic names"));
-	puts (_("  -list-system          Display system routines"));
-	puts (_("  -save-temps(=<dir>)   Save intermediate files"));
-	puts (_("                        - Default : current directory"));
-	puts (_("  -ext <extension>      Add default file extension"));
+	puts (_("options:"));
+	puts (_("  -h, -help             display this help and exit"));
+	puts (_("  -V, -version          display compiler version and exit"));
+	puts (_("  -i, -info             display compiler information (build/environment)"));
+	puts (_("  -v, -verbose          display the commands invoked by the compiler"));
+	puts (_("  -vv                   display compiler version and the commands\n" \
+	        "                        invoked by the compiler"));
+	puts (_("  -x                    build an executable program"));
+	puts (_("  -m                    build a dynamically loadable module (default)"));
+	puts (_("  -j                    run job, after build"));
+	puts (_("  -std=<dialect>        warnings/features for a specific dialect\n" 
+			"                        <dialect> can be one of:\n"
+			"                        cobol2014, cobol2002, cobol85, default,\n"
+			"                        ibm, mvs, bs2000, mf, acu;\n" 
+			"                        see configuration files in directory config"));
+	puts (_("  -F, -free             use free source format"));
+	puts (_("  -free                 use free source format"));
+	puts (_("  -fixed                use fixed source format (default)"));
+	puts (_("  -O, -O2, -Os          enable optimization"));
+	puts (_("  -g                    enable C compiler debug / stack check / trace"));
+	puts (_("  -d, -debug            enable all run-time error checking"));
+	puts (_("  -o <file>             place the output into <file>"));
+	puts (_("  -b                    combine all input files into a single\n"
+			"                        dynamically loadable module"));
+	puts (_("  -E                    preprocess only; do not compile or link"));
+	puts (_("  -C                    translation only; convert COBOL to C"));
+	puts (_("  -S                    compile only; output assembly file"));
+	puts (_("  -c                    compile and assemble, but do not link"));
+	puts (_("  -P(=<dir or file>)    generate preprocessed program listing (.lst)"));
+	puts (_("  -Xref                 generate cross reference through 'cobxref'\n"
+			"                        (V. Coen's 'cobxref' must be in path)"));
+	puts (_("  -I <directory>        add <directory> to copy/include search path"));
+	puts (_("  -L <directory>        add <directory> to library search path"));
+	puts (_("  -l <lib>              link the library <lib>"));
+	puts (_("  -A <options>          add <options> to the C compile phase"));
+	puts (_("  -Q <options>          add <options> to the C link phase"));
+	puts (_("  -D <define>           define <define> for COBOL compilation"));
+	puts (_("  -K <entry>            generate CALL to <entry> as static"));
+	puts (_("  -conf=<file>          user defined dialect configuration - See -std="));
+	puts (_("  -cb_conf=<tag:value>  override configuration entry"));
+	puts (_("  -list-reserved        display reserved words"));
+	puts (_("  -list-intrinsics      display intrinsic functions"));
+	puts (_("  -list-mnemonics       display mnemonic names"));
+	puts (_("  -list-system          display system routines"));
+	puts (_("  -save-temps(=<dir>)   save intermediate files\n"
+			"                        - default: current directory"));
+	puts (_("  -ext <extension>      add default file extension"));
 
 	putchar ('\n');
 
-	puts (_("  -W                    Enable ALL warnings"));
-	puts (_("  -Wall                 Enable all warnings except as noted below"));
+	puts (_("  -W                    enable ALL warnings"));
+	puts (_("  -Wall                 enable all warnings except as noted below"));
+	puts (_("  -Wno-<feature>        disable warning enabled by -W or -Wall"));
 #undef	CB_WARNDEF
 #undef	CB_NOWARNDEF
 #define	CB_WARNDEF(var,name,doc)		\
@@ -1873,6 +1867,14 @@ cobc_print_usage (char * prog)
 #undef	CB_FLAG_NQ
 
 	putchar ('\n');
+
+	putchar ('\n');
+	printf (_("Report bugs to: %s or\n"
+			  "use the preferred issue tracker via home page."), "bug-gnucobol@gnu.org");
+	putchar ('\n');
+	puts (_("GnuCOBOL home page: <http://www.gnu.org/software/gnucobol/>"));
+	puts (_("General help using GNU software: <http://www.gnu.org/gethelp/>"));
+
 }
 
 static void
@@ -1918,16 +1920,15 @@ process_command_line (const int argc, char **argv)
 	int			c;
 	int			idx;
 	int			n;
+	int			list_reserved = 0;
 #ifdef _WIN32
 	int 			argnum;
 #endif
 	enum cob_exception_id	i;
 	struct stat		st;
 	char			ext[COB_MINI_BUFF];
-	struct cb_text_list	*cb_conf_override_list = NULL;
-	struct cb_text_list	*covl;
 	
-	int			ret = 0;
+	int			conf_ret = 0;
 	int			sub_ret;
 
 #ifdef _WIN32
@@ -1939,13 +1940,14 @@ process_command_line (const int argc, char **argv)
 		}
 	}
 #endif
-
+	
+	/* First run of getopt: handle std/conf and all listing options
+	   We need to postpone single configuration flags as we need
+	   a full configuration to be loaded before */
+	cob_optind = 1;
 	while ((c = cob_getopt_long_long (argc, argv, short_options,
 					  long_options, &idx, 1)) >= 0) {
 		switch (c) {
-		case 0:
-			/* Defined flag */
-			break;
 
 		case '?':
 			/* Unknown option or ambiguous */
@@ -1971,8 +1973,11 @@ process_command_line (const int argc, char **argv)
 
 		case '5':
 			/* --list-reserved */
-			cb_list_reserved ();
-			exit_option = 1;
+			/*
+			  This must be postponed until after the configuration
+			  is loaded.
+			*/
+			list_reserved = 1;
 			break;
 
 		case '6':
@@ -1991,6 +1996,98 @@ process_command_line (const int argc, char **argv)
 			/* --list-system */
 			cb_list_system ();
 			exit_option = 1;
+			break;
+
+		case 'v':
+			/* --verbose : Verbose reporting */
+			/* VERY special case as we set different level by mutliple calls */
+			/* Output version information when running very verbose */
+			if (++verbose_output == 2) {
+				cobc_print_version ();
+			}
+			break;
+
+		case '$':
+			/* -std=<xx> : Specify dialect */
+			if (!exit_option) {
+				snprintf (ext, (size_t)COB_MINI_MAX, "%s.conf", cob_optarg);
+				if (cb_load_std (ext) != 0) {
+					cobc_err_exit (_("Invalid option -std=%s"),
+							   cob_optarg);
+				}
+			}
+			break;
+
+		case '&':
+			/* -conf=<xx> : Specify dialect configuration file */
+			if (!exit_option) {
+				if (strlen (cob_optarg) > COB_SMALL_MAX) {
+					cobc_err_exit (COBC_INV_PAR, "-conf");
+				}
+				sub_ret = cb_load_conf (cob_optarg, 0);
+				if (sub_ret != 0) conf_ret = sub_ret;
+			}
+			break;
+
+		default:
+			/* as we postpone most options simply skip everything other here */
+			break;
+		}
+	}
+
+	/* Exit if list options were specified */
+	if (exit_option) {
+		cobc_free_mem ();
+		exit (0);
+	}
+
+	/* Load default configuration file if necessary */
+	if (cb_config_name == NULL) {
+		if (verbose_output) {
+			fputs (_("Loading standard configuration file 'default.conf'"), stderr);
+			fputc ('\n', stderr);
+		}
+		sub_ret = cb_load_std ("default.conf");
+		if (sub_ret != 0) conf_ret = sub_ret;
+	}
+
+	/* Exit for configuration errors resulting from -std/-conf/default.conf */
+	if (conf_ret != 0) {
+		cobc_free_mem ();
+		exit (1);
+	}
+
+	/* Set relaxed syntax configuration options if requested */
+	if (cb_flag_relaxed_syntax) {
+		cb_relaxed_syntax_check = 1;
+		cb_larger_redefines_ok = 1;
+		cb_relax_level_hierarchy = 1;
+		cb_top_level_occurs_clause = CB_OK;
+	}
+	
+	cob_optind = 1;
+	while ((c = cob_getopt_long_long (argc, argv, short_options,
+					  long_options, &idx, 1)) >= 0) {
+		switch (c) {
+		case 0:
+			/* Defined flag */
+			break;
+		
+		case 'h':
+			/* --help */
+		case 'V':
+			/* --version */
+		case 'i':
+			/* --info */
+		case '5':
+			/* --list-reserved */
+		case '6':
+			/* --list-intrinsics */
+		case '7':
+			/* --list-mnemonics */
+		case '8':
+			/* --list-system */
+			/* These options were all processed in the first getopt-run */
 			break;
 
 		case 'E':
@@ -2065,8 +2162,7 @@ process_command_line (const int argc, char **argv)
 
 		case 'v':
 			/* --verbose : Verbose reporting */
-			/* VERY special case as we set different level by mutliple calls */
-			verbose_output++;
+			/* This option was processed in the first getopt-run */
 			break;
 
 		case 'o':
@@ -2119,20 +2215,9 @@ process_command_line (const int argc, char **argv)
 
 		case '$':
 			/* -std=<xx> : Specify dialect */
-			snprintf (ext, (size_t)COB_MINI_MAX, "%s.conf", cob_optarg);
-			if (cb_load_std (ext) != 0) {
-				cobc_err_exit (_("Invalid option -std=%s"),
-					       cob_optarg);
-			}
-			break;
-
 		case '&':
 			/* -conf=<xx> : Specify dialect configuration file */
-			if (strlen (cob_optarg) > COB_SMALL_MAX) {
-				cobc_err_exit (COBC_INV_PAR , "-conf");
-			}
-			sub_ret = cb_load_conf (cob_optarg, 0);
-			if (sub_ret != 0) ret = sub_ret;
+			/* These options were all processed in the first getopt-run */
 			break;
 
 		case '%':
@@ -2140,8 +2225,8 @@ process_command_line (const int argc, char **argv)
 			if (strlen (cob_optarg) > COB_SMALL_MAX) {
 				cobc_err_exit (COBC_INV_PAR , "-cb_conf");
 			}
-			/* postponed as we need full configuration loaded before */
-			CB_TEXT_LIST_ADD (cb_conf_override_list, cob_optarg);
+			sub_ret = cb_config_entry (cob_optarg, NULL, 0);
+			if (sub_ret != 0) conf_ret = sub_ret;
 			break;
 
 		case 'd':
@@ -2158,7 +2243,8 @@ process_command_line (const int argc, char **argv)
 			if (cob_optarg) {
 				if (stat (cob_optarg, &st) != 0 ||
 				    !(S_ISDIR (st.st_mode))) {
-					cobc_abort_pr (_("Warning - '%s' is not a directory, defaulting to current directory"), cob_optarg);
+					cobc_abort_pr (_("Warning - '%s' is not a directory, defaulting to current directory"),
+						cob_optarg);
 				} else {
 					save_temps_dir = cobc_strdup (cob_optarg);
 				}
@@ -2391,70 +2477,27 @@ process_command_line (const int argc, char **argv)
 		}
 	}
 
-	/* Output version information when running very verbose */
-	if (verbose_output > 1) {
-		cobc_print_version ();
+	/* Exit for configuration errors resulting from -cb_conf */
+	if (conf_ret != 0) {
+		cobc_free_mem ();
+		exit (1);
 	}
+
+	if (list_reserved) {
+		cb_list_reserved ();
+		cobc_free_mem ();
+		exit (0);
+	}
+	
 	/* debug: Turn on all exception conditions */
 	if (cobc_wants_debug) {
 		for (i = (enum cob_exception_id)1; i < COB_EC_MAX; ++i) {
 			CB_EXCEPTION_ENABLE (i) = 1;
 		}
-		if (verbose_output) {
+		if (verbose_output > 1) {
 			fputs (_("All runtime checks are enabled"), stderr);
-			fputs ("\n", stderr);
+			fputc ('\n', stderr);
 		}
-	}
-
-	/* Exit if list options specified */
-	if (exit_option) {
-		cobc_free_mem ();
-		exit (0);
-	}
-
-	/* Load default configuration file if necessary */
-	if (cb_config_name == NULL) {
-		sub_ret = cb_load_std ("default.conf");
-		if (sub_ret != 0) {
-			if (verbose_output) {
-				configuration_error (1, "default.conf", 0,
-					_("Failed to load the initial config file"));
-			}
-			ret = sub_ret;
-		}
-	}
-	/* Do postponed override of configuration entries here */
-	if (cb_conf_override_list) {
-		for (covl = cb_conf_override_list; covl; covl = covl->next) {
-			sub_ret = cb_config_entry ((char *)covl->text, NULL, 0);
-			if (sub_ret != 0) ret = sub_ret;
-		}
-		/* Todo: free list */
-	}
-	/* Exit for configuration errors */
-	if (ret != 0) {
-		cobc_free_mem ();
-		exit (1);
-	}
-
-	/* Check valid tab width */
-	if (cb_tab_width < 1 || cb_tab_width > 8) {
-		cobc_err_exit (_("Invalid tab-width value - %d"),
-			 cb_tab_width);
-	}
-
-	/* Check valid text columns value */
-	if (cb_text_column < 72 || cb_text_column > 255) {
-		cobc_err_exit (_("Invalid text-column value - %d"),
-			 cb_text_column);
-	}
-
-	/* Set relaxed syntax parameters */
-	if (cb_flag_relaxed_syntax) {
-		cb_relaxed_syntax_check = 1;
-		cb_larger_redefines_ok = 1;
-		cb_relax_level_hierarchy = 1;
-		cb_top_level_occurs_clause = CB_OK;
 	}
 
 	/* If C debug, do not strip output */
@@ -2471,7 +2514,6 @@ process_command_line (const int argc, char **argv)
 }
 
 /* Reverse the list of programs */
-
 static struct cb_program *
 program_list_reverse (struct cb_program *p)
 {
@@ -2540,6 +2582,12 @@ file_basename (const char *filename)
 	const char	*startp;
 	const char	*endp;
 	size_t		len;
+
+	if (!filename) {
+		cobc_abort_pr (_("Call to '%s' with invalid parameter '%s'"),
+			"file_basename", "filename");
+		COBC_ABORT ();
+	}
 
 	/* Remove directory name */
 	startp = NULL;
@@ -2628,7 +2676,8 @@ process_filename (const char *filename)
 
 	fbasename = file_basename (filename);
 	extension = file_extension (filename);
-	if (strcmp(extension, "lib") && strcmp(extension, "a")) {
+	if (strcmp(extension, "lib") && strcmp(extension, "a") &&
+		strcmp(extension, COB_OBJECT_EXT)) {
 		if (cobc_check_valid_name (fbasename, 0)) {
 			return NULL;
 		}
@@ -2760,18 +2809,26 @@ process_filename (const char *filename)
  */
 static int 
 line_contains (char* line_start, char* line_end, char* search_patterns) {
-	int pattern_end, pattern_start, pattern_length;
+	int pattern_end, pattern_start, pattern_length, full_length;
 	char* line_pos;
 
+	if (search_patterns == NULL) return 0;
+
 	pattern_start = 0;
-	for (pattern_end = 0; pattern_end < (int) strlen(search_patterns); pattern_end++) {
-		if (search_patterns[pattern_end] == '|') {
+	full_length = (int)strlen (search_patterns) - 1;
+	for (pattern_end = 0; pattern_end < (int)strlen(search_patterns); pattern_end++) {
+		if (search_patterns[pattern_end] == PATTERN_DELIM) {
 			pattern_length = pattern_end - pattern_start;
 			for (line_pos = line_start; line_pos + pattern_length <= line_end; line_pos++) {
 				/* Find matching substring */
 				if (memcmp (line_pos, search_patterns + pattern_start, pattern_length) == 0) {
+					/* Exit if all patterns found, skip to next pattern otherwise */
+					if (pattern_start + pattern_length == full_length) {
 					return 1;
+					} else {
+						break;
 				}
+			}
 			}
 			pattern_start = pattern_end + 1;
 		}
@@ -2784,7 +2841,7 @@ line_contains (char* line_start, char* line_end, char* search_patterns) {
 /** -j run job after build */
 static int
 process_run (const char *name) {
-	int ret;
+	int ret, status;
 
 	if (cb_compile_level < CB_LEVEL_MODULE) {
 		fputs (_("Nothing for -j to run"), stderr);
@@ -2800,10 +2857,20 @@ process_run (const char *name) {
 		snprintf (cobc_buffer, cobc_buffer_size, ".%c%s",
 			SLASH_CHAR, name);
 	}
+	cobc_buffer[cobc_buffer_size] = 0;
 	if (verbose_output) {
 		cobc_cmd_print (cobc_buffer);
 	}
-	ret = system (cobc_buffer);
+	status = system (cobc_buffer);
+#ifdef WEXITSTATUS
+	if (WIFEXITED(status)) {
+		ret = WEXITSTATUS(status);
+	} else {
+		ret = status;
+	}
+#else
+	ret = status;
+#endif
 	if (verbose_output) {
 		fputs (_("Return status:"), stderr);
 		fprintf (stderr, "\t%d\n", ret);
@@ -3081,7 +3148,7 @@ process_filtered (const char *cmd, struct filename *fn)
 	FILE* pipe;
 	char* read_buffer;
 	char *line_start, *line_end;
-	char* search_pattern;
+	char* search_pattern, *search_pattern2 = NULL;
 	char* output_name_temp;
 	int i;
 
@@ -3099,13 +3166,8 @@ process_filtered (const char *cmd, struct filename *fn)
 		/* demangle_source is encoded and cannot be used
 		   -> set to file.something and strip at point
 		*/
-		output_name_temp = (char *)fn->source;
-		for (i = strlen(output_name_temp) - 2; i > 0; i--) {
-			if (output_name_temp[i] == '.') {
-				output_name_temp[i] = 0;
-				break;
-	}
-		}
+		output_name_temp = cobc_strdup (fn->source);
+		file_stripext(output_name_temp);
 	}
 
 	/* check for last path seperator as we only need the file name */
@@ -3113,33 +3175,38 @@ process_filtered (const char *cmd, struct filename *fn)
 		if (fn->translate[i - 1] == '\\' || fn->translate[i - 1] == '/') break;
 	}
 
-	search_pattern = (char*)cobc_malloc((fn->translate_len - i + 1) + 1);
-	sprintf(search_pattern, "%s|", fn->translate + i);
-	search_pattern2 = (char*)cobc_malloc(2 * (strlen(output_name_temp) + 5) + 1);
-	sprintf(search_pattern2, "%s.lib|%s.exp|", output_name_temp, output_name_temp);
+	search_pattern = (char*)cobc_malloc((fn->translate_len - i + 2) + 1);
+	sprintf(search_pattern, "%s\n%c", fn->translate + i, PATTERN_DELIM);
+	if (cb_compile_level > CB_LEVEL_ASSEMBLE) {
+		search_pattern2 = (char*)cobc_malloc (2 * (strlen (output_name_temp) + 5) + 1);
+		sprintf (search_pattern2, "%s.lib%c%s.exp%c", file_basename(output_name_temp), PATTERN_DELIM, 
+			file_basename(output_name_temp), PATTERN_DELIM);
+	}
 
-		/* prepare buffer and read from pipe */
-		read_buffer = (char*) cobc_malloc(COB_FILE_BUFF);
-			line_start = fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
+	/* prepare buffer and read from pipe */
+	read_buffer = (char*) cobc_malloc(COB_FILE_BUFF);
+	line_start = fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
 
 	while (line_start != NULL) {
-			/* read one line from buffer, returning line end position */
-			line_end = line_start + strlen(line_start) - 1;
+		/* read one line from buffer, returning line end position */
+		line_end = line_start + strlen(line_start);
 
-			/* if non of the patterns was found, print line */
+		/* if non of the patterns was found, print line */
 		if (line_start == line_end
 			|| (!line_contains(line_start, line_end, search_pattern)
 				&& !line_contains(line_start, line_end, search_pattern2)))
-			{
-				fprintf(stdout, "%*s", line_end - line_start + 2, line_start);
-			}
-		line_start = fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
+		{
+			fprintf(stdout, "%*s", (int)(line_end - line_start + 2), line_start);
 		}
-		fflush (stdout);
+		line_start = fgets(read_buffer, COB_FILE_BUFF - 1, pipe);
+	}
+	fflush (stdout);
 
-		cobc_free (read_buffer);
+	cobc_free (read_buffer);
 	cobc_free (search_pattern);
 	cobc_free (search_pattern2);
+
+	if (!output_name) cobc_free (output_name_temp);
 
 	/* close pipe and get return code of cl.exe */
 	return !!_pclose (pipe);
@@ -3300,6 +3367,7 @@ preprocess (struct filename *fn)
 		if (cobc_gen_listing > 1) {
 			snprintf (cobc_buffer, cobc_buffer_size,
 				 "cobxref %s -R", fn->listing_file);
+			cobc_buffer[cobc_buffer_size] = 0;
 			if (verbose_output) {
 				cobc_cmd_print (cobc_buffer);
 			}
@@ -3353,9 +3421,6 @@ process_translate (struct filename *fn)
 	struct local_filename	*lf;
 	int			ret;
 	int			i;
-/* EB START */
-	char			tmp[256];
-/* EB END */
 
 	/* Initialize */
 	cb_source_file = NULL;
@@ -3432,12 +3497,6 @@ process_translate (struct filename *fn)
 		fflush (stderr);
 	}
 
-/* EB START */
-    if (animflag_set) {
-		cob_init(0, NULL);
-	}
-/* EB END */
-
 	/* Open the output file */
 	yyout = fopen (fn->translate, "w");
 	if (!yyout) {
@@ -3501,7 +3560,10 @@ process_translate (struct filename *fn)
 	}
 	yyout = NULL;
 	for (q = p; q; q = q->next_program) {
-		if(unlikely(fclose (q->local_include->local_fp) != 0)) {
+		if (unlikely(!q->local_include->local_fp)) {
+			continue;
+		}
+		if (unlikely(fclose (q->local_include->local_fp) != 0)) {
 			cobc_terminate(lf->local_name);
 		}
 		q->local_include->local_fp = NULL;
@@ -3708,7 +3770,6 @@ process_module_direct (struct filename *fn)
 	} else {
 		ret = process_filtered (cobc_buffer, fn);
 	}
-#if	defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 	/* Embedding manifest */
 	if (ret == 0) {
 		sprintf (cobc_buffer,
@@ -3718,7 +3779,6 @@ process_module_direct (struct filename *fn)
 		sprintf (cobc_buffer, "%s.manifest", exename);
 		cobc_check_action (cobc_buffer);
 	}
-#endif
 	sprintf (cobc_buffer, "%s.exp", name);
 	cobc_check_action (cobc_buffer);
 	sprintf (cobc_buffer, "%s.lib", name);
@@ -3820,7 +3880,6 @@ process_module (struct filename *fn)
 	} else {
 		ret = process_filtered (cobc_buffer, fn);
 	}
-#if	defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 	/* Embedding manifest */
 	if (ret == 0) {
 		sprintf (cobc_buffer,
@@ -3830,7 +3889,6 @@ process_module (struct filename *fn)
 		sprintf (cobc_buffer, "%s.manifest", exename);
 		cobc_check_action (cobc_buffer);
 	}
-#endif
 	sprintf (cobc_buffer, "%s.exp", name);
 	cobc_check_action (cobc_buffer);
 	sprintf (cobc_buffer, "%s.lib", name);
@@ -3875,6 +3933,12 @@ process_library (struct filename *l)
 	size_t		bufflen;
 	size_t		size;
 	int		ret;
+
+	if (!l) {
+		cobc_abort_pr (_("Call to '%s' with invalid parameter '%s'"),
+			"process_library", "l");
+		COBC_ABORT ();
+	}
 
 	for (f = l; f; f = f->next) {
 		strcat (cobc_objects_buffer, "\"");
@@ -3926,7 +3990,6 @@ process_library (struct filename *l)
 	} else {
 		ret = process_filtered (cobc_buffer, l);
 	}
-#if	defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 	/* Embedding manifest */
 	if (ret == 0) {
 		sprintf (cobc_buffer,
@@ -3936,11 +3999,16 @@ process_library (struct filename *l)
 		sprintf (cobc_buffer, "%s.manifest", exename);
 		cobc_check_action (cobc_buffer);
 	}
-#endif
 	sprintf (cobc_buffer, "%s.exp", name);
 	cobc_check_action (cobc_buffer);
 	sprintf (cobc_buffer, "%s.lib", name);
-	if (strstr(f->source, cobc_buffer) == NULL)	cobc_check_action (cobc_buffer);
+
+	for (f = l; f; f = f->next) {
+		if (strstr (f->source, cobc_buffer) != NULL) {
+			break;
+		}
+	}
+	if (!f)	cobc_check_action (cobc_buffer);
 #else	/* _MSC_VER */
 #ifdef	__WATCOMC__
 	sprintf (cobc_buffer, "%s %s %s %s -fe=\"%s\" %s %s %s %s",
@@ -3981,6 +4049,12 @@ process_link (struct filename *l)
 	size_t		bufflen;
 	size_t		size;
 	int		ret;
+
+	if (!l) {
+		cobc_abort_pr (_("Call to '%s' with invalid parameter '%s'"),
+			"process_link", "l");
+		COBC_ABORT ();
+	}
 
 	for (f = l; f; f = f->next) {
 #ifdef	__OS400__
@@ -4034,7 +4108,6 @@ process_link (struct filename *l)
 	} else {
 		ret = process_filtered (cobc_buffer, l);
 	}
-#if	defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 	/* Embedding manifest */
 	if (ret == 0) {
 		sprintf (cobc_buffer,
@@ -4044,7 +4117,6 @@ process_link (struct filename *l)
 		sprintf (cobc_buffer, "%s.manifest", exename);
 		cobc_check_action (cobc_buffer);
 	}
-#endif
 #else	/* _MSC_VER */
 #ifdef	__WATCOMC__
 	sprintf (cobc_buffer, "%s %s -fe=\"%s\" %s %s %s %s",
@@ -4244,9 +4316,9 @@ main (int argc, char **argv)
 	/* Allows running tests under Win */
 	p = getenv ("COB_UNIX_LF");
 	if (p && (*p == 'Y' || *p == 'y' || *p == '1')) {
-		_setmode (_fileno (stdin), _O_BINARY);
-		_setmode (_fileno (stdout), _O_BINARY);
-		_setmode (_fileno (stderr), _O_BINARY);
+		(void)_setmode (_fileno (stdin), _O_BINARY);
+		(void)_setmode (_fileno (stdout), _O_BINARY);
+		(void)_setmode (_fileno (stderr), _O_BINARY);
 	}
 #endif
 
@@ -4273,8 +4345,8 @@ main (int argc, char **argv)
 	memset (month, 0, sizeof(month));
 	day = 0;
 	year = 0;
-	sscanf (__DATE__, "%s %d %d", month, &day, &year);
-	if (day && year) {
+	status = sscanf (__DATE__, "%s %d %d", month, &day, &year);
+	if (status == 3) {
 		snprintf (cobc_buffer, (size_t)COB_MINI_MAX,
 			  "%s %2.2d %4.4d %s", month, day, year, __TIME__);
 	} else {
@@ -4404,7 +4476,6 @@ main (int argc, char **argv)
 	if (!verbose_output) {
 		COBC_ADD_STR (cobc_cflags, " /nologo", NULL, NULL);
 	}
-#if	defined(_MSC_VER) && COB_USE_VC2005_OR_GREATER
 	if (!verbose_output) {
 		manicmd = "mt /nologo";
 		manilink = "/link /nologo /manifest";
@@ -4412,13 +4483,6 @@ main (int argc, char **argv)
 		manicmd = "mt";
 		manilink = "/link /manifest";
 	}
-#else
-	if (!verbose_output) {
-		manilink = "/link /nologo";
-	} else {
-		manilink = "/link";
-	}
-#endif
 	manilink_len = strlen (manilink);
 #endif
 
@@ -4641,6 +4705,7 @@ main (int argc, char **argv)
 	/* Allocate objects buffer */
 	cobc_objects_buffer = cobc_main_malloc (cobc_objects_len);
 
+	if (file_list) {
 	/* Link */
 	if (cb_compile_level == CB_LEVEL_LIBRARY) {
 		/* Multi-program module */
@@ -4648,6 +4713,7 @@ main (int argc, char **argv)
 	} else {
 		/* Executable */
 		status = process_link (file_list);
+	}
 	}
 
 	/* We have completed */

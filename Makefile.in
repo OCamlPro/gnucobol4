@@ -265,7 +265,6 @@ am__distuninstallcheck_listfiles = $(distuninstallcheck_listfiles) \
   | sed 's|^\./|$(prefix)/|' | grep -v '$(infodir)/dir$$'
 distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
-ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
@@ -288,6 +287,7 @@ COB_FIX_LIB = @COB_FIX_LIB@
 COB_FIX_LIBTOOL = @COB_FIX_LIBTOOL@
 COB_HAS_CURSES = @COB_HAS_CURSES@
 COB_HAS_ISAM = @COB_HAS_ISAM@
+COB_HAS_UTC_OFFSET = @COB_HAS_UTC_OFFSET@
 COB_KEYWORD_INLINE = @COB_KEYWORD_INLINE@
 COB_LDFLAGS = @COB_LDFLAGS@
 COB_LIBRARY_PATH = @COB_LIBRARY_PATH@
@@ -421,6 +421,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 include_HEADERS = libcob.h
+SUBDIRS_PREREQUISITES = libcob lib cobc debugger bin config copy extras
 SUBDIRS = libcob lib cobc bin debugger config copy po doc extras tests
 ACLOCAL_AMFLAGS = -I m4 --install
 BUILT_SOURCES = defaults.h
@@ -1002,6 +1003,13 @@ defaults.h: Makefile.am $(top_builddir)/config.status
 	  echo "#define COB_BLD_BUILD    \"$(build)\"";			\
 	  echo "#define LOCALEDIR        \"$(datadir)/locale\"";	\
 	} > defaults.h
+
+test: all test-only
+
+test-only:
+	cd tests && $(MAKE) $(AM_MAKEFLAGS) test
+
+checkall: check test-only
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

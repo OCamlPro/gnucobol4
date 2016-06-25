@@ -52,13 +52,16 @@ cob_gen_optim (const enum cb_optim val)
 	case COB_SET_SCREEN:
 		output_storage ("static void COB_NOINLINE");
 		output_storage ("cob_set_screen (cob_screen *s, cob_screen *next,");
-		output_storage ("		cob_screen *child, cob_field *field, cob_field *value,");
+		output_storage ("		cob_screen *prev, cob_screen *child, cob_screen *parent,");
+		output_storage ("		cob_field *field, cob_field *value,");
 		output_storage ("		cob_field *line, cob_field *column,");
 		output_storage ("		cob_field *foreg, cob_field *backg, cob_field *prompt,");
 		output_storage ("		const int type, const int occurs, const int attr)");
 		output_storage ("{");
 		output_storage ("	s->next = next;");
+		output_storage ("	s->prev = prev;");
 		output_storage ("	s->child = child;");
+		output_storage ("	s->parent = parent;");
 		output_storage ("	s->field = field;");
 		output_storage ("	s->value = value;");
 		output_storage ("	s->line = line;");
@@ -255,13 +258,10 @@ cob_gen_optim (const enum cb_optim val)
 
 	case COB_CMP_ALIGN_U64:
 		output_storage ("static COB_INLINE COB_A_INLINE int");
-		output_storage ("cob_cmp_align_u64 (const void *p, const cob_s64_t n)");
+		output_storage ("cob_cmp_align_u64 (const void *p, const cob_u64_t n)");
 		output_storage ("{");
 		output_storage ("	cob_u64_t	val;");
 
-		output_storage ("	if (unlikely(n < 0)) {");
-		output_storage ("		return 1;");
-		output_storage ("	}");
 		output_storage ("	val = *(cob_u64_t __unaligned *)p;");
 		output_storage ("	return (val < n) ? -1 : (val > n);");
 		output_storage ("}");
@@ -708,16 +708,13 @@ cob_gen_optim (const enum cb_optim val)
 
 	case COB_CMP_U64:
 		output_storage ("static COB_INLINE COB_A_INLINE int");
-		output_storage ("cob_cmp_u64 (const void *p, const cob_s64_t n)");
+		output_storage ("cob_cmp_u64 (const void *p, const cob_u64_t n)");
 		output_storage ("{");
 #ifndef COB_ALLOW_UNALIGNED
 		output_storage ("	void		*x;");
 #endif
 		output_storage ("	cob_u64_t	val;");
 
-		output_storage ("	if (unlikely(n < 0)) {");
-		output_storage ("		return 1;");
-		output_storage ("	}");
 #ifdef	COB_ALLOW_UNALIGNED
 		output_storage ("	val = *(const cob_u64_t __unaligned *)p;");
 #else

@@ -22,7 +22,24 @@
     <ClInclude Include="defaults.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\version_libcob.rc" />
+    <ClInclude Include="..\config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\defaults.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\cobc\tree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libcob\cobgetopt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libcob\coblocal.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\libcob\common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\libcob\codegen.h">
       <Filter>Header Files</Filter>
     </ClInclude>

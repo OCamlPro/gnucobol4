@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -55,7 +55,9 @@
 #define	YY_BUF_SIZE		32768
 
 #define	YY_SKIP_YYWRAP
-#define	ppwrap()		1
+static int ppwrap (void) {
+	return 1;
+}
 
 #define	PPLEX_BUFF_LEN		512
 #define YY_INPUT(buf,result,max_size)	result = ppinput (buf, max_size);
@@ -840,6 +842,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 	/* Locate and open COPY file */
 	if (lib) {
 		snprintf (plexbuff1, (size_t)COB_SMALL_MAX, "%s/%s", lib, name);
+		plexbuff1[COB_SMALL_MAX] = 0;
 		s = plexbuff1;
 	} else {
 		s = name;
@@ -852,6 +855,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 
 	for (el = cb_extension_list; el; el = el->next) {
 		snprintf (plexbuff2, (size_t)COB_SMALL_MAX, "%s%s", s, el->text);
+		plexbuff2[COB_SMALL_MAX] = 0;
 		if (access (plexbuff2, R_OK) == 0) {
 			return ppopen (plexbuff2, replace_list);
 		}
@@ -862,6 +866,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 			for (el = cb_extension_list; el; el = el->next) {
 				snprintf (plexbuff2, (size_t)COB_SMALL_MAX,
 					  "%s/%s%s", il->text, name, el->text);
+				plexbuff2[COB_SMALL_MAX] = 0;
 				if (access (plexbuff2, R_OK) == 0) {
 					return ppopen (plexbuff2, replace_list);
 				}
@@ -875,7 +880,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 void
 ppparse_error (const char *msg)
 {
-	cb_plex_error (newline_count, msg);
+	cb_plex_error (newline_count, "%s", msg);
 }
 
 void
@@ -1027,7 +1032,7 @@ start:
 		     (newline_count + PPLEX_BUFF_LEN) >= max_size)) {
 		if (need_continuation || continuation) {
 			cb_plex_error (newline_count,
-					_("Buffer overrun - Too much continuation lines"));
+					_("Buffer overrun - Too many continuation lines"));
 			return YY_NULL;
 		}
 		if (newline_count < max_size) {
@@ -1244,11 +1249,9 @@ start:
 			newline_count++;
 			goto start;
 		} else if (!need_continuation) {
-			cb_plex_error (newline_count,
-				       _("Invalid continuation: no literal/word needs to be continued"));
-		} else {
-			continuation = 1;
+			cb_verify (cb_word_continuation, _("Continuation of COBOL words"));
 		}
+		continuation = 1;
 		break;
 	case 'd':
 	case 'D':
@@ -1397,7 +1400,7 @@ start:
 	   and not whitespace (postponed here) */
 	if (line_overflow != 0) {
 		cb_plex_warning (newline_count,
-					_("Source text after column %d"),
+					_("Source text after program-text area (column %d)"),
 				cb_text_column);
 	}
 
@@ -1544,7 +1547,8 @@ ppecho (const char *text, const cob_u32_t alt_space, const int textlen)
 		}
 		if (lno == NULL) {
 			/* Match */
-			if (r->lead_trail == CB_REPLACE_TRAILING) {
+			if (r->lead_trail == CB_REPLACE_TRAILING
+				&& save_queue /* <- silence warnings */) {
 				/* Non-matched part of original text */
 				fprintf (ppout, "%*.*s", (int)size2, (int)size2,
 					 save_queue->text);
@@ -1561,7 +1565,8 @@ ppecho (const char *text, const cob_u32_t alt_space, const int textlen)
 					check_listing (lno->text, 0);
 				}
 			}
-			if (r->lead_trail == CB_REPLACE_LEADING) {
+			if (r->lead_trail == CB_REPLACE_LEADING
+				&& save_queue /* <- silence warnings */) {
 				/* Non-matched part of original text */
 				fputs (save_queue->text + size, ppout);
 				if (cb_listing_file) {
@@ -1629,8 +1634,8 @@ check_comments (const char *keyword, const char *text)
 {
 	/* Treated as comments when in Identification Division */
 	if (comment_allowed) {
-		cb_verify (cb_author_paragraph, keyword);
-		/* Skip comments until the end of line */
+		cb_verify (cb_comment_paragraphs, keyword);
+		/* Skip comments until the end of line. */
 		within_comment = 1;
 		skip_to_eol ();
 	} else {

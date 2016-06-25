@@ -116,6 +116,7 @@
 #define	CB_CS_SET			(1U << 13)
 #define	CB_CS_STOP			(1U << 14)
 #define	CB_CS_WITH			(1U << 15)
+#define	CB_CS_RECORDING			(1U << 16)
 
 /* Support for cobc from stdin */
 #define COB_DASH			"-"
@@ -219,9 +220,11 @@ struct cb_exception {
 };
 
 /* Structure for reserved words that have been reverted */
-struct noreserve {
-	struct	noreserve	*next;			/* next pointer */
-	char			*noresword;
+struct reserved_word_list {	
+	struct reserved_word_list	*next;	/* next pointer */
+	char				*word;
+	int				is_context_sensitive;
+	char				*alias_for;
 };
 
 /* Basic memory structure */
@@ -312,12 +315,13 @@ extern struct cb_label		*current_section;
 extern struct cb_label		*current_paragraph;
 extern int			cb_exp_line;
 extern int			functions_are_all;
+extern struct cb_tree_common	*defined_prog_list;
 
 /* Functions */
 
 /* cobc.c */
 
-extern struct noreserve		*cobc_nores_base;
+extern struct reserved_word_list	*cob_user_res_list;
 
 extern void			*cobc_malloc (const size_t);
 extern void			cobc_free (void *);
@@ -440,9 +444,18 @@ extern void		cb_plex_warning (const size_t,
 					 const char *, ...) COB_A_FORMAT23;
 extern void		cb_plex_error (const size_t,
 				       const char *, ...) COB_A_FORMAT23;
-extern void		configuration_error (const int, const char *,
+extern void		configuration_warning (const char *, const int,
+					 const char *, ...) COB_A_FORMAT34;
+extern void		configuration_error (const char *, const int,
 					 const int, const char *, ...) COB_A_FORMAT45;
 
 extern unsigned int	cb_verify (const enum cb_support, const char *);
+
+/* reserved.c */
+extern struct reserved_word_list	*cobc_user_res_list;
+
+extern void		remove_reserved_word (const char *);
+extern void		add_reserved_word (const char *, const char *,
+					   const int);
 
 #endif /* CB_COBC_H */

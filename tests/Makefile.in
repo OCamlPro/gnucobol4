@@ -200,7 +200,6 @@ am__relativize = \
   done; \
   reldir="$$dir2"
 ACLOCAL = @ACLOCAL@
-ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
@@ -223,6 +222,7 @@ COB_FIX_LIB = @COB_FIX_LIB@
 COB_FIX_LIBTOOL = @COB_FIX_LIBTOOL@
 COB_HAS_CURSES = @COB_HAS_CURSES@
 COB_HAS_ISAM = @COB_HAS_ISAM@
+COB_HAS_UTC_OFFSET = @COB_HAS_UTC_OFFSET@
 COB_KEYWORD_INLINE = @COB_KEYWORD_INLINE@
 COB_LDFLAGS = @COB_LDFLAGS@
 COB_LIBRARY_PATH = @COB_LIBRARY_PATH@
@@ -719,6 +719,11 @@ check-local: $(TESTSUITE)
 
 clean-local:
 	rm -rf *.dir *.log
+
+test:
+	cd cobol85 && $(MAKE) $(AM_MAKEFLAGS) test
+
+checkall: check test
 
 $(srcdir)/package.m4: $(top_srcdir)/configure.ac
 	@echo "creating $(srcdir)/package.m4"

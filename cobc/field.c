@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -196,7 +196,7 @@ same_level:
 		f->parent = last_field->parent;
 	} else {
 		/* Upper level */
-		for (p = last_field->parent; p; p = p->parent) {
+		for (p = last_field->parent; p /* <- silence warnings */; p = p->parent) {
 			if (p->level == f->level) {
 				last_field = p;
 				goto same_level;
@@ -205,7 +205,8 @@ same_level:
 				break;
 			}
 		}
-		if (cb_relax_level_hierarchy) {
+		if (cb_relax_level_hierarchy
+		&& p /* <- silence warnings */) {
 			dummy_fill = cb_build_filler ();
 			field_fill = CB_FIELD (cb_build_field (dummy_fill));
 			cb_warning_x (name,
@@ -424,6 +425,7 @@ validate_field_1 (struct cb_field *f)
 	int		n;
 	int		need_picture;
 	unsigned int	ret;
+	int		i;
 
 	if (f->flag_invalid) {
 		return 1;
@@ -527,20 +529,22 @@ validate_field_1 (struct cb_field *f)
 
 	/* Validate OCCURS DEPENDING */
 	if (f->depending) {
-		/* The data item that contains a OCCURS DEPENDING clause shall not
-		   be subordinate to a data item that has an OCCURS clause */
-		for (p = f->parent; p; p = p->parent) {
-			if (p->flag_occurs && !cb_flag_odoslide) {
-				cb_error_x (CB_TREE (p),
-					    _("'%s' cannot have the OCCURS clause due to '%s'"),
-					    cb_name (CB_TREE (p)),
-					    cb_name (x));
-				break;
-			}
-		}
-
 		/* Cache field for later checking */
 		cb_depend_check = cb_list_add (cb_depend_check, x);
+
+		if (!cb_complex_odo) {
+			/* The data item that contains a OCCURS DEPENDING clause shall not
+			   be subordinate to a data item that has an OCCURS clause */
+			for (p = f->parent; p; p = p->parent) {
+				if (p->flag_occurs) {
+					cb_error_x (CB_TREE (p),
+							_("'%s' cannot have the OCCURS clause due to '%s'"),
+							cb_name (CB_TREE (p)),
+							cb_name (x));
+					break;
+				}
+			}
+		}
 	}
 
 	/* Validate REDEFINES */
@@ -762,6 +766,10 @@ validate_field_1 (struct cb_field *f)
 
 		/* Validate BLANK ZERO */
 		if (f->flag_blank_zero) {
+			if (f->pic->have_sign) {
+				cb_error_x (x, _("Cannot have S in PICTURE string and BLANK WHEN ZERO"));
+			}
+			
 			switch (f->pic->category) {
 			case CB_CATEGORY_NUMERIC:
 				/* Reconstruct the picture string */
@@ -810,9 +818,15 @@ validate_field_1 (struct cb_field *f)
 				f->pic->category = CB_CATEGORY_NUMERIC_EDITED;
 				break;
 			case CB_CATEGORY_NUMERIC_EDITED:
+				for (i = 0; f->pic->str[i] != '\0'; ++i) {
+					if (f->pic->str[i] == '*') {
+						cb_error_x (x, _("Cannot have * in PICTURE string and BLANK WHEN ZERO"));
+						break;
+					}
+				}
 				break;
 			default:
-				cb_error_x (x, _("'%s' cannot have BLANK WHEN ZERO"), cb_name (x));
+				cb_error_x (x, _("'%s' is not numeric, so cannot have BLANK WHEN ZERO"), cb_name (x));
 				break;
 			}
 		}
