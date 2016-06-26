@@ -517,7 +517,7 @@
 #endif
 
 /* Macro to prevent compiler warning "conditional expression is constant" */
-#if defined (_MSC_VER) && _MSC_VER >= 1500
+#if defined (_MSC_VER) && COB_USE_VC2008_OR_GREATER
 #define ONCE_COB \
 __pragma( warning(push) ) \
 __pragma( warning(disable:4127) ) \
@@ -932,6 +932,13 @@ enum cob_exception_id {
 /* Structure/union declarations */
 
 
+/* Picture symbol structure */
+
+typedef struct {
+        char	symbol;
+	int     times_repeated;
+} cob_pic_symbol;
+
 /* Field attribute structure */
 
 typedef struct {
@@ -939,7 +946,7 @@ typedef struct {
 	unsigned short	digits;		/* Digit count */
 	signed short	scale;		/* Field scale */
 	unsigned short	flags;		/* Field flags */
-	const char	*pic;		/* Pointer to picture string */
+	const cob_pic_symbol	*pic;		/* Pointer to picture string */
 } cob_field_attr;
 
 /* Field structure */
@@ -1282,7 +1289,7 @@ typedef struct anim_field {
 COB_EXPIMP void print_info(void);
 COB_EXPIMP void print_version(void);
 COB_EXPIMP int cob_load_config(void);
-COB_EXPIMP void print_runtime_env(void);
+COB_EXPIMP void print_runtime_conf(void);
 
 void cob_set_exception(const int);
 
@@ -1354,13 +1361,6 @@ COB_EXPIMP int	cob_putenv			(char *);
 
 COB_EXPIMP void	cob_incr_temp_iteration 	(void);
 COB_EXPIMP void	cob_temp_name			(char *, const char *);
-
-#define	cobgetenv(x)			cob_getenv (x)
-#define	cobputenv(x)			cob_putenv (x)
-#define	cobtidy()			cob_tidy ()
-#define	cobinit()			cob_extern_init ()
-#define	cobexit(x)			cob_stop_run (x)
-#define	cobcommandline(v,w,x,y,z)	cob_command_line (v,w,x,y,z)
 
 /* System routines */
 COB_EXPIMP int	cob_sys_exit_proc	(const void *, const void *);
@@ -1565,14 +1565,6 @@ COB_EXPIMP void		*cob_savenv		(struct cobjmp_buf *);
 COB_EXPIMP void		*cob_savenv2		(struct cobjmp_buf *, const int);
 COB_EXPIMP void		cob_longjmp		(struct cobjmp_buf *);
 
-#define	cobsetjmp(x)	setjmp (cob_savenv (x))
-#define	coblongjmp(x)	cob_longjmp (x)
-#define	cobsavenv(x)	cob_savenv (x)
-#define	cobsavenv2(x,z)	cob_savenv2 (x, z)
-#define	cobfunc(x,y,z)	cob_func (x, y, z)
-#define	cobcall(x,y,z)	cob_call (x, y, z)
-#define	cobcancel(x)	cob_cancel (x)
-
 /*******************************/
 /* Functions in screenio.c */
 
@@ -1593,6 +1585,8 @@ COB_EXPIMP int	cob_sys_clear_screen	(void);
 COB_EXPIMP int	cob_sys_sound_bell	(void);
 COB_EXPIMP int	cob_sys_get_csr_pos	(unsigned char *);
 COB_EXPIMP int	cob_sys_get_scr_size	(unsigned char *, unsigned char *);
+COB_EXPIMP int	cob_get_scr_cols	(void);
+COB_EXPIMP int	cob_get_scr_lines	(void);
 
 /*******************************/
 /* Functions in termio.c */
@@ -1823,5 +1817,27 @@ COB_EXPIMP void		trim(char*);
 COB_EXPIMP void		ltrim(char*);
 COB_EXPIMP void		rtrim(char*);
 COB_EXPIMP void		all_to_upper(char*);
+
+/*******************************/
+/* defines for MicroFocus C -> COBOL API */
+#define	cobsetjmp(x)	setjmp (cob_savenv (x))
+#define	coblongjmp(x)	cob_longjmp (x)
+#define	cobsavenv(x)	cob_savenv (x)
+#define	cobsavenv2(x,z)	cob_savenv2 (x, z)
+#define	cobfunc(x,y,z)	cob_func (x, y, z)
+#define	cobcall(x,y,z)	cob_call (x, y, z)
+#define	cobcancel(x)	cob_cancel (x)
+
+#define	cobgetenv(x)			cob_getenv (x)
+#define	cobputenv(x)			cob_putenv (x)
+#define cobrescanenv()	/* not necessary as GnuCOBOL always reads the process environment */
+#define	cobtidy()			cob_tidy ()
+#define	cobinit()			cob_extern_init ()
+#define	cobexit(x)			cob_stop_run (x)
+#define	cobcommandline(v,w,x,y,z)	cob_command_line (v,w,x,y,z)
+
+#define	cobcols()			cob_get_scr_cols ()
+#define	coblines()			cob_get_scr_lines ()
+/*******************************/
 
 #endif	/* COB_COMMON_H */

@@ -310,9 +310,87 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 8: Error: INSPECT missing a keyword
+[prog.cob: 8: Error: INSPECT missing ALL/FIRST/LEADING/TRAILING
 ])
 
+AT_CLEANUP
+
+
+AT_SETUP([INSPECT repeated keywords])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC 9(5).
+       
+       PROCEDURE DIVISION.
+           INSPECT "abcde" TALLYING x FOR ALL LEADING
+               TRAILING ALL ALL ALL TRAILING
+           INSPECT "abcde" TALLYING x FOR x FOR LEADING "a"
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 10: Error: Missing value between CHARACTERS/ALL/LEADING/TRAILING words
+prog.cob: 11: Error: Missing value between CHARACTERS/ALL/LEADING/TRAILING words
+prog.cob: 11: Error: Missing value between CHARACTERS/ALL/LEADING/TRAILING words
+prog.cob: 11: Error: Missing value between CHARACTERS/ALL/LEADING/TRAILING words
+prog.cob: 11: Error: Missing value between CHARACTERS/ALL/LEADING/TRAILING words
+prog.cob: 11: Error: Missing value between CHARACTERS/ALL/LEADING/TRAILING words
+prog.cob: 12: Error: TALLYING clause is incomplete
+prog.cob: 12: Error: Missing CHARACTERS/ALL/LEADING/TRAILING phrase after FOR phrase
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([INSPECT incomplete clause])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC 9(5).
+       
+       PROCEDURE DIVISION.
+           INSPECT "abcde" TALLYING x FOR
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 11: Error: TALLYING clause is incomplete
+])
+AT_CLEANUP
+
+
+AT_SETUP([INSPECT multiple BEFORE/AFTER clauses])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC X(10).
+
+       PROCEDURE DIVISION.
+           INSPECT x REPLACING CHARACTERS BY "x"
+               BEFORE "A" BEFORE "b" AFTER "c"
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 11: Error: syntax error, unexpected BEFORE
+prog.cob: 13: Error: syntax error, unexpected end of file
+])
 AT_CLEANUP
 
 
@@ -1532,7 +1610,7 @@ AT_CLEANUP
 
 
 AT_SETUP([Line and floating comments])
-AT_KEYWORDS([misc extensions])
+AT_KEYWORDS([misc extensions indicator])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1590,6 +1668,7 @@ PROCEDURE        DIVISION.
 /       DISPLAY 'NOMFCOMMENTSLASH'    END-DISPLAY
  |      DISPLAY 'ACUFLOATING'         END-DISPLAY
  *>     DISPLAY 'FLOATING'            END-DISPLAY
+      x DISPLAY 'WRONGINDICATOR'      END-DISPLAY
         STOP RUN.
 ])
 
@@ -1655,6 +1734,8 @@ prog3.cob: 12: Error: syntax error, unexpected Literal
 prog3.cob: 13: Error: syntax error, unexpected /
 prog3.cob: 13: Error: syntax error, unexpected Literal
 prog3.cob: 14: Error: Invalid symbol: | - Skipping word
+prog3.cob: 16: Error: syntax error, unexpected Identifier
+prog3.cob: 16: Error: syntax error, unexpected Literal
 ])
 AT_CHECK([$COMPILE_ONLY -free -fmfcomment prog3.cob], [1], [],
 [prog3.cob: 11: Warning: Spurious '$' detected - ignoring
@@ -1667,6 +1748,8 @@ prog3.cob: 12: Error: syntax error, unexpected Literal
 prog3.cob: 13: Error: syntax error, unexpected /
 prog3.cob: 13: Error: syntax error, unexpected Literal
 prog3.cob: 14: Error: Invalid symbol: | - Skipping word
+prog3.cob: 16: Error: syntax error, unexpected Identifier
+prog3.cob: 16: Error: syntax error, unexpected Literal
 ])
 AT_CHECK([$COMPILE_ONLY -free -facucomment prog3.cob], [1], [],
 [prog3.cob: 11: Warning: Spurious '$' detected - ignoring
@@ -1678,6 +1761,19 @@ prog3.cob: 12: Error: syntax error, unexpected *
 prog3.cob: 12: Error: syntax error, unexpected Literal
 prog3.cob: 13: Error: syntax error, unexpected /
 prog3.cob: 13: Error: syntax error, unexpected Literal
+prog3.cob: 16: Error: syntax error, unexpected Identifier
+prog3.cob: 16: Error: syntax error, unexpected Literal
+])
+# Check that invalid indicator doesn't abort compilation completely
+AT_CHECK([$COMPILE_ONLY prog3.cob], [1], [],
+[prog3.cob: 2: Error: Invalid indicator 'F' at column 7
+prog3.cob: 3: Error: Invalid indicator 'M' at column 7
+prog3.cob: 4: Error: Invalid indicator 'N' at column 7
+prog3.cob: 5: Error: Invalid indicator 'U' at column 7
+prog3.cob: 7: Error: Invalid indicator 'G' at column 7
+prog3.cob: 8: Error: Invalid indicator 'U' at column 7
+prog3.cob: 11: Error: Invalid indicator '$' at column 7
+prog3.cob: 16: Error: Invalid indicator 'x' at column 7
 ])
 
 AT_CLEANUP
@@ -2144,5 +2240,92 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
 [prog.cob: 8: Warning: Phrases in non-standard order
+])
+AT_CLEANUP
+
+
+AT_SETUP([NOT ON EXCEPTION phrases before ON EXCEPTION])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+
+       ENVIRONMENT    DIVISION.
+       INPUT-OUTPUT   SECTION.
+       FILE-CONTROL.
+           SELECT f ASSIGN "f.txt"
+               ORGANIZATION LINE SEQUENTIAL.
+
+       DATA           DIVISION.
+       FILE           SECTION.
+       FD  f LINAGE 10.
+       01  f-rec PIC X.
+
+       PROCEDURE      DIVISION.
+           WRITE f-rec FROM "x"
+               NOT END-OF-PAGE
+                   CONTINUE
+               END-OF-PAGE
+                   CONTINUE
+           END-WRITE
+           WRITE f-rec FROM "x"
+               END-OF-PAGE
+                   CONTINUE
+               NOT END-OF-PAGE
+                   CONTINUE
+           END-WRITE
+           WRITE f-rec FROM "x"
+               NOT END-OF-PAGE
+                   CONTINUE
+           END-WRITE
+           WRITE f-rec FROM "x"
+               END-OF-PAGE
+                   CONTINUE
+           END-WRITE
+
+           DISPLAY "blah"
+               ON EXCEPTION
+                   CALL "err"
+                       NOT ON EXCEPTION
+                           CONTINUE
+                       ON EXCEPTION
+                           CONTINUE.
+           DISPLAY "blah"
+               NOT ON EXCEPTION
+                   CALL "err"
+                       ON EXCEPTION
+                           CONTINUE
+                       NOT ON EXCEPTION
+                           CONTINUE.
+])
+
+AT_CHECK([$COMPILE_ONLY -std=cobol85 prog.cob], [1], [],
+[prog.cob: 22: Error: NOT AT END-OF-PAGE before AT END-OF-PAGE does not conform to COBOL 85
+prog.cob: 44: Error: NOT EXCEPTION before EXCEPTION does not conform to COBOL 85
+])
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+AT_CLEANUP
+
+AT_SETUP([Wrong dialect hints])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC X.
+    
+       PROCEDURE DIVISION.
+           DISPLAY x CONVERSION.
+           TRANSFORM x
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY -std=cobol85 prog.cob], [1], [],
+[prog.cob: 10: Error: 'CONVERSION' is not defined, but is a reserved word in another dialect
+prog.cob: 11: Error: Unknown statement 'TRANSFORM'; it may exist in another dialect
 ])
 AT_CLEANUP

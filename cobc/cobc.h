@@ -165,6 +165,7 @@ struct cb_text_list {
 
 /* Generic replace list structure */
 struct cb_replace_list {
+	int				line_num;
 	struct cb_replace_list		*next;			/* next pointer */
 	struct cb_replace_list		*last;
 	struct cb_replace_list		*prev;
@@ -272,6 +273,7 @@ enum cb_optim {
 #undef	CB_OPTIM_DEF
 
 extern int			cb_id;
+extern int			cb_pic_id;
 extern int			cb_attr_id;
 extern int			cb_literal_id;
 extern int			cb_field_id;
@@ -303,6 +305,7 @@ extern char			**cb_saveargv;
 extern int			cb_saveargc;
 
 extern FILE			*cb_listing_file;
+extern FILE			*cb_src_list_file;
 extern struct cb_text_list	*cb_include_list;
 extern struct cb_text_list	*cb_intrinsic_list;
 extern struct cb_text_list	*cb_extension_list;
@@ -342,7 +345,7 @@ extern void			*cobc_plex_malloc (const size_t);
 extern void			*cobc_plex_strdup (const char *);
 
 extern void			*cobc_check_string (const char *);
-extern void			cobc_abort_pr (const char *, ...) COB_A_FORMAT12;
+extern void			cobc_err_msg (const char *, ...) COB_A_FORMAT12;
 
 DECLNORET extern void		cobc_abort (const char *,
 					    const int) COB_A_NORETURN;
@@ -436,6 +439,8 @@ extern void		cob_gen_optim (const enum cb_optim);
 #define CB_MSG_STYLE_GCC	0
 #define CB_MSG_STYLE_MSC	1U
 
+#define CB_PENDING(x)		cb_warning (_("'%s' not implemented"), x)
+
 extern size_t		cb_msg_style;
 
 extern void		cb_warning (const char *, ...) COB_A_FORMAT12;
@@ -457,5 +462,59 @@ extern struct reserved_word_list	*cobc_user_res_list;
 extern void		remove_reserved_word (const char *);
 extern void		add_reserved_word (const char *, const char *,
 					   const int);
+
+/* Listing structures and externals */
+
+#define CB_MAX_LINES	55
+
+#define CB_LINE_LENGTH 1024
+#define CB_READ_AHEAD 32
+
+#define CB_INDICATOR	6
+#define CB_MARGIN_A	7
+#define CB_MARGIN_B	11
+#define CB_SEQUENCE	72
+
+#define IS_DEBUG_LINE(line) ((line)[CB_INDICATOR] == 'D')
+#define IS_CONTINUE_LINE(line) ((line)[CB_INDICATOR] == '-')
+#define IS_COMMENT_LINE(line) \
+   ((line)[CB_INDICATOR] == '*' || (line)[CB_INDICATOR] == '/')
+
+struct list_error {
+	struct list_error	*next;
+	int			line;
+	char			prefix[CB_LINE_LENGTH+2];
+	char			msg[CB_LINE_LENGTH+2];
+};
+struct list_replace {
+	struct list_replace	*next;
+	int			firstline;
+	int			lastline;
+	int			lead_trail;
+	char			from[CB_LINE_LENGTH+2];
+	char			to[CB_LINE_LENGTH+2];
+};
+
+struct list_skip {
+	struct list_skip	*next;
+	int			skipline;
+};
+
+struct list_files {
+	struct list_files	*next;
+	struct list_files	*copy_head;
+	struct list_files	*copy_tail;
+	struct list_error	*err_head;
+	struct list_error	*err_tail;
+	struct list_replace	*replace_head;
+	struct list_replace	*replace_tail;
+	struct list_skip	*skip_head;
+	struct list_skip	*skip_tail;
+	int 			copy_line;
+	char			name[CB_LINE_LENGTH+2];
+};
+
+extern struct list_files	*cb_listing_files;
+extern struct list_files	*cb_current_file;
 
 #endif /* CB_COBC_H */

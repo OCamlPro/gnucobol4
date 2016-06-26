@@ -217,9 +217,9 @@ static struct handlerlist {
 	int			(*proc)(char *s);
 } *hdlrs;
 
-static const char *setting_group[] = {" hidden setting ","Call environment",
-					"File I/O","Screen I/O","Miscellaneous",
-					"System environment"};
+static const char *setting_group[] = {" hidden setting ",_("CALL configuration"),
+					_("File I/O configuration"),_("Screen I/O configuration"),_("Miscellaneous"),
+					_("System configuration")};
 
 static char	not_set[] = "not set";
 static struct config_enum lwrupr[] = {{"LOWER","1"},{"UPPER","2"},{not_set,"0"},{NULL,NULL}};
@@ -244,7 +244,7 @@ static struct config_tbl gc_conf[] = {
 	{"LOGICAL_CANCELS","logical_cancels",	NULL,NULL,GRP_HIDE,ENV_BOOL|ENV_NOT,SETPOS(cob_physical_cancel)},
 	{"COB_PRE_LOAD","pre_load",		NULL,	NULL,GRP_CALL,ENV_STR,SETPOS(cob_preload_str)},
 	{"COB_BELL","bell",			"0",	beepopts,GRP_SCREEN,ENV_INT|ENV_ENUMVAL,SETPOS(cob_beep_value)},
-	{"COB_DEBUG_LOG","debug_log",		NULL,	NULL,GRP_HIDE,ENV_STR,SETPOS(cob_debug_log)},
+	{"COB_DEBUG_LOG","debug_log",		NULL,	NULL,GRP_HIDE,ENV_FILE,SETPOS(cob_debug_log)},
 	{"COB_DISABLE_WARNINGS","disable_warnings","0",	NULL,GRP_MISC,ENV_BOOL|ENV_NOT,SETPOS(cob_display_warn)},
 	{"COB_ENV_MANGLE","env_mangle",		"0",	NULL,GRP_MISC,ENV_BOOL,SETPOS(cob_env_mangle)},
 	{"COB_REDIRECT_DISPLAY","redirect_display","0",	NULL,GRP_SCREEN,ENV_BOOL,SETPOS(cob_disp_to_stderr)},
@@ -253,12 +253,11 @@ static struct config_tbl gc_conf[] = {
 	{"COB_INSERT_MODE","insert_mode","0",NULL,GRP_SCREEN,ENV_BOOL,SETPOS(cob_insert_mode)},
 	{"COB_SET_TRACE","set_trace",		"0",	NULL,GRP_MISC,ENV_BOOL,SETPOS(cob_line_trace)},
 	{"COB_TIMEOUT_SCALE","timeout_scale",	"0",	timeopts,GRP_SCREEN,ENV_INT,SETPOS(cob_timeout_scale)},
-	{"COB_TRACE_FILE","trace_file",		NULL,	NULL,GRP_MISC,ENV_STR,SETPOS(cob_trace_filename)},
+	{"COB_TRACE_FILE","trace_file",		NULL,	NULL,GRP_MISC,ENV_FILE,SETPOS(cob_trace_filename)},
 #ifdef  _WIN32
 	/* checked before configuration load if set from environment in cob_init() */
 	{"COB_UNIX_LF","unix_lf",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_unix_lf)},
 #endif
-	{"COB_VARSEQ_FORMAT","varseq_format",	varseq_dflt,varseqopts,GRP_FILE,ENV_INT|ENV_ENUM,SETPOS(cob_varseq_type)},
 	{"USERNAME","username",			"Unknown",	NULL,GRP_SYSENV,ENV_STR,SETPOS(cob_user_name)},
 	{"LOGNAME","logname",			NULL,	NULL,GRP_HIDE,ENV_STR,SETPOS(cob_user_name)},
 #if !defined(_WIN32) || defined (__MINGW32__) /* cygwin does not define _WIN32 */
@@ -273,6 +272,7 @@ static struct config_tbl gc_conf[] = {
 #endif
 	{"COB_FILE_PATH","file_path",		NULL,	NULL,GRP_FILE,ENV_PATH,SETPOS(cob_file_path)},
 	{"COB_LIBRARY_PATH","library_path",	NULL,	NULL,GRP_CALL,ENV_PATH,SETPOS(cob_library_path)}, /* default value set in cob_init_call() */
+	{"COB_VARSEQ_FORMAT","varseq_format",	varseq_dflt,varseqopts,GRP_FILE,ENV_INT|ENV_ENUM,SETPOS(cob_varseq_type)},
 	{"COB_LS_FIXED","ls_fixed",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_ls_fixed)},
 	{"STRIP_TRAILING_SPACES","strip_trailing_spaces",		NULL,	NULL,GRP_HIDE,ENV_BOOL|ENV_NOT,SETPOS(cob_ls_fixed)},
 	{"COB_LS_NULLS","ls_nulls",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_ls_nulls)},
@@ -280,7 +280,7 @@ static struct config_tbl gc_conf[] = {
 	{"COB_SORT_MEMORY","sort_memory",	"128M",	NULL,GRP_FILE,ENV_SIZE,SETPOS(cob_sort_memory),(1024*1024),4294967294 /* max. guaranteed - 1 */},
 	{"COB_SYNC","sync",			"0",	syncopts,GRP_FILE,ENV_BOOL,SETPOS(cob_do_sync)},
 #ifdef  WITH_DB
-	{"DB_HOME","db_home",			NULL,	NULL,GRP_FILE,ENV_PATH,SETPOS(bdb_home)},
+	{"DB_HOME","db_home",			NULL,	NULL,GRP_FILE,ENV_FILE,SETPOS(bdb_home)},
 #endif
 	{"COB_LEGACY","legacy",			NULL,	NULL,GRP_SCREEN,ENV_BOOL,SETPOS(cob_legacy)},
 	{"COB_ANIM","anim",	"0",	NULL,GRP_MISC,ENV_BOOL,SETPOS(cob_anim)},
@@ -396,6 +396,7 @@ cob_exit_common (void)
 		/* Free all strings pointed to by cobsetptr */
 		for (i=0; i < NUM_CONFIG; i++) {
 			if ((gc_conf[i].data_type & ENV_STR)
+			||  (gc_conf[i].data_type & ENV_FILE)
 			||  (gc_conf[i].data_type & ENV_PATH)) {	/* String/Path to be stored as a string */
 				data = (void*)((char *)cobsetptr + gc_conf[i].data_loc);
 				memcpy(&str,data,sizeof(char *));
@@ -4684,12 +4685,19 @@ set_config_val(char *value, int pos)
 		}
 
 	} else if((data_type & ENV_STR)
+		||(data_type & ENV_FILE)
 		||(data_type & ENV_PATH)) {	/* String/Path to be stored as a string */
 		memcpy(&str,data,sizeof(char *));
 		if (str != NULL) {
 			cob_free((void*)str);
 		}
 		str = cob_expand_env_string(value);
+			if((data_type & ENV_FILE)
+			&& strchr(str,PATHSEP_CHAR) != NULL) {
+				conf_runtime_error_value(value, pos);
+				conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
+				return 1;
+			}
 		memcpy(data,&str,sizeof(char *));
 
 	} else if((data_type & ENV_CHAR)) {	/* 'char' field inline */
@@ -4783,6 +4791,14 @@ get_config_val (char *value, int pos, char *orgvalue)
 			sprintf(value,"%s","not set");
 		else
 			sprintf(value,"'%s'",str);
+
+	} else if((data_type & ENV_FILE)) {	/* File/path stored as a string */
+		memcpy(&str,data,sizeof(char *));
+		/* TODO: add special cases here on merging rw-branch */
+		if(str == NULL)
+			sprintf(value,"%s","not set");
+		else
+			sprintf(value,"%s",str);
 
 	} else if((data_type & ENV_PATH)) {	/* Path stored as a string */
 		memcpy(&str,data,sizeof(char *));
@@ -4958,7 +4974,8 @@ cb_config_entry (char *buf, int line)
 		if(gc_conf[i].default_val) {
 			set_config_val((char*)gc_conf[i].default_val,i);
 		} else if ((gc_conf[i].data_type & ENV_STR)
-		      ||  (gc_conf[i].data_type & ENV_PATH)) {	/* String/Path stored as a string */
+			|| (gc_conf[i].data_type & ENV_FILE)
+			|| (gc_conf[i].data_type & ENV_PATH)) {	/* String/Path stored as a string */
 			data = (void*)((char *)cobsetptr + gc_conf[i].data_loc);
 			memcpy(&str,data,sizeof(char *));
 			if( str != NULL) {
@@ -5135,6 +5152,11 @@ cob_load_config (void)
 	if ((env = getenv ("COB_RUNTIME_CONFIG")) != NULL && env[0]) {
 		strcpy (conf_file, env);
 		isoptional = 0;			/* If declared then it is NOT optional */
+		if(strchr(conf_file,PATHSEP_CHAR) != NULL) {
+			conf_runtime_error(0, _("Invalid value '%s' for configuration tag '%s'"), conf_file, "COB_RUNTIME_CONFIG");
+			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
+			return -1;
+		}
 	} else {
 		/* check for COB_CONFIG_DIR (use default if not in environment) */
 		if ((env = getenv("COB_CONFIG_DIR")) != NULL && env[0]) {
@@ -5143,6 +5165,11 @@ cob_load_config (void)
 			snprintf (conf_file, (size_t)COB_MEDIUM_MAX, "%s%s%s", COB_CONFIG_DIR, SLASH_STR, "runtime.cfg");
 	}
 		isoptional = 1;			/* If not present, then just use env vars */
+		if(strchr(conf_file,PATHSEP_CHAR) != NULL) {
+			conf_runtime_error(0, _("Invalid value '%s' for configuration tag '%s'"), conf_file, "COB_CONFIG_DIR");
+			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
+			return -1;
+	}
 	}
 
 	sprintf (varseq_dflt, "%d", WITH_VARSEQ);		/* Default comes from config.h */
@@ -5296,13 +5323,13 @@ print_info (void)
 
 
 void
-print_runtime_env()
+print_runtime_conf()
 {
 	unsigned int 	i,j,k,vl,dohdg,hdlen,plen;
 	char	value[COB_MEDIUM_BUFF],orgvalue[COB_MINI_BUFF];
 
 	printf ("%s %s.%d ", PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
-	puts (_("runtime environment"));
+	puts (_("runtime configuration"));
 	if (cobsetptr->cob_config_file) {
 		strcpy(value, _("via"));
 		hdlen = (unsigned int)strlen(value) + 3;
@@ -5623,7 +5650,7 @@ cob_init (const int argc, char **argv)
 			if (GetUserName (runtime_err_str, &bsiz)) {
 			set_config_val_by_name(runtime_err_str, "username", "GetUserName()");
 			}
-#elif	!defined(__OS400__)
+#elif	!defined(__OS400__) && !defined(_MSC_VER)
 			s = getlogin ();
 			if (s) {
 			set_config_val_by_name(s, "username", "getlogin()");

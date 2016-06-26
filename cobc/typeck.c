@@ -1,6 +1,6 @@
 /*
    Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
 
    This file is part of GnuCOBOL.
 
@@ -817,7 +817,7 @@ cb_field_size (const cb_tree x)
 			return f->size;
 		}
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		/* Use dumb variant */
 		COBC_DUMB_ABORT ();
 	}
@@ -1190,7 +1190,7 @@ char *
 cb_build_program_id (cb_tree name, cb_tree alt_name, const cob_u32_t is_func)
 {
 	const char	*name_str;
-	char		*s;
+	char			*s;
 	unsigned char	*p;
 
 	/* Set the program name */
@@ -1208,8 +1208,8 @@ cb_build_program_id (cb_tree name, cb_tree alt_name, const cob_u32_t is_func)
 	} else {
 		name_str = CB_NAME (name);
 	}
-	current_program->orig_program_id = cobc_strdup (name_str);
-	s = cb_encode_program_id (name_str);
+	current_program->orig_program_id = (char *) name_str;
+	s = cb_encode_program_id (cobc_parse_strdup (name_str));
 
 	(void)cobc_check_valid_name (current_program->orig_program_id, 2U);
 
@@ -1905,10 +1905,13 @@ cb_validate_program_environment (struct cb_program *prog)
 	int			size;
 	int			n;
 	int			i;
+	int			pos;
 	int			lastval;
 	int			tableval;
 	int			values[256];
 	int			charvals[256];
+	int			dupvals[256];
+	char		errmsg[256];
 
 	/* Check ALPHABET clauses */
 	/* Complicated by difference between code set and collating sequence */
@@ -1955,20 +1958,23 @@ cb_validate_program_environment (struct cb_program *prog)
 		/* Custom alphabet */
 		dupls = 0;
 		unvals = 0;
+		pos = 0;
 		count = 0;
 		lastval = 0;
 		tableval = 0;
 		for (n = 0; n < 256; n++) {
 			values[n] = -1;
 			charvals[n] = -1;
+			dupvals[n] = -1;
 			ap->values[n] = -1;
 			ap->alphachr[n] = -1;
 		}
 		ap->low_val_char = 0;
 		ap->high_val_char = 255;
 		for (y = ap->custom_list; y; y = CB_CHAIN (y)) {
+			pos++;
 			if (count > 255) {
-				unvals = 1;
+				unvals = pos;
 				break;
 			}
 			x = CB_VALUE (y);
@@ -1981,16 +1987,17 @@ cb_validate_program_environment (struct cb_program *prog)
 					ap->low_val_char = lower;
 				}
 				if (lower < 0 || lower > 255) {
-					unvals = 1;
+					unvals = pos;
 					continue;
 				}
 				if (upper < 0 || upper > 255) {
-					unvals = 1;
+					unvals = pos;
 					continue;
 				}
 				if (lower <= upper) {
 					for (i = lower; i <= upper; i++) {
 						if (values[i] != -1) {
+							dupvals[i] = i;
 							dupls = 1;
 						}
 						values[i] = i;
@@ -2002,6 +2009,7 @@ cb_validate_program_environment (struct cb_program *prog)
 				} else {
 					for (i = lower; i >= upper; i--) {
 						if (values[i] != -1) {
+							dupvals[i] = i;
 							dupls = 1;
 						}
 						values[i] = i;
@@ -2022,10 +2030,11 @@ cb_validate_program_environment (struct cb_program *prog)
 						lastval = n;
 					}
 					if (n < 0 || n > 255) {
-						unvals = 1;
+						unvals = pos;
 						continue;
 					}
 					if (values[n] != -1) {
+						dupvals[n] = n;
 						dupls = 1;
 					}
 					values[n] = n;
@@ -2046,10 +2055,11 @@ cb_validate_program_environment (struct cb_program *prog)
 						ap->low_val_char = n;
 					}
 					if (n < 0 || n > 255) {
-						unvals = 1;
+						unvals = pos;
 						continue;
 					}
 					if (values[n] != -1) {
+						dupvals[n] = n;
 						dupls = 1;
 					}
 					values[n] = n;
@@ -2067,6 +2077,7 @@ cb_validate_program_environment (struct cb_program *prog)
 					for (i = 0; i < size; i++) {
 						n = data[i];
 						if (values[n] != -1) {
+							dupvals[n] = n;
 							dupls = 1;
 						}
 						values[n] = n;
@@ -2082,7 +2093,7 @@ cb_validate_program_environment (struct cb_program *prog)
 						ap->low_val_char = n;
 					}
 					if (n < 0 || n > 255) {
-						unvals = 1;
+						unvals = pos;
 						continue;
 					}
 					if (values[n] != -1) {
@@ -2098,12 +2109,33 @@ cb_validate_program_environment (struct cb_program *prog)
 		}
 		if (dupls || unvals) {
 			if (dupls) {
-				cb_error_x (l, _("Duplicate character values in alphabet '%s'"),
-					    cb_name (CB_VALUE(l)));
+				i = 0;
+				for (n = 0; n < 256; n++) {
+					if (dupvals[n] != -1) {
+						if (i > 240) {
+							sprintf(&errmsg[i], ", ...");
+							i = i + 5;
+							break;
+						}
+						if (i) {
+							sprintf(&errmsg[i], ", ");
+							i = i + 2;
+						}
+						if (isprint(n)) {
+							errmsg[i++] = (char)n;
+						} else {
+							sprintf(&errmsg[i], "x'%02x'", n);
+							i = i + 5;
+						}
+					};
+				}
+				errmsg[i] = 0;
+				cb_error_x (CB_VALUE(l), _("Duplicate character values in alphabet '%s': %s"),
+					    ap->name, errmsg);
 			}
 			if (unvals) {
-				cb_error_x (l, _("Invalid character values in alphabet '%s'"),
-					    cb_name (CB_VALUE(l)));
+				cb_error_x (CB_VALUE(l), _("Invalid character values in alphabet '%s', starting at position %d"),
+					    ap->name, pos);
 			}
 			ap->low_val_char = 0;
 			ap->high_val_char = 255;
@@ -3211,10 +3243,10 @@ build_store_option (cb_tree x, cb_tree round_opt)
 
 	if (usage == CB_USAGE_COMP_5 || usage == CB_USAGE_COMP_X) {
 		/* Do not check NOT ERROR case, so that we optimize */
-		if (current_statement->handler1) {
+		if (current_statement->ex_handler) {
 			opt |= COB_STORE_KEEP_ON_OVERFLOW;
 		}
-	} else if (current_statement->handler_id) {
+	} else if (current_statement->handler_type != NO_HANDLER) {
 		/* There is a [NOT] ERROR/OVERFLOW/EXCEPTION - Set in parser */
 		opt |= COB_STORE_KEEP_ON_OVERFLOW;
 	} else if (usage == CB_USAGE_BINARY && cb_binary_truncate) {
@@ -3233,10 +3265,10 @@ decimal_alloc (void)
 	x = cb_build_decimal (current_program->decimal_index);
 	current_program->decimal_index++;
 	if (current_program->decimal_index >= COB_MAX_DEC_STRUCT) {
-		cobc_abort_pr (_("Internal decimal structure size exceeded - %d"),
+		cobc_err_msg (_("internal decimal structure size exceeded: %d"),
 				COB_MAX_DEC_STRUCT);
 		if (strcmp(current_statement->name, "COMPUTE") == 0) {
-			cobc_abort_pr (_("Try to minimize the number of parenthesis "
+			cobc_err_msg (_("Try to minimize the number of parenthesis "
 							 "or split into multiple computations."));
 		}
 		COBC_ABORT ();
@@ -3275,7 +3307,7 @@ decimal_compute (const int op, cb_tree x, cb_tree y)
 		func = "cob_decimal_pow";
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected operation %d"), op);
+		cobc_err_msg (_("unexpected operation: %d"), op);
 		COBC_ABORT ();
 	}
 	dpush (CB_BUILD_FUNCALL_2 (func, x, y));
@@ -3295,7 +3327,7 @@ decimal_expand (cb_tree d, cb_tree x)
 			dpush (CB_BUILD_FUNCALL_2 ("cob_decimal_set_llint", d,
 				cb_int0));
 		} else {
-			cobc_abort_pr (_("Unexpected constant expansion"));
+			cobc_err_msg (_("unexpected constant expansion"));
 			COBC_ABORT ();
 		}
 		break;
@@ -3358,7 +3390,7 @@ decimal_expand (cb_tree d, cb_tree x)
 		dpush (CB_BUILD_FUNCALL_2 ("cob_decimal_set_field", d, x));
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -4115,8 +4147,11 @@ emit_corresponding (cb_tree (*func) (cb_tree f1, cb_tree f2, cb_tree f3),
 						if (f1->children && f2->children) {
 							found += emit_corresponding (func, t1, t2, opt);
 						} else {
-							found++;
-							cb_emit (func (t1, t2, opt));
+							if ((CB_TREE_CATEGORY (t1) == CB_CATEGORY_NUMERIC) &&
+							    (CB_TREE_CATEGORY (t2) == CB_CATEGORY_NUMERIC)) {
+								found++;
+								cb_emit (func (t1, t2, opt));
+							}
 						}
 					}
 				}
@@ -4727,7 +4762,7 @@ cb_emit_allocate (cb_tree target1, cb_tree target2, cb_tree size,
 			 NULL, target2, size, initialize));
 	}
 	if (initialize && target1) {
-		current_statement->handler2 =
+		current_statement->not_ex_handler =
 			cb_build_initialize (target1, cb_true, NULL, 1, 0, 0);
 	}
 }
@@ -6066,16 +6101,13 @@ move_warning (cb_tree src, cb_tree dst, const unsigned int value_flag,
 static int
 count_pic_alphanumeric_edited (struct cb_field *field)
 {
-	unsigned char	*p;
-	int		count;
-	int		repeat;
+	cob_pic_symbol	*s;
+	int		count = 0;
 
 	/* Count number of free places in an alphanumeric edited field */
-	count = 0;
-	for (p = (unsigned char *)(field->pic->str); *p; p += 5) {
-		if (*p == '9' || *p == 'A' || *p == 'X') {
-			memcpy ((void *)&repeat, p + 1, sizeof(int));
-			count += repeat;
+	for (s = field->pic->str; s->symbol != '\0'; ++s) {
+		if (s->symbol == '9' || s->symbol == 'A' || s->symbol == 'X') {
+			count += s->times_repeated;
 		}
 	}
 	return count;
@@ -6667,7 +6699,7 @@ validate_move (cb_tree src, cb_tree dst, const unsigned int is_value)
 		/* TODO: check this */
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"),
+		cobc_err_msg (_("unexpected tree tag: %d"),
 				(int)CB_TREE_TAG (src));
 		COBC_ABORT ();
 	}
@@ -7655,7 +7687,7 @@ cb_emit_read (cb_tree ref, cb_tree next, cb_tree into,
 		/* READ */
 		/* DYNAMIC with [NOT] AT END */
 		if (f->access_mode == COB_ACCESS_DYNAMIC &&
-		    current_statement->handler_id == COB_EC_I_O_AT_END) {
+		    current_statement->handler_type == AT_END_HANDLER) {
 			read_opts |= COB_READ_NEXT;
 			cb_emit (CB_BUILD_FUNCALL_3 ("cob_read_next", file,
 				 f->file_status,
@@ -7753,7 +7785,7 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL) {
 		cb_warning_x (CB_TREE (current_statement),
 				_("%s not allowed on %s files"), "REWRITE", "LINE SEQUENTIAL");
-	} else if (current_statement->handler_id == COB_EC_I_O_INVALID_KEY &&
+	} else if (current_statement->handler_type == INVALID_KEY_HANDLER &&
 		  (f->organization != COB_ORG_RELATIVE &&
 		   f->organization != COB_ORG_INDEXED)) {
 			cb_error_x (CB_TREE(current_statement),
@@ -8643,7 +8675,7 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
 		_("%s not allowed on %s files"), "WRITE", "SORT");
-	} else if (current_statement->handler_id == COB_EC_I_O_INVALID_KEY &&
+	} else if (current_statement->handler_type == INVALID_KEY_HANDLER &&
 		  (f->organization != COB_ORG_RELATIVE &&
 		   f->organization != COB_ORG_INDEXED)) {
 			cb_error_x (CB_TREE(current_statement),
@@ -8681,8 +8713,8 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 			opt = cb_int_hex (COB_WRITE_BEFORE | COB_WRITE_LINES | 1);
 		}
 	}
-	if (current_statement->handler_id == COB_EC_I_O_EOP &&
-	    current_statement->handler1) {
+	if (current_statement->handler_type == EOP_HANDLER &&
+	    current_statement->ex_handler) {
 		check_eop = cb_int1;
 	} else {
 		check_eop = cb_int0;

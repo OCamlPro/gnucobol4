@@ -5,8 +5,107 @@
 	* codegen.c (codegen): generation with -anim: fixed export of additional
 	  helper functions
 
+2016-06-25  Edward Hart <edward.dan.hart@gmail.com>
+
+	* pplex.l: fixed bug #248, where any directive was evaluated inside the
+	  false part of a conditional directive. Restricted this to ELSE,
+	  END(-IF), WHEN, etc.
+
+2016-06-22  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, error.c: added hints to change dialect if an undefined word
+	  is used which is reserved in another dialect (see Wish List #107).
+	* parser.y (_identification_header): reinstate ID DIVISION option.
+	* parser.y (set_up_program): fixed bug #255, where function could be
+	  defined within a program.
+
+2016-06-21  Ron Norman <rjn@inglenet.com>
+
+	* error.c (print_error): fixed to verify 'file' is NOT NULL before using it
+	* cobc.c: FR #138 added checks for some env vars which are not allowed to
+	  have PATHSEP_CHAR in them
+
+2016-06-20  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.*, error.c, pplex.l, ppparse.y : Added support for compiler
+	  listings.
+
+
+2016-06-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c (output_internal_function): fixing bug #234 segfault by
+	  generating code for setting not passed parameter pointers to NULL as if
+	  they would have been passed as OMITTED, allowing (cob_is_omitted) to work
+
+2016-06-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* ppparse.def: Added compiler constants GNUCOBOL (alias for OPENCOBOL)
+	  and GCCOMP (alias for OCCOMP)
+
+2016-06-15 Brian Tiffin <btiffin@gnu.org>
+
+	* cobc.c: Added optional arguments for -j job submits and -job alias
+
+2016-06-14  Edward Hart <edward.dan.hart@gmail.com>
+
+	* reserved.c (default_reserved_words): moved uncommon, non-standard
+	  aliases (e.g., AUTOTERMINATE for AUTO) to config files.
+	* parser.y: renamed TIMEOUT token to TIME-OUT.
+
+2016-06-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l (ppinput): FR #126 treat invalid indicator (free format) as
+	  line comment instead of aborting compilation
+	* typeck.c (cb_validate_program_environment): FR #67 output duplicate values
+	  in errornous alphabet-names at correct error position
+
+2016-06-12  Edward Hart <edward.dan.hart@gmail.com>
+
+	* tree.c (cb_build_picture): fixed bug where PIC SS9 was not detected as
+	  invalid. (See bug #40.) Also improved error messages.
+	* parser.y (check_preceding_tallying_phrases): fixed bug where
+	  consecutive FOR phrases were allowed.
+
+2016-06-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: renamed (cobc_abort_pr) to (cobc_err_msg),
+	  revised message strings for exceptional/fatal errors
+
+2016-06-03  Edward Hart <edward.dan.hart@gmail.com>
+
+	* config.def, parser.y: added not-exception-before-exception
+	  configuration option (see bug #242).
+	* parser.y (program_id_paragraph), tree.c: fixed bug #244 and allow
+	  INITIAL or RECURSIVE before COMMON.
+
+2016-06-02  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (display_atom): fixed bug #243, which was caused by a
+	  begin_implicit_statement causing exceptions to be set to off before
+	  checking which exception handler to go to.
+	* codegen.c: fixed another cause of bug #243, where only EC-IMP-DISPLAY
+	  (and not EC-SCREEN) triggered the ON EXCEPTION phrase. As part of
+	  this, refactored the handling of exception handlers.
+	* tree.h (cb_statement): renamed handler1 and handler2 to ex_handler and
+	  not_ex_handler, respectively.
+
+2016-06-01  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y: fixed bug #242 and allowed exception handlers to be in any
+	  order.
+
+2016-05-31 Brian Tiffin <btiffin@gnu.org>
+
+	* typeck.c: fix bug #235 ADD/SUBTRACT CORRESPONDING only for NUMERIC items.
+
+2016-05-31  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y: fixed bug #47 - tightened INSPECT syntax rules.
+
 2016-05-22  Edward Hart <edward.dan.hart@gmail.com>
 
+	* tree.c, field.c, codegen.c: replaced PICTURE strings containing packed ints with
+	  array of (cob_pic_symbol) structs which are easier to use.
 	* codegen.c (codegen): split large chunks of code in separate functions.
 
 2016-05-21 Brian Tiffin <btiffin@gnu.org>

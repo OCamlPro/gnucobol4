@@ -46,7 +46,7 @@ static const char short_options[] = "+hirc:VM:";
 static const struct option long_options[] = {
 	{"help",		CB_NO_ARG, NULL, 'h'},
 	{"info",		CB_NO_ARG, NULL, 'i'},
-	{"runtime-env",		CB_NO_ARG, NULL, 'r'},
+	{"runtime-conf",		CB_NO_ARG, NULL, 'r'},
 	{"config",		CB_RQ_ARG, NULL, 'C'},
 	{"version",   		CB_NO_ARG, NULL, 'V'},
 	{"module",		CB_RQ_ARG, NULL, 'm'},
@@ -112,7 +112,7 @@ cobcrun_print_usage (char * prog)
 	puts (_("  -V, -version                   display cobcrun and runtime version and exit"));
 	puts (_("  -i, -info                      display runtime information (build/environment)"));
 	puts (_("  -c <file>, -config=<file>      set runtime configuration from <file>"));
-	puts (_("  -r, -runtime-env               display current runtime configuration\n"
+	puts (_("  -r, -runtime-conf              display current runtime configuration\n"
 	        "                                 (value and origin for all settings)"));
 	puts (_("  -M <module>, -module=<module>  set entry point module name and/or load path"));
 	puts (_("                                 where -M module prepends any directory to the"));
@@ -204,7 +204,7 @@ cobcrun_initial_module (char *module_argument)
 #else
 		put = cob_fast_malloc (strlen (env_space) + 19U);
 		sprintf (put, "COB_LIBRARY_PATH=%s", env_space);
-		(void)putenv (cob_strdup (put));
+		(void)putenv (strdup (put));
 		cob_free ((void *)put);
 #endif
 	}
@@ -228,7 +228,7 @@ cobcrun_initial_module (char *module_argument)
 #else
 		put = cob_fast_malloc (strlen (env_space) + 15U);
 		sprintf (put, "COB_PRE_LOAD=%s", env_space);
-		(void)putenv (cob_strdup (put));
+		(void)putenv (strdup (put));
 		cob_free ((void *)put);
 #endif
 	}
@@ -293,9 +293,9 @@ process_command_line (int argc, char *argv[])
 			exit (0);
 
 		case 'r':
-			/* --runtime-env */
+			/* --runtime-conf */
 			cob_init (0, &argv[0]);
-			print_runtime_env ();
+			print_runtime_conf ();
 			exit (0);
 
 		case 'V':

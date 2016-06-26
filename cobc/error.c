@@ -46,6 +46,10 @@ static void
 print_error (const char *file, int line, const char *prefix,
 	     const char *fmt, va_list ap)
 {
+	char			errmsg[BUFSIZ];
+	struct list_error	*err;
+	struct list_files	*cfile;
+	
 	if (!file) {
 		file = cb_source_file;
 	}
@@ -56,7 +60,8 @@ print_error (const char *file, int line, const char *prefix,
 	/* Print section and/or paragraph name */
 	if (current_section != last_section) {
 		if (current_section && !current_section->flag_dummy_section) {
-			fprintf (stderr, "%s: ", file);
+			if(file)
+				fprintf (stderr, "%s: ", file);
 			fputs (_("In section"), stderr);
 			fprintf (stderr, " '%s':\n",
 				(char *)current_section->name);
@@ -65,7 +70,8 @@ print_error (const char *file, int line, const char *prefix,
 	}
 	if (current_paragraph != last_paragraph) {
 		if (current_paragraph && !current_paragraph->flag_dummy_paragraph) {
-			fprintf (stderr, "%s: ", file);
+			if(file)
+				fprintf (stderr, "%s: ", file);
 			fputs (_("In paragraph"), stderr);
 			fprintf (stderr, " '%s':\n",
 				(char *)current_paragraph->name);
@@ -74,13 +80,45 @@ print_error (const char *file, int line, const char *prefix,
 	}
 
 	/* Print the error */
-    if (cb_msg_style == CB_MSG_STYLE_MSC) {
-		fprintf (stderr, "%s (%d): %s", file, line, prefix);
-	} else {
-		fprintf (stderr, "%s: %d: %s", file, line, prefix);
+	if (file) {
+		if (cb_msg_style == CB_MSG_STYLE_MSC) {
+			fprintf (stderr, "%s (%d): ", file, line);
+		} else {
+			fprintf (stderr, "%s: %d: ", file, line);
+		}
 	}
-	vfprintf (stderr, fmt, ap);
-	putc ('\n', stderr);
+	if (prefix) {
+		fprintf (stderr, "%s", prefix);
+	}
+	vsprintf (errmsg, fmt, ap);
+	fprintf (stderr, "%s\n", errmsg);
+
+	if (cb_src_list_file) {
+		err = cobc_malloc (sizeof (struct list_error));
+		memset (err, 0, sizeof (struct list_error));
+		err->line = line;
+		strcpy (err->prefix, prefix);
+		strcpy (err->msg, errmsg);
+		cfile = cb_current_file;
+		if (strcmp (cfile->name, file)) {
+			cfile = cfile->copy_head;
+			while (cfile) {
+				if (!strcmp (cfile->name, file)) {
+					break;
+				}
+				cfile = cfile->next;
+			}
+		}
+		if (cfile) {
+			if (cfile->err_tail) {
+				cfile->err_tail->next = err;
+			}
+			if (!cfile->err_head) {
+				cfile->err_head = err;
+			}
+			cfile->err_tail = err;
+		}
+	}
 }
 
 void
@@ -315,14 +353,18 @@ redefinition_warning (cb_tree x, cb_tree y)
 
 void
 undefined_error (cb_tree x)
-{
-	struct cb_reference	*r;
+{	
+	struct cb_reference	*r = CB_REFERENCE (x);
 	cb_tree			c;
-
+        void (* const emit_error_func)(cb_tree, const char *, ...)
+		= r->flag_optional ? &cb_warning_x : &cb_error_x;
+	const char		*error_message;
+	
 	if (!errnamebuff) {
 		errnamebuff = cobc_main_malloc ((size_t)COB_NORMAL_BUFF);
 	}
-	r = CB_REFERENCE (x);
+
+	/* Get complete variable name */
 	snprintf (errnamebuff, (size_t)COB_NORMAL_MAX, "'%s'", CB_NAME (x));
 	errnamebuff[COB_NORMAL_MAX] = 0;
 	for (c = r->chain; c; c = CB_REFERENCE (c)->chain) {
@@ -330,11 +372,16 @@ undefined_error (cb_tree x)
 		strcat (errnamebuff, CB_NAME (c));
 		strcat (errnamebuff, "'");
 	}
-	if (r->flag_optional) {
-		cb_warning_x (x, _("%s is not defined"), errnamebuff);
+
+	if (is_reserved_word (CB_NAME (x))) {
+		error_message = _("%s cannot be used here");
+	} else if (is_default_reserved_word (CB_NAME (x))) {
+		error_message = _("%s is not defined, but is a reserved word in another dialect");
 	} else {
-		cb_error_x (x, _("%s is not defined"), errnamebuff);
-	}
+		error_message = _("%s is not defined");
+	} 
+	
+	(*emit_error_func) (x, error_message, errnamebuff);
 }
 
 void

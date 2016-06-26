@@ -109,6 +109,12 @@ static int			origin_y;
 static int			origin_x;
 #endif
 
+/* Local function prototypes when screenio activated */
+
+#ifdef	COB_GEN_SCREENIO
+static void cob_screen_init	(void);
+#endif
+
 /* Local functions */
 
 static void
@@ -120,6 +126,19 @@ cob_speaker_beep (void)
 	if (fd >= 0) {
 		(void)write (fd, "\a", (size_t)1);
 	}
+}
+
+static COB_INLINE COB_A_INLINE void
+init_cob_screen_if_needed (void)
+{
+	if (!cobglobptr) {
+		cob_fatal_error (COB_FERROR_INITIALIZED);
+	}
+#ifdef	COB_GEN_SCREENIO
+	if (!cobglobptr->cob_screen_initialized) {
+		cob_screen_init ();
+	}
+#endif
 }
 
 #ifdef	COB_GEN_SCREENIO
@@ -885,16 +904,16 @@ field_is_zero (cob_screen *s)
 }
 
 static int
-pic_has_zero_suppression (const char *pic)
+pic_has_zero_suppression (const cob_pic_symbol *pic)
 {
 	int	i;
 
-	for (i = 0; pic[i] != '\0'; i += 5) {
+	for (i = 0; pic[i].symbol != '\0'; ++i) {
 		/*
 		  NB: + and - are floating-insertion editing characters, not
 		  zero-suppression ones.
 		*/
-		if (pic[i] == 'Z' || pic[i] == '*') {
+		if (pic[i].symbol == 'Z' || pic[i].symbol == '*') {
 			return 1;
 		}
 	}
@@ -903,19 +922,21 @@ pic_has_zero_suppression (const char *pic)
 }
 
 static int
-get_num_int_digits_for_no_zero_sup (const char *pic)
+get_num_int_digits_for_no_zero_sup (const cob_pic_symbol *pic)
 {
 	int	i;
-	int	*times_repeated;
 	int	num_digits = 0;
 	char	numeric_separator = COB_MODULE_PTR->numeric_separator;
 
-	for (i = 0; pic[i] != '\0'; i += 5) {
-		if (pic[i] == '9' || pic[i] == 'Z' || pic[i] == '*') {
-			times_repeated = (int *) (pic + i + 1);
-			num_digits += *times_repeated;
-		} else if (!(pic[i] == numeric_separator
-			     || pic[i] == 'B' || pic[i] == '0' || pic[i] == '/')
+	for (i = 0; pic[i].symbol != '\0'; ++i) {
+		if (pic[i].symbol == '9'
+		    || pic[i].symbol == 'Z'
+		    || pic[i].symbol == '*') {
+			num_digits += pic[i].times_repeated;
+		} else if (!(pic[i].symbol == numeric_separator
+			     || pic[i].symbol == 'B'
+			     || pic[i].symbol == '0'
+			     || pic[i].symbol == '/')
 			   && num_digits != 0) {
 			break;
 		}
@@ -927,7 +948,7 @@ get_num_int_digits_for_no_zero_sup (const char *pic)
 static int
 field_is_zero_or_no_zero_suppression (cob_screen *s)
 {
-	const char	*pic = COB_FIELD_PIC (s->field);
+	const cob_pic_symbol	*pic = COB_FIELD_PIC (s->field);
 	int		i;
 	size_t		size = COB_FIELD_SIZE (s->field);
 	unsigned char	*data = COB_FIELD_DATA (s->field);
@@ -1576,14 +1597,6 @@ extract_line_and_col_vals (const int is_screen, cob_field *line,
 		}
 	} else {
 		get_line_column (line, column, sline, scolumn);
-	}
-}
-
-static COB_INLINE COB_A_INLINE void
-init_cob_screen_if_needed (void)
-{
-	if (!cobglobptr->cob_screen_initialized) {
-		cob_screen_init ();
 	}
 }
 
@@ -2362,17 +2375,6 @@ cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
 	field_accept (f, sline, scolumn, fgc, bgc, fscroll, ftimeout, prompt, size_is, fattr);
 }
 
-void
-cob_screen_line_col (cob_field *f, const int l_or_c)
-{
-	init_cob_screen_if_needed ();
-	if (!l_or_c) {
-		cob_set_int (f, (int)LINES);
-	} else {
-		cob_set_int (f, (int)COLS);
-	}
-}
-
 int
 cob_sys_clear_screen (void)
 {
@@ -2479,16 +2481,6 @@ cob_screen_accept (cob_screen *s, cob_field *line,
 }
 
 void
-cob_screen_line_col (cob_field *f, const int l_or_c)
-{
-	if (!l_or_c) {
-		cob_set_int (f, 24);
-	} else {
-		cob_set_int (f, 80);
-	}
-}
-
-void
 cob_screen_set_mode (const cob_u32_t smode)
 {
 	COB_UNUSED (smode);
@@ -2501,6 +2493,25 @@ cob_sys_clear_screen (void)
 }
 
 #endif	/* COB_GEN_SCREENIO */
+
+void
+cob_screen_line_col (cob_field *f, const int l_or_c)
+{
+	init_cob_screen_if_needed ();
+#ifdef	COB_GEN_SCREENIO
+	if (!l_or_c) {
+		cob_set_int (f, (int)LINES);
+	} else {
+		cob_set_int (f, (int)COLS);
+	}
+#else
+	if (!l_or_c) {
+		cob_set_int (f, 24);();
+	} else {
+		cob_set_int (f, 80);();
+	}
+#endif
+}
 
 int
 cob_sys_sound_bell (void)
@@ -2561,6 +2572,28 @@ cob_sys_get_scr_size (unsigned char *line, unsigned char *col)
 	*col = 80U;
 #endif
 	return 0;
+}
+
+int
+cob_get_scr_cols (void)
+{
+	init_cob_screen_if_needed();
+#ifdef	COB_GEN_SCREENIO
+	return (int)COLS;
+#else
+	return 80;
+#endif
+}
+
+int
+cob_get_scr_lines (void)
+{
+	init_cob_screen_if_needed();
+#ifdef	COB_GEN_SCREENIO
+	return (int)LINES;
+#else
+	return 24;
+#endif
 }
 
 void

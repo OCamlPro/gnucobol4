@@ -432,6 +432,7 @@ test.conf: Missing definitions:
 	No definition of 'numeric-boolean'
 	No definition of 'acucobol-literals'
 	No definition of 'word-continuation'
+	No definition of 'not-exception-before-exception'
 ])
 
 AT_CLEANUP
@@ -440,16 +441,16 @@ AT_CLEANUP
 AT_SETUP([runtime configuration])
 AT_KEYWORDS([configuration misc])
 
-# check if --runtime-env exits without error
+# check if --runtime-conf exits without error
 # don't compare stdout
-AT_CHECK([$COBCRUN --runtime-env], [0], ignore, [])
+AT_CHECK([$COBCRUN --runtime-conf], [0], ignore, [])
 
-# check if --runtime-env points to a file called "runtime_empty.cfg"
+# check if --runtime-conf points to a file called "runtime_empty.cfg"
 # use tr to remove newlines and spaces as the path likely is splitted
 # into two lines
-AT_CHECK([$COBCRUN --runtime-env | tr -d '\n ' | \
+AT_CHECK([$COBCRUN --runtime-conf | tr -d '\n ' | \
 grep "runtime_empty.cfg"], [0], ignore, [])
-AT_CHECK([export COB_RUNTIME_CONFIG=""; $COBCRUN --runtime-env | tr -d '\n ' \
+AT_CHECK([export COB_RUNTIME_CONFIG=""; $COBCRUN --runtime-conf | tr -d '\n ' \
 | grep "runtime.cfg"],
 [0], ignore, [])
 
@@ -473,19 +474,19 @@ setenv COB_PHYSICAL_CANCEL=true
 
 
 # check if default for physical cancel is still false
-AT_CHECK([$COBCRUN --runtime-env |
+AT_CHECK([$COBCRUN --runtime-conf | \
 grep "COB_PHYSICAL_CANCEL" | grep "false" | grep "default"], [0], ignore, [])
 
 # check if override via -c works and if include works
-AT_CHECK([$COBCRUN -c test2.cfg --runtime-env | \
+AT_CHECK([$COBCRUN -c test2.cfg --runtime-conf | \
 grep "physical_cancel" | grep "true"], [0], ignore, [])
-AT_CHECK([$COBCRUN -c test.cfg --runtime-env | \
+AT_CHECK([$COBCRUN -c test.cfg --runtime-conf | \
 grep "physical_cancel" | grep "true"], [0], ignore, [])
-AT_CHECK([$COBCRUN -c test3.cfg --runtime-env | \
+AT_CHECK([$COBCRUN -c test3.cfg --runtime-conf | \
 grep "COB_PHYSICAL_CANCEL" | grep "true"], [0], ignore, [])
 
 # check if configuration file loading with full path works
-AT_CHECK([$COBCRUN -c "$(_return_path "$(pwd)/test.cfg")" --runtime-env],
+AT_CHECK([$COBCRUN -c "$(_return_path "$(pwd)/test.cfg")" --runtime-conf],
 [0], ignore, [])
 
 AT_CLEANUP
@@ -527,7 +528,7 @@ AT_DATA([test.cfg], [
 physical_cancel true
 ])
 
-AT_CHECK([export COB_PHYSICAL_CANCEL=false; $COBCRUN -c test.cfg --runtime-env | \
+AT_CHECK([export COB_PHYSICAL_CANCEL=false; $COBCRUN -c test.cfg --runtime-conf | \
 grep "COB_PHYSICAL_CANCEL" | grep "false"], [0], ignore, [])
 
 AT_CLEANUP
@@ -545,10 +546,11 @@ sort_chunk 4K
 sort_memory 4G # too big by some byte
 setenv nothing
 sort_chunk
+trace_file /tmp:/temp
 ])
 
 # conf entries must be clean
-AT_CHECK([$COBCRUN -c defunc.cfg --runtime-env], [1], [],
+AT_CHECK([$COBCRUN -c defunc.cfg --runtime-conf], [1], [],
 [Configuration Error
 defunc.cfg: 2: Unknown configuration tag 'novar'
 defunc.cfg: 3: Invalid value 'notwithme' for configuration tag 'physical_cancel';
@@ -563,6 +565,8 @@ defunc.cfg: 7: Invalid value '4G' for configuration tag 'sort_memory';
 	maximum value: 4294967294
 defunc.cfg: 8: WARNING - 'setenv nothing' without a value - ignored!
 defunc.cfg: 9: WARNING - 'sort_chunk' without a value - ignored!
+defunc.cfg: 10: Invalid value '/tmp:/temp' for configuration tag 'trace_file';
+	should not contain ':'
 ])
 
 AT_CLEANUP
@@ -579,17 +583,17 @@ AT_DATA([defunc2.cfg], [
 include
 ])
 
-AT_CHECK([$COBCRUN -c notthere.cfg --runtime-env], [1], [],
+AT_CHECK([$COBCRUN -c notthere.cfg --runtime-conf], [1], [],
 [Configuration Error
 notthere.cfg: No such file or directory
 ])
-AT_CHECK([$COBCRUN -c defunc.cfg --runtime-env], [1], [],
+AT_CHECK([$COBCRUN -c defunc.cfg --runtime-conf], [1], [],
 [Configuration Error
 notthere.cfg: No such file or directory
 defunc.cfg: 2: Configuration file was included here
 ])
 
-AT_CHECK([$COBCRUN -c defunc2.cfg --runtime-env], [1], [],
+AT_CHECK([$COBCRUN -c defunc2.cfg --runtime-conf], [1], [],
 [Configuration Error
 defunc2.cfg: 2: 'include' without a value!
 ])
@@ -605,6 +609,24 @@ include "runtime_empty.cfg"
 includeif "notthere.cfg"
 ])
 
-AT_CHECK([$COBCRUN -c defunc.cfg --runtime-env], [0], ignore, [])
+AT_CHECK([$COBCRUN -c defunc.cfg --runtime-conf], [0], ignore, [])
+
+AT_CLEANUP
+
+AT_SETUP([COB_CONFIG_DIR test])
+AT_KEYWORDS([environment variable])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       PROCEDURE        DIVISION.
+           STOP RUN.
+])
+
+AT_CHECK([export COB_CONFIG_DIR=/temp:/tmp; \
+$COMPILE prog.cob], [99], [],
+[cobc: environment variable 'COB_CONFIG_DIR' is '/temp:/tmp'; should not contain ':'
+cobc: aborting
+])
 
 AT_CLEANUP

@@ -79,15 +79,21 @@ struct string_list {
 	int			id;
 };
 
+struct pic_list {
+	struct pic_list		*next;
+	const cob_pic_symbol	*str;
+	int			length;
+	int			id;
+};
+
 struct attr_list {
 	struct attr_list	*next;
-	unsigned char		*pic;
+	int			pic_id;
 	int			id;
 	int			type;
 	cob_u32_t		digits;
 	int			scale;
 	cob_u32_t		flags;
-	int			lenstr;
 };
 
 struct literal_list {
@@ -118,6 +124,7 @@ struct base_list {
 
 /* Local variables */
 
+static struct pic_list		*pic_cache = NULL;
 static struct attr_list		*attr_cache = NULL;
 static struct literal_list	*literal_cache = NULL;
 static struct field_list	*field_cache = NULL;
@@ -306,6 +313,7 @@ lookup_func_call (const char *p)
 		return last;			      \
 	}
 
+LIST_REVERSE_FUNC (pic_list);
 LIST_REVERSE_FUNC (attr_list);
 LIST_REVERSE_FUNC (string_list);
 LIST_REVERSE_FUNC (literal_list);
@@ -611,7 +619,7 @@ output_base (struct cb_field *f, const cob_u32_t no_output)
 	struct base_list	*bl;
 
 	if (unlikely(f->flag_item_78)) {
-		cobc_abort_pr (_("Unexpected CONSTANT item"));
+		cobc_err_msg (_("unexpected CONSTANT item"));
 		COBC_ABORT ();
 	}
 
@@ -787,7 +795,7 @@ output_data (cb_tree x)
 		}
 		/* Fall through */
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -874,17 +882,91 @@ again:
 		output ("(int)%s%d.size", CB_PREFIX_FIELD, CB_FIELD (x)->id);
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
+}
+
+/* Picture strings */
+
+static int
+lookup_pic (const cob_pic_symbol *pic, const int length)
+{
+	struct pic_list *l;
+	int		i;
+	int		different_pic_str;
+
+	/* Search picture string cache */
+	for (l = pic_cache; l; l = l->next) {
+		if (length != l->length) {
+			continue;
+		}
+
+		different_pic_str = 0;
+		for (i = 0; i < l->length; ++i) {
+			if (pic[i].symbol != l->str[i].symbol
+			    || pic[i].times_repeated != l->str[i].times_repeated) {
+				different_pic_str = 1;
+				break;
+			}
+		}
+
+		if (different_pic_str) {
+			continue;
+		}
+
+		return l->id;
+	}
+
+	/* Cache new picture string */
+
+	l = cobc_parse_malloc (sizeof (struct pic_list));
+	l->id = cb_pic_id;
+	l->length = length;
+	l->str = pic;
+	l->next = pic_cache;
+	pic_cache = l;
+
+	return cb_pic_id++;
+}
+
+static void
+output_pic_cache (void)
+{
+	struct pic_list	*pic;
+	int		pos;
+
+	if (!pic_cache) {
+		return;
+	}
+
+	output_storage ("\n/* Picture strings */\n\n");
+	pic_cache = pic_list_reverse (pic_cache);
+
+	for (pic = pic_cache; pic; pic = pic->next) {
+		output_storage ("static const cob_pic_symbol %s%d[] = {\n",
+				CB_PREFIX_PIC, pic->id);
+
+		for (pos = 0; pos < pic->length
+			     && pic->str[pos].symbol != '\0'; ++pos) {
+			output_storage ("\t{'%c', %u}",
+					pic->str[pos].symbol,
+					pic->str[pos].times_repeated);
+			output_storage (",\n");
+		}
+		output_storage ("\t{'\\0', 1}");
+		output_storage ("\n};\n");
+	}
+	output_storage ("\n");
 }
 
 /* Attributes */
 
 static int
 lookup_attr (const int type, const cob_u32_t digits, const int scale,
-	     const cob_u32_t flags, unsigned char *pic, const int lenstr)
+	     const cob_u32_t flags, cob_pic_symbol *pic, const int lenstr)
 {
+	const int		pic_id = pic ? lookup_pic (pic, lenstr) : -1;
 	struct attr_list *l;
 
 	/* Search attribute cache */
@@ -893,8 +975,7 @@ lookup_attr (const int type, const cob_u32_t digits, const int scale,
 		    digits == l->digits &&
 		    scale == l->scale &&
 		    flags == l->flags &&
-		    ((pic == l->pic) || (pic && l->pic && lenstr == l->lenstr &&
-		     memcmp ((char *)pic, (char *)(l->pic), (size_t)lenstr) == 0))) {
+		    pic_id == l->pic_id) {
 			return l->id;
 		}
 	}
@@ -907,8 +988,7 @@ lookup_attr (const int type, const cob_u32_t digits, const int scale,
 	l->digits = digits;
 	l->scale = scale;
 	l->flags = flags;
-	l->pic = pic;
-	l->lenstr = lenstr;
+	l->pic_id = pic_id;
 	l->next = attr_cache;
 	attr_cache = l;
 
@@ -1055,8 +1135,7 @@ output_attr (const cb_tree x)
 
 				id = lookup_attr (type, f->pic->digits,
 						  f->pic->scale, flags,
-						  (cob_u8_ptr) f->pic->str,
-						  f->pic->lenstr);
+						  f->pic->str, f->pic->lenstr);
 				break;
 			}
 		}
@@ -1065,7 +1144,7 @@ output_attr (const cb_tree x)
 		id = lookup_attr (COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL, 0);
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 
@@ -1285,7 +1364,6 @@ static void
 output_attributes (void)
 {
 	struct attr_list	*attr;
-	unsigned char		*s;
 	
 	if (!(attr_cache || gen_figurative)) {
 		return;
@@ -1300,13 +1378,8 @@ output_attributes (void)
 		output_storage ("{0x%02x, %3u, %3d, 0x%04x, ",
 				attr->type, attr->digits,
 				attr->scale, attr->flags);
-			if (attr->pic) {
-				output_storage ("\"");
-				for (s = attr->pic; *s; s += 5) {
-					output_storage ("%c\\%03o\\%03o\\%03o\\%03o",
-						s[0], s[1], s[2], s[3], s[4]);
-				}
-				output_storage ("\"");
+		if (attr->pic_id != -1) {
+			output_storage ("%s%d", CB_PREFIX_PIC, attr->pic_id);
 		} else {
 			output_storage ("NULL");
 		}
@@ -2030,7 +2103,7 @@ output_integer (cb_tree x)
 			}
 			break;
 		default:
-			cobc_abort_pr (_("Unexpected cast type %d"),
+			cobc_err_msg (_("unexpected cast type: %d"),
 				 (int)cp->cast_type);
 			COBC_ABORT ();
 		}
@@ -2216,7 +2289,7 @@ output_integer (cb_tree x)
 		output (")");
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -2296,7 +2369,7 @@ output_long_integer (cb_tree x)
 			}
 			break;
 		default:
-			cobc_abort_pr (_("Unexpected cast type %d"),
+			cobc_err_msg (_("unexpected cast type: %d"),
 				 (int)cp->cast_type);
 			COBC_ABORT ();
 		}
@@ -2462,7 +2535,7 @@ output_long_integer (cb_tree x)
 		output (")");
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -2638,7 +2711,7 @@ output_param (cb_tree x, int id)
 		if (r->check) {
 			inside_stack[inside_check++] = 0;
 			if (inside_check >= COB_INSIDE_SIZE) {
-				cobc_abort_pr (_("Internal statement stack depth exceeded -> %d"),
+				cobc_err_msg (_("internal statement stack depth exceeded: %d"),
 						COB_INSIDE_SIZE);
 				COBC_ABORT ();
 			}
@@ -2893,7 +2966,7 @@ output_param (cb_tree x, int id)
 		output_funcall (x);
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -2946,7 +3019,7 @@ output_funcall (cb_tree x)
 			}
 			break;
 		default:
-			cobc_abort_pr (_("Unexpected function %s"), p->name);
+			cobc_err_msg (_("unexpected function: %s"), p->name);
 			COBC_ABORT ();
 		}
 		return;
@@ -3005,7 +3078,7 @@ output_cond (cb_tree x, const int save_flag)
 		} else if (x == cb_false) {
 			output ("0");
 		} else {
-			cobc_abort_pr (_("Unexpected constant"));
+			cobc_err_msg (_("unexpected constant"));
 			COBC_ABORT ();
 		}
 		break;
@@ -3083,7 +3156,7 @@ output_cond (cb_tree x, const int save_flag)
 		}
 		inside_stack[inside_check++] = 0;
 		if (inside_check >= COB_INSIDE_SIZE) {
-			cobc_abort_pr (_("Internal statement stack depth exceeded -> %d"),
+			cobc_err_msg (_("internal statement stack depth exceeded: %d"),
 					COB_INSIDE_SIZE);
 			COBC_ABORT ();
 		}
@@ -3100,7 +3173,7 @@ output_cond (cb_tree x, const int save_flag)
 		}
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -3130,7 +3203,7 @@ initialize_type (struct cb_initialize *p, struct cb_field *f, const int topfield
 	int		type;
 
 	if (f->flag_item_78) {
-		cobc_abort_pr (_("Unexpected CONSTANT item"));
+		cobc_err_msg (_("unexpected CONSTANT item"));
 		COBC_ABORT ();
 	}
 
@@ -3652,7 +3725,7 @@ output_initialize_one (struct cb_initialize *p, cb_tree x)
 			output_move (cb_space, x);
 			break;
 		default:
-			cobc_abort_pr (_("Unexpected tree category %d"),
+			cobc_err_msg (_("unexpected tree category: %d"),
 				 (int)CB_TREE_CATEGORY (x));
 			COBC_ABORT ();
 		}
@@ -3822,7 +3895,7 @@ output_search_whens (cb_tree table, cb_tree var, cb_tree stmt, cb_tree whens)
 	p = cb_code_field (table);
 
 	if (!p->index_list) {
-		cobc_abort_pr (_("Call to '%s' with invalid parameter '%s'"),
+		cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
 			"output_search", "table");
 		COBC_ABORT ();
 	}
@@ -4017,7 +4090,7 @@ output_call_protocast (cb_tree x, cb_tree l)
 				output ("cob_u64_t");
 				return;
 			default:
-				cobc_abort_pr (_("Unexpected size"));
+				cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 				COBC_ABORT ();
 			}
 		}
@@ -4042,7 +4115,7 @@ output_call_protocast (cb_tree x, cb_tree l)
 			output ("cob_s64_t");
 			return;
 		default:
-			cobc_abort_pr (_("Unexpected size"));
+			cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 			COBC_ABORT ();
 		}
 		return;
@@ -4236,7 +4309,7 @@ output_call_by_value_args (cb_tree x, cb_tree l)
 				output (CB_FMT_LLU_F, uval);
 				return;
 			default:
-				cobc_abort_pr (_("Unexpected size"));
+				cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 				COBC_ABORT ();
 			}
 		}
@@ -4266,7 +4339,7 @@ output_call_by_value_args (cb_tree x, cb_tree l)
 			output (CB_FMT_LLD_F, val);
 			return;
 		default:
-			cobc_abort_pr (_("Unexpected size"));
+			cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 			COBC_ABORT ();
 		}
 		return;
@@ -5662,37 +5735,49 @@ output_alter (struct cb_alter *p)
 
 /* Output statement */
 
+static int
+get_ec_code_for_handler (const enum cb_handler_type handler_type)
+{
+	switch (handler_type) {
+	case AT_END_HANDLER:
+		return CB_EXCEPTION_CODE (COB_EC_I_O_AT_END);
+	case EOP_HANDLER:
+		return CB_EXCEPTION_CODE (COB_EC_I_O_EOP);
+	case INVALID_KEY_HANDLER:
+		return CB_EXCEPTION_CODE (COB_EC_I_O_INVALID_KEY);
+	default:
+		cobc_err_msg (_("unexpected handler type: %d"), (int) handler_type);
+		COBC_ABORT ();
+	}
+}
+ 
 static void
-output_ferror_stmt (struct cb_statement *p, const int code)
+output_ferror_stmt (struct cb_statement *stmt)
 {
 	output_line ("if (unlikely(cob_glob_ptr->cob_exception_code != 0))");
 	output_indent ("{");
-	if (p->handler1) {
-		if ((code & 0x00ff) == 0) {
-			output_line ("if ((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x)",
-			     code);
-		} else {
-			output_line ("if (cob_glob_ptr->cob_exception_code == 0x%04x)", code);
-		}
+	if (stmt->ex_handler) {
+		output_line ("if (cob_glob_ptr->cob_exception_code == 0x%04x)",
+			     get_ec_code_for_handler (stmt->handler_type));
 		output_indent ("{");
-		output_stmt (p->handler1);
+		output_stmt (stmt->ex_handler);
 		output_indent ("}");
 		output_line ("else");
 		output_indent ("{");
 	}
-	output_file_error (CB_FILE (p->file));
+	output_file_error (CB_FILE (stmt->file));
 	output_indent ("}");
-	if (p->handler1) {
+	if (stmt->ex_handler) {
 		output_indent ("}");
 	}
-	if (p->handler2 || p->handler3) {
+	if (stmt->not_ex_handler || stmt->handler3) {
 		output_line ("else");
 		output_indent ("{");
-		if (p->handler3) {
-			output_stmt (p->handler3);
+		if (stmt->handler3) {
+			output_stmt (stmt->handler3);
 		}
-		if (p->handler2) {
-			output_stmt (p->handler2);
+		if (stmt->not_ex_handler) {
+			output_stmt (stmt->not_ex_handler);
 		}
 		output_indent ("}");
 	}
@@ -5851,6 +5936,85 @@ _update_debugger_source_buffer(int source_line, char c) {
 }
 
 static void
+output_level_2_ex_condition (const int level_2_ec)
+{
+	output_line ("if (unlikely ((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x))",
+		     CB_EXCEPTION_CODE (level_2_ec));
+}
+ 
+static void
+output_display_accept_ex_condition (const enum cb_handler_type handler_type)
+{
+        int	imp_ec;
+	
+	output_line ("if (unlikely ((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x",
+		     CB_EXCEPTION_CODE (COB_EC_SCREEN));
+
+	if (handler_type == DISPLAY_HANDLER) {
+		imp_ec = COB_EC_IMP_DISPLAY;
+	} else { /* ACCEPT_HANDLER */
+		imp_ec = COB_EC_IMP_DISPLAY;
+	}
+	output_line ("               || cob_glob_ptr->cob_exception_code == 0x%04x))",
+		     CB_EXCEPTION_CODE (imp_ec));
+}
+ 
+static void
+output_ec_condition_for_handler (const enum cb_handler_type handler_type)
+{
+	
+	switch (handler_type) {
+	case DISPLAY_HANDLER:
+		output_display_accept_ex_condition (DISPLAY_HANDLER);
+		break;
+		
+	case ACCEPT_HANDLER:
+		output_display_accept_ex_condition (ACCEPT_HANDLER);
+		break;
+		
+	case SIZE_ERROR_HANDLER:
+		output_level_2_ex_condition (COB_EC_SIZE);
+		break;		
+		
+	case OVERFLOW_HANDLER:
+		output_level_2_ex_condition (COB_EC_OVERFLOW);
+		break;
+		
+	default:
+		cobc_err_msg (_("unexpected handler type: %d"), (int) handler_type);
+		COBC_ABORT ();
+	}
+}
+ 
+static void
+output_handler (struct cb_statement *stmt)
+{
+	if (stmt->file) {
+		output_ferror_stmt (stmt);
+		return;
+	}
+	
+	if (stmt->ex_handler) {
+		output_ec_condition_for_handler (stmt->handler_type);
+		output_indent ("{");
+		output_stmt (stmt->ex_handler);
+		output_indent ("}");
+		if (stmt->not_ex_handler) {
+			output_line ("else");
+		}
+	}
+	if (stmt->not_ex_handler) {
+		if (stmt->ex_handler == NULL) {
+			output_line ("if (!cob_glob_ptr->cob_exception_code)");
+		}
+		output_indent ("{");
+		output_stmt (stmt->not_ex_handler);
+		output_indent ("}");
+	}
+}
+
+ 
+static void
 output_stmt (cb_tree x)
 {
 	struct cb_statement	*p;
@@ -5872,7 +6036,7 @@ output_stmt (cb_tree x)
 		return;
 	}
 	if (unlikely(x == cb_error_node)) {
-		cobc_abort_pr (_("Unexpected error_node parameter"));
+		cobc_err_msg (_("unexpected error_node parameter"));
 		COBC_ABORT ();
 	}
 
@@ -5961,12 +6125,7 @@ output_stmt (cb_tree x)
 			last_line = x->source_line;
 		}
 
-#if	0	/* RXWRXW - Exception */
-		if (p->handler1 || p->handler2 ||
-		    (p->file && CB_EXCEPTION_ENABLE (COB_EC_I_O))) {
-#else
-		if (!p->file && (p->handler1 || p->handler2)) {
-#endif
+		if (!p->file && (p->ex_handler || p->not_ex_handler)) {
 			output_line ("cob_glob_ptr->cob_exception_code = 0;");
 		}
 
@@ -6015,36 +6174,10 @@ output_stmt (cb_tree x)
 			need_save_exception = 1;
 		}
 
-		if (p->handler1 || p->handler2 ||
+		if (p->ex_handler || p->not_ex_handler ||
 		    (p->file && CB_EXCEPTION_ENABLE (COB_EC_I_O))) {
-			code = CB_EXCEPTION_CODE (p->handler_id);
-			if (p->file) {
-				output_ferror_stmt (p, code);
-			} else {
-				if (p->handler1) {
-					if ((code & 0x00ff) == 0) {
-						output_line ("if (unlikely((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x))",
-						     code);
-					} else {
-						output_line ("if (unlikely(cob_glob_ptr->cob_exception_code == 0x%04x))", code);
+			output_handler (p);
 					}
-					output_indent ("{");
-					output_stmt (p->handler1);
-					output_indent ("}");
-					if (p->handler2) {
-						output_line ("else");
-					}
-				}
-				if (p->handler2) {
-					if (p->handler1 == NULL) {
-						output_line ("if (!cob_glob_ptr->cob_exception_code)");
-					}
-					output_indent ("{");
-					output_stmt (p->handler2);
-					output_indent ("}");
-				}
-			}
-		}
 		break;
 	case CB_TAG_LABEL:
 		lp = CB_LABEL (x);
@@ -6142,7 +6275,7 @@ output_stmt (cb_tree x)
 					}
 					break;
 				default:
-					cobc_abort_pr (_("Unexpected cast type %d"),
+					cobc_err_msg (_("unexpected cast type: %d"),
 							cp->cast_type);
 					COBC_ABORT ();
 				}
@@ -6160,7 +6293,7 @@ output_stmt (cb_tree x)
 				/* SET ADDRESS OF var ... */
 				cp = CB_CAST (ap->var);
 				if (cp->cast_type != CB_CAST_ADDRESS) {
-					cobc_abort_pr (_("Unexpected tree type %d"),
+					cobc_err_msg (_("unexpected tree type: %d"),
 							cp->cast_type);
 					COBC_ABORT ();
 				}
@@ -6355,7 +6488,7 @@ output_stmt (cb_tree x)
 				     CB_DEBUG_CALL(x)->target);
 		break;
 	default:
-		cobc_abort_pr (_("Unexpected tree tag %d"), (int)CB_TREE_TAG (x));
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
 	}
 }
@@ -7888,7 +8021,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 				continue;
 			}
 			if (f->flag_item_78) {
-				cobc_abort_pr (_("Unexpected CONSTANT item"));
+				cobc_err_msg (_("unexpected CONSTANT item"));
 				COBC_ABORT ();
 			}
 			f->flag_local_storage = 1;
@@ -7983,11 +8116,10 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		for (l = prog->global_list; l; l = CB_CHAIN (l)) {
 			output_line ("if (unlikely(entry == %d)) {",
 					CB_LABEL (CB_VALUE (l))->id);
-			i = 0;
 			if (local_mem) {
 				output_line ("\tcob_local_ptr = cob_local_save;");
 			}
-			for (l2 = parameter_list; l2; l2 = CB_CHAIN (l2), i++) {
+			for (l2 = parameter_list; l2; l2 = CB_CHAIN (l2)) {
 				f = cb_code_field (CB_VALUE (l2));
 				output_line ("\t%s%d = save_%s%d;",
 					CB_PREFIX_BASE, f->id,
@@ -8063,11 +8195,26 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_newline (); /* EB */
 	} /* EB */
 
-#if	1	/* RXWRXW - Save call params */
 	output_line ("/* Save number of call params */");
 	output_line ("module->module_num_params = cob_glob_ptr->cob_call_params;");
 	output_newline ();
+	
+	if (!cb_sticky_linkage && !prog->flag_chained
+#if	0	/* RXWRXW USERFUNC */
+		&& prog->prog_type != CB_FUNCTION_TYPE
 #endif
+		&& prog->num_proc_params) {
+		output_line ("/* Set not passed parameter pointers to NULL */");
+		output_line ("switch (cob_glob_ptr->cob_call_params) {");
+		i = 0;
+		for (l = parameter_list; l; l = CB_CHAIN (l)) {
+			output_line ("  case %d: %s%d = NULL;", i++, 
+				CB_PREFIX_BASE, cb_code_field (CB_VALUE (l))->id);
+		}
+		output_line ("  default: break;");
+		output_line ("}");
+		output_newline ();
+	}
 
 	/* Set up ANY length items */
 	i = 0;
@@ -8390,7 +8537,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 				continue;
 			}
 			if (f->flag_item_78) {
-				cobc_abort_pr (_("Unexpected CONSTANT item"));
+				cobc_err_msg (_("unexpected CONSTANT item"));
 				COBC_ABORT ();
 			}
 			if (f->flag_is_global) {
@@ -10009,6 +10156,7 @@ codegen (struct cb_program *prog, const int nested)
 
 	output_globext_cache ();
 	output_nonlocal_base_cache ();
+	output_pic_cache ();
 	output_attributes ();
 	output_nonlocal_field_cache ();
 
@@ -10068,4 +10216,3 @@ codegen (struct cb_program *prog, const int nested)
 		}
 	}
 }
-

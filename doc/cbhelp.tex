@@ -12,18 +12,18 @@ options:
                         invoked by the compiler
   -x                    build an executable program
   -m                    build a dynamically loadable module (default)
-  -j                    run job, after build
+  -j(=<args>), -job(=<args>) run job, with optional arguments passed to program/module
   -std=<dialect>        warnings/features for a specific dialect
                         <dialect> can be one of:
                         cobol2014, cobol2002, cobol85, default,
                         ibm, mvs, bs2000, mf, acu;
                         see configuration files in directory config
   -F, -free             use free source format
-  -free                 use free source format
   -fixed                use fixed source format (default)
   -O, -O2, -Os          enable optimization
   -g                    enable C compiler debug / stack check / trace
   -d, -debug            enable all run-time error checking
+  -a, -animate          prepare program for being animated
   -o <file>             place the output into <file>
   -b                    combine all input files into a single
                         dynamically loadable module
@@ -31,6 +31,9 @@ options:
   -C                    translation only; convert COBOL to C
   -S                    compile only; output assembly file
   -c                    compile and assemble, but do not link
+  -T <file>             Generate and place a wide program listing into <file>
+  -t <file>             Generate and place a program listing into <file>
+  --tlines=<lines>      Specify lines per page in listing, default = 55
   -P(=<dir or file>)    generate preprocessed program listing (.lst)
   -Xref                 generate cross reference through 'cobxref'
                         (V. Coen's 'cobxref' must be in path)
@@ -53,6 +56,7 @@ options:
 
   -W                    enable ALL warnings
   -Wall                 enable all warnings except as noted below
+  -Wno-<feature>        disable warning enabled by -W or -Wall
   -Wobsolete            warn if obsolete features are used
   -Warchaic             warn if archaic features are used
   -Wredefinition        warn incompatible redefinition of data items
@@ -63,9 +67,10 @@ options:
   -Wimplicit-define     warn implicitly defined data items
   -Wcorresponding       warn CORRESPONDING with no matching items
   -Wexternal-value      warn EXTERNAL item with VALUE clause
+  -Wprototypes          warn missing FUNCTION prototypes/definitions
   -Wcall-params         warn non 01/77 items for CALL params
 			- NOT set with -Wall
-  -Wcolumn-overflow     warn text after column 72, FIXED format
+  -Wcolumn-overflow     warn text after program-text area, FIXED format
 			- NOT set with -Wall
   -Wterminator          warn lack of scope terminator END-XXX
 			- NOT set with -Wall
@@ -119,5 +124,10 @@ options:
   -foptional-file       treat all files as OPTIONAL
 			- unless NOT OPTIONAL specified
 
+
+Report bugs to: bug-gnucobol@gnu.org or
+use the preferred issue tracker via home page.
+GnuCOBOL home page: <http://www.gnu.org/software/gnucobol/>
+General help using GNU software: <http://www.gnu.org/gethelp/>
 @end verbatim
 

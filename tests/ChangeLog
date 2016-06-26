@@ -1,3 +1,20 @@
+2016-06-20  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Added new tests for compiler listings.
+	* Makefile.in, Makefile.am - Added testsuite/listings.at.
+	* testsuite.at - Added testsuite/listings.at
+
+2016-06-15 Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/used_binaries.at: added tests for -j"args"
+
+2016-05-31  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_fundamental.at: Added ADD/SUBTRACT CORRESPONDING test
+
+2016-05-22  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_extensions.at: changed CBL_OC_HOSTED errno test
 
 2016-05-15  Brian Tiffin <btiffin@gnu.org>
 

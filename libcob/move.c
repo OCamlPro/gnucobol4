@@ -675,49 +675,36 @@ cob_move_binary_to_display (cob_field *f1, cob_field *f2)
 static void
 cob_move_display_to_edited (cob_field *f1, cob_field *f2)
 {
-	const char	*p;
-	unsigned char	*min;
-	unsigned char	*max;
+	const cob_pic_symbol	*p;
+	unsigned char	*min = COB_FIELD_DATA (f1);
+	unsigned char	*max = min + COB_FIELD_SIZE (f1);
 	unsigned char	*src;
-	unsigned char	*dst;
-	unsigned char	*end;
-	unsigned char	*decimal_point;
-	int		sign;
-	int		neg;
-	int		count;
-	int		count_sign;
-	int		count_curr;
-	int		trailing_sign;
-	int		trailing_curr;
-	int		is_zero;
-	int		suppress_zero;
-	int		sign_first;
-	int		p_is_left;
+	unsigned char	*dst = f2->data;
+	unsigned char	*end = f2->data + f2->size;
+	unsigned char	*decimal_point = NULL;
+	int		sign = COB_GET_SIGN (f1);
+	int		neg = (sign < 0) ? 1 : 0;
+	int		count = 0;
+	int		count_sign = 1;
+	int		count_curr = 1;
+	int		trailing_sign = 0;
+	int		trailing_curr = 0;
+	int		is_zero = 1;
+	int		suppress_zero = 1;
+	int		sign_first = 0;
+	int		p_is_left = 0;
 	int		repeat;
 	int		n;
-	unsigned char	pad;
+	unsigned char	pad = ' ';
 	unsigned char	x;
 	unsigned char	c;
-	unsigned char	sign_symbol;
-	unsigned char	curr_symbol;
+	unsigned char	sign_symbol = 0;
+	unsigned char	curr_symbol = 0;
 	unsigned char	dec_symbol;
-	unsigned char	currency;
-
-	decimal_point = NULL;
-	count = 0;
-	count_sign = 1;
-	count_curr = 1;
-	trailing_sign = 0;
-	trailing_curr = 0;
-	is_zero = 1;
-	suppress_zero = 1;
-	sign_first = 0;
-	p_is_left = 0;
-	pad = ' ';
-	sign_symbol = 0;
-	curr_symbol = 0;
-
-	currency = COB_MODULE_PTR->currency_symbol;
+	unsigned char	currency = COB_MODULE_PTR->currency_symbol;
+	int		floating_insertion = 0;
+	unsigned char	*last_fixed_insertion_pos = NULL;
+	unsigned char   last_fixed_insertion_char = '\0';
 
 	if (COB_MODULE_PTR->decimal_point == ',') {
 		dec_symbol = ',';
@@ -725,12 +712,10 @@ cob_move_display_to_edited (cob_field *f1, cob_field *f2)
 		dec_symbol = '.';
 	}
 
-	sign = COB_GET_SIGN (f1);
-	neg = (sign < 0) ? 1 : 0;
 	/* Count the number of digit places before decimal point */
-	for (p = COB_FIELD_PIC (f2); *p; p += 5) {
-		c = p[0];
-		memmove ((unsigned char *)&repeat, p + 1, sizeof(int));
+	for (p = COB_FIELD_PIC (f2); p->symbol; ++p) {
+		c = p->symbol;
+		repeat = p->times_repeated;
 		if (c == '9' || c == 'Z' || c == '*') {
 			count += repeat;
 			count_sign = 0;
@@ -753,15 +738,10 @@ cob_move_display_to_edited (cob_field *f1, cob_field *f2)
 		}
 	}
 
-	min = COB_FIELD_DATA (f1);
-	max = min + COB_FIELD_SIZE (f1);
 	src = max - COB_FIELD_SCALE(f1) - count;
-	dst = f2->data;
-	end = f2->data + f2->size;
-	for (p = COB_FIELD_PIC (f2); *p;) {
-		c = *p++;	/* PIC char */
-		memmove ((void *)&n, p, sizeof(int));	/* PIC char count */
-		p += sizeof(int);
+	for (p = COB_FIELD_PIC (f2); p->symbol; ++p) {
+		c = p->symbol;
+		n = p->times_repeated;
 		for (; n > 0; n--, ++dst) {
 			switch (c) {
 			case '0':
@@ -862,6 +842,16 @@ cob_move_display_to_edited (cob_field *f1, cob_field *f2)
 				} else {
 					*dst = x;
 				}
+
+				if (n > 1 || last_fixed_insertion_char == c) {
+					floating_insertion = 1;
+				} else if (!trailing_sign) {
+					if (last_fixed_insertion_pos) {
+						*last_fixed_insertion_pos = last_fixed_insertion_char;
+					}
+					last_fixed_insertion_pos = dst;
+					last_fixed_insertion_char = c;
+				}
 				break;
 
 			default:
@@ -878,6 +868,15 @@ cob_move_display_to_edited (cob_field *f1, cob_field *f2)
 						curr_symbol = currency;
 					} else {
 						*dst = x;
+					}
+					if (n > 1 || last_fixed_insertion_char == c) {
+						floating_insertion = 1;
+					} else if (!trailing_curr) {
+						if (last_fixed_insertion_pos) {
+							*last_fixed_insertion_pos = last_fixed_insertion_char;
+						}
+						last_fixed_insertion_pos = dst;
+						last_fixed_insertion_char = c;
 					}
 					break;
 				}
@@ -936,29 +935,37 @@ cob_move_display_to_edited (cob_field *f1, cob_field *f2)
 
 		/* Put sign or currency symbol at the beginning */
 		if (sign_symbol || curr_symbol) {
-			for (dst = end - 1; dst > f2->data; --dst) {
-				if (*dst == ' ') {
-					break;
-				}
-			}
-			if (sign_symbol && curr_symbol) {
-				if (sign_first) {
-					*dst = curr_symbol;
-					--dst;
-					if (dst >= f2->data) {
-						*dst = sign_symbol;
+			if (floating_insertion) {			
+				for (dst = end - 1; dst > f2->data; --dst) {
+					if (*dst == ' ') {
+						break;
 					}
-				} else {
-					*dst = sign_symbol;
-					--dst;
-					if (dst >= f2->data) {
+				}
+				if (sign_symbol && curr_symbol) {
+					if (sign_first) {
 						*dst = curr_symbol;
+						--dst;
+						if (dst >= f2->data) {
+							*dst = sign_symbol;
+						}
+					} else {
+						*dst = sign_symbol;
+						--dst;
+						if (dst >= f2->data) {
+							*dst = curr_symbol;
+						}
 					}
+				} else if (sign_symbol) {
+					*dst = sign_symbol;
+				} else {
+					*dst = curr_symbol;
 				}
-			} else if (sign_symbol) {
-				*dst = sign_symbol;
 			} else {
-				*dst = curr_symbol;
+				if (last_fixed_insertion_char == currency) {
+					*last_fixed_insertion_pos = curr_symbol;
+				} else { /* + or - */
+					*last_fixed_insertion_pos = sign_symbol;
+				}
 			}
 		}
 
@@ -985,7 +992,7 @@ cob_move_edited_to_display (cob_field *f1, cob_field *f2)
 {
 	unsigned char	*p;
 	unsigned char	*buff;
-	const char	*p1;
+	const cob_pic_symbol	*pic_symbol;
 	size_t		i;
 	int		sign = 0;
 	int		scale = 0;
@@ -1032,9 +1039,9 @@ cob_move_edited_to_display (cob_field *f1, cob_field *f2)
 	}
 	/* Count number of digit places after decimal point in case of 'V', 'P' */
 	if (scale == 0) {
-		for (p1 = COB_FIELD_PIC (f1); *p1; p1 += 5) {
-			c = p1[0];
-			memmove ((void *)&n, p1 + 1, sizeof(int));
+		for (pic_symbol = COB_FIELD_PIC (f1); pic_symbol->symbol; ++pic_symbol) {
+			c = pic_symbol->symbol;
+			n = pic_symbol->times_repeated;
 			if (c == '9' || c == '0' || c == 'Z' || c == '*') {
 				if (have_point) {
 					scale += n;
@@ -1064,7 +1071,7 @@ cob_move_edited_to_display (cob_field *f1, cob_field *f2)
 static void
 cob_move_alphanum_to_edited (cob_field *f1, cob_field *f2)
 {
-	const char	*p;
+	const cob_pic_symbol	*p;
 	unsigned char	*max;
 	unsigned char	*src;
 	unsigned char	*dst;
@@ -1076,10 +1083,9 @@ cob_move_alphanum_to_edited (cob_field *f1, cob_field *f2)
 	src = COB_FIELD_DATA (f1);
 	max = src + COB_FIELD_SIZE (f1);
 	dst = f2->data;
-	for (p = COB_FIELD_PIC (f2); *p;) {
-		c = *p++;	/* PIC char */
-		memcpy ((void *)&n, p, sizeof(int));	/* PIC char count */
-		p += sizeof(int);
+	for (p = COB_FIELD_PIC (f2); p->symbol; ++p) {
+		c = p->symbol;
+		n = p->times_repeated;
 		for (; n > 0; --n) {
 			switch (c) {
 			case 'A':

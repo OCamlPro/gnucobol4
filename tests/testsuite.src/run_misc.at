@@ -2502,7 +2502,7 @@ AT_DATA([callee.cob], [
        LINKAGE          SECTION.
        01 P1            PIC X.
        01 P2            PIC X(6).
-       PROCEDURE        DIVISION USING P1 P2.
+       PROCEDURE        DIVISION USING P1 OPTIONAL P2.
            IF P2 NOT OMITTED
               DISPLAY P2
               END-DISPLAY
@@ -2517,6 +2517,8 @@ AT_DATA([caller.cob], [
        WORKING-STORAGE  SECTION.
        01 P1            PIC X    VALUE "A".
        PROCEDURE        DIVISION.
+           CALL "callee" USING P1
+           END-CALL.
            CALL "callee" USING P1 OMITTED
            END-CALL.
            STOP RUN.
@@ -4377,6 +4379,31 @@ AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
 AT_CHECK([./prog], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([ON EXCEPTION clause of DISPLAY])
+AT_KEYWORDS([runmisc exceptions screen])
+
+AT_CHECK([test "$COB_HAS_CURSES" = "yes" || exit 77])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+
+       PROCEDURE DIVISION.
+           DISPLAY "hello" AT COLUMN 500
+               ON EXCEPTION
+                   GOBACK RETURNING 0
+               NOT ON EXCEPTION
+                   GOBACK RETURNING 1
+           END-DISPLAY
+           .
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], ignore, [])
 
 AT_CLEANUP
 

@@ -108,10 +108,10 @@ DIST_COMMON = INSTALL NEWS README AUTHORS ChangeLog \
 	COPYING.LESSER build_aux/ChangeLog THANKS TODO compile \
 	build_aux/compile config.guess build_aux/config.guess \
 	config.rpath build_aux/config.rpath config.sub \
-	build_aux/config.sub depcomp build_aux/depcomp install-sh \
-	build_aux/install-sh build_aux/mdate-sh missing \
-	build_aux/missing mkinstalldirs build_aux/mkinstalldirs \
-	ltmain.sh build_aux/ltmain.sh $(top_srcdir)/build_aux/compile \
+	build_aux/config.sub depcomp install-sh build_aux/install-sh \
+	build_aux/mdate-sh missing build_aux/missing mkinstalldirs \
+	build_aux/mkinstalldirs ltmain.sh build_aux/ltmain.sh \
+	$(top_srcdir)/build_aux/compile \
 	$(top_srcdir)/build_aux/config.guess \
 	$(top_srcdir)/build_aux/config.rpath \
 	$(top_srcdir)/build_aux/config.sub \
@@ -421,8 +421,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 include_HEADERS = libcob.h
-SUBDIRS_PREREQUISITES = libcob lib cobc debugger bin config copy extras
-SUBDIRS = libcob lib cobc bin debugger config copy po doc extras tests
+SUBDIRS = libcob lib cobc bin config copy po doc extras debugger tests
 ACLOCAL_AMFLAGS = -I m4 --install
 BUILT_SOURCES = defaults.h
 DISTCLEANFILES = $(BUILT_SOURCES)

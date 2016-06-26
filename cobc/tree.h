@@ -35,6 +35,7 @@
 #define CB_PREFIX_FILE		"h_"	/* File (cob_file) */
 #define CB_PREFIX_KEYS		"k_"	/* File keys (cob_file_key []) */
 #define CB_PREFIX_LABEL		"l_"	/* Label */
+#define CB_PREFIX_PIC		"p_"	/* PICTURE string */
 #define CB_PREFIX_SEQUENCE	"s_"	/* Collating sequence */
 #define CB_PREFIX_STRING	"st_"	/* String */
 
@@ -618,7 +619,7 @@ struct cb_decimal {
 struct cb_picture {
 	struct cb_tree_common	common;		/* Common values */
 	char			*orig;		/* Original picture string */
-	char			*str;		/* Packed picture string */
+	cob_pic_symbol		*str;		/* Picture string */
 	int			size;		/* Byte size */
 	int			lenstr;		/* Length of picture string */
 	enum cb_category	category;	/* Field category */
@@ -1137,6 +1138,19 @@ struct cb_attr_struct {
 	int			dispattrs;	/* Attributes */
 };
 
+/* Exception handler type */
+
+enum cb_handler_type {
+	NO_HANDLER = 0,
+	DISPLAY_HANDLER,
+	ACCEPT_HANDLER,
+	SIZE_ERROR_HANDLER,
+	OVERFLOW_HANDLER,
+	AT_END_HANDLER,
+	EOP_HANDLER,
+	INVALID_KEY_HANDLER
+};
+
 /* Statement */
 
 struct cb_statement {
@@ -1145,14 +1159,14 @@ struct cb_statement {
 	const char		*statement;		/* Statement line */
 	cb_tree			body;			/* Statement body */
 	cb_tree			file;			/* File reference */
-	cb_tree			handler1;		/* Exception handler */
-	cb_tree			handler2;		/* Exception handler */
+	cb_tree			ex_handler;		/* Exception handler */
+	cb_tree			not_ex_handler;		/* Exception handler */
 	cb_tree			handler3;		/* INTO clause */
 	cb_tree			null_check;		/* NULL check */
 	cb_tree			debug_check;		/* Field DEBUG */
 	cb_tree			debug_nodups;		/* Field DEBUG dups */
 	struct cb_attr_struct	*attr_ptr;		/* Attributes */
-	int			handler_id;		/* Handler id */
+	enum cb_handler_type	handler_type;		/* Handler type */
 	unsigned int		flag_no_based	: 1;	/* Check BASED */
 	unsigned int		flag_in_debug	: 1;	/* In DEBUGGING */
 	unsigned int		flag_merge	: 1;	/* Is MERGE */
@@ -1550,6 +1564,8 @@ extern unsigned int	cobc_force_literal;
 extern unsigned int	cobc_cs_check;
 
 /* reserved.c */
+extern int			is_reserved_word (const char *);
+extern int			is_default_reserved_word (const char *);
 extern struct cobc_reserved	*lookup_reserved_word (const char *);
 extern cb_tree			lookup_system_name (const char *);
 extern void			cb_list_reserved (void);

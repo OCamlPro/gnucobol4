@@ -303,13 +303,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "AUTO",			0, 0, AUTO,			/* 2002 (C/S) */
 				0, 0
   },
-  { "AUTO-SKIP",		0, 0, AUTO,			/* Extension */
-				0, 0
-  },
   { "AUTOMATIC",		0, 0, AUTOMATIC,		/* 2002 (C/S) */
-				0, 0
-  },
-  { "AUTOTERMINATE",		0, 0, AUTO,			/* Extension */
 				0, 0
   },
   { "AWAY-FROM-ZERO",		0, 1, AWAY_FROM_ZERO,		/* 2014 (C/S) */
@@ -330,13 +324,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "BACKGROUND-COLOR",		0, 0, BACKGROUND_COLOR,		/* 2002 (C/S) */
 				0, 0
   },
-  { "BACKGROUND-COLOUR",	0, 0, BACKGROUND_COLOR,		/* Extension */
-				0, 0
-  },
   { "BASED",			0, 0, BASED,			/* 2002 */
-				0, 0
-  },
-  { "BEEP",			0, 0, BELL,			/* Extension */
 				0, 0
   },
   { "BEFORE",			0, 0, BEFORE,			/* 2002 */
@@ -357,13 +345,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "BINARY-DOUBLE",		0, 0, BINARY_DOUBLE,		/* 2002 */
 				0, 0
   },
-  { "BINARY-INT",		0, 0, BINARY_LONG,		/* Extension */
-				0, 0
-  },
   { "BINARY-LONG",		0, 0, BINARY_LONG,		/* 2002 */
-				0, 0
-  },
-  { "BINARY-LONG-LONG",		0, 0, BINARY_DOUBLE,		/* Extension */
 				0, 0
   },
   { "BINARY-SHORT",		0, 0, BINARY_SHORT,		/* 2002 */
@@ -680,9 +662,6 @@ static struct cobc_reserved default_reserved_words[] = {
   { "ELSE",			0, 0, ELSE,			/* 2002 */
 				0, 0
   },
-  { "EMPTY-CHECK",		0, 0, REQUIRED,			/* Extension */
-				0, 0
-  },
   { "END",			0, 0, END,			/* 2002 */
 				0, 0
   },
@@ -780,9 +759,6 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, CB_CS_ERASE
   },
   { "EQUAL",			0, 0, EQUAL,			/* 2002 */
-				0, 0
-  },
-  { "EQUALS",			0, 0, EQUAL,			/* Extension */
 				0, 0
   },
   { "ERASE",			0, 0, ERASE,			/* 2002 (C/S) */
@@ -893,9 +869,6 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "FOREGROUND-COLOR",		0, 0, FOREGROUND_COLOR,		/* 2002 (C/S) */
-				0, 0
-  },
-  { "FOREGROUND-COLOUR",	0, 0, FOREGROUND_COLOR,		/* Extension */
 				0, 0
   },
   { "FOREVER",			0, 0, FOREVER,			/* 2002 (C/S) */
@@ -1009,12 +982,6 @@ static struct cobc_reserved default_reserved_words[] = {
   { "INITIAL",			0, 0, TOK_INITIAL,		/* 2002 */
 				0, 0
   },
-  { "INITIALISE",		0, 0, INITIALIZE,		/* Extension */
-				0, 0
-  },
-  { "INITIALISED",		0, 0, INITIALIZED,		/* Extension */
-				0, 0
-  },
   { "INITIALIZE",		0, 0, INITIALIZE,		/* 2002 */
 				0, 0
   },
@@ -1114,9 +1081,6 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "LENGTH",			0, 0, LENGTH,			/* 2002 */
-				0, 0
-  },
-  { "LENGTH-CHECK",		0, 0, FULL,			/* Extension */
 				0, 0
   },
   { "LESS",			0, 0, LESS,			/* 2002 */
@@ -1303,9 +1267,6 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "ORDER",			0, 0, ORDER,			/* 2002 */
-				0, 0
-  },
-  { "ORGANISATION",		0, 0, ORGANIZATION,		/* Extension */
 				0, 0
   },
   { "ORGANIZATION",		0, 0, ORGANIZATION,		/* 2002 */
@@ -1747,9 +1708,6 @@ static struct cobc_reserved default_reserved_words[] = {
   { "SYNC",			0, 0, SYNCHRONIZED,		/* 2002 */
 				0, 0
   },
-  { "SYNCHRONISED",		0, 0, SYNCHRONIZED,		/* Extension */
-				0, 0
-  },
   { "SYNCHRONIZED",		0, 0, SYNCHRONIZED,		/* 2002 */
 				0, 0
   },
@@ -1792,10 +1750,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "TIME",			0, 0, TIME,			/* 2002 */
 				0, 0
   },
-  { "TIME-OUT",			0, 1, TIMEOUT,			/* Ext (C/S) */
-				0, CB_CS_WITH
-  },
-  { "TIMEOUT",			0, 1, TIMEOUT,			/* Ext (C/S) */
+  { "TIME-OUT",			0, 1, TIME_OUT,			/* Ext (C/S) */
 				0, CB_CS_WITH
   },
   { "TIMES",			0, 0, TIMES,			/* 2002 */
@@ -2767,9 +2722,16 @@ get_length_of_user_res_list (void)
 }
 
 static COB_INLINE COB_A_INLINE struct cobc_reserved *
-find_default_reserved_word (struct cobc_reserved *to_find)
+find_reserved_word (struct cobc_reserved to_find)
 {
-	return bsearch (to_find, default_reserved_words,
+	return bsearch (&to_find, reserved_words, num_reserved_words,
+			sizeof (struct cobc_reserved), reserve_comp);
+}
+
+static COB_INLINE COB_A_INLINE struct cobc_reserved *
+find_default_reserved_word (struct cobc_reserved to_find)
+{
+	return bsearch (&to_find, default_reserved_words,
 			NUM_DEFAULT_RESERVED_WORDS,
 			sizeof (struct cobc_reserved), reserve_comp);
 }
@@ -2787,7 +2749,7 @@ get_user_specified_reserved_word (struct reserved_word_list user_reserved)
 			= user_reserved.is_context_sensitive;
 	} else {
 		to_find = create_dummy_reserved (user_reserved.alias_for);
-		p = find_default_reserved_word (&to_find);
+		p = find_default_reserved_word (to_find);
 
 		if (p) {
 			cobc_reserved.token = p->token;
@@ -2824,7 +2786,7 @@ get_reserved_words_from_user_list (void)
 	*/
 	for (i = 0; cobc_user_res_list; ++i) {
 		to_find = create_dummy_reserved (cobc_user_res_list->word);
-		p = find_default_reserved_word (&to_find);
+		p = find_default_reserved_word (to_find);
 		if (p) {
 			reserved_words[i] = *p;
 			/*
@@ -2873,6 +2835,18 @@ initialize_reserved_words_if_needed (void)
 }
 
 /* Global functions */
+
+int
+is_reserved_word (const char *word)
+{
+	return !!find_reserved_word (create_dummy_reserved (word));
+}
+
+int
+is_default_reserved_word (const char *word)
+{
+	return !!find_default_reserved_word (create_dummy_reserved (word));
+}
 
 cb_tree
 lookup_system_name (const char *name)
@@ -2928,13 +2902,10 @@ struct cobc_reserved *
 lookup_reserved_word (const char *name)
 {
 	struct cobc_reserved		*p;
-	struct cobc_reserved		to_find;
 
 	initialize_reserved_words_if_needed ();
 
-	to_find = create_dummy_reserved (name);
-	p = bsearch (&to_find, reserved_words, num_reserved_words,
-		     sizeof (struct cobc_reserved), reserve_comp);
+	p = find_reserved_word (create_dummy_reserved (name));
 	if (!p) {
 		return NULL;
 	}
