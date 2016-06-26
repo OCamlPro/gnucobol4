@@ -5098,8 +5098,9 @@ cb_emit_delete (cb_tree file)
 				_("%s not allowed on %s files"), "DELETE", "SORT");
 		return;
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL) {
-		cb_warning_x (CB_TREE (current_statement),
+		cb_error_x (CB_TREE (current_statement),
 				_("%s not allowed on %s files"), "DELETE", "LINE SEQUENTIAL");
+		return;
 	}
 
 	/* Check for file debugging */
@@ -7519,11 +7520,9 @@ cb_emit_open (cb_tree file, cb_tree mode, cb_tree sharing)
 		return;
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL &&
 		   mode == cb_int (COB_OPEN_I_O)) {
-		cb_warning_x(CB_TREE (current_statement),
+		cb_error_x (CB_TREE (current_statement),
 				_("%s not allowed on %s files"), "OPEN I-O", "LINE SEQUENTIAL");
-		/*cb_error_x (CB_TREE (current_statement),
-			    _("OPEN I-O not allowed on LINE SEQUENTIAL files"));*/
-		//return;
+		return;
 	}
 	if (sharing == NULL) {
 		if (f->sharing) {
@@ -7783,8 +7782,9 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 				_("%s not allowed on %s files"), "REWRITE", "SORT");
 		return;
 	} else if (f->organization == COB_ORG_LINE_SEQUENTIAL) {
-		cb_warning_x (CB_TREE (current_statement),
+		cb_error_x (CB_TREE (current_statement),
 				_("%s not allowed on %s files"), "REWRITE", "LINE SEQUENTIAL");
+		return;
 	} else if (current_statement->handler_type == INVALID_KEY_HANDLER &&
 		  (f->organization != COB_ORG_RELATIVE &&
 		   f->organization != COB_ORG_INDEXED)) {

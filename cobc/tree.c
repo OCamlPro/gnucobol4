@@ -2902,13 +2902,10 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 		}
 	}
 
-	
-#if 0  //Why? What for? Wtf? o.O
 	if (f->record_max > MAX_FD_RECORD) {
 		cb_error (_("Record size exceeds maximum allowed (%d) - File '%s'"),
 			  MAX_FD_RECORD, f->name);
 	}
-#endif
 
 	if (f->same_clause) {
 		for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
