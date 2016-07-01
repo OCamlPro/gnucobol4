@@ -206,13 +206,9 @@ static const struct system_table	system_tab[] = {
 
 
 static int			do_anim_init = 0;		/* EB */
-int					animflag_set;			/* EB */
 int					end_decl_line;			/* EB */
 size_t				in_procedure;			/* EB */
 size_t				in_data;				/* EB */
-char				animcb[];				/* EB */
-#define ANIMKEYSIZE     7					/* EB */
-#define ANIMDATASIZE    74					/* EB */
 int					comm_source_line;		/* EB */
 int					in_of_seen;				/* EB */
 int					debug_source_lines;		/* EB */
@@ -220,7 +216,6 @@ int					anim_first_stmt;		/* EB */
 int					anim_gotoline = 0;		/* EB */
 char				workdata[80];			/* EB */
 char				workkey[16];			/* EB */
-static				int	animinitdone = 0;	/* EB */
 int					has_external = 0;
 int					base_id, base_id_local;	/* EB */
 int					previous_anifield_id, previous_anifield_id_local; /* EB */
@@ -685,10 +680,11 @@ output_base (struct cb_field *f, const cob_u32_t no_output)
 		} else {
 			output ("cob_local_ptr");
 		}
-	} //else if(animflag_set && f01->storage == CB_STORAGE_LINKAGE && f01->flag_linkage_copy) {
-	//	output ("%s%d_copy", CB_PREFIX_BASE, f01->id);
-	//}
-	else {
+#if 0 /* checkme - anim */
+	} else if (cobc_wants_anim && f01->storage == CB_STORAGE_LINKAGE && f01->flag_linkage_copy) {
+		output ("%s%d_copy", CB_PREFIX_BASE, f01->id);
+#endif
+	} else {
 		output ("%s%d", CB_PREFIX_BASE, f01->id);
 	}
 
@@ -3461,7 +3457,11 @@ output_local_anim_field(struct cb_field* f, cb_tree x) {
 
 	if(!f || f->flag_initialized_local) return;
 	
-	if(animflag_set /*&& !f->parent*/) {
+#if 0 /* checkme - anim */
+	if (cobc_wants_anim && !f->parent) {
+#else
+	if (cobc_wants_anim) {
+#endif
 		if(!x) x = cb_build_field_reference (f, NULL);
 
 		if(!f->flag_filler && f->flag_local) {
@@ -5930,7 +5930,9 @@ _update_debugger_source_buffer(int source_line, char c) {
 	char* work_ptr;
 	int i;
 
-	if(source_line >= debug_source_lines) return;
+	if ((source_line >= debug_source_lines)
+	 || (source_line < anim_first_stmt))
+		return;
 	
 	work_ptr = debug_source_buffer;
 	for(i=0; i < source_line - 1; i++) {
@@ -6034,7 +6036,7 @@ output_stmt (cb_tree x)
 #endif
 	size_t			size;
 	int			code;
-	int i; /* EB */
+	unsigned char	jmp_c = ' '; /* EB */
 
 	stack_id = 0;
 	if (x == NULL) {
@@ -6062,7 +6064,7 @@ output_stmt (cb_tree x)
 			output_line ("/* Line: %-10d: %-19.19s: %s */",
 				     x->source_line, p->name, x->source_file);
 			comm_source_line = x->source_line;	/* EB */
-			if (animflag_set) {	/* EB */
+			if (cobc_wants_anim) {	/* EB */
 				if (do_anim_init) {	/* EB */
 					do_anim_init = 0;	/* EB */
 					anim_first_stmt = x->source_line;	/* EB */
@@ -6080,7 +6082,7 @@ output_stmt (cb_tree x)
 				_update_debugger_source_buffer(x->source_line, 'P');
 
 
-				i = (strncasecmp(p->name, "PERFORM", 7) == 0 || strncasecmp(p->name, "CALL", 4) == 0) ? 'P' : ' ';	/* EB */
+				jmp_c = (strncasecmp(p->name, "PERFORM", 7) == 0 || strncasecmp(p->name, "CALL", 4) == 0) ? 'P' : ' ';	/* EB */
 				if (anim_gotoline != x->source_line)	// check for 2 statements on 1 line	/* EB */
 				{	/* EB */
 					anim_gotoline = x->source_line;	/* EB */
@@ -6089,7 +6091,7 @@ output_stmt (cb_tree x)
 
 					output_line("\tsprintf(work, \"%%06d\", %i);", anim_gotoline);	/* EB */
 					output_line("\tmemcpy (b_cb + 43, work, 6);");	/* EB */
-					output_line("\tb_ct[0] = \'%c\';", i);		/* EB */
+					output_line("\tb_ct[0] = \'%c\';", jmp_c);		/* EB */
 					output_line("\tmodule->cob_procedure_params[0] = &f_cb;");	/* EB */
 					output_line("\tmodule->cob_procedure_params[1] = &f_ct;");	/* EB */
 					output_line("\tcob_glob_ptr->cob_call_params = 2;");		/* EB */
@@ -6099,18 +6101,22 @@ output_stmt (cb_tree x)
 					output_line("\ttmp_ret = call_Xanim.funcint (b_cb, b_ct);");	/* EB */
 					
 					
-					if(i == '0') {
+					if (jmp_c == '0') { // urgent FIXME: never possible, should it check for ' ' ?
 						output_line("\tif (tmp_ret == 0)");
 						output_line("\t\tgoto goto_reset;");
 					}
-					//output_line("\telse if (b_cb[0] == 'C') {\t\t///check for a reset cursor request");	/* EB */
-					//output_line("\t\tmemcpy(work, b_cb + 43, 6);");	/* EB */
-					//output_line("\t\twork[6] = '\\0';");		/* EB */
-					//output_line("\t\tanim_gotoline = atoi(work);");	
+#if 0 /* anim - checkme */
+					output_line("\telse if (b_cb[0] == 'C') {\t\t///check for a reset cursor request");	/* EB */
+					output_line("\t\tmemcpy(work, b_cb + 43, 6);");	/* EB */
+					output_line("\t\twork[6] = '\\0';");		/* EB */
+					output_line("\t\tanim_gotoline = atoi(work);");	
+#endif
 					
 					output_line("\tif(anim_gotoline) goto goto_reset;");
 					
-					//output_line ("\tif (_callanim (%d, '%c', module)) goto goto_reset;", anim_gotoline, i);	/* EB */
+#if 0 /* anim with extra module */
+					output_line ("\tif (_callanim (%d, '%c', module)) goto goto_reset;", anim_gotoline, jmp_c);	/* EB */
+#endif
 					output_line ("}");
 				}	/* EB */
 				/* EB */
@@ -6147,7 +6153,7 @@ output_stmt (cb_tree x)
 		/* If Perform or Call got excuted, tell the debugger that we are back from jump target.
 		 * Neccesary for Step-Over-Mode
 		 */
-		if (animflag_set && p->name && i == 'P') {
+		if (cobc_wants_anim && p->name && jmp_c == 'P') {
 			output_line("if(cob_anim_local) {");
 			output_line("\tb_ct[0] = \'R\';");		
 			output_line("\tmodule->cob_procedure_params[0] = &f_cb;");	
@@ -7225,7 +7231,7 @@ output_module_init (struct cb_program *prog)
 }
 
 static void
-output_anim_field_global_redefines_recursive(struct cb_field* f, struct cb_field* redefined_field) {
+output_anim_field_global_redefines_recursive (struct cb_field* f, struct cb_field* redefined_field) {
 	/* Output of anim_field definitions for redefined (structured) cobol fields */
 	struct field_list* k;
 	struct base_list *blp, *blp2;
@@ -7279,7 +7285,7 @@ output_anim_field_global_redefines_recursive(struct cb_field* f, struct cb_field
 }
 
 static void
-output_anim_field_working_redefines_recursive(struct cb_field* f, struct cb_field* redefined_field) {
+output_anim_field_working_redefines_recursive (struct cb_field* f, struct cb_field* redefined_field) {
 	/* Output of anim_field definitions for redefined (structured) cobol fields */
 	struct field_list* k;
 	struct base_list *blp, *blp2;
@@ -7338,7 +7344,7 @@ output_anim_field_working_redefines_recursive(struct cb_field* f, struct cb_fiel
 }
 
 static void
-output_anim_field_local_redefines_recursive(struct cb_field* f, struct cb_field* redefined_field) {
+output_anim_field_local_redefines_recursive (struct cb_field* f, struct cb_field* redefined_field) {
 	/* Output of anim_field definitions for local-storage redefined (structured) cobol fields */
 	struct field_list* k;
 	struct cb_field *sibling;//, *parent;
@@ -7370,7 +7376,7 @@ output_anim_field_local_redefines_recursive(struct cb_field* f, struct cb_field*
 }
 
 static void 
-output_anim_field_local_recursive(struct cb_field* f) {
+output_anim_field_local_recursive (struct cb_field* f) {
 	/* Output of anim_field definitions for structured cobol fields */
 	struct field_list* k;
 	struct cb_field* sibling;
@@ -7408,7 +7414,7 @@ output_anim_field_local_recursive(struct cb_field* f) {
 }
 
 static void 
-output_anim_field_working_recursive(struct cb_field* f) {
+output_anim_field_working_recursive (struct cb_field* f) {
 	/* Output of anim_field definitions for structured cobol fields */
 	struct field_list* k;
 	struct base_list *blp, *blp2;
@@ -7486,7 +7492,7 @@ output_anim_field_working_recursive(struct cb_field* f) {
 
 
 static void 
-output_anim_field_global_recursive(struct cb_field* f) {
+output_anim_field_global_recursive (struct cb_field* f) {
 	/* Output of anim_field definitions for structured cobol fields */
 	struct field_list* k;
 	struct base_list *blp, *blp2;
@@ -7545,7 +7551,7 @@ output_anim_field_global_recursive(struct cb_field* f) {
 }
 
 static void
-output_linkage_init_redefines_recursive(struct cb_field* f) {
+output_linkage_init_redefines_recursive (struct cb_field* f) {
 	struct cb_field *sibling, *redefined_parent;
 	int parent_id = 0;
 	int offset = 0;
@@ -7584,7 +7590,7 @@ output_linkage_init_redefines_recursive(struct cb_field* f) {
 }
 
 static void
-output_linkage_init_recursive(struct cb_field* f) {
+output_linkage_init_recursive (struct cb_field* f) {
 	struct cb_field* sibling;
 	int parent_id = 0;
 	int offset = 0;
@@ -7609,7 +7615,7 @@ output_linkage_init_recursive(struct cb_field* f) {
 }
 
 static void
-output_internal_function (struct cb_program *prog, cb_tree parameter_list, int nested)
+output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 {
 	cb_tree			l;
 	cb_tree			l2;
@@ -7678,11 +7684,16 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		}
 	}
 
-	if(!nested) {
+#if 0 /* checkme: was in anim-branch before */
+	if (!prog->nested_level) {
+#endif
 		/* Module initialization indicator */
 		output_local ("/* Module initialization indicator */\n");
 		output_local ("static unsigned int\tinitialized = 0;\n\n");
+
+#if 0 /* checkme: was in anim-branch before */
 	}
+#endif
 
 	output_local ("/* Module structure pointer */\n");
 #if	0	/* RXWRXW - MODULE */
@@ -7700,18 +7711,22 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	}
 #endif
 
-	if(!nested) {
+#if 0 /* checkme: was in anim-branch before */
+	if (!prog->nested_level) {
+#endif
 #if	1	/* RXWRXW - GLOBPTR */
 		output_local ("/* Global variable pointer */\n");
 		output_local ("cob_global\t\t*cob_glob_ptr;\n\n");
 #endif
+#if 0 /* checkme: was in anim-branch before */
 	}
+#endif
 
 	/* Decimal structures */
 	if (prog->decimal_index_max) {
 		output_local ("/* Decimal structures */\n");
 		for (i = 0; i < prog->decimal_index_max; i++) {
-			output_local ("cob_decimal\t*d%d;\n", i); /* EB */
+			output_local ("cob_decimal\t*d%d;\n", i);
 		}
 		output_local ("\n");
 	}
@@ -7837,18 +7852,18 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 				break;
 			}
 		}
-				
 		if (l == NULL) {
 			if (!f->flag_is_returning) {
 				output_local ("static ");
 			}
 			output_local ("unsigned char\t*%s%d = NULL;  /* %s */\n",
 				     CB_PREFIX_BASE, f->id, f->name);
+#if 0 /* checkme -anim */
+		} else if (cobc_wants_anim) {
+			output_local ("static cob_u8_t* %s%d_copy; /* %s */\n", CB_PREFIX_BASE, f->id, f->name);
+			f->flag_linkage_copy = 1;
+#endif
 		}
-		//else if(animflag_set) {
-		//	output_local("static cob_u8_t* %s%d_copy; /* %s */\n", CB_PREFIX_BASE, f->id, f->name);
-		//	f->flag_linkage_copy = 1;
-		//}
 	}
 	output_local ("\n");
 
@@ -7893,7 +7908,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_newline ();
 	}
 
-	if(animflag_set) {
+	if (cobc_wants_anim) {
 		output_line("/* Some local variables needed to call the debugger module */");
 		output_line("\tunion cob_call_union call_Xanim = { NULL };");	/* EB */
 		output_line("\tchar work[12];");								/* EB */
@@ -7910,12 +7925,14 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	output_line ("static int cob_anim_local = 0;"); /* EB */
 	output_newline ();
 
+#if 0 /* checkme: was in anim-branch before */
 	/* reset initialize flag for nested programs */
-	if(nested) {
+	if (prog->nested_level) {
 		output_line ("/* reset initialized flag if nested program */");
 		output_line ("initialized = 0;");
 		output_newline ();
 	}
+#endif
 
 	/* CANCEL callback */
 	if (prog->prog_type == CB_PROGRAM_TYPE) {
@@ -8069,16 +8086,15 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	output_line ("P_ret_initialize:");
 	output_newline ();
 
-	if(animflag_set) {
+	if (cobc_wants_anim) {
 		/* Initialize debugger linkage fields */
 		output_line("/* Initialize debugger linkage fields */");
-		for(f = prog->linkage_storage; f; f = f->sister) {
-			if(!is_in_using_list(f, prog)) continue;
+		for (f = prog->linkage_storage; f; f = f->sister) {
+			if (!is_in_using_list(f, prog)) continue;
 
-			if(f->redefines) {
+			if (f->redefines) {
 				output_linkage_init_redefines_recursive(f);
-			}
-			else {
+			} else {
 				output_line("d_%d.src_field->data = %s%d;", f->id, CB_PREFIX_BASE, f->id);
 				f->flag_linkage_init = 1;
 				if(f->children)
@@ -8089,13 +8105,17 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 
 		/* Initialize debugger control block */
 		output_line ("/* Initializing debugger control block */");	/* EB */
-		if(!nested) 
+
+#if 0 /* checkme: was in anim-branch before */
+		if (!prog->nested_level) {
+#endif
 			output_line ("memset (b_cb, '0', sizeof(b_cb));");	/* EB */
 			output_line ("*(unsigned char *) (b_cb) = 'I';\t// state");	/* EB */
-		if(!nested) {
 			output_line ("memset (b_cb + 1, ' ', 30);\t// src-name");	/* EB */
-			output_line ("memcpy (b_cb + 1, \"%s\", %d);", prog->orig_program_id, strlen(prog->orig_program_id));	/* EB */
+			output_line ("memcpy (b_cb + 1, \"%s\", %d);", prog->orig_program_id, (int)strlen(prog->orig_program_id));	/* EB */
+#if 0 /* checkme: was in anim-branch before */
 		}
+#endif
 		output_line ("memset (b_cb + 66, ' ', 280);\t// datafield-value\n");	/* EB */
 		anim_first_stmt = 0;	/* EB */
 	}
@@ -8178,7 +8198,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	}
 
 	/* Check for ani-File */
-	if (animflag_set) { /* EB */
+	if (cobc_wants_anim) { /* EB */
 		output_line ("/* Check for debugger and set cob_anim_local */"); /* EB */
 		output_line ("if(cob_glob_ptr->cob_anim) {"); /* EB */
 		
@@ -8345,16 +8365,18 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_newline ();
 	}
 
-	if (animflag_set) {				/* EB */
-		//for (f = prog->linkage_storage; f; f = f->sister) {
-		//	if (f->redefines) {
-		//		continue;
-		//	}
-		//	if(f->flag_linkage_copy) {
-		//		output_line("memcpy(%s%d, %s%d_copy, %d); /* Copy for %s */", CB_PREFIX_BASE, f->id, CB_PREFIX_BASE, f->id, f->size, f->name);
-		//		output_line("free(%s%d_copy);", CB_PREFIX_BASE, f->id);
-		//	}	
-		//}		
+	if (cobc_wants_anim) {				/* EB */
+#if 0 /* checkme -anim */
+		for (f = prog->linkage_storage; f; f = f->sister) {
+			if (f->redefines) {
+				continue;
+			}
+			if(f->flag_linkage_copy) {
+				output_line("memcpy(%s%d, %s%d_copy, %d); /* Copy for %s */", CB_PREFIX_BASE, f->id, CB_PREFIX_BASE, f->id, f->size, f->name);
+				output_line("free(%s%d_copy);", CB_PREFIX_BASE, f->id);
+			}
+		}
+#endif
 
 		output_line("if (cob_anim_local) {");
 		output_line ("\t/* Close animator */");	/* EB */
@@ -8597,7 +8619,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	/* Set cob_glob_ptr->cob_orig_program_id */
 	//output_line ("orig_program_id = \"%s\";", cb_encode_program_id(prog->orig_program_id));
 	output_line ("orig_program_id = \"%s\";", prog->orig_program_id);
-	if(animflag_set) {
+	if (cobc_wants_anim) {
 		output_line ("last_anim_field = &d_end;");
 		output_line ("last_anim_field_local = &d_l_end;");
 		output_line ("last_anim_field_global = &dg_end;");
@@ -8681,7 +8703,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_newline ();
 	}
 
-	if (animflag_set) {	/* EB */
+	if (cobc_wants_anim) {	/* EB */
 		output_newline ();	/* EB */
 		//output_line("/* Initialize linkage local copies */");
 		for (f = prog->linkage_storage; f; f = f->sister) {
@@ -8834,46 +8856,22 @@ cancel_end:
 	/* End of CANCEL callback code */
 
 prog_cancel_end:
-	if (animflag_set)			/* EB */
-	{					/* EB */
-		output_newline ();		/* EB */
+	if (cobc_wants_anim) {
+		output_newline ();
 		output_line ("if (cob_anim_local) {");
 		output_line ("/* Table with linenumbers to jump to for 'reset cursor' function */");	/* EB */
 		output_line ("\tgoto_reset:;");	/* EB */
-                memset(animcb + 3, 0, ANIMKEYSIZE);	/* EB */
-		//animcb[0] = 'S';			/* EB */
-		//(void) animod(animcb);			/* EB */
 
 		work_ptr = debug_source_buffer;
 		for(i = 0; i < debug_source_lines; i++) {
-			if(work_ptr[0] == 'P')
+			if(work_ptr[0] == 'P' && i >= anim_first_stmt)
 				output_line("\tif (anim_gotoline == %d) goto l_anim_%d;", i + 1, i + 1);
 			
 			eol = strchr(work_ptr, '\n');
 			work_ptr = eol + 1;
 		}
-
-		//while (1)				/* EB */
-		//{					/* EB */
-		//	animcb[0] = 'N';		/* EB */
-		//	(void) animod(animcb);		/* EB */
-		//	if (animcb[1] != '0' || animcb[2] != '0')	/* EB */
-		//		break;	/* EB */
-		//	memcpy(animdata, animcb + 3, ANIMDATASIZE);	/* EB */
-		//	if (animdata[ANIMKEYSIZE] == 'P')	/* EB */
-		//	{			/* EB */
-		//		animdata[ANIMKEYSIZE] = '\0';	/* EB */
-		//		i = atoi(animdata);		/* EB */
-		//		if (i > debug_source_lines)	/* EB */
-		//			break;	/* EB */
-		//		output_line("\tif (anim_gotoline == %d) goto l_anim_%d;", i, i);		/* EB */
-		//	}			/* EB */
-		//}				/* EB */
 		output_line ("}");
-
-		//animcb[0] = 'C';			/* EB */
-		//animod(animcb);// close ani file	/* EB */
-	}					/* EB */
+	}
 
 	output_indent ("}");
 	output_newline ();
@@ -8886,43 +8884,45 @@ prog_cancel_end:
 	output_newline ();
 
 
-	//if (animflag_set && !nested) {			/* EB */
-	//	output_newline();		/* EB */
-	//	output_line ("/* Call to the animator module */");/* EB */
-	//	output_line("static int\t_callanim(int line, char type, cob_module* module)");	/* EB */
-	//	output_line("{");		/* EB */
-	//	output_line("\tstatic union cob_call_union call_Xanim = { NULL };");	/* EB */
-	//	output_line("\tchar work[12];");/* EB */
-	//	output_line("\tint tmp_ret;");
-	//	output_newline();		/* EB */
-	//	output_line("\tsprintf(work, \"%c06d\", line);", '%');	/* EB */
-	//	output_line("\tmemcpy (b_cb + 43, work, 6);");	/* EB */
-	//	output_line("\tb_ct[0] = type;");		/* EB */
-	//	output_newline();		/* EB */
-	//	output_line("\tmodule->cob_procedure_params[0] = &f_cb;");	/* EB */
-	//	output_line("\tmodule->cob_procedure_params[1] = &f_ct;");	/* EB */
-	//	output_line("\tmodule->cob_procedure_params[2] = NULL;");	/* EB */
-	//	output_line("\tmodule->cob_procedure_params[3] = NULL;");	/* EB */
-	//	output_line("\tmodule->cob_procedure_params[4] = NULL;");	/* EB */
-	//	//output_line("\tcob_get_global_ptr()->cob_call_params = 2;");		/* EB */
-	//	output_line("\tcob_glob_ptr->cob_call_params = 2;");		/* EB */
-	//	output_line("\tif (unlikely(call_Xanim.funcvoid == NULL)) {");	/* EB */
-	//	output_line("\t  call_Xanim.funcvoid = cob_resolve ((const char *)\"gc-debugger\");");			/* EB */
-	//	output_line("\t}");		/* EB */
-	//	output_line("\ttmp_ret = call_Xanim.funcint (b_cb, b_ct);");	/* EB */
-	//	//output_line("\tfprintf(stderr, \"Xanim returns: %%i, Type: %%c\\n\", tmp_ret, type);");
-	//	output_newline();		/* EB */
-	//	output_line("\tif (b_ct[0] == '0')");
-	//	output_line("\t\treturn tmp_ret;");
-	//	output_line("\tif (b_cb[0] == 'C') {\t\t///check for a reset cursor request");	/* EB */
-	//	output_line("\t\tmemcpy(work, b_cb + 43, 6);");	/* EB */
-	//	output_line("\t\twork[6] = '\\0';");		/* EB */
-	//	output_line("\t\tanim_gotoline = atoi(work);");	
-	//	output_line("\t\treturn(anim_gotoline);");		/* EB */
-	//	output_line("\t}");		/* EB */
-	//	output_line("\treturn(0);");	/* EB */
-	//	output_line("}");		/* EB */
-	//}					/* EB */
+#if 0 /* anim with extra module */
+	if (cobc_wants_anim && !nested) {			/* EB */
+		output_newline();		/* EB */
+		output_line ("/* Call to the animator module */");/* EB */
+		output_line("static int\t_callanim(int line, char type, cob_module* module)");	/* EB */
+		output_line("{");		/* EB */
+		output_line("\tstatic union cob_call_union call_Xanim = { NULL };");	/* EB */
+		output_line("\tchar work[12];");/* EB */
+		output_line("\tint tmp_ret;");
+		output_newline();		/* EB */
+		output_line("\tsprintf(work, \"%c06d\", line);", '%');	/* EB */
+		output_line("\tmemcpy (b_cb + 43, work, 6);");	/* EB */
+		output_line("\tb_ct[0] = type;");		/* EB */
+		output_newline();		/* EB */
+		output_line("\tmodule->cob_procedure_params[0] = &f_cb;");	/* EB */
+		output_line("\tmodule->cob_procedure_params[1] = &f_ct;");	/* EB */
+		output_line("\tmodule->cob_procedure_params[2] = NULL;");	/* EB */
+		output_line("\tmodule->cob_procedure_params[3] = NULL;");	/* EB */
+		output_line("\tmodule->cob_procedure_params[4] = NULL;");	/* EB */
+		//output_line("\tcob_get_global_ptr()->cob_call_params = 2;");		/* EB */
+		output_line("\tcob_glob_ptr->cob_call_params = 2;");		/* EB */
+		output_line("\tif (unlikely(call_Xanim.funcvoid == NULL)) {");	/* EB */
+		output_line("\t  call_Xanim.funcvoid = cob_resolve ((const char *)\"gc-debugger\");");			/* EB */
+		output_line("\t}");		/* EB */
+		output_line("\ttmp_ret = call_Xanim.funcint (b_cb, b_ct);");	/* EB */
+		//output_line("\tfprintf(stderr, \"Xanim returns: %%i, Type: %%c\\n\", tmp_ret, type);");
+		output_newline();		/* EB */
+		output_line("\tif (b_ct[0] == '0')");
+		output_line("\t\treturn tmp_ret;");
+		output_line("\tif (b_cb[0] == 'C') {\t\t///check for a reset cursor request");	/* EB */
+		output_line("\t\tmemcpy(work, b_cb + 43, 6);");	/* EB */
+		output_line("\t\twork[6] = '\\0';");		/* EB */
+		output_line("\t\tanim_gotoline = atoi(work);");	
+		output_line("\t\treturn(anim_gotoline);");		/* EB */
+		output_line("\t}");		/* EB */
+		output_line("\treturn(0);");	/* EB */
+		output_line("}");		/* EB */
+	}					/* EB */
+#endif
 
 }
 
@@ -9488,16 +9488,12 @@ static void
 output_header (FILE *fp, const char *locbuff, const struct cb_program *cp)
 {
 	int	i;
-	FILE	*tmpfp;			/* EB */
-	char	tmp1[512];//, tmp2[512];	/* EB */
-	long int filesize = 0;
-	char* work_ptr;
 
 	if (fp) {
 		fprintf (fp, "/* Generated by            cobc %s.%d */\n",
 			 PACKAGE_VERSION, PATCH_LEVEL);
 		fprintf (fp, "/* Generated from          %s */\n", cb_source_file);
-		if (animflag_set)	/* EB */
+		if (cobc_wants_anim)	/* EB */
 			fprintf (fp, "/* Generated animating module */\n");	/* EB */
 		fprintf (fp, "/* Generated at            %s */\n", locbuff);
 		fprintf (fp, "/* GnuCOBOL build date    %s */\n", cb_oc_build_stamp);
@@ -9512,33 +9508,39 @@ output_header (FILE *fp, const char *locbuff, const struct cb_program *cp)
 				 cp->orig_program_id);
 		}
 	}
+}
 
-	if (animflag_set && ! animinitdone) {
-		animinitdone = 1;
-		filesize = get_filesize(cb_source_file);
-			
-		if(debug_source_buffer) cob_free(debug_source_buffer);
-		debug_source_buffer = (char*) cob_fast_malloc((size_t) filesize);
+static void
+count_debug_lines (void)
+{
+	FILE	*tmpfp;			/* EB */
+	char	tmp1[512];//, tmp2[512];	/* EB */
+	long int filesize = 0;
+	char* work_ptr;
 
-		/* read source code into buffer */
-		/* count the number of lines */
-		tmpfp = fopen(cb_source_file, "r");
-		debug_source_lines = 0;		
-		work_ptr = debug_source_buffer;
-		while (fgets(tmp1, sizeof(tmp1), tmpfp) != NULL) {
-			debug_source_lines++;	
-			if(strlen(tmp1) > 5) {
-				strcpy(work_ptr, tmp1 + 5);
-				work_ptr += strlen(tmp1 + 5);
-			}
-			else {
-				strcpy(work_ptr, tmp1);
-				work_ptr += strlen(tmp1);
-			}
-			
+	filesize = get_filesize(cb_source_file);
+
+	if(debug_source_buffer) cob_free(debug_source_buffer);
+	debug_source_buffer = (char*) cob_fast_malloc((size_t) filesize);
+
+	/* read source code into buffer */
+	/* count the number of lines */
+	tmpfp = fopen(cb_source_file, "r");
+	debug_source_lines = 0;
+	work_ptr = debug_source_buffer;
+	while (fgets(tmp1, sizeof(tmp1), tmpfp) != NULL) {
+		debug_source_lines++;	
+		if(strlen(tmp1) > 5) {
+			strcpy(work_ptr, tmp1 + 5);
+			work_ptr += strlen(tmp1 + 5);
 		}
-		fclose(tmpfp);
+		else {
+			strcpy(work_ptr, tmp1);
+			work_ptr += strlen(tmp1);
+		}
+	
 	}
+	fclose(tmpfp);
 }
 
 void
@@ -9569,7 +9571,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	/* Animator/Debugger variables */
 	char* eol;
 	char* work_ptr;
-	char* encoded_prog_name;
+	char* encoded_prog_name = NULL;
 
 	/* Clear local program stuff */
 	current_prog = prog;
@@ -9603,6 +9605,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	excp_current_section = NULL;
 	excp_current_paragraph = NULL;
 	memset ((void *)i_counters, 0, sizeof (i_counters));
+	anim_first_stmt = 0;
 #if	0	/* RXWRXW - Sticky */
 	save_sticky = cb_sticky_linkage;
 #endif
@@ -9626,6 +9629,10 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		field_cache = NULL;
 		string_cache = NULL;
 		string_id = 1;
+
+		if (cobc_wants_anim) {
+			count_debug_lines();
+		}
 		if (!string_buffer) {
 			string_buffer = cobc_main_malloc ((size_t)COB_MINI_BUFF);
 		}
@@ -9698,7 +9705,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		output ("/* Global variables */\n");
 		output ("#include \"%s\"\n\n", cb_storage_file_name);
 		output ("static char* orig_program_id;\n");
-		if(animflag_set) output ("struct anim_field empty_anim_field = {\"Not found\", NULL, NULL, 9, 0, \"-\", NULL, NULL, {0, 0}};\n\n");
+		if (cobc_wants_anim) output ("struct anim_field empty_anim_field = {\"Not found\", NULL, NULL, 9, 0, \"-\", NULL, NULL, {0, 0}};\n\n");
 
 		output ("/* Function prototypes */\n\n");
 		for (cp = prog; cp; cp = cp->next_program) {
@@ -9762,10 +9769,10 @@ codegen (struct cb_program *prog, const int subsequent_call)
 			if (cb_flag_stack_check) {
 				output (") COB_NOINLINE;\n");
 			} else {
-#endif
 				output (");\n");
-#if	0	/* RXWRXW - NOINLINE */
 			}
+#else
+			output (");\n");
 #endif
 		}
 		output ("\n");
@@ -9783,8 +9790,10 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	if (prog->flag_main) {
 		output_main_function (prog);
 	}
-	if (animflag_set && !nested) { /* EB */
-		//output("static int\t_callanim(int, char, cob_module*);\n"); /* EB */
+	if (cobc_wants_anim && !subsequent_call) { /* EB */
+#if 0 /* anim with extra module */
+		output("static int\t_callanim(int, char, cob_module*);\n"); /* EB */
+#endif
 		encoded_prog_name = cb_encode_program_id(prog->orig_program_id);
 		if(encoded_prog_name[0] == '_')
 			encoded_prog_name++;
@@ -9798,7 +9807,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		output ("/* Functions */\n\n");
 	}
 
-	if(animflag_set && !nested) {
+	if (cobc_wants_anim && !subsequent_call) {
 		// get_linecount function for animator
 		output("int get_linecount_%s () {\n", encoded_prog_name);
 		output("\treturn linecount;\n");
@@ -9826,7 +9835,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		output_entry_function (prog, l, prog->parameter_list, 1);
 	}
 
-	output_internal_function (prog, prog->parameter_list, nested);
+	output_internal_function (prog, prog->parameter_list);
 
 	if (!prog->next_program) {
 		output ("/* End functions */\n\n");
@@ -9978,7 +9987,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	output_local_field_cache ();
 
 
-	if(animflag_set) {
+	if (cobc_wants_anim) {
 		/* Initialize local debugger fields */
 		output_local("/* Debugger field definitions */\n");
 		output_local("static anim_field d_l_0 = { NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, {0, 0} };\n");
@@ -9994,15 +10003,13 @@ codegen (struct cb_program *prog, const int subsequent_call)
 			if (! f->redefines) {
 				base_id_local = f->id;
 			
-				if(f->flag_field) {
+				if (f->flag_field) {
 					k = get_field_list_from_local_field_cache(f);
 					output_local("static anim_field d_l_%d\t= {\"%s\", &%s%d, NULL, %d, %d, \"%s\", &d_l_%d, NULL, {0, %d}};\n", f->id,f->name, CB_PREFIX_FIELD, base_id_local, f->size, f->usage, k->curr_prog, previous_anifield_id_local, f->occurs_max);
-				}
-				else {
+				} else {
 					output_local("static anim_field d_l_%d\t= {\"%s\", NULL, NULL, %d, %d, \"%s\", &d_l_%d, NULL, {0, 0}};\n", f->id,f->name, f->size, f->usage, /*k->curr_prog*/ "not available", previous_anifield_id_local);
 				}
-			}
-			else {
+			} else {
 				output_anim_field_local_redefines_recursive(f, f->redefines);
 			}
 
@@ -10013,7 +10020,9 @@ codegen (struct cb_program *prog, const int subsequent_call)
 
 		for(f = prog->working_storage; f; f = f->sister) {
 			if(f->flag_is_global) continue;
-			//if (! f->redefines) {
+#if 0 /* checkme - anim (sounds reasonable) */
+			if (! f->redefines) {
+#endif
 				base_id = f->id;
 				if(f->flag_field) {
 					k = get_field_list_from_local_field_cache(f);
@@ -10026,10 +10035,11 @@ codegen (struct cb_program *prog, const int subsequent_call)
 					}
 					else output_local("static anim_field d_%d\t= {\"%s\", NULL, NULL, %d, %d, \"%s\", &d_%d, NULL, {0, 0}};\n", f->id, f->name, f->size, f->usage, /*k->curr_prog*/ "not available", previous_anifield_id);
 				}
-			//}
-			//else {
-			//	output_anim_field_working_redefines_recursive(f, f->redefines);
-			//}
+#if 0 /* checkme - anim (sounds reasonable) */
+			} else {
+				output_anim_field_working_redefines_recursive(f, f->redefines);
+			}
+#endif
 
 			parent_id = f->id;
 			previous_anifield_id = f->id;
@@ -10044,11 +10054,12 @@ codegen (struct cb_program *prog, const int subsequent_call)
 			if(f->flag_field || f->flag_cached) {
 				k = get_field_list_from_local_field_cache(f);
 				output_local("static anim_field d_%d\t= {\"%s\", &%s%d, NULL, %d, %d, \"%s\", &d_%d, NULL, {0, %d}};\n", f->id, f->name, CB_PREFIX_FIELD, base_id, f->size, f->usage, k->curr_prog, previous_anifield_id, f->occurs_max);
+#if 0 /* checkme - anim */
+			} else {
+				output_local("static anim_field d_%d\t= {\"%s\", NULL, %s%d, %d, %d, \"%s\", &d_%d, NULL, {0, %d}};\n", f->id, f->name, CB_PREFIX_BASE, base_id, f->size, f->usage, prog->orig_program_id, previous_anifield_id, f->occurs_max);
+			//  output_local("static anim_field d_%d\t= {\"%s\", NULL, NULL, %d, %d, \"%s\", &d_%d, NULL, {0, 0}};\n", f->id, f->name, f->size, f->usage, /*k->curr_prog*/ "not available", previous_anifield_id);
+#endif
 			}
-			//else {
-			//	output_local("static anim_field d_%d\t= {\"%s\", NULL, %s%d, %d, %d, \"%s\", &d_%d, NULL, {0, %d}};\n", f->id, f->name, CB_PREFIX_BASE, base_id, f->size, f->usage, prog->orig_program_id, previous_anifield_id, f->occurs_max);
-			//	//else output_local("static anim_field d_%d\t= {\"%s\", NULL, NULL, %d, %d, \"%s\", &d_%d, NULL, {0, 0}};\n", f->id, f->name, f->size, f->usage, /*k->curr_prog*/ "not available", previous_anifield_id);
-			//}
 
 			parent_id = f->id;
 			previous_anifield_id = f->id;
@@ -10071,7 +10082,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		output_local("/* End of debugger field definition */");
 	}
 
-/* EB */	if (animflag_set && !nested) {
+/* EB */	if (cobc_wants_anim && !subsequent_call) {
 /* EB */		output ("/* Animator interface block and info */\n");
 /* EB */		output ("static const\t\tcob_field_attr a_cb = {1, 0, 0, 0, NULL};\n");
 /* EB */		output ("static const\t\tcob_field_attr a_ct = {33, 0, 0, 0, NULL};\n");
@@ -10087,13 +10098,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
  * Generating a Array-Structure out of the anifile to ship the debug information
  * with the compiled module for faster access.
  */
-//	unsigned char ani_status[2] __attribute__((aligned));
-//	const cob_field_attr a_1 =	{0x10, 2, 0, 0x0000, NULL};
-//	cob_field ani_status_field = {2, ani_status, &a_1};
-//
-//	cob_open (h_ANI, 1, 0, &ani_status_field);
-
-	if(animflag_set && !nested) {
+	if (cobc_wants_anim && !subsequent_call) {
 		output("/* Debugger linecount */\n");
 		output("static int linecount = %i;\n\n", debug_source_lines);
 
@@ -10116,7 +10121,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 			debug_line_buffer[255] = 0x00;
 			if(len > 1)
 				memcpy(debug_line_buffer, work_ptr + 1, len - 1);
-			output_string(debug_line_buffer, 255, 0);
+			output_string((const unsigned char*)debug_line_buffer, 255, 0);
 			output(",\n");
 			
 			work_ptr += len + 1;
@@ -10164,7 +10169,7 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	output_attributes ();
 	output_nonlocal_field_cache ();
 
-	if (animflag_set) {
+	if (cobc_wants_anim) {
 		/* Initialize global debugger fields */
 		output_storage("\n\n/* Debugger field definitions */\n");
 		parent_id = 0;
@@ -10175,7 +10180,9 @@ codegen (struct cb_program *prog, const int subsequent_call)
 
 		for(f = prog->working_storage; f; f = f->sister) {
 			if(!f->flag_is_global) continue;
-			//if (! f->redefines) {
+#if 0 /* checkme - anim (sounds reasonable) */
+			if (! f->redefines) {
+#endif
 				base_id = f->id;
 				if(f->flag_field) {
 					k = get_field_list_from_field_cache(f);
@@ -10188,10 +10195,11 @@ codegen (struct cb_program *prog, const int subsequent_call)
 					}
 					else output_storage("static anim_field dg_%d\t= {\"%s\", NULL, NULL, %d, %d, \"%s\", &dg_%d, NULL, {0, 0}};\n", f->id, f->name, f->size, f->usage, /*k->curr_prog*/ "not available", previous_anifield_id);
 				}
-			//}
-			//else {
-			//	output_anim_field_working_redefines_recursive(f, f->redefines);
-			//}
+#if 0 /* checkme - anim (sounds reasonable) */
+			} else {
+				output_anim_field_working_redefines_recursive(f, f->redefines);
+			}
+#endif
 
 			parent_id = f->id;
 			previous_anifield_id = f->id;

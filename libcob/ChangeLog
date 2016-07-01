@@ -1,4 +1,9 @@
 
+2016-06-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* debugger.c: added draft for get_refmod(), fixed GCC warnings
+	* utils.c (ltrim): fixed not working function
+
 2016-06-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* common.h, coblocal.h: moved internal functions to coblocal as COB_HIDDEN

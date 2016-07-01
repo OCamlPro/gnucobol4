@@ -24,13 +24,12 @@ void rtrim(char* str) {
 	}
 }
 
-/* CHECKME */
 void ltrim(char* str) {
 	int i, j;
 	if(!str) return;
 
 	for(i = 0; i < strlen(str); i++) {
-		if(!str[i] == ' ') break;
+		if(!(str[i] == ' ')) break;
 	}
 
 	if(i > 0) {

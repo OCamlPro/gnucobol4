@@ -179,6 +179,7 @@ int			cb_field_id = 0;
 int			cobc_flag_main = 0;
 int			cb_flag_main = 0;
 int			cobc_wants_debug = 0;
+int			cobc_wants_anim = 0;
 int			cb_flag_functions_all = 0;
 int			cobc_seen_stdin = 0;
 
@@ -220,14 +221,6 @@ struct cb_exception cb_exception_table[] = {
 #include "warning.def"
 #undef	CB_WARNDEF
 #undef	CB_NOWARNDEF
-
-
-/* EB START */
-char	module_ext[8];
-int	animflag_set = 0;
-int	anim_source_lines = 0;
-char	animcb[100];
-/* EB END */
 
 
 /* Local variables */
@@ -2262,7 +2255,7 @@ process_command_line (const int argc, char **argv)
 
 /* EB START */
 		case 'a':
-			animflag_set = 1;
+			cobc_wants_anim = 1;
 			break;
 /* EB END */
 
@@ -2783,7 +2776,7 @@ process_filename (const char *filename)
 		/* Already compiled */
 		fn->need_preprocess = 0;
 		fn->need_translate = 0;
-		animflag_set = 0; /* Ignore -a option for C-Sources */
+		cobc_wants_anim = 0; /* Ignore -a option for C-Sources */
 	}
 	else if (
 #if	defined(__OS400__)

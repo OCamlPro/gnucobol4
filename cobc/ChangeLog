@@ -12,6 +12,18 @@
 	  in_replace. Also split code into new functions free_replace_list and
 	  copy_list_replace.
 
+2016-06-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: renamed animflags_set to cobc_wants_anim
+	* codegen.c: removed old unused code, moved inline comments with
+	  old/alternative code to #if 0
+	* codegen.c (output_internal_function): replaced nested parameter with
+	  check for prog->nested_level
+	* codegen.c: moved most animator specific checks of prog->nested_level
+	  to #if 0, fixing errors in generation of C code (if not -anim used)
+	* codegen.c (codegen): fixed generation of wrong goto statements in C code
+	  for single source files with multiple programs
+
 2016-06-28  Dave Pitts <dpitts@cozx.com>
 
 	* cobc.c: Fixed mystery edits that broke FILE and FILLER listing.

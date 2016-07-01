@@ -8,12 +8,42 @@
 
 struct anim_field empty_anim_field = {"Not found", NULL, NULL, 9, 0, "-", NULL, NULL, {0, 0}};
 
+#if 0 /* add & testme */
+/* Get possible reference modification
+   the debugger client has to check for a valid format and
+   has to replace constants/variable values already
+   only cater for: "(start:size)" and "(start:)
+*/
+static void get_refmod(int start, int size, char* str) {
+	int i, pos = 0;
+	int flag_size = 0;
+	char* subscripts = NULL;
+
+	i = strlen((const char*)str);
+	if(str[i] == ')') {
+		for(; i > 0; i--) {
+			if(str[i] == ':') flag_size = 1;
+			if(str[i] == '(') {
+				if (!flag_size) return;
+				pos = i;
+				break;
+			}
+		}
+	}
+
+	if (pos > 0) {
+		sscanf(str + pos, "%d:%d)", start, size);
+		str[pos] = 0x00; /* Cut refmod from str */
+	}
+}
+#endif
+
 static char* get_subscript(char* str) {
 	int i, pos = 0;
 	int flag_r_brace = 0;
 	char* subscripts = NULL;
 
-	for(i = strlen(str); i > 0; i--) {
+	for(i = strlen((const char*)str); i > 0; i--) {
 		if(str[i] == ')') flag_r_brace = 1;
 		if(str[i] == '(' && flag_r_brace) {
 			flag_r_brace = 0;
@@ -32,7 +62,6 @@ static char* get_subscript(char* str) {
 
 static int calculate_subscript_shift(char* str, struct anim_field* af) {
 	int i;
-	//int pos = 0;
 	int r_brace_pos;
 	int shift = 0;
 	int subscript_tmp;
@@ -41,7 +70,8 @@ static int calculate_subscript_shift(char* str, struct anim_field* af) {
 	/* Check if we've got any subscript expressions and count them */
 	i = strlen(str) - 1;
 	if(str[i] == ')') {
-		for(i; i >= 0; i--) {
+		r_brace_pos = i; /* fixing uninitialized warning */
+		for(; i >= 0; i--) {
 			if(str[i] == ')') r_brace_pos = i;
 			if(str[i] == '(') {
 				memset(&tmp_str, 0x00, 25);
@@ -65,7 +95,7 @@ static char* get_parent_base_data(anim_field* af) {
 	}
 
 	if(af->base_field) return (char*) af->base_field;
-	if(af->src_field && af->src_field->data) return af->src_field->data;
+	if(af->src_field && af->src_field->data) return (char *)af->src_field->data;
 
 	return NULL;
 }
@@ -100,10 +130,15 @@ void anidata(anim_field* caf, anim_field* cafl, anim_field* cafg, interface_bloc
 	/* All to upper case for comparing */
 	all_to_upper(f_name_cpy);
 
+	
+	/* fixme: reference modification must be checked/cut here */
+	// get_refmod(&start, &size, f_name_cpy);
+
 	/* Has Subscript? Cut it... */
 	subscript = get_subscript(f_name_cpy);
 		
 	 /* Search working-storage variables */
+	/* fixme: needs cleanup (nearly identical to local-storage) */
 	while (caf && caf->field_name && orig_program_id) {
 		/* ignore case differences */
 		caf_field_name_cpy = cob_strdup(caf->field_name);
