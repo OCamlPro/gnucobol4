@@ -41,6 +41,12 @@
 #define COB_ALIGN ""
 #endif
 
+#if	(defined(_WIN32) || defined(__CYGWIN__)) && !defined(__clang__)
+#define COB_EXPORT_PRF "__declspec(dllexport) "
+#else
+#define COB_EXPORT_PRF ""
+#endif
+
 #define COB_MAX_SUBSCRIPTS	16
 
 #define COB_MALLOC_ALIGN	15
@@ -759,10 +765,10 @@ output_data (cb_tree x)
 						output (" * ");
 					} else {
 					/* ... use field size otherwise */
-					output (" + ");
-					if (f->size != 1) {
-						output ("%d * ", f->size);
-					}
+						output (" + ");
+						if (f->size != 1) {
+							output ("%d * ", f->size);
+						}
 					}
 					if (cb_flag_odoslide && f->depending) {
 						o_slide = f;
@@ -7688,9 +7694,9 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 	}
 #else
 	if (prog->flag_recursive) {
-			output_local ("cob_module\t\t*module = NULL;\n\n");
+		output_local ("cob_module\t\t*module = NULL;\n\n");
 	} else {
-			output_local ("static cob_module\t*module = NULL;\n\n");
+		output_local ("static cob_module\t*module = NULL;\n\n");
 	}
 #endif
 
@@ -8085,7 +8091,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list, int n
 		output_line ("/* Initializing debugger control block */");	/* EB */
 		if(!nested) 
 			output_line ("memset (b_cb, '0', sizeof(b_cb));");	/* EB */
-		output_line ("*(unsigned char *) (b_cb) = 'I';\t// state");	/* EB */
+			output_line ("*(unsigned char *) (b_cb) = 'I';\t// state");	/* EB */
 		if(!nested) {
 			output_line ("memset (b_cb + 1, ' ', 30);\t// src-name");	/* EB */
 			output_line ("memcpy (b_cb + 1, \"%s\", %d);", prog->orig_program_id, strlen(prog->orig_program_id));	/* EB */
@@ -8952,11 +8958,9 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 		do_anim_init = 1;	/* EB */
 	}
 
-#if	(defined(_WIN32) || defined(__CYGWIN__)) && !defined(__clang__)
 	if (!gencode && !prog->nested_level) {
-		output ("__declspec(dllexport) ");
+		output (COB_EXPORT_PRF);
 	}
-#endif
 
 	if (unlikely(prog->prog_type == CB_FUNCTION_TYPE)) {
 		if (gencode) {
@@ -9784,9 +9788,9 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		encoded_prog_name = cb_encode_program_id(prog->orig_program_id);
 		if(encoded_prog_name[0] == '_')
 			encoded_prog_name++;
-		output("COB_EXPIMP int get_aniline_%s (unsigned long int*, char*);\n", encoded_prog_name);
-		output("COB_EXPIMP int get_linecount_%s ();\n", encoded_prog_name);
-		output("COB_EXPIMP void anidata_%s (char*, char*, char*);\n", encoded_prog_name);
+		output("%sint get_aniline_%s (unsigned long int*, char*);\n", COB_EXPORT_PRF, encoded_prog_name);
+		output("%sint get_linecount_%s ();\n", COB_EXPORT_PRF, encoded_prog_name);
+		output("%svoid anidata_%s (char*, char*, char*);\n", COB_EXPORT_PRF, encoded_prog_name);
 	}
 
 	/* Functions */
