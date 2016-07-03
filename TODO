@@ -44,6 +44,22 @@ that receives a data name and displays its value using the generated
 data hierarchy.  By calling the function from gdb, we can easily
 access the COBOL data at debugging time.
 
+5.2 Animator:
+* for allowing animation of executables and better performance: pass
+  the necessary function pointers to gc-debugger instead of exporting these
+  --> remove error in cobc.c: -anima and -x not allowed
+* check data display for multiple occurs and reference modification
+* check data display for LOCAL-STORAGE / BASED items
+* check data display for pointer, index, ...
+* (re-?)implement accept data
+* (re-?)implement "skip to cursor line" (internal go to) and
+  "go to cursor line" (temporary breakpoint)
+* use computed-goto instead of a switch for 'reset cursor' when GCC is used
+  (like we do in other places already)
+* code cleanup (and check if build_windows/debugger_sources should be removed)
+* gc-debugger.cob: needs a heavy performance optimization for the parts that
+  are called even if no debugging is active (GO STATE)
+
 6 Better user manual
 
 Yes, we should

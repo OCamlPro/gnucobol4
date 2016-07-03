@@ -789,9 +789,9 @@ cob_resolve_internal (const char *name, const char *dirent,
 
 	for (i = 0; i < resolve_size; ++i) {
 		call_filename_buff[COB_NORMAL_MAX] = 0;
-		if(cob_anim_tracing) { /* EB */
-        	fprintf(anilog, "Module Extension: %s\n", module_ext); /* EB */
-        	fprintf(anilog, "cob_anim: %i\n", cobglobptr->cob_anim); /* EB */
+		if (cob_anim_tracing) { /* EB */
+			fprintf(anilog, "Module Extension: %s\n", module_ext); /* EB */
+			fprintf(anilog, "cob_anim: %i\n", cobsetptr->cob_anim); /* EB */
 		} /* EB */
 
 		if (resolve_path[i] == NULL) {
@@ -805,7 +805,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 				  COB_MODULE_EXT);
 		}
 
-		if(cob_anim_tracing) {
+		if (cob_anim_tracing) {
 			fprintf(anilog, "Looping. Filename: %s\n", call_filename_buff);
 		}
 
@@ -820,10 +820,10 @@ cob_resolve_internal (const char *name, const char *dirent,
 					insert (name, func, handle, NULL,
 						call_filename_buff, 0);
 					resolve_error = NULL;
-					if(cob_anim_tracing) {
-        				fprintf(anilog, "Loaded module %s ...\n", call_filename_buff);
-        				fflush(anilog);
-        				fclose(anilog);
+					if (cob_anim_tracing) {
+						fprintf(anilog, "Loaded module %s ...\n", call_filename_buff);
+						fflush(anilog);
+						fclose(anilog);
 					}
 					return func;
 				}
@@ -831,7 +831,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 			set_resolve_error (_("Cannot find entry point"),
 					   (const char *)s);
 
-			if(cob_anim_tracing) {
+			if (cob_anim_tracing) {
 				fprintf(anilog, "Cannot find module '%s'\n", name);
 				fflush(anilog);
 				fclose(anilog);

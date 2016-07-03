@@ -1,4 +1,11 @@
 
+2016-07-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c: moved resolve of call_Xanim.funcvoid from generated modules to
+	  libcob (stored in cob_glob_ptr/cobsetptr instead of cob_anim); changed
+	  from cob_resolve to cob_resolve_cobol (hard error if not loadable)
+	* codegen.c (codegen): removed generation of empty_anim_field
+
 2016-06-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* debugger.c: added draft for get_refmod(), fixed GCC warnings

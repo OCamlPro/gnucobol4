@@ -242,6 +242,7 @@
 #define COB_BSWAP_64(val) (COB_BSWAP_64_CONSTANT (val))
 
 #endif
+
 #elif defined(_MSC_VER)
 
 #define COB_BSWAP_16(val) (_byteswap_ushort (val))
@@ -527,8 +528,8 @@ __pragma( warning(pop) )
 #define ONCE_COB while (0)
 #endif
 
-
 /* Macro to prevent unused parameter warning */
+
 #define	COB_UNUSED(z)	do { (void)(z); } ONCE_COB
 
 /* Buffer size definitions */
@@ -1221,7 +1222,7 @@ typedef struct __cob_global {
 	int			cob_max_y;		/* Screen max y */
 	int			cob_max_x;		/* Screen max x */
 
-	unsigned int		cob_anim; /* Animator/Debugger mode flag */
+	union cob_call_union	call_Xanim;   /* Animator/Debugger function */
 
 } cob_global;
 

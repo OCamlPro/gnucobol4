@@ -2187,6 +2187,10 @@ process_command_line (const int argc, char **argv)
 			if (cobc_flag_module || cobc_flag_library) {
 				cobc_options_error_build ();
 			}
+			/* temporary error - needs a generated callback to fix, see codegen */
+			if (cobc_wants_anim) {
+				cobc_err_exit (_("'-anim' currently doesn't work with '-x'"));
+			}
 			cobc_flag_main = 1;
 			cb_flag_main = 1;
 			no_physical_cancel = 1;
@@ -2255,6 +2259,10 @@ process_command_line (const int argc, char **argv)
 
 /* EB START */
 		case 'a':
+			/* temporary error - needs a generated callback to fix, see codegen */
+			if (cobc_flag_main) {
+				cobc_err_exit (_("'-anim' currently doesn't work with '-x'"));
+			}
 			cobc_wants_anim = 1;
 			break;
 /* EB END */

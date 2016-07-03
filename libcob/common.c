@@ -1881,7 +1881,7 @@ cob_module_leave (cob_module *module)
 }
 
 void *
-cob_save_func (cob_field** savefld, const int params,
+cob_save_func (cob_field **savefld, const int params,
 	       const int eparams, ...)
 {
 	struct cob_func_loc	*fl;
@@ -4377,7 +4377,6 @@ cob_strcat (char* str1, char* str2)
 	if (strbuff) {
 		cob_free (strbuff);
 	}
-	
 	strbuff = (char*) cob_fast_malloc(l);
 
 	sprintf (strbuff, "%s%s", temp1, temp2);
@@ -5636,9 +5635,6 @@ cob_init (const int argc, char **argv)
 	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
 	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;
 
-	/* Copy COB_ANIM from settings (internal) to global structure */
-	cobglobptr->cob_anim = cobsetptr->cob_anim;
-
 	/* Call inits with cobsetptr to get the adresses of all */
 	/* Screen-IO might be needed for error outputs */
 	cob_init_screenio(cobglobptr, cobsetptr);
@@ -5658,11 +5654,23 @@ cob_init (const int argc, char **argv)
 		sprintf (runtime_err_str, "COB_SWITCH_%d", i);
 		s = getenv (runtime_err_str);
 		if (s && (*s == '1' || strcasecmp (s, "ON") == 0)) {
-				cob_switch[i] = 1;
+			cob_switch[i] = 1;
 		} else {
-				cob_switch[i] = 0;
-			}
+			cob_switch[i] = 0;
 		}
+	}
+
+	/* Resolve animator function and store in global structure
+	   if COB_ANIM is set */
+	if (cobsetptr->cob_anim) {
+#if 1 /* anim: hard error if module not loadable */
+		cobglobptr->call_Xanim.funcvoid = cob_resolve_cobol ((const char *)"gc-debugger", 0, 1);
+#else /* old behaviour: always check and simply disable if not found */
+		cobglobptr->call_Xanim.funcvoid = cob_resolve ((const char *)"gc-debugger");
+#endif
+	} else {
+		cobglobptr->call_Xanim.funcvoid = NULL;
+	}; 
 
 	/* Get user name if not set via environment already */
 	if (cobsetptr->cob_user_name == NULL || !strcmp(cobsetptr->cob_user_name, "Unknown")) {

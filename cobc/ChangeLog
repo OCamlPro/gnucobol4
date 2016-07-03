@@ -1,4 +1,17 @@
 
+2016-07-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c(output_anim_field_working_recursive, codegen):
+	  call (get_field_list_from_field_cache) if
+	 (get_field_list_from_local_field_cache) doesn't return a field
+	* cobc (process_command_line): error if both -x and -anim are used
+
+2016-07-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c: moved resolve of call_Xanim.funcvoid to libcob (stored in
+	  cob_glob_ptr instead of cob_anim), changed code generation accordingly
+	* codegen.c (codegen): removed generation of empty_anim_field
+
 2016-06-30  Edward Hart <edward.dan.hart@gmail.com>
 
 	* pplex.l (is_condition_directive_clause): fixed bug #263 where >>IF's
