@@ -1,9 +1,15 @@
 
+2016-07-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: only enable logging code if ENABLE-LOGGING defined
+	  (still checks COB_ANIM_LOGGING at run-time to be activated)
+	* gc-debugger.cob, watchpoints.cpy: store number of watchpoints in wp-count
+	   for leaving PERFORMs early
+	* helpers.cpy: check for "STOP" and " RUN" instead of "STOP RUN."
+
 2016-06-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
-	* Makefile.am: same procedure as in extras: compile and link from
-	  COBOL source via cobc from built-directory
-	* gc-debugger.cob: fixed compile error (max-length > 31)
+	* helpers.cpy: use STATIC CALL for 'string_contains'
 
 2015-??-??  Philipp Böhme <phi.boehme@googlemail.com>
 
