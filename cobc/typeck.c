@@ -4298,17 +4298,15 @@ is_reference_with_value (cb_tree pos)
 }
 
 static COB_INLINE COB_A_INLINE int
-value_is_numeric_field (cb_tree pos)
-{
-	return CB_FIELD_P ((CB_REFERENCE (pos))->value)
-		&& (CB_REFERENCE (pos))->value->category == CB_CATEGORY_NUMERIC;
-
-}
-
-static COB_INLINE COB_A_INLINE int
 value_has_picture_clause (cb_tree pos)
 {
 	return (CB_FIELD ((CB_REFERENCE (pos))->value))->pic != NULL;
+}
+
+static COB_INLINE COB_A_INLINE int
+value_pic_is_numeric (cb_tree pos)
+{
+	return (CB_FIELD ((CB_REFERENCE (pos))->value))->pic->category == CB_CATEGORY_NUMERIC;
 }
 
 static COB_INLINE COB_A_INLINE int
@@ -4318,12 +4316,43 @@ value_pic_has_no_scale (cb_tree pos)
 }
 
 static int
-valid_screen_pos_type (cb_tree pos)
+numeric_screen_pos_type (cb_tree pos)
 {
 	return is_reference_with_value (pos)
-		&& value_is_numeric_field (pos)
 		&& value_has_picture_clause (pos)
+		&& value_pic_is_numeric (pos)
 		&& value_pic_has_no_scale (pos);
+}
+
+static int
+has_children (cb_tree pos)
+{
+	return (CB_FIELD ((CB_REFERENCE (pos))->value))->children != NULL;
+}
+
+static int
+children_are_numeric (cb_tree pos)
+{
+	struct cb_field	*child
+		= (CB_FIELD ((CB_REFERENCE (pos))->value))->children;
+
+	for (; child; child = child->sister) {
+		if (!(child->pic
+		      && child->pic->category == CB_CATEGORY_NUMERIC
+		      && child->pic->scale == 0)) {
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+static int
+numeric_children_screen_pos_type (cb_tree pos)
+{
+	return is_reference_with_value (pos)
+		&& has_children (pos)
+		&& children_are_numeric (pos);
 }
 
 static int
@@ -4334,19 +4363,21 @@ valid_screen_pos (cb_tree pos)
 	/* Find size of pos value, if possible */
 	if (CB_NUMERIC_LITERAL_P (pos)) {
 		size = (CB_LITERAL (pos))->size;
-	} else if (valid_screen_pos_type (pos)) {
+	} else if (numeric_screen_pos_type (pos)) {
 		size = (CB_FIELD ((CB_REFERENCE (pos))->value))->pic->size;
+	} else if (numeric_children_screen_pos_type (pos)) {
+		size = (CB_FIELD ((CB_REFERENCE (pos))->value))->size;
+	} else if (pos == cb_zero) {
+		cb_error_x (pos, _("Cannot specify figurative constant ZERO in AT clause"));
+		return 0;
 	} else {
-		cb_error (_("Invalid value in AT clause"));
+		cb_error_x (pos, _("Value in AT clause is not numeric"));
 		return 0;
 	}
 
 	/* Check if size is valid. If it isn't, display error. */
-	if (size == 5) {
-		cb_error (_("Value in AT clause may not have 5 digits"));
-		return 0;
-	} else if (size > 6) {
-		cb_error (_("Value in AT clause may not be longer than 6 digits"));
+	if (size != 4 && size != 6) {
+		cb_error_x (pos, _("Value in AT clause must have 4 or 6 digits"));
 		return 0;
 	} else {
 		return 1;
@@ -4363,19 +4394,28 @@ cb_gen_field_accept (cb_tree var, cb_tree pos, cb_tree fgc, cb_tree bgc,
 
 	if (!pos) {
 		cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
-			var, NULL, NULL, fgc, bgc, scroll,
-			timeout, prompt, size_is, cb_int (dispattrs)));
+					      var, NULL, NULL, fgc, bgc, scroll,
+					      timeout, prompt, size_is, cb_int (dispattrs)));
 	} else if (CB_LIST_P (pos)) {
 		line = CB_PAIR_X (pos);
 		column = CB_PAIR_Y (pos);
 		cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
-			var, line, column, fgc, bgc, scroll,
-			timeout, prompt, size_is, cb_int (dispattrs)));
+					      var, line, column, fgc, bgc, scroll,
+					      timeout, prompt, size_is, cb_int (dispattrs)));
 	} else if (valid_screen_pos (pos)) {
 		cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
-			var, pos, NULL, fgc, bgc, scroll,
-			timeout, prompt, size_is, cb_int (dispattrs)));
+					      var, pos, NULL, fgc, bgc, scroll,
+					      timeout, prompt, size_is, cb_int (dispattrs)));
 	}
+}
+
+static int
+line_col_zero_is_supported (void)
+{
+	return cb_accept_display_extensions == CB_OK
+		|| cb_accept_display_extensions == CB_WARNING
+		|| cb_accept_display_extensions == CB_ARCHAIC
+		|| cb_accept_display_extensions == CB_OBSOLETE;
 }
 
 void
@@ -4469,15 +4509,18 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 				if (CB_LIST_P (pos)) {
 					line = CB_PAIR_X (pos);
 					column = CB_PAIR_Y (pos);
-					cb_emit (CB_BUILD_FUNCALL_4 ("cob_screen_accept",
-						var, line, column, timeout));
+					cb_emit (CB_BUILD_FUNCALL_5 ("cob_screen_accept",
+								     var, line, column, timeout,
+								     cb_int (line_col_zero_is_supported ())));
 				} else if (valid_screen_pos (pos)) {
-					cb_emit (CB_BUILD_FUNCALL_4 ("cob_screen_accept",
-						var, pos, NULL, timeout));
+					cb_emit (CB_BUILD_FUNCALL_5 ("cob_screen_accept",
+								     var, pos, NULL, timeout,
+								     cb_int (line_col_zero_is_supported ())));
 				}
 			} else {
-				cb_emit (CB_BUILD_FUNCALL_4 ("cob_screen_accept",
-					var, NULL, NULL, timeout));
+				cb_emit (CB_BUILD_FUNCALL_5 ("cob_screen_accept",
+							     var, NULL, NULL, timeout,
+							     cb_int (line_col_zero_is_supported ())));
 			}
 			gen_screen_ptr = 0;
 			output_screen_to (CB_FIELD (cb_ref (var)), 0);
@@ -4490,9 +4533,9 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 						     timeout, prompt, size_is, dispattrs);
 			} else {
 				cb_emit (CB_BUILD_FUNCALL_10 ("cob_field_accept",
-					var, NULL, NULL, fgc, bgc,
-					scroll, timeout, prompt,
-					size_is, cb_int (dispattrs)));
+							      var, NULL, NULL, fgc, bgc,
+							      scroll, timeout, prompt,
+							      size_is, cb_int (dispattrs)));
 			}
 		}
 	} else if (pos || fgc || bgc || scroll || dispattrs) {
@@ -5181,6 +5224,44 @@ cb_emit_command_line (cb_tree value)
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_display_command_line", value));
 }
 
+/*
+  Return 1 if a value in the list values has an unexpected type (tree tag, to be
+  precise) or is an error node. Otherwise, return 0.
+*/
+static int
+validate_types_of_display_values (cb_tree values)
+{
+	cb_tree		l;
+	cb_tree		x;
+
+	for (l = values; l; l = CB_CHAIN (l)) {
+		x = CB_VALUE (l);
+		if (x == cb_error_node) {
+			return 1;
+		}
+
+		switch (CB_TREE_TAG (x)) {
+		case CB_TAG_LITERAL:
+		case CB_TAG_INTRINSIC:
+		case CB_TAG_CONST:
+		case CB_TAG_STRING:
+		case CB_TAG_INTEGER:
+			break;
+		case CB_TAG_REFERENCE:
+			if (!CB_FIELD_P(CB_REFERENCE(x)->value)) {
+				cb_error_x (x, _("'%s' is an invalid type for DISPLAY operand"), cb_name (x));
+				return 1;
+			}
+			break;
+		default:
+			cb_error_x (x, _("Invalid type for DISPLAY operand"));
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static int
 validate_attrs (cb_tree pos, cb_tree fgc, cb_tree bgc, cb_tree scroll, cb_tree size_is)
 {
@@ -5213,6 +5294,30 @@ initialize_attrs (const struct cb_attr_struct * const attr_ptr,
 }
 
 static void
+emit_device_display (cb_tree values, cb_tree upon, cb_tree no_adv)
+{
+	cb_tree	p;
+
+	p = CB_BUILD_FUNCALL_3 ("cob_display", upon, no_adv, values);
+	CB_FUNCALL (p)->varcnt = cb_list_length (values);
+	CB_FUNCALL (p)->nolitcast = 1;
+	cb_emit (p);
+}
+
+static void
+increment_field_ref_counts (cb_tree value_list)
+{
+	cb_tree	x;
+
+	for (; value_list; value_list = CB_CHAIN (value_list)) {
+		x = CB_VALUE (value_list);
+		if (CB_FIELD_P (x)) {
+			CB_FIELD (cb_ref (x))->count++;
+		}
+	}
+}
+
+static void
 get_line_and_column_from_pos (const cb_tree pos, cb_tree * const line,
 			      cb_tree * const column)
 {
@@ -5238,7 +5343,49 @@ emit_screen_display (const cb_tree x, const cb_tree pos)
 	cb_tree	column = NULL;
 
 	get_line_and_column_from_pos (pos, &line, &column);
-	cb_emit (CB_BUILD_FUNCALL_3 ("cob_screen_display", x, line, column));
+	cb_emit (CB_BUILD_FUNCALL_4 ("cob_screen_display", x, line, column,
+				     cb_int (line_col_zero_is_supported ())));
+}
+
+static void
+process_special_values (cb_tree value, cb_tree size_is, int * const attrs)
+{
+	/*
+	  The following are MF extensions. MF specifically
+	  states X"01", X"02" and X"07", so the values do not
+	  need to be changed for other codesets.
+	*/
+
+	/* low-values position cursor, size does not matter */
+	if (value == cb_low) {
+		*attrs |= COB_SCREEN_NO_DISP;
+	}
+
+	if (size_is) {
+		return;
+	}
+
+	/* no WITH SIZE then SPACE clears to end of screen */
+	if (value == cb_space) {
+		*attrs |= COB_SCREEN_ERASE_EOS;
+		*attrs |= COB_SCREEN_NO_DISP;
+	} else if (CB_LITERAL_P (value) && CB_LITERAL (value)->all &&
+		   CB_LITERAL (value)->size == 1) {
+		if (CB_LITERAL (value)->data[0] == '\1') {
+			/* ASCII char \1 is SOH, start of header */
+			*attrs |= COB_SCREEN_ERASE_EOL;
+			*attrs |= COB_SCREEN_NO_DISP;
+		} else if (CB_LITERAL (value)->data[0] == '\2') {
+			/* ASCII char \2 is STX, start of text */
+			cb_emit (CB_BUILD_FUNCALL_0 ("cob_sys_clear_screen"));
+			/* We might still need to position the cursor */
+			*attrs |= COB_SCREEN_NO_DISP;
+		} else if (CB_LITERAL (value)->data[0] == '\7') {
+			/* ASCII char \7 is BEL, bell */
+			*attrs |= COB_SCREEN_BELL;
+			*attrs |= COB_SCREEN_NO_DISP;
+		}
+	}
 }
 
 static void
@@ -5254,6 +5401,93 @@ emit_field_display (const cb_tree x, const cb_tree pos, const cb_tree fgc,
 				     x, line, column, fgc, bgc,
 				     scroll, size_is,
 				     cb_int (dispattrs)));
+}
+
+static cb_tree
+get_integer_literal_pair (const char *value)
+{
+	const cb_tree	num = cb_build_numeric_literal (1, value, 0);
+
+	return CB_BUILD_PAIR (num, num);
+}
+
+static COB_INLINE COB_A_INLINE cb_tree
+get_after_last_line_column (void)
+{
+	return get_integer_literal_pair ("0");
+}
+
+static COB_INLINE COB_A_INLINE cb_tree
+get_origin_line_column (void)
+{
+	return get_integer_literal_pair ("1");
+}
+
+static cb_tree
+get_default_field_line_column (const enum cb_display_type display_type,
+			       const int is_first_display_item)
+{
+	/*
+	  Note if LINE/COL 0 is not allowed, then this must be a
+	  standard format DISPLAY (DISPLAY ... UPON CRT), which must
+	  follow previous items, unlike the DISPLAY with screen clauses
+	  (DISPLAY ... WITH HIGHLIGHT, etc.).
+	*/
+	const int	display_after_last =
+		!line_col_zero_is_supported () || !is_first_display_item;
+
+	if (display_after_last) {
+		return get_after_last_line_column ();
+	} else {
+		return get_origin_line_column ();
+	}
+
+}
+
+static void
+emit_default_field_display_for_all_but_last (cb_tree values, cb_tree size_is,
+					     const enum cb_display_type display_type,
+					     const int is_first_display_list)
+{
+	cb_tree	l;
+	int	is_first_display_item = is_first_display_list;
+	cb_tree	pos;
+	int	attrs;
+	cb_tree	x;
+
+	for (l = values; l && CB_CHAIN (l); l = CB_CHAIN (l)) {
+		pos = get_default_field_line_column (display_type,
+						     is_first_display_item);
+		is_first_display_item = 0;
+
+		x = CB_VALUE (l);
+		attrs = 0;
+		process_special_values (x, size_is, &attrs);
+
+		emit_field_display (x, pos, NULL, NULL, NULL, NULL, attrs);
+	}
+}
+
+static void
+emit_field_display_for_last (cb_tree values, cb_tree line_column, cb_tree fgc,
+			     cb_tree bgc, cb_tree scroll, cb_tree size_is,
+			     int disp_attrs,
+			     const enum cb_display_type display_type,
+			     const int is_first_display_list)
+{
+	cb_tree	l;
+	cb_tree val;
+
+	for (l = values; l && CB_CHAIN (l); l = CB_CHAIN (l));
+	val = CB_VALUE (l);
+
+	if (line_column == NULL) {
+		line_column = get_default_field_line_column (display_type, is_first_display_list && l == values);
+	}
+
+	process_special_values (val, size_is, &disp_attrs);
+	emit_field_display (val, line_column, fgc, bgc, scroll, size_is,
+			    disp_attrs);
 }
 
 void
@@ -5276,106 +5510,68 @@ cb_emit_display_omitted (cb_tree pos, struct cb_attr_struct *attr_ptr)
 }
 
 void
-cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv, cb_tree pos,
-		 struct cb_attr_struct *attr_ptr)
+cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv,
+		 cb_tree line_column, struct cb_attr_struct *attr_ptr,
+		 int is_first_display_list,
+		 const enum cb_display_type display_type)
 {
-	cb_tree		l;
 	cb_tree		x;
-	cb_tree		p;
 	cb_tree		fgc;
 	cb_tree		bgc;
 	cb_tree		scroll;
 	cb_tree		size_is;	/* WITH SIZE IS */
-	int		dispattrs;
+	int		disp_attrs;
 
-	if (cb_validate_list (values)) {
-		return;
-	}
-
-	initialize_attrs (attr_ptr, &fgc, &bgc, &scroll, &size_is, &dispattrs);
-	if (validate_attrs (pos, fgc, bgc, scroll, size_is)) {
-		return;
-	}
-
-	for (l = values; l; l = CB_CHAIN (l)) {
-		x = CB_VALUE (l);
-		if (x == cb_error_node) {
-			return;
-		}
-
-		switch (CB_TREE_TAG (x)) {
-		case CB_TAG_LITERAL:
-		case CB_TAG_INTRINSIC:
-		case CB_TAG_CONST:
-		case CB_TAG_STRING:
-		case CB_TAG_INTEGER:
-			break;
-		case CB_TAG_REFERENCE:
-			if (!CB_FIELD_P(CB_REFERENCE(x)->value)) {
-				cb_error_x (x, _("'%s' is an invalid type for DISPLAY operand"), cb_name (x));
-				return;
-			}
-			break;
-		default:
-			cb_error_x (x, _("Invalid type for DISPLAY operand"));
-			return;
-		}
-	}
+	/* Validate upon and values */
 	if (upon == cb_error_node
-		|| !values /* <- silence warnings */) {
+	    || !values
+	    || cb_validate_list (values)
+	    || validate_types_of_display_values (values)) {
 		return;
 	}
 
+	/* Validate line_column and the attributes */
+	initialize_attrs (attr_ptr, &fgc, &bgc, &scroll, &size_is, &disp_attrs);
+	if (validate_attrs (line_column, fgc, bgc, scroll, size_is)) {
+		return;
+	}
 
-	x = CB_VALUE (values);
-	if ((CB_REF_OR_FIELD_P (x)) &&
-	     CB_FIELD (cb_ref (x))->storage == CB_STORAGE_SCREEN) {
+	/* Emit appropriate function call(s) */
+	switch (display_type) {
+	case DEVICE_DISPLAY:
+		if (upon == NULL) {
+			upon = cb_int0;
+		}
+		emit_device_display (values, upon, no_adv);
+		increment_field_ref_counts (values);
+		break;
+
+	case SCREEN_DISPLAY:
+		/* Note we assume only one screen */
+		if (line_column == NULL) {
+			line_column = get_origin_line_column ();
+		}
+		x = CB_VALUE (values);
 		output_screen_from (CB_FIELD (cb_ref (x)), 0);
 		gen_screen_ptr = 1;
-	        emit_screen_display (x, pos);
+	        emit_screen_display (x, line_column);
 		gen_screen_ptr = 0;
-	} else if (pos || fgc || bgc || scroll || size_is || dispattrs || upon == cb_null) {
-		for (l = values; l; l = CB_CHAIN (l)) {
-			x = CB_VALUE (l);
-			/* low-values position cursor, size does not matter */
-			if (x == cb_low) {
-			  dispattrs |= COB_SCREEN_NO_DISP;
-			}
-			/* no WITH SIZE then SPACE clears to end of screen */
-			if (!(size_is)) {
-			  if (x == cb_space) {
-				  dispattrs |= COB_SCREEN_ERASE_EOS;
-				  dispattrs |= COB_SCREEN_NO_DISP;
-			  } else if (x == cb_low) {
-				  dispattrs |= COB_SCREEN_NO_DISP;
-			  } else if (CB_LITERAL_P (x) && CB_LITERAL (x)->all &&
-				    CB_LITERAL (x)->size == 1) {
-				  if (CB_LITERAL (x)->data[0] == 1) {
-					  dispattrs |= COB_SCREEN_ERASE_EOL;
-					  dispattrs |= COB_SCREEN_NO_DISP;
-				  } else if (CB_LITERAL (x)->data[0] == 2) {
-					  cb_emit (CB_BUILD_FUNCALL_0 ("cob_sys_clear_screen"));
-					  return;
-				  } else if (CB_LITERAL (x)->data[0] == 7) {
-					  dispattrs |= COB_SCREEN_BELL;
-					  dispattrs |= COB_SCREEN_NO_DISP;
-				  }
-			  }
-			}
-			emit_field_display (x, pos, fgc, bgc, scroll, size_is, dispattrs);
-		}
-	} else {
-		/* DISPLAY x ... [UPON device-name] */
-		p = CB_BUILD_FUNCALL_3 ("cob_display", upon, no_adv, values);
-		CB_FUNCALL(p)->varcnt = cb_list_length (values);
-		CB_FUNCALL(p)->nolitcast = 1;
-		cb_emit (p);
-		for (l = values; l; l = CB_CHAIN (l)) {
-			x = CB_VALUE (l);
-			if (CB_FIELD_P (x)) {
-				CB_FIELD (cb_ref (x))->count++;
-			}
-		}
+		break;
+
+	case FIELD_ON_SCREEN_DISPLAY:
+		emit_default_field_display_for_all_but_last (values, size_is,
+							     display_type,
+							     is_first_display_list);
+		emit_field_display_for_last (values, line_column, fgc, bgc,
+					     scroll, size_is, disp_attrs,
+					     display_type,
+					     is_first_display_list);
+
+		break;
+
+	default:
+		/* Any other type will already have emitted errors */
+		;
 	}
 }
 

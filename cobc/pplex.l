@@ -646,7 +646,13 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 	cb_source_line++;
   }
   [,;]?[ ]+		{ /* ignore */ }
-  "."			{ yy_pop_state (); return DOT; }
+  \.([ \n]*\.)*		{
+	  if (strlen (yytext) > 1) {
+		  cb_warning (_("Ignoring redundant ."));
+	  }
+	  yy_pop_state ();
+	  return DOT;
+  }
   "=="			{ yy_push_state (PSEUDO_STATE); return EQEQ; }
   "("			{ return '('; }
   ")"			{ return ')'; }
@@ -1066,9 +1072,9 @@ get_new_listing_file (void)
 static void
 set_print_replace_list (struct cb_replace_list *list)
 {
-	struct cb_replace_list	*r;
-	struct cb_text_list	*l;
-	struct list_replace	*repl;
+	struct cb_replace_list		*r;
+	const struct cb_text_list	*l;
+	struct list_replace		*repl;
 	
 	if (cb_src_list_file) {
 		for (r = list; r; r = r->next) {

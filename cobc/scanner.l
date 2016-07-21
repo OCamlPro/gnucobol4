@@ -833,10 +833,12 @@ H#[0-9A-Za-z]* {
 	}
 
 	/* Check user programs */
-        program = cb_find_defined_program_by_name (yytext);
-	if (program) {
-		yylval = cb_build_reference (yytext);
-		return PROGRAM_NAME;
+	if (cobc_in_id) {
+		program = cb_find_defined_program_by_name (yytext);
+		if (program) {
+			yylval = cb_build_reference (yytext);
+			return PROGRAM_NAME;
+		}
 	}
 
 	/* User word */
@@ -897,10 +899,16 @@ H#[0-9A-Za-z]* {
 	return EXPONENTIATION;
 }
 
-"." {
-	last_token_is_dot = 1;
-	yylval = NULL;
-	return TOK_DOT;
+"."([ \n]*".")* {
+	if (last_token_is_dot || strlen (yytext) > 1) {
+		cb_warning (_("Ignoring redundant ."));
+	}
+
+	if (!last_token_is_dot) {
+		last_token_is_dot = 1;
+		yylval = NULL;
+		return TOK_DOT;
+	}
 }
 
 "&" {
@@ -1455,7 +1463,7 @@ scan_numeric (const char *text)
 		scale = 0;
 	}
 
-	/* leading zeroes should be removed here, shouldn't they ? */
+	/* Note that leading zeroes are not removed from the literal. */
 
 	if (unlikely(strlen (p) > COB_MAX_DIGITS)) {
 		/* Absolute limit */

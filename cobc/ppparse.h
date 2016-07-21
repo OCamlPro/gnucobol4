@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,54 +63,55 @@ extern int ppdebug;
     DOT = 272,
     GARBAGE = 273,
     PAGE_DIRECTIVE = 274,
-    SOURCE_DIRECTIVE = 275,
-    FORMAT = 276,
-    IS = 277,
-    FIXED = 278,
-    FREE = 279,
-    DEFINE_DIRECTIVE = 280,
-    AS = 281,
-    PARAMETER = 282,
-    OVERRIDE = 283,
-    SET_DIRECTIVE = 284,
-    CONSTANT = 285,
-    SOURCEFORMAT = 286,
-    FOLDCOPYNAME = 287,
-    NOFOLDCOPYNAME = 288,
-    IF_DIRECTIVE = 289,
-    ELSE_DIRECTIVE = 290,
-    ENDIF_DIRECTIVE = 291,
-    ELIF_DIRECTIVE = 292,
-    GE = 293,
-    LE = 294,
-    LT = 295,
-    GT = 296,
-    EQ = 297,
-    NE = 298,
-    NOT = 299,
-    THAN = 300,
-    TO = 301,
-    OR = 302,
-    EQUAL = 303,
-    GREATER = 304,
-    LESS = 305,
-    SET = 306,
-    DEFINED = 307,
-    TURN_DIRECTIVE = 308,
-    ON = 309,
-    CHECKING = 310,
-    WITH = 311,
-    LOCATION = 312,
-    TERMINATOR = 313,
-    TOKEN = 314,
-    VARIABLE = 315,
-    LITERAL = 316
+    LISTING_DIRECTIVE = 275,
+    SOURCE_DIRECTIVE = 276,
+    FORMAT = 277,
+    IS = 278,
+    FIXED = 279,
+    FREE = 280,
+    DEFINE_DIRECTIVE = 281,
+    AS = 282,
+    PARAMETER = 283,
+    OVERRIDE = 284,
+    SET_DIRECTIVE = 285,
+    CONSTANT = 286,
+    SOURCEFORMAT = 287,
+    FOLDCOPYNAME = 288,
+    NOFOLDCOPYNAME = 289,
+    IF_DIRECTIVE = 290,
+    ELSE_DIRECTIVE = 291,
+    ENDIF_DIRECTIVE = 292,
+    ELIF_DIRECTIVE = 293,
+    GE = 294,
+    LE = 295,
+    LT = 296,
+    GT = 297,
+    EQ = 298,
+    NE = 299,
+    NOT = 300,
+    THAN = 301,
+    TO = 302,
+    OR = 303,
+    EQUAL = 304,
+    GREATER = 305,
+    LESS = 306,
+    SET = 307,
+    DEFINED = 308,
+    TURN_DIRECTIVE = 309,
+    ON = 310,
+    CHECKING = 311,
+    WITH = 312,
+    LOCATION = 313,
+    TERMINATOR = 314,
+    TOKEN = 315,
+    VARIABLE = 316,
+    LITERAL = 317
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
+typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
 #line 502 "ppparse.y" /* yacc.c:1909  */
@@ -122,10 +123,8 @@ union YYSTYPE
 	unsigned int		ui;
 	int			si;
 
-#line 126 "ppparse.h" /* yacc.c:1909  */
+#line 127 "ppparse.h" /* yacc.c:1909  */
 };
-
-typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

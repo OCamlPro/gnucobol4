@@ -291,7 +291,7 @@ static size_t		save_c_src = 0;
 static size_t		verbose_output = 0;
 static size_t		cob_optimize = 0;
 
-static int		cb_listing_linecount = 10000;
+static int		cb_listing_linecount;
 static int		cb_listing_eject = 0;
 static char		cb_listing_filename[FILENAME_MAX];
 static char		*cb_listing_outputfile = NULL;
@@ -1360,10 +1360,9 @@ cobc_getenv_path (const char *env)
 	if (!p || *p == 0 || *p == ' ') {
 		return NULL;
 	}
-	if(strchr(p,PATHSEP_CHAR) != NULL) {
+	if (strchr (p, PATHSEP_CHAR) != NULL) {
 		cobc_err_msg (_("environment variable '%s' is '%s'; should not contain '%c'"), env, p, PATHSEP_CHAR);
 		cobc_abort_terminate ();
-		return NULL;
 	}
 	return cobc_main_strdup (p);
 }
@@ -3667,12 +3666,16 @@ print_fields_in_section (struct cb_field *first_field_in_section)
 static COB_INLINE COB_A_INLINE void
 force_new_page_for_next_line (void)
 {
-	cb_listing_linecount = cb_lines_per_page;
+	cb_listing_linecount = 100000;
 }
 
 static void
 print_program_trailer (void)
 {
+	struct cb_program	*p;
+	struct cb_program	*q;
+	int			 print_names = 0;
+
 	if (!cb_src_list_file) {
 		return;
 	}
@@ -3684,9 +3687,26 @@ print_program_trailer (void)
 	force_new_page_for_next_line ();
 	print_program_header ();
 
-	print_files_and_their_records (current_program->file_list);
-	print_fields_in_section (current_program->working_storage);
-	print_fields_in_section (current_program->local_storage);
+	p = current_program;
+	if (p->next_program) {
+		print_names = 1;
+	}
+
+	for (q = p; q; q = q->next_program) {
+		if (print_names) {
+			print_program_header ();
+			fprintf (cb_src_list_file, "     %-14s      %s\n",
+			 	 (q->prog_type == CB_FUNCTION_TYPE ?
+				 	"FUNCTION" : "PROGRAM"),
+			 	 q->program_name);
+		}
+		print_files_and_their_records (q->file_list);
+		print_fields_in_section (q->working_storage);
+		print_fields_in_section (q->local_storage);
+		print_fields_in_section (q->linkage_storage);
+		print_fields_in_section (q->screen_storage);
+		print_fields_in_section (q->report_storage);
+	}
 
 	/* Print error counts */
 
@@ -4782,12 +4802,13 @@ process_translate (struct filename *fn)
 	cb_listing_files = cb_listing_files->next;
 	free (cfile);
 
+	/* Print program trailer */
+	print_program_trailer();
+
 	if (ret) {
-		print_program_trailer ();
 		return 1;
 	}
 	if (cb_flag_syntax_only || current_program->entry_list == NULL) {
-		print_program_trailer ();
 		return 0;
 	}
 
@@ -4879,9 +4900,6 @@ process_translate (struct filename *fn)
 	errorcount = 0;
 	/* Translate to C */
 	codegen (p, 0);
-
-	/* Print program trailer */
-	print_program_trailer();
 
 	/* Close files */
 	if(unlikely(fclose (cb_storage_file) != 0)) {
@@ -5633,6 +5651,7 @@ main (int argc, char **argv)
 	cobc_ldflags_size = COB_MINI_MAX;
 
 	cb_source_file = NULL;
+	cb_listing_linecount = 100000;
 	save_temps_dir = NULL;
 	base_string = NULL;
 	cobc_objects_len = 0;

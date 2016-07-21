@@ -228,7 +228,7 @@ check_code_set_items_are_subitems_of_records (struct cb_file * const file)
 	cb_tree			r;
 	struct cb_field		*f;
 	cb_tree			first_ref = NULL;
-	struct cb_field		*first_record;
+	struct cb_field		*first_record = NULL;
 	struct cb_field		*current_record;
 
 	/*
@@ -1341,6 +1341,14 @@ cb_build_list (cb_tree purpose, cb_tree value, cb_tree chain)
 	p->chain = chain;
 	p->value = value;
 	p->purpose = purpose;
+
+	/* Set location to that of initial element. */
+	if (value) {
+		p->common.source_file = value->source_file;
+		p->common.source_line = value->source_line;
+		p->common.source_column = value->source_column;
+	}
+	
 	return CB_TREE (p);
 }
 
