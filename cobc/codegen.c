@@ -44,7 +44,7 @@
 #if	(defined(_WIN32) || defined(__CYGWIN__)) && !defined(__clang__)
 #define COB_EXPORT_PRF "__declspec(dllexport) "
 #else
-#define COB_EXPORT_PRF ""
+#undef COB_EXPORT_PRF
 #endif
 
 #define COB_MAX_SUBSCRIPTS	16
@@ -8953,9 +8953,11 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 		do_anim_init = 1;	/* EB */
 	}
 
+#if defined COB_EXPORT_PRF
 	if (!gencode && !prog->nested_level) {
 		output (COB_EXPORT_PRF);
 	}
+#endif
 
 	if (unlikely(prog->prog_type == CB_FUNCTION_TYPE)) {
 		if (gencode) {
