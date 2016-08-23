@@ -763,7 +763,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 			  "%s%s.%s", dirent, (char *)s, COB_MODULE_EXT);
 		call_filename_buff[COB_NORMAL_MAX] = 0;
 		if (access (call_filename_buff, R_OK) != 0) {
-			set_resolve_error (_("Cannot find module"), name);
+			set_resolve_error (_("cannot find module"), name);
 			if(cob_anim_tracing) fclose(anilog);
 			return NULL;
 		}
@@ -780,7 +780,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 				return func;
 			}
 		}
-		set_resolve_error (_("Cannot find entry point"),
+		set_resolve_error (_("cannot find entry point"),
 				   (const char *)s);
 		if(cob_anim_tracing) fclose(anilog);
 		return NULL;
@@ -828,7 +828,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 					return func;
 				}
 			}
-			set_resolve_error (_("Cannot find entry point"),
+			set_resolve_error (_("cannot find entry point"),
 					   (const char *)s);
 
 			if (cob_anim_tracing) {
@@ -842,7 +842,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 	}
 #endif
 
-	set_resolve_error (_("Cannot find module"), name);
+	set_resolve_error (_("cannot find module"), name);
 	return NULL;
 }
 
@@ -909,7 +909,7 @@ cob_resolve_error (void)
 	const char	*p;
 
 	if (!resolve_error) {
-		p = _("Indeterminable error in resolve of COBOL CALL");
+		p = _("indeterminable error in resolve of COBOL CALL");
 	} else {
 		p = resolve_error;
 		resolve_error = NULL;
@@ -990,7 +990,7 @@ cob_resolve_func (const char *name)
 
 	p = cob_resolve_internal (name, NULL, 0);
 	if (unlikely(!p)) {
-		cob_runtime_error (_("User FUNCTION '%s' not found"), name);
+		cob_runtime_error (_("user-defined FUNCTION '%s' not found"), name);
 		cob_stop_run (1);
 	}
 	return p;
@@ -1130,7 +1130,7 @@ cob_call (const char *name, const int argc, void **argv)
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
 	if (argc < 0 || argc > COB_MAX_FIELD_PARAMS) {
-		cob_runtime_error (_("Invalid number of arguments to '%s'"), "cob_call");
+		cob_runtime_error (_("invalid number of arguments passed to '%s'"), "cob_call");
 		cob_stop_run (1);
 	}
 	if (unlikely(!name)) {
@@ -1210,7 +1210,7 @@ cob_savenv (struct cobjmp_buf *jbuf)
 		cob_stop_run (1);
 	}
 	if (cob_jmp_primed) {
-		cob_runtime_error (_("Multiple call to 'cob_setjmp'"));
+		cob_runtime_error (_("multiple call to 'cob_setjmp'"));
 		cob_stop_run (1);
 	}
 	cob_jmp_primed = 1;
@@ -1236,7 +1236,7 @@ cob_longjmp (struct cobjmp_buf *jbuf)
 		cob_stop_run (1);
 	}
 	if (!cob_jmp_primed) {
-		cob_runtime_error (_("Call to 'cob_longjmp' with no prior 'cob_setjmp'"));
+		cob_runtime_error (_("call to 'cob_longjmp' with no prior 'cob_setjmp'"));
 		cob_stop_run (1);
 	}
 	cob_jmp_primed = 0;

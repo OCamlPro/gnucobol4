@@ -1,18 +1,18 @@
-## Copyright (C) 2003-2012, 2015 Free Software Foundation, Inc.
+## Copyright (C) 2003-2012, 2015-2016 Free Software Foundation, Inc.
 ## Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
-## 
+##
 ## This file is part of GnuCOBOL.
-## 
+##
 ## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
-## 
+##
 ## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU General Public License
 ## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -25,7 +25,7 @@
 
 # 1) DONE
 
-AT_SETUP([OCCURS with level 01, 66, 77, and 88])
+AT_SETUP([OCCURS with level 01 and 77])
 AT_KEYWORDS([occurs])
 
 AT_DATA([prog.cob], [
@@ -36,24 +36,54 @@ AT_DATA([prog.cob], [
        01 X-01          PIC X OCCURS 10.
        01 G             OCCURS 10.
          02 X-02        PIC X OCCURS 10.
-         66 X-66        RENAMES X-02 OCCURS 10.
        77 X-77          PIC X OCCURS 10.
-       88 X-88          VALUE "X" OCCURS 10.
 ])
 
 AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [1], [],
-[prog.cob: 11: Error: Level 88 item 'X-88' can only have a VALUE clause
-prog.cob: 6: Error: Level 01 item 'X-01' cannot have a OCCURS clause
-prog.cob: 7: Error: Level 01 item 'G' cannot have a OCCURS clause
-prog.cob: 9: Error: Level 66 item 'X-66' can only have a RENAMES clause
-prog.cob: 10: Error: Level 77 item 'X-77' cannot have a OCCURS clause
+[prog.cob: 6: error: level 01 item 'X-01' cannot have a OCCURS clause
+prog.cob: 7: error: level 01 item 'G' cannot have a OCCURS clause
+prog.cob: 9: error: level 77 item 'X-77' cannot have a OCCURS clause
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([OCCURS with level 66])
+AT_KEYWORDS([occurs RENAMES])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  x PIC X.
+       66  y RENAMES x OCCURS 10.
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 11: Error: Level 88 item 'X-88' can only have a VALUE clause
-prog.cob: 9: Error: Level 66 item 'X-66' can only have a RENAMES clause
+[prog.cob: 7: error: syntax error, unexpected OCCURS, expecting .
 ])
 
+AT_CLEANUP
+
+
+AT_SETUP([OCCURS with level 88])
+AT_KEYWORDS([occurs])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  x PIC X.
+           88  y VALUE "a" OCCURS 10.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 7: error: syntax error, unexpected OCCURS, expecting .
+])
 
 AT_CLEANUP
 
@@ -89,11 +119,11 @@ AT_DATA([prog2.cob], [
 
 ])
 
-AT_CHECK([$COMPILE_ONLY -cb_conf=complex-odo:yes prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -fcomplex-odo prog.cob], [0], [], [])
 
-AT_CHECK([$COMPILE_ONLY -cb_conf=complex-odo:yes prog2.cob], [1], [],
-[prog2.cob: 12: Error: 'Reference to item containing nested ODO' not implemented
-prog2.cob: 13: Error: 'Reference to item containing nested ODO' not implemented
+AT_CHECK([$COMPILE_ONLY -fcomplex-odo prog2.cob], [1], [],
+[prog2.cob: 12: error: reference to item containing nested ODO not implemented
+prog2.cob: 13: error: reference to item containing nested ODO not implemented
 ])
 
 AT_CLEANUP
@@ -171,8 +201,8 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 7: Error: OCCURS max. must be greater than OCCURS min.
-prog.cob: 9: Error: Non-negative integer value expected
+[prog.cob: 7: error: OCCURS TO must be greater than OCCURS FROM
+prog.cob: 9: error: non-negative integer value expected
 ])
 
 AT_CLEANUP
@@ -212,12 +242,12 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 7: Error: 'X' cannot have OCCURS DEPENDING
-prog.cob: 10: Error: 'G-3' cannot have OCCURS DEPENDING
-prog.cob: 15: Error: 'X' cannot have OCCURS DEPENDING
+[prog.cob: 7: error: 'X' cannot have OCCURS DEPENDING
+prog.cob: 10: error: 'G-3' cannot have OCCURS DEPENDING
+prog.cob: 15: error: 'X' cannot have OCCURS DEPENDING
 ])
 
-AT_CHECK([$COMPILE_ONLY -cb_conf=complex-odo:yes prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -fcomplex-odo prog.cob], [0], [], [])
 
 AT_CLEANUP
 
@@ -245,10 +275,10 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [1], [],
-[prog.cob: 8: Error: ODO without TO clause does not conform to COBOL 2014
+[prog.cob: 8: error: ODO without TO clause does not conform to COBOL 2014
 ])
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
-[prog.cob: 8: Warning: ODO without TO clause used
+[prog.cob: 8: warning: ODO without TO clause used
 ])
 
 AT_CLEANUP
@@ -274,7 +304,7 @@ AT_DATA([prog.cob], [
 # all entries may raise this error but the last "exceeds limit" is guaranteed.
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [], ignore)
 AT_CHECK([$COMPILE_ONLY prog.cob 2>&1 | \
-grep "prog.cob: 11: Error: Numeric literal '9223372036854775808' exceeds limit"],
+grep "prog.cob: 11: error: numeric literal '9223372036854775808' exceeds limit"],
 [0], ignore, [])
 
 AT_CLEANUP

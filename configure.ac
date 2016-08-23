@@ -57,7 +57,7 @@ AM_MAINTAINER_MODE
 
 # Autoheader templates
 AH_TEMPLATE([COB_EXPERIMENTAL], [Enable experimental code (Developers only!)])
-AH_TEMPLATE([COB_PARAM_CHECK], [Enable CALL parameter checking])
+AH_TEMPLATE([COB_PARAM_CHECK], [Enable minimum parameter check for system libraries])
 AH_TEMPLATE([PATCH_LEVEL], [Define a patch level])
 AH_TEMPLATE([WITH_INDEX_EXTFH], [Compile with an external ISAM handler])
 AH_TEMPLATE([WITH_SEQRA_EXTFH], [Compile with an external SEQ/RAN handler])
@@ -81,6 +81,8 @@ AH_TEMPLATE([COB_KEYWORD_INLINE], [Keyword for inline])
 AH_TEMPLATE([COB_NO_SELFOPEN], [Can not dlopen self])
 AH_TEMPLATE([COB_STRFTIME], [Can use strftime for timezone])
 AH_TEMPLATE([COB_LI_IS_LL], [long int is long long])
+AH_TEMPLATE([COB_32_BIT_LONG], [long int is 32 bits])
+AH_TEMPLATE([COB_64_BIT_POINTER], [Pointers are longer than 32 bits])
 AH_TEMPLATE([WITH_CURSES], [curses library for extended SCREEN I/O])
 AH_TEMPLATE([HAVE_COLOR_SET], [curses has color_set function])
 AH_TEMPLATE([HAVE_CURSES_FREEALL], [ncurses has _nc_freeall function])
@@ -247,7 +249,7 @@ AC_ARG_ENABLE([experimental],
   [])
 
 AC_ARG_ENABLE([param-check],
-  [  --enable-param-check    (GnuCOBOL) Enable CALL parameter checking (default no)],
+  [  --enable-param-check    (GnuCOBOL) Enable minimum parameter check for system libraries (default no)],
   [if test "$enable_param_check" = "yes"; then
 	AC_DEFINE([COB_PARAM_CHECK], [1])
    fi],
@@ -255,7 +257,7 @@ AC_ARG_ENABLE([param-check],
 
 AC_ARG_WITH([patch-level],
   [  --with-patch-level      (GnuCOBOL) Define a patch level (default 0)],
-  [case $with_patch_level in  
+  [case $with_patch_level in
     yes)	AC_MSG_ERROR([[You must give --with-patch-level an argument.]])
 		;;
     no)		AC_MSG_ERROR([[--without-patch-level not supported.]])
@@ -349,7 +351,7 @@ fi
 
 AC_ARG_WITH([dl],
   [  --with-dl               (GnuCOBOL) Use system dynamic loader (default)],
-  [case $with_dl in  
+  [case $with_dl in
     yes)
 		;;
     no)
@@ -361,7 +363,7 @@ AC_ARG_WITH([dl],
 
 AC_ARG_WITH([varseq],
   [  --with-varseq           (GnuCOBOL) Define variable sequential format (default 0)],
-  [case $with_varseq in  
+  [case $with_varseq in
     yes)	AC_MSG_ERROR([[You must give --with-varseq an argument.]])
 		;;
     no)		AC_MSG_ERROR([[--without-varseq not supported.]])
@@ -382,7 +384,7 @@ AC_CHECK_HEADERS([gmp.h], [], AC_MSG_ERROR([gmp.h (GMP) is required]), [])
 AC_CHECK_LIB([gmp], [__gmpz_init],
 	[LIBCOB_LIBS="$LIBCOB_LIBS -lgmp"],
 	AC_MSG_ERROR([GMP is required]), [])
-	
+
 # Check just major/minor levels between header and library
 MYOLDLIBS=$LIBS
 LIBS="$MYOLDLIBS -lgmp"
@@ -501,16 +503,17 @@ case $host_os in
 	;;
 esac
 
-# Disable for Cygwin
-AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
-	#ifdef __CYGWIN__
-	return 0;
-	#else
-	return 1;
-	#endif]])],
-	[enable_nls=no],
-	[],
-	[])
+# Simon: removed, use --disable-nls instead
+## Disable for Cygwin
+#AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+#	#ifdef __CYGWIN__
+#	return 0;
+#	#else
+#	return 1;
+#	#endif]])],
+#	[enable_nls=no],
+#	[],
+#	[])
 
 AM_GNU_GETTEXT([external])
 AM_GNU_GETTEXT_VERSION([0.19.4])
@@ -533,7 +536,7 @@ if test "$USE_NCURSES" = "ncursesw" -o "$USE_NCURSES" = "check"; then
       [AC_CHECK_HEADERS([ncursesw/curses.h], [USE_NCURSES="ncursesw"],
         [if test "$USE_NCURSES" = "ncursesw"; then
            USE_NCURSES="missing_header"
-         fi], [])], [])      
+         fi], [])], [])
     if test "$USE_NCURSES" = "ncursesw"; then
       LIBCOB_LIBS="$LIBCOB_LIBS -lncursesw"
     fi
@@ -814,6 +817,27 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[AC_MSG_RESULT([no])],
 	[])
 
+AC_MSG_CHECKING([if long is 32 bits])
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+	if (sizeof (long) == 4)
+		return 0;
+	return 1;
+	]])],
+	[AC_DEFINE([COB_32_BIT_LONG], [1]) AC_MSG_RESULT([yes])],
+	[AC_MSG_RESULT([no])],
+	[])
+
+
+AC_MSG_CHECKING([if pointer is longer than 32 bits])
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+	if (sizeof (void *) > 4U)
+		return 0;
+	return 1;
+	]])],
+	[AC_DEFINE([COB_64_BIT_POINTER], [1]) AC_MSG_RESULT([yes])],
+	[AC_MSG_RESULT([no])],
+	[])
+
 # Check gcc 4 pointer sign option
 if test "$COB_USES_GCC_ONLY" = "yes"; then
 	MYOLDCFLAGS="$CFLAGS"
@@ -899,24 +923,35 @@ COB_SHARED_OPT="-shared"
 COB_EXEEXT="$EXEEXT"
 
 if test "$enable_cflags_setting" = yes; then
-	# Remove -O2 option added by AC_PROG_CC and add -O0 
+	# Remove -O2 option added by AC_PROG_CC and add -O0
 	CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-O@<:@0-9a-zA-Z@:>@* */ /g' -e 's/ $//' -e 's/^ //'`
 	if test "$COB_USES_GCC_ICC" = "yes"; then
 		CFLAGS="$CFLAGS -O0"
+	fi
+
+	# Add -g3 if using GCC.
+	if test "$COB_USES_GCC_ONLY" = "yes"; then
+		MYOLDCFLAGS="$CFLAGS"		     
+		CFLAGS="$CFLAGS -g3"
+		AC_MSG_CHECKING([for gcc -g3 option])
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
+			[AC_MSG_RESULT([yes])],
+			[CFLAGS="$MYOLDCFLAGS"; AC_MSG_RESULT([no])])
+		unset MYOLDCFLAGS
 	fi
 fi
 
 unset enable_cflags_setting
 
 if test "$enable_debug" != "yes" -a "x$CFLAGS" != "x"; then
-	CFLAGS=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/^ //' -e 's/ $//'`
+	CFLAGS=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/-g3//' -e 's/^ //' -e 's/ $//'`
 fi
 
 # Include CFLAGS in COB_CFLAGS without optimization/debug options
 
 cob_temp_flags=""
 if test "x$CFLAGS" != "x"; then
-	cob_temp_flags=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/ $//' -e 's/^ //'`
+	cob_temp_flags=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/-g3//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/@<:@+-@:>@O@<:@0-9s@:>@//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-O//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-fmessage-length=0//'`
@@ -958,8 +993,8 @@ COB_FIX_LIBTOOL=""
 case $host_os in
   mingw*)
 	if test "$prefix" = "NONE"; then
-	COB_CONFIG_DIR="`cd /usr && pwd -W`/local/share/$PACKAGE_TARNAME/config"
-	COB_COPY_DIR="`cd /usr && pwd -W`/local/share/$PACKAGE_TARNAME/copy"
+		COB_CONFIG_DIR="`cd /usr && pwd -W`/local/share/$PACKAGE_TARNAME/config"
+		COB_COPY_DIR="`cd /usr && pwd -W`/local/share/$PACKAGE_TARNAME/copy"
 	fi
 	COB_EXPORT_DYN="-Wl,--export-all-symbols -Wl,--enable-auto-import -Wl,--enable-auto-image-base"
 	COB_FIX_LIB=""

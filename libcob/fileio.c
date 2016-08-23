@@ -2142,7 +2142,7 @@ join_environment (void)
 	}
 	ret = db_env_create (&bdb_env, 0);
 	if (ret) {
-		cob_runtime_error (_("Cannot join BDB environment (%s), error: %d %s"),
+		cob_runtime_error (_("cannot join BDB environment (%s), error: %d %s"),
 				   "env_create", ret, db_strerror (ret));
 		cob_stop_run (1);
 	}
@@ -2162,7 +2162,7 @@ join_environment (void)
 	flags = DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB;
 	ret = bdb_env->open (bdb_env, cobsetptr->bdb_home, flags, 0);
 	if (ret) {
-		cob_runtime_error (_("Cannot join BDB environment (%s), error: %d %s"),
+		cob_runtime_error (_("cannot join BDB environment (%s), error: %d %s"),
 				   "env->open", ret, db_strerror (ret));
 		bdb_env->close (bdb_env, 0);
 		bdb_env = NULL;
@@ -3821,7 +3821,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 	nextprev = DB_NEXT;
 	dupno = 0;
 	file_changed = 0;
-	
+
 	dupno = 0;
 
 	bdb_opts = read_opts;

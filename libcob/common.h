@@ -320,6 +320,9 @@
 #define strcasecmp	stricmp
 #define _setmode	setmode
 #define _chdir		chdir
+#define timezone	_timezone
+#define tzname		_tzname
+#define daylight	_daylight
 #endif
 
 #include <setjmp.h>
@@ -360,18 +363,19 @@
 #define	COB_A_FORMAT23	__attribute__((format(printf, 2, 3)))
 #define	COB_A_FORMAT34	__attribute__((format(printf, 3, 4)))
 #define	COB_A_FORMAT45	__attribute__((format(printf, 4, 5)))
+#define	DECLNORET
 #else
 #define	COB_A_NORETURN
 #define	COB_A_FORMAT12
 #define	COB_A_FORMAT23
 #define	COB_A_FORMAT34
 #define	COB_A_FORMAT45
-#endif
 
-#ifdef	_MSC_VER
+#if defined	(_MSC_VER) || (defined (__BORLANDC__) && defined (_WIN32))
 #define	DECLNORET	__declspec(noreturn)
 #else
 #define	DECLNORET
+#endif
 #endif
 
 #if	defined(__GNUC__)
@@ -426,6 +430,16 @@
 #define	COB_A_MALLOC	__attribute__((malloc))
 #define	COB_NOINLINE	__attribute__((noinline))
 #define	COB_A_INLINE	__attribute__((always_inline))
+#define	COB_A_COLD
+#define	COB_HAVE_STEXPR	1
+
+#elif	defined(_MSC_VER)
+
+#define likely(x)	(x)
+#define unlikely(x)	(x)
+#define	COB_A_MALLOC
+#define	COB_NOINLINE	__declspec(noinline)
+#define	COB_A_INLINE	__forceinline
 #define	COB_A_COLD
 #define	COB_HAVE_STEXPR	1
 
@@ -519,14 +533,16 @@
 
 /* Macro to prevent compiler warning "conditional expression is constant" */
 #if defined (_MSC_VER) && COB_USE_VC2008_OR_GREATER
-#define ONCE_COB \
-__pragma( warning(push) ) \
-__pragma( warning(disable:4127) ) \
-while (0) \
-__pragma( warning(pop) )
+#define CONSTANT_EXPR(x)			\
+	__pragma( warning(push) )		\
+	__pragma( warning(disable:4127) )	\
+	x					\
+	__pragma( warning(pop) )
 #else
-#define ONCE_COB while (0)
+#define CONSTANT_EXPR(x) x
 #endif
+
+#define ONCE_COB while (CONSTANT_EXPR (0))
 
 /* Macro to prevent unused parameter warning */
 
@@ -1206,7 +1222,11 @@ typedef struct __cob_global {
 	char			*cob_locale_time;	/* Initial locale */
 
 	int			cob_exception_code;	/* Last exception code */
-	int			cob_call_params;	/* Current arguments */
+	int			cob_call_params;	/* Number of current arguments
+									   This is set to the actual number before a CALL
+									   and is stored directly on module entry to its
+									   cob_module structure within cob_module_enter().
+									*/
 	int			cob_initial_external;	/* First external ref */
 	unsigned int		cob_orig_line;		/* Program source line */
 	unsigned int		cob_got_exception;	/* Exception active */
@@ -1296,6 +1316,7 @@ COB_EXPIMP void cob_set_exception(const int);
 
 /* General functions */
 
+COB_EXPIMP int		cob_is_initialized	(void);
 COB_EXPIMP cob_global		*cob_get_global_ptr	(void);
 
 COB_EXPIMP void	cob_init			(const int, char **);
@@ -1350,7 +1371,7 @@ COB_EXPIMP void	cob_allocate			(unsigned char **, cob_field *,
 COB_EXPIMP void	cob_free_alloc			(unsigned char **, unsigned char *);
 COB_EXPIMP int	cob_extern_init			(void);
 COB_EXPIMP int	cob_tidy			(void);
-COB_EXPIMP void	*cob_command_line		(int, int *, char ***,
+COB_EXPIMP char	*cob_command_line		(int, int *, char ***,
 						 char ***, char **);
 COB_EXPIMP char	*cob_getenv			(const char *);
 COB_EXPIMP int	cob_putenv			(char *);

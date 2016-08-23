@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edwart Hart
 
    This file is part of GnuCOBOL.
 
@@ -2553,16 +2553,16 @@ res_get_feature (const enum cb_system_name_category category)
 
 	switch (category) {
 	case CB_DEVICE_NAME:
-		s = _("Device name");
+		s = _("device name");
 		break;
 	case CB_SWITCH_NAME:
-		s = _("Switch name");
+		s = _("switch name");
 		break;
 	case CB_FEATURE_NAME:
-		s = _("Feature name");
+		s = _("feature name");
 		break;
 	default:
-		s = _("Unknown");
+		s = _("unknown");
 		break;
 	}
 	return s;
@@ -2639,28 +2639,75 @@ initialize_word (const char *word, const size_t size,
 	allocate_str_removing_asterisk (word, size, &reserved->word);
 }
 
+static int
+is_invalid_word (const char *word, const int size,
+			const char *fname, const int line) {
+	if (size > COB_MAX_WORDLEN) {
+		configuration_error (fname, line, 1,
+			_("reserved word must have less than %d characters"),
+			COB_MAX_WORDLEN);
+		return 1;
+	}
+	/* TO-DO: add more checks here */
+	return 0;
+}
+
 static void
 initialize_alias_for (const char *alias_for,
 		      struct reserved_word_list * const reserved,
 		      const char *fname, const int line)
 {
-	const size_t	size = strlen (alias_for);
+	size_t	size = strlen (alias_for);
 
 	if (has_context_sensitive_indicator (alias_for, size)) {
-		configuration_warning (fname, line, _("Ignored asterisk at end of alias target"));
+		size--;
+		configuration_warning (fname, line,
+			_("ignored asterisk at end of alias target")); 
 	}
+	if (is_invalid_word (alias_for, size, fname, line)) {
+		reserved->alias_for = NULL;
+	} else {
 	allocate_str_removing_asterisk (alias_for, size, &reserved->alias_for);
+	}
 }
 
+/* add word to cobc_user_res_list */
+/* parameter *word has no white space, may include context sensitive indicator
+   and/or alias definition: a* a=b a*=b
+
+   *word is a static char * when line < 0 !
+*/
 static void
-add_reserved_word_without_init (const char *word, const char *fname,
-				const int line)
+add_reserved_word_without_init (char *word, const char *fname, const int line)
 {
         struct reserved_word_list	*reserved;
 	size_t				size;
 	char				*equal_sign_pos;
+	int					cont_sens;
 
-	/* Check the word has not already been specified */
+	/* Check for alias and context sensitive indicator,
+	   get and check the length of the word */
+	equal_sign_pos = strchr (word, '=');
+	if (equal_sign_pos) {
+		size = equal_sign_pos - word;
+	} else {
+		size = strlen (word);
+	}
+	cont_sens = has_context_sensitive_indicator (word, size);
+	if (cont_sens) {
+		size--;
+	}
+
+	/* only verify entries that don't come from default word list */
+	if (line >= 0) {	/* line 0: from command line
+						       -1: loading from default word list */
+		word [size] = 0;
+		if (is_invalid_word (word, size , fname, line)) {
+			return;
+		}
+	}
+
+	/* Check that the word has not already been specified */
 	for (reserved = cobc_user_res_list; reserved; reserved = reserved->next)
 	{
 		if (cob_strcasecmp (reserved->word, word) == 0) {
@@ -2668,17 +2715,8 @@ add_reserved_word_without_init (const char *word, const char *fname,
 		}
 	}
 
-	/* Find how the length of the word */
-	equal_sign_pos = strchr (word, '=');
-	if (equal_sign_pos) {
-		size = equal_sign_pos - word;
-	} else {
-		size = strlen (word);
-	}
-
 	reserved = cobc_main_malloc (sizeof (struct reserved_word_list));
-	reserved->is_context_sensitive
-		= has_context_sensitive_indicator (word, size);
+	reserved->is_context_sensitive = cont_sens;
 	initialize_word (word, size, reserved);
 
 	/* If it is an alias, copy what it is an alias for */
@@ -2694,21 +2732,28 @@ add_reserved_word_without_init (const char *word, const char *fname,
 	cobc_user_res_list = reserved;
 }
 
+/* Add all the words from the default list. */
+void
+add_all_default_words (void)
+{
+	const size_t	num_default_words = NUM_DEFAULT_RESERVED_WORDS;
+	size_t		i;
+
+	for (i = 0; i < num_default_words; ++i) {
+		add_reserved_word_without_init (
+			(char *)default_reserved_words[i].name, NULL, -1);
+	}
+}
+
 static void
 initialize_user_res_list_if_needed (void)
 {
-	const size_t	num_default_words = NUM_DEFAULT_RESERVED_WORDS;
-	int		i;
-
 	if (likely (cobc_user_res_list || cb_specify_all_reserved)) {
 		return;
 	}
 
 	/* Initialize the list with the words from the default list. */
-	for (i = 0; i < num_default_words; ++i) {
-		add_reserved_word_without_init (default_reserved_words[i].name,
-						NULL, 0);
-	}
+	add_all_default_words ();
 }
 
 static size_t
@@ -2746,7 +2791,7 @@ get_user_specified_reserved_word (struct reserved_word_list user_reserved)
 
 	if (!user_reserved.alias_for) {
 		cobc_reserved.context_sens
-			= user_reserved.is_context_sensitive;
+			= !!user_reserved.is_context_sensitive;
 	} else {
 		to_find = create_dummy_reserved (user_reserved.alias_for);
 		p = find_default_reserved_word (to_find);
@@ -2754,8 +2799,9 @@ get_user_specified_reserved_word (struct reserved_word_list user_reserved)
 		if (p) {
 			cobc_reserved.token = p->token;
 		} else {
+			/* FIXME: can we point to the fname originally defining the word? */
 		        configuration_error (NULL, 0, 1,
-					     _("Alias target '%s' is not a default reserved word"),
+					_("alias target '%s' is not a default reserved word"),
 					     user_reserved.alias_for);
 		}
 	}
@@ -2892,7 +2938,7 @@ remove_reserved_word (const char *word)
 }
 
 void
-add_reserved_word (const char *word, const char *fname, const int line)
+add_reserved_word (char *word, const char *fname, const int line)
 {
 	initialize_user_res_list_if_needed ();
 	add_reserved_word_without_init (word, fname, line);
@@ -2914,7 +2960,7 @@ lookup_reserved_word (const char *name)
 	if (unlikely(p->token <= 0)) {
 		/* Not implemented - If context sensitive, no error */
 		if (!p->context_sens) {
-			cb_error (_("'%s' reserved word, but not supported"), name);
+			cb_error (_("'%s' is a reserved word, but isn't supported"), name);
 		}
 		return NULL;
 	}
@@ -2962,7 +3008,7 @@ lookup_reserved_word (const char *name)
 }
 
 struct cb_intrinsic_table *
-lookup_intrinsic (const char *name, const int checkres, const int checkimpl)
+lookup_intrinsic (const char *name, const int checkimpl)
 {
 	struct cb_intrinsic_table	*cbp;
 
@@ -2977,46 +3023,28 @@ lookup_intrinsic (const char *name, const int checkres, const int checkimpl)
 void
 cb_list_reserved (void)
 {
-	const char	*s;
 	const char	*p;
 	size_t		i;
-	size_t		n;
 
 	initialize_reserved_words_if_needed ();
 
 	putchar ('\n');
-	printf (_("Reserved Words\t\t\tImplemented (Y/N)"));
-	puts ("\n");
+	printf ("%-32s%s\n", _("Reserved Words"), _("Implemented"));
 	for (i = 0; i < num_reserved_words; ++i) {
-		n = strlen (reserved_words[i].name);
-		switch (n / 8) {
-		case 0:
-			s = "\t\t\t\t";
-			break;
-		case 1:
-			s = "\t\t\t";
-			break;
-		case 2:
-			s = "\t\t";
-			break;
-		default:
-			s = "\t";
-			break;
-		}
 		if (reserved_words[i].token > 0) {
 			if (reserved_words[i].context_sens) {
-				p = _("Y (Context sensitive)");
+				p = _("Yes (Context sensitive)");
 			} else {
-				p = _("Y");
+				p = _("Yes");
 			}
 		} else {
 			if (reserved_words[i].context_sens) {
-				p = _("N (Context sensitive)");
+				p = _("No (Context sensitive)");
 			} else {
-				p = _("N");
+				p = _("No");
 			}
 		}
-		printf ("%s%s%s\n", reserved_words[i].name, s, p);
+		printf ("%-32s%s\n", reserved_words[i].name, p);
 	}
 	putchar ('\n');
 	puts (_("Extra (obsolete) context sensitive words"));
@@ -3028,92 +3056,60 @@ cb_list_reserved (void)
 	puts ("REMARKS");
 	puts ("SECURITY");
 	putchar ('\n');
-	puts (_("Extra internal registers\tDefinition"));
-	puts ("RETURN-CODE\t\t\tUSAGE BINARY-LONG");
-	puts ("SORT-RETURN\t\t\tUSAGE BINARY-LONG");
-	puts ("NUMBER-OF-CALL-PARAMETERS\tUSAGE BINARY-LONG");
-	puts ("COB-CRT-STATUS\t\t\tPIC 9(4)");
-	puts ("TALLY\t\t\t\tGLOBAL PIC 9(5) USAGE BINARY VALUE ZERO");
-	puts ("'LENGTH OF' phrase\t\tUSAGE BINARY-LONG");
+	printf ("%-32s%s\n", _("Extra internal registers"), _("Definition"));
+	printf ("%-32s%s\n", "RETURN-CODE", "USAGE BINARY-LONG");
+	printf ("%-32s%s\n", "SORT-RETURN", "USAGE BINARY-LONG");
+	printf ("%-32s%s\n", "NUMBER-OF-CALL-PARAMETERS", "USAGE BINARY-LONG");
+	printf ("%-32s%s\n", "COB-CRT-STATUS", "PIC 9(4)");
+	printf ("%-32s%s\n", "TALLY", "GLOBAL PIC 9(5) USAGE BINARY VALUE ZERO");
+	printf ("%-32s%s\n", _("'LENGTH OF' phrase"), "USAGE BINARY-LONG");
 }
 
 void
 cb_list_intrinsics (void)
 {
-	const char	*s;
 	const char	*t;
-	char	*argnum;
+	char	argnum [20];
 	size_t		i;
-	size_t		n;
 
 	putchar ('\n');
-	puts (_("Intrinsic Function\t\tImplemented\tParameters"));
+	printf ("%-32s%-16s%s\n",
+		_("Intrinsic Function"), _("Implemented"), _("Parameters"));
 	for (i = 0; i < NUM_INTRINSICS; ++i) {
-		n = strlen (function_list[i].name);
-		switch (n / 8) {
-		case 0:
-			s = "\t\t\t\t";
-			break;
-		case 1:
-			s = "\t\t\t";
-			break;
-		case 2:
-			s = "\t\t";
-			break;
-		default:
-			s = "\t";
-			break;
-		}
 		if (function_list[i].implemented) {
-			t = _("Y");
+			t = _("Yes");
 		} else {
-			t = _("N");
+			t = _("No");
 		}
 		if (function_list[i].args == -1) {
-			printf ("%s%s%s\t\t%s\n", function_list[i].name, s, t, _("Unlimited"));
+			snprintf (argnum, sizeof (argnum) - 1, "%s", _("Unlimited"));
+		} else if (function_list[i].args != function_list[i].min_args) {
+			snprintf (argnum, sizeof (argnum) - 1, "%d - %d",
+				(int)function_list[i].min_args, (int)function_list[i].args);
 		} else {
-			if (function_list[i].args != function_list[i].min_args) {
-				argnum = cob_malloc (7);
-				snprintf (argnum, 7, "%d - %d", (int)function_list[i].min_args,
-					(int)function_list[i].args);
-			} else {
-				argnum = cob_malloc (3);
-				snprintf (argnum, 3, "%d", (int)function_list[i].args);
+			snprintf (argnum, sizeof (argnum) - 1, "%d", (int)function_list[i].args);
 			}
-			printf ("%s%s%s\t\t%s\n", function_list[i].name, s, t, argnum);
-			cob_free (argnum);
+		printf ("%-32s%-16s%s\n", function_list[i].name, t, argnum);
 		}
-	}
 }
 
 void
 cb_list_mnemonics (void)
 {
-	const char	*tabs;
 	const char	*feature;
 	size_t		i;
 
 	putchar ('\n');
 	puts (_("Mnemonic names"));
 	for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
-		if (strlen (system_table[i].name) < 8) {
-			tabs = "\t\t";
-		} else {
-			tabs = "\t";
-		}
 		feature = res_get_feature (system_table[i].category);
-		printf ("%s%s%s\n", system_table[i].name, tabs, feature);
+		printf ("%-32s%s\n", system_table[i].name, feature);
 	}
 	putchar ('\n');
 	puts (_("Extended mnemonic names (with -fsyntax-extension)"));
 	for (i = 0; i < EXT_SYSTEM_TAB_SIZE; ++i) {
-		if (strlen (ext_system_table[i].name) < 8) {
-			tabs = "\t\t";
-		} else {
-			tabs = "\t";
-		}
 		feature = res_get_feature (ext_system_table[i].category);
-		printf ("%s%s%s\n", ext_system_table[i].name, tabs, feature);
+		printf ("%-32s%s\n", ext_system_table[i].name, feature);
 	}
 }
 

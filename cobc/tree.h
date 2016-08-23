@@ -101,7 +101,7 @@ enum cb_tag {
 	CB_TAG_DEBUG,		/* 34 Debug item set */
 	CB_TAG_DEBUG_CALL,	/* 35 Debug callback */
 	CB_TAG_PROGRAM,		/* 36 Program */
-	CB_TAG_FUNC_PROTOTYPE	/* 37 Function prototype */
+	CB_TAG_PROTOTYPE	/* 37 Prototype */
 };
 
 /* Alphabet type */
@@ -1349,16 +1349,18 @@ struct cb_program {
 #define CB_PROGRAM(x)	(CB_TREE_CAST (CB_TAG_PROGRAM, struct cb_program, x))
 
 /* Function prototype */
-struct cb_func_prototype {
+
+struct cb_prototype {
 	struct cb_tree_common	common;
 	/* Name of prototype in the REPOSITORY */
 	const char		*name;
 	/* External name of the prototype/definition */
 	const char		*ext_name;
+	int		        type;
 };
 
-#define CB_FUNC_PROTOTYPE(x)	(CB_TREE_CAST (CB_TAG_FUNC_PROTOTYPE, struct cb_func_prototype, x))
-#define CB_FUNC_PROTOTYPE_P(x)	(CB_TREE_TAG (x) == CB_TAG_FUNC_PROTOTYPE)
+#define CB_PROTOTYPE(x)		(CB_TREE_CAST (CB_TAG_PROTOTYPE, struct cb_prototype, x))
+#define CB_PROTOTYPE_P(x)	(CB_TREE_TAG (x) == CB_TAG_PROTOTYPE)
 
 /* DISPLAY type */
 
@@ -1368,6 +1370,16 @@ enum cb_display_type {
 	FIELD_ON_SCREEN_DISPLAY,
 	DEVICE_DISPLAY,
 	MIXED_DISPLAY
+};
+
+/* INSPECT clauses */
+
+enum cb_inspect_clause {
+	TALLYING_CLAUSE,
+	REPLACING_CLAUSE,
+	CONVERTING_CLAUSE,
+	/* This is what happens when you support OS/VS COBOL. */
+	TRANSFORM_STATEMENT
 };
 
 /* Functions/variables */
@@ -1502,8 +1514,8 @@ extern cb_tree			cb_build_assign (const cb_tree, const cb_tree);
 
 extern cb_tree			cb_build_intrinsic (cb_tree, cb_tree,
 						    cb_tree, const int);
-extern cb_tree			cb_build_func_prototype (const cb_tree,
-							 const cb_tree);
+extern cb_tree			cb_build_prototype (const cb_tree,
+						    const cb_tree, const int);
 extern cb_tree			cb_build_any_intrinsic (cb_tree);
 
 extern cb_tree			cb_build_search (const int,
@@ -1547,7 +1559,6 @@ extern void			cb_insert_common_prog (struct cb_program *,
 
 
 extern struct cb_intrinsic_table	*lookup_intrinsic (const char *,
-							   const int,
 							   const int);
 
 extern cb_tree		cb_build_alphabet_name (cb_tree);
@@ -1573,6 +1584,7 @@ extern unsigned int	cobc_in_procedure;
 extern unsigned int	cobc_in_repository;
 extern unsigned int	cobc_force_literal;
 extern unsigned int	cobc_cs_check;
+extern unsigned int	cobc_allow_program_name;
 
 /* reserved.c */
 extern int			is_reserved_word (const char *);
@@ -1590,6 +1602,8 @@ extern void	cb_warning_x (cb_tree, const char *, ...) COB_A_FORMAT23;
 extern void	cb_error_x (cb_tree, const char *, ...) COB_A_FORMAT23;
 extern unsigned int	cb_verify_x (cb_tree, const enum cb_support,
 				     const char *);
+extern void		listprint_suppress (void);
+extern void		listprint_restore (void);
 
 extern void		redefinition_error (cb_tree);
 extern void		redefinition_warning (cb_tree, cb_tree);
@@ -1610,6 +1624,7 @@ extern struct cb_field	*cb_resolve_redefines (struct cb_field *, cb_tree);
 extern void		cb_validate_field (struct cb_field *);
 extern void		cb_validate_88_item (struct cb_field *);
 extern struct cb_field	*cb_validate_78_item (struct cb_field *, const cob_u32_t);
+extern void		cb_validate_renames_item (struct cb_field *);
 extern struct cb_field	*cb_get_real_field (void);
 extern void		cb_clear_real_field (void);
 
@@ -1722,7 +1737,7 @@ extern void		cb_emit_initialize (cb_tree, cb_tree,
 					    cb_tree);
 
 extern void		cb_emit_inspect (cb_tree, cb_tree,
-					 cb_tree, const unsigned int);
+					 const enum cb_inspect_clause);
 extern void		cb_init_tallying (void);
 extern cb_tree		cb_build_tallying_data (cb_tree);
 extern cb_tree		cb_build_tallying_characters (cb_tree);
@@ -1884,7 +1899,7 @@ extern struct cb_program	*cb_find_defined_program_by_id (const char *);
 #define CB_BUILD_CAST_LENGTH(x)		cb_build_cast (CB_CAST_LENGTH, x)
 #define CB_BUILD_CAST_PPOINTER(x)	cb_build_cast (CB_CAST_PROGRAM_POINTER, x)
 
-#define CB_BUILD_PARENTHESIS(x)		cb_build_binary_op (x, '@', NULL)
+#define CB_BUILD_PARENTHESES(x)		cb_build_binary_op (x, '@', NULL)
 #define CB_BUILD_NEGATION(x)		cb_build_binary_op (x, '!', NULL)
 
 #define CB_BUILD_STRING0(str)		cb_build_string (str, strlen ((char *)(str)))

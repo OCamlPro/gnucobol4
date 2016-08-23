@@ -242,7 +242,7 @@ ppp_compare_vals (const struct cb_define_struct *p1,
 		return 0;
 	}
 	if (p1->deftype != p2->deftype) {
-		cb_warning (_("Directive comparison on different types"));
+		cb_warning (_("directive comparison on different types"));
 		return 0;
 	}
 	if (p1->deftype == PLEX_DEF_LIT) {
@@ -310,14 +310,14 @@ ppp_define_add (struct cb_define_struct *list, const char *name,
 	for (l = list; l; l = l->next) {
 		if (!strcasecmp (name, l->name)) {
 			if (!override && l->deftype != PLEX_DEF_DEL) {
-				cb_error (_("Duplicate define"));
+				cb_error (_("duplicate define"));
 				return NULL;
 			}
 			if (l->value) {
 				l->value = NULL;
 			}
 			if (ppp_set_value (l, text)) {
-				cb_error (_("Invalid constant"));
+				cb_error (_("invalid constant"));
 				return NULL;
 			}
 			return list;
@@ -327,7 +327,7 @@ ppp_define_add (struct cb_define_struct *list, const char *name,
 	p = cobc_plex_malloc (sizeof (struct cb_define_struct));
 	p->name = cobc_plex_strdup (name);
 	if (ppp_set_value (p, text)) {
-		cb_error (_("Invalid constant"));
+		cb_error (_("invalid constant"));
 		return NULL;
 	}
 
@@ -671,16 +671,18 @@ set_choice:
 		p++;
 		size = strlen (p) - 1;
 		if (p[size] != quote) {
-			cb_error (_("Invalid %s directive"), "SOURCEFORMAT");
+			cb_error (_("invalid %s directive"), "SOURCEFORMAT");
 		}
 		p[size] = 0;
 	}
 	if (!strcasecmp (p, "FIXED")) {
 		cb_source_format = CB_FORMAT_FIXED;
+		cb_current_file->source_format = CB_FORMAT_FIXED;
 	} else if (!strcasecmp (p, "FREE")) {
 		cb_source_format = CB_FORMAT_FREE;
+		cb_current_file->source_format = CB_FORMAT_FREE;
 	} else {
-		cb_error (_("Invalid %s directive"), "SOURCEFORMAT");
+		cb_error (_("invalid %s directive"), "SOURCEFORMAT");
 	}
   }
 | NOFOLDCOPYNAME
@@ -699,7 +701,7 @@ set_choice:
 		p++;
 		size = strlen (p) - 1;
 		if (p[size] != quote) {
-			cb_error (_("Invalid %s directive"), "FOLD-COPY-NAME");
+			cb_error (_("invalid %s directive"), "FOLD-COPY-NAME");
 		}
 		p[size] = 0;
 	}
@@ -708,7 +710,7 @@ set_choice:
 	} else if (!strcasecmp (p, "LOWER")) {
 		cb_fold_copy = COB_FOLD_LOWER;
 	} else {
-		cb_error (_("Invalid %s directive"), "FOLD-COPY-NAME");
+		cb_error (_("invalid %s directive"), "FOLD-COPY-NAME");
 	}
   }
 ;
@@ -739,7 +741,7 @@ format_type:
   }
 | GARBAGE
   {
-	cb_error (_("Invalid %s directive"), "SOURCE");
+	cb_error (_("invalid %s directive"), "SOURCE");
 	YYERROR;
   }
 ;
@@ -804,7 +806,7 @@ define_directive:
   }
 | variable_or_literal
   {
-	cb_error (_("Invalid %s directive"), "DEFINE/SET");
+	cb_error (_("invalid %s directive"), "DEFINE/SET");
   }
 ;
 
@@ -878,7 +880,7 @@ if_directive:
 	p = cobc_plex_malloc (sizeof (struct cb_define_struct));
 	p->next = NULL;
 	if (ppp_set_value (p, $1)) {
-		cb_error (_("Invalid constant"));
+		cb_error (_("invalid constant"));
 	} else {
 		found = ppp_compare_vals (p, $5, $4);
 	}
@@ -886,7 +888,7 @@ if_directive:
   }
 | variable_or_literal
   {
-	cb_error (_("Invalid %s directive"), "IF/ELIF");
+	cb_error (_("invalid %s directive"), "IF/ELIF");
   }
 ;
 
@@ -903,7 +905,7 @@ object_id:
 	p = cobc_plex_malloc (sizeof (struct cb_define_struct));
 	p->next = NULL;
 	if (ppp_set_value (p, $1)) {
-		cb_error (_("Invalid constant"));
+		cb_error (_("invalid constant"));
 		$$ = NULL;
 	} else {
 		$$ = p;

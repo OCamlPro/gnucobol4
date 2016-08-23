@@ -314,10 +314,10 @@ lookup_func_call (const char *p)
 		return last;			      \
 	}
 
-LIST_REVERSE_FUNC (pic_list);
-LIST_REVERSE_FUNC (attr_list);
-LIST_REVERSE_FUNC (string_list);
-LIST_REVERSE_FUNC (literal_list);
+LIST_REVERSE_FUNC (pic_list)
+LIST_REVERSE_FUNC (attr_list)
+LIST_REVERSE_FUNC (string_list)
+LIST_REVERSE_FUNC (literal_list)
 
 static int field_cache_cmp (const void *mp1, const void *mp2) {
 	const struct field_list	*fl1;
@@ -2892,7 +2892,7 @@ output_param (cb_tree x, int id)
 	case CB_TAG_INTRINSIC:
 		ip = CB_INTRINSIC (x);
 		if (ip->isuser) {
-			func = user_func_upper (CB_FUNC_PROTOTYPE (cb_ref (ip->name))->ext_name);
+			func = user_func_upper (CB_PROTOTYPE (cb_ref (ip->name))->ext_name);
 			lookup_func_call (func);
 #if	0	/* RXWRXW Func */
 			output ("cob_user_function (func_%s, &cob_dyn_%u, ",
@@ -3199,7 +3199,8 @@ output_move (cb_tree src, cb_tree dst)
 /* INITIALIZE */
 
 static int
-initialize_type (struct cb_initialize *p, struct cb_field *f, const int topfield)
+deduce_initialize_type (struct cb_initialize *p, struct cb_field *f,
+			const int topfield)
 {
 	cb_tree		l;
 	int		type;
@@ -3229,13 +3230,19 @@ initialize_type (struct cb_initialize *p, struct cb_field *f, const int topfield
 		return INITIALIZE_ONE;
 	}
 
+	if (p->var && CB_REFERENCE_P (p->var)
+	    && CB_REFERENCE (p->var)->offset) {
+		/* Reference modified item */
+		return INITIALIZE_ONE;
+	}
+	
 	if (f->children) {
-		type = initialize_type (p, f->children, 0);
+		type = deduce_initialize_type (p, f->children, 0);
 		if (type == INITIALIZE_ONE) {
 			return INITIALIZE_COMPOUND;
 		}
 		for (f = f->children->sister; f; f = f->sister) {
-			if (type != initialize_type (p, f, 0)) {
+			if (type != deduce_initialize_type (p, f, 0)) {
 				return INITIALIZE_COMPOUND;
 			}
 		}
@@ -3725,6 +3732,7 @@ output_initialize_one (struct cb_initialize *p, cb_tree x)
 		case CB_CATEGORY_NUMERIC_EDITED:
 			output_move (cb_zero, x);
 			break;
+		case CB_CATEGORY_ALPHANUMERIC:
 		case CB_CATEGORY_ALPHANUMERIC_EDITED:
 		case CB_CATEGORY_NATIONAL:
 		case CB_CATEGORY_NATIONAL_EDITED:
@@ -3752,7 +3760,7 @@ output_initialize_compound (struct cb_initialize *p, cb_tree x)
 
 	ff = cb_code_field (x);
 	for (f = ff->children; f; f = f->sister) {
-		type = initialize_type (p, f, 0);
+		type = deduce_initialize_type (p, f, 0);
 		c = cb_build_field_reference (f, x);
 
 		switch (type) {
@@ -3771,7 +3779,7 @@ output_initialize_compound (struct cb_initialize *p, cb_tree x)
 
 				for (; f->sister; f = f->sister) {
 					if (!f->sister->redefines) {
-						if (initialize_type (p, f->sister, 0) != INITIALIZE_DEFAULT ||
+						if (deduce_initialize_type (p, f->sister, 0) != INITIALIZE_DEFAULT ||
 						    initialize_uniform_char (f->sister, p) != last_char) {
 							break;
 						}
@@ -3824,7 +3832,7 @@ output_initialize (struct cb_initialize *p)
 	int			type;
 
 	f = cb_code_field (p->var);
-	type = initialize_type (p, f, 1);
+	type = deduce_initialize_type (p, f, 1);
 	/* Check for non-standard OCCURS */
 	if ((f->level == 1 || f->level == 77) &&
 	    f->flag_occurs && !p->flag_init_statement) {
@@ -4525,35 +4533,63 @@ output_bin_field (const cb_tree x, const cob_u32_t id)
 		     id, size, id, CB_PREFIX_ATTR, i);
 }
 
+static COB_INLINE COB_A_INLINE int
+is_literal_or_prototype_ref (cb_tree x)
+{
+	return CB_LITERAL_P (x)
+		|| (CB_REFERENCE_P (x) && CB_PROTOTYPE_P (cb_ref (x)));
+}
+
+static char *
+get_program_id_str (cb_tree id_item)
+{
+	if (CB_LITERAL_P (id_item)) {
+	        return (char *)(CB_LITERAL (id_item)->data);
+	} else { /* prototype */
+		return (char *)CB_PROTOTYPE (cb_ref (id_item))->ext_name;
+	}
+}
+
+static struct nested_list *
+find_nested_prog_with_id (const char *encoded_id)
+{
+	struct nested_list	*nlp;
+	
+	for (nlp = current_prog->nested_prog_list; nlp; nlp = nlp->next) {
+		if (!strcmp (encoded_id, nlp->nested_prog->program_id)) {
+			break;
+		}
+	}
+	
+	return nlp;
+}
+ 
 static void
 output_call (struct cb_call *p)
 {
 	cb_tree				x;
 	cb_tree				l;
-	struct cb_literal		*lp;
+	const char			*name_str;
 	struct nested_list		*nlp;
-	char				*callp;
-	char				*system_call;
+	char				*system_call = NULL;
 	const struct system_table	*psyst;
 	const char			*convention;
 	struct cb_text_list		*ctl;
-	char				*s;
+	const char			*s;
 	cob_u32_t			n;
-	size_t				retptr;
-	size_t				gen_exit_program;
-	size_t				dynamic_link;
+	size_t				ret_ptr = 0;
+	size_t				gen_exit_program = 0;
+	size_t				dynamic_link = 1;
 	size_t				need_brace;
+	const int			name_is_literal_or_prototype
+		= is_literal_or_prototype_ref (p->name);
 #if	0	/* RXWRXW - Clear params */
 	cob_u32_t			parmnum;
 #endif
 
-	system_call = NULL;
-	retptr = 0;
-	gen_exit_program = 0;
-	dynamic_link = 1;
 	if (p->call_returning && p->call_returning != cb_null &&
 	    CB_TREE_CLASS(p->call_returning) == CB_CLASS_POINTER) {
-		retptr = 1;
+		ret_ptr = 1;
 	}
 
 #ifdef	_WIN32
@@ -4568,37 +4604,30 @@ output_call (struct cb_call *p)
 
 	/* System routine entry points */
 	if (p->is_system) {
-#if	0	/* RXWRXW - system */
-		lp = CB_LITERAL (p->name);
-		for (psyst = system_tab; psyst->syst_name; psyst++) {
-			if (!strcmp((const char *)lp->data,
-			    (const char *)psyst->syst_name)) {
+		psyst = &system_tab[p->is_system - 1];
 				system_call = (char *)psyst->syst_call;
 				dynamic_link = 0;
-				break;
 			}
-		}
-#else
-		n = p->is_system - 1U;
-		psyst = &system_tab[n];
-		system_call = (char *)psyst->syst_call;
-		dynamic_link = 0;
-#endif
-	}
 
-	if (dynamic_link && CB_LITERAL_P (p->name)) {
+	if (dynamic_link && name_is_literal_or_prototype) {
 		if (cb_flag_static_call || (p->convention & CB_CONV_STATIC_LINK)) {
 			dynamic_link = 0;
 		}
-		lp = CB_LITERAL (p->name);
+		
+		if (CB_LITERAL_P (p->name)) {
+			name_str = (const char *) CB_LITERAL (p->name)->data;
+		} else { /* prototype */
+			name_str = CB_PROTOTYPE (cb_ref (p->name))->ext_name;
+		}
+		
 		for (ctl = cb_static_call_list; ctl; ctl = ctl->next) {
-			if (!strcmp((const char *)lp->data, ctl->text)) {
+			if (!strcmp (name_str, ctl->text)) {
 				dynamic_link = 0;
 				break;
 			}
 		}
 		for (ctl = cb_early_exit_list; ctl; ctl = ctl->next) {
-			if (!strcmp((const char *)lp->data, ctl->text)) {
+			if (!strcmp (name_str, ctl->text)) {
 				gen_exit_program = 1;
 				break;
 			}
@@ -4607,7 +4636,7 @@ output_call (struct cb_call *p)
 	need_brace = 0;
 
 #ifdef	COB_NON_ALIGNED
-	if (dynamic_link && retptr) {
+	if (dynamic_link && ret_ptr) {
 		if (!need_brace) {
 			need_brace = 1;
 			output_indent ("{");
@@ -4832,7 +4861,7 @@ output_call (struct cb_call *p)
 		output_prefix ();
 		if (p->call_returning == cb_null) {
 			output ("cob_unifunc.funcnull");
-		} else if (retptr) {
+		} else if (ret_ptr) {
 #ifdef	COB_NON_ALIGNED
 			output ("temptr");
 #else
@@ -4850,7 +4879,7 @@ output_call (struct cb_call *p)
 	} else if (!dynamic_link) {
 		/* Static link */
 		if (p->call_returning != cb_null) {
-			if (retptr) {
+			if (ret_ptr) {
 #ifdef	COB_NON_ALIGNED
 				output ("temptr");
 #else
@@ -4867,51 +4896,45 @@ output_call (struct cb_call *p)
 		if (system_call) {
 			output ("%s", system_call);
 		} else {
-			callp = cb_encode_program_id ((char *)(CB_LITERAL (p->name)->data));
+			s = get_program_id_str (p->name);
+			name_str = cb_encode_program_id (s);
+			
 			/* Check contained programs */
-			nlp = current_prog->nested_prog_list;
-			for (; nlp; nlp = nlp->next) {
-				if (!strcmp (callp, nlp->nested_prog->program_id)) {
-					break;
-				}
-			}
+			nlp = find_nested_prog_with_id (name_str);
 			if (nlp) {
-				output ("%s_%d__", callp,
+				output ("%s_%d__", name_str,
 					nlp->nested_prog->toplev_count);
 			} else {
-				output ("%s", callp);
+				output ("%s", name_str);
 			}
 		}
 	} else {
 		/* Dynamic link */
-		if (CB_LITERAL_P (p->name)) {
-			s = (char *)(CB_LITERAL (p->name)->data);
-			callp = cb_encode_program_id (s);
-			lookup_call (callp);
-			/* Check contained programs */
-			nlp = current_prog->nested_prog_list;
-			for (; nlp; nlp = nlp->next) {
-				if (!strcmp (callp, nlp->nested_prog->program_id)) {
-					break;
-				}
-			}
-			output ("if (unlikely(call_%s.funcvoid == NULL || cob_glob_ptr->cob_physical_cancel)) {\n", callp);
+		if (name_is_literal_or_prototype) {			
+			s = get_program_id_str (p->name);
+			name_str = cb_encode_program_id (s);
+			lookup_call (name_str);
+
+			output ("if (unlikely(call_%s.funcvoid == NULL || cob_glob_ptr->cob_physical_cancel)) {\n", name_str);
 			output_prefix ();
+			
+			nlp = find_nested_prog_with_id (name_str);
 			if (nlp) {
 				output ("  call_%s.funcint = %s_%d__;\n",
-					callp, callp,
+					name_str, name_str,
 					nlp->nested_prog->toplev_count);
 			} else {
-				output ("  call_%s.funcvoid = ", callp);
+				output ("  call_%s.funcvoid = ", name_str);
 				output ("cob_resolve_cobol (");
 				output_string ((const unsigned char *)s,
 						(int)strlen (s), 0);
 				output (", %d, %d);\n", cb_fold_call, !p->stmt1);
 			}
+			
 			output_prefix ();
 			output ("}\n");
 		} else {
-			callp = NULL;
+			name_str = NULL;
 			needs_unifunc = 1;
 			output ("cob_unifunc.funcvoid = cob_call_field (");
 			output_param (p->name, -1);
@@ -4925,8 +4948,8 @@ output_call (struct cb_call *p)
 			}
 		}
 		if (p->stmt1) {
-			if (callp) {
-				output_line ("if (unlikely(call_%s.funcvoid == NULL))", callp);
+			if (name_str) {
+				output_line ("if (unlikely(call_%s.funcvoid == NULL))", name_str);
 			} else {
 				output_line ("if (unlikely(cob_unifunc.funcvoid == NULL))");
 			}
@@ -4940,7 +4963,7 @@ output_call (struct cb_call *p)
 		}
 		output_prefix ();
 		/* call frame cast prototype */
-		if (retptr) {
+		if (ret_ptr) {
 #ifdef	COB_NON_ALIGNED
 			output ("temptr");
 #else
@@ -4988,20 +5011,20 @@ output_call (struct cb_call *p)
 		output(")");
 
 		if (p->call_returning == cb_null) {
-			if (callp) {
-				output ("call_%s.funcnull%s", callp, convention);
+			if (name_str) {
+				output ("call_%s.funcnull%s", name_str, convention);
 			} else {
 				output ("cob_unifunc.funcnull%s", convention);
 			}
-		} else if (retptr) {
-			if (callp) {
-				output ("call_%s.funcptr%s", callp, convention);
+		} else if (ret_ptr) {
+			if (name_str) {
+				output ("call_%s.funcptr%s", name_str, convention);
 			} else {
 				output ("cob_unifunc.funcptr%s", convention);
 			}
 		} else {
-			if (callp) {
-				output ("call_%s.funcint%s", callp, convention);
+			if (name_str) {
+				output ("call_%s.funcint%s", name_str, convention);
 			} else {
 				output ("cob_unifunc.funcint%s", convention);
 			}
@@ -5055,7 +5078,7 @@ output_call (struct cb_call *p)
 			output_prefix ();
 			output_integer (current_prog->cb_return_code);
 			output (" = 0;\n");
-		} else if (!retptr) {
+		} else if (!ret_ptr) {
 			output_move (current_prog->cb_return_code,
 				     p->call_returning);
 #ifdef	COB_NON_ALIGNED
@@ -5114,22 +5137,17 @@ static void
 output_cancel (struct cb_cancel *p)
 {
 	struct nested_list	*nlp;
-	char			*callp;
+	char			*name_str;
 	char			*s;
 	int			i;
 
-	if (CB_LITERAL_P (p->target)) {
-		s = (char *)(CB_LITERAL (p->target)->data);
-		callp = cb_encode_program_id (s);
-		nlp = current_prog->nested_prog_list;
-		for (; nlp; nlp = nlp->next) {
-			if (!strcmp (callp, nlp->nested_prog->program_id)) {
-				break;
-			}
-		}
+	if (is_literal_or_prototype_ref (p->target)) {
+		s = get_program_id_str (p->target);
+		name_str = cb_encode_program_id (s);
+		nlp = find_nested_prog_with_id (name_str);
 		if (nlp) {
 			output_prefix ();
-			output ("(void)%s_%d_ (-1", callp,
+			output ("(void)%s_%d_ (-1", name_str,
 				nlp->nested_prog->toplev_count);
 			for (i = 0; i < nlp->nested_prog->num_proc_params; ++i) {
 				output (", NULL");
@@ -7986,6 +8004,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_module_init (prog);
 	}
 
+	/* Module Parameters */
 	output_line ("/* Set address of module parameter list */");
 	if (cb_flag_stack_on_heap || prog->flag_recursive) {
 		if (prog->max_call_param) {
@@ -8196,7 +8215,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 
 	/* Call parameters */
 	if (cb_code_field (prog->cb_call_params)->count) {
-		output_line ("/* Set NUMBER-OF-CALL-PARAMETERS */");
+		output_line ("/* Set NUMBER-OF-CALL-PARAMETERS (independant from LINKAGE) */");
 		output_prefix ();
 		output_integer (prog->cb_call_params);
 		output (" = cob_glob_ptr->cob_call_params;\n");
@@ -8223,17 +8242,19 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_newline (); /* EB */
 	} /* EB */
 
+#if	0	/* RXWRXW - Params (in each module or in cob_module_enter) */
 	output_line ("/* Save number of call params */");
 	output_line ("module->module_num_params = cob_glob_ptr->cob_call_params;");
 	output_newline ();
-	
+#endif
+
 	if (!cb_sticky_linkage && !prog->flag_chained
 #if	0	/* RXWRXW USERFUNC */
 		&& prog->prog_type != CB_FUNCTION_TYPE
 #endif
 		&& prog->num_proc_params) {
 		output_line ("/* Set not passed parameter pointers to NULL */");
-		output_line ("switch (cob_glob_ptr->cob_call_params) {");
+		output_line ("switch (cob_call_params) {");
 		i = 0;
 		for (l = parameter_list; l; l = CB_CHAIN (l)) {
 			output_line ("case %d:", i++);
@@ -8259,7 +8280,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 			output_param (CB_VALUE (l), i);
 			output_target = savetarget;
 
-			output_line ("if (cob_glob_ptr->cob_call_params > %d && %s%d%s)",
+			output_line ("if (cob_call_params > %d && %s%d%s)",
 				i, "module->next->cob_procedure_params[",
 				i, "]");
 			if (f->flag_any_numeric) {
@@ -9034,6 +9055,7 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 		}
 #endif
 		output (");\n");
+		output ("cob_call_params = cob_get_global_ptr ()->cob_call_params;\n");
 
 		output ("  floc->ret_fld = %s_ (0", prog->program_id);
 		if (parmnum != 0) {
@@ -9270,11 +9292,18 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 		for (l = using_list; l; l = CB_CHAIN (l)) {
 			parmnum++;
 		}
-		output("  /* If the parameter count is unknown, set it to all */\n");
-		output("  if ((cob_get_global_ptr ()->cob_call_params == 0) &&\n");
-		output("      !(cob_get_global_ptr ()->cob_current_module)) {\n");
-		output("\tcob_get_global_ptr ()->cob_call_params = %d;\n", parmnum);
-		output("  };\n\n");
+		output("  /* Get current number of call parameters,\n");
+		output("     if the parameter count is unknown, set it to all */\n");
+		if (cb_flag_implicit_init) {
+			output("  if (cob_is_initialized() && cob_get_global_ptr()->cob_current_module) {\n");
+		} else {
+			output("  if (cob_get_global_ptr()->cob_current_module) {\n");
+	}
+		output ("\tcob_call_params = cob_get_global_ptr ()->cob_call_params;\n");
+		output("  } else {\n");
+		output ("\tcob_call_params = %d;\n", parmnum);
+		output("  };\n");
+		output_newline();
 	}
 
 	/* We have to cater for sticky-linkage here at the entry point site */
@@ -9370,7 +9399,7 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 	if (cb_sticky_linkage && using_list) {
 		output("  /* Set the parameter list */\n");
 		parmnum = 0;
-		output ("  switch (cob_get_global_ptr ()->cob_call_params) {\n");
+		output ("  switch (cob_call_params) {\n");
 		for (l = using_list; l; l = CB_CHAIN (l), parmnum++) {
 			output ("  case %u:\n", parmnum);
 			for (n = 0; n < parmnum; ++n) {
@@ -9651,21 +9680,19 @@ codegen (struct cb_program *prog, const int subsequent_call)
 
 		sectime = time (NULL);
 		loctime = localtime (&sectime);
+		if (loctime) {
 		/* Leap seconds ? */
 		if (loctime->tm_sec >= 60) {
 			loctime->tm_sec = 59;
 		}
-		if (loctime) {
 			strftime (string_buffer, (size_t)COB_MINI_MAX,
 				  "%b %d %Y %H:%M:%S", loctime);
-		} else {
-			strcpy (string_buffer, _("Unknown"));
-		}
 		output_header (output_target, string_buffer, NULL);
 		output_header (cb_storage_file, string_buffer, NULL);
 		for (cp = prog; cp; cp = cp->next_program) {
 			output_header (cp->local_include->local_fp,
 					string_buffer, cp);
+		}
 		}
 
 #ifndef	_GNU_SOURCE
@@ -10209,6 +10236,9 @@ codegen (struct cb_program *prog, const int subsequent_call)
 
 	output_storage ("\n/* Module path */\n");
 	output_storage ("static const char\t\t*cob_module_path = NULL;\n");
+
+	output_storage ("\n/* Number of call parameters */\n");
+	output_storage ("static int\t\tcob_call_params = 0;\n");
 
 	output_globext_cache ();
 	output_nonlocal_base_cache ();

@@ -1,3 +1,193 @@
+
+2016-08-20  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (identifier): added check that identifier references a field.
+	* parser.y: added checks that INSPECT and TRANSFORM have USAGE DISPLAY
+	  operands.
+	* parser.y, scanner.l: split class-names into separate token from WORD,
+	  as they can only be referenced in class conditions.
+	* scanner.l: improved style.
+	* typeck.c: refactored checking of INSPECT/TRANSFORM targets.
+
+2016-08-16  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c (emit_screen_displays): fixed bug introduced in the previous
+	  commit where invalid MOVEs were generated (see discussion [eed1ec4a]).
+
+2016-08-15  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, typeck.c: fixed bug #299 (cannot have multiple screens in
+	  one DISPLAY).
+
+2016-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, reserved.c: temporarily added new command line option
+	  -R, -reserve-all for unsetting specify-all-reserved in compiler conf;
+	  FIXME: should be possible with -fno-specify-all-reserved-words
+
+2016-08-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c (is_invalid_word): new function for checking the words,
+	  currently only checks user defined words to be < COB_MAX_WORDLEN
+	* reserved.c: don't compare/print indicators and alias as part of the words
+	* config.c (cb_config_entry): reserved words handling - remove whitespace
+	  and translate : to =
+	* cobc, config.c: set output name for -f<tag>=<value> in cobc.c instead
+	  in multiple functions in confic.c and show the complete parameter
+
+2016-08-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.def: renamed compiler configuration relaxed-syntax-check to
+	  relax-syntax-checks for supporting the removed -frelax-syntax when set
+	  on command line
+	* general: renamed cb_relaxed_syntax_check to cb_relaxed_syntax_checks
+
+2016-08-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c: use printf to do formatting instead of tabs
+	* cobc.c: added option --brief (-q) to reset -verbose and
+	  remove the path to cobc in argv[0]
+	* cobc.c, cobc.h: better help for compiler flags
+	* flag.def, cobc.c, cobc.h: added more parameters in flag.def for better
+	  help output; changed defines for CB_FLAG_RQ and CB_FLAG_NQ
+	* Makefile.am: add config.def as prerequisite for man-page 
+
+2016-08-09  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, typeck.c, codegen.c: added support for program-prototypes in
+	  REPOSITORY and CALL and CANCEL statements.
+	* tree.h (cb_func_prototype): renamed to cb_prototype.
+	* condig.def: added program-name-redefinition (thus fixing bug #268) and
+	  program-prototypes.
+
+2016-08-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* error.c, tree.h, typeck.c, parser.y: suppress listing output and
+	  counting of warnings/errors with the new functions 
+	  listprint_suppress/listprint_restore
+	* cobc.c (print_program_trailer): correct grammar for 1 error/warning
+
+
+2016-08-08  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (x): fixed bug #209, where invalid mnemonic message had line
+	  number of mnemonic entry in SPECIAL-NAMES.
+
+2016-08-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: don't stop if preprocessing errors but activate
+	  cb_flag_syntax_only and let the parser do further checks
+	* cobc.c: initialize errorcount only for each source file instead
+	  of for each processing stage
+	* pplex.l (ppinput): don't fake EOF on buffer overrun for
+	  continuation lines (still process all following lines)
+	* cobc.c, pplex.l: only do listing specific parts if vars
+	  cb_src_list_file/cb_current_file are set
+	* cobc.c: moved code for listing titles to own functions
+	  (set_listing_title_code) and (set_listing_title_symbols)
+	* cobc.c (terminate_str_at_first_of_char): changed to terminate at
+	  passed char instead of '\n'
+
+2016-08-04  Edward Hart <edward.dan.hart@gmail.com>
+
+	* codegen.c (initialize_type): renamed to deduce_initialize_type.
+	* codegen.c (deduce_initialize_type): fixed bug #287, where reference-
+	  modified group item was not treated as an elementary item.
+
+2016-08-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (process_command_line): save conf_ret via |= instead of extra var
+
+2016-08-03  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Redo listings when copybooks are missing. Changed replace
+	  string positioning in free format listings.
+	* cobc.h: Add list file source format field.
+	* pplex.l, ppparse.y: Record source format in the list file struct.
+
+2016-08-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* scanner.l (read_literal): Fix SIGSEGV for uncommon literals - bug 195
+	* cobc.c, cobc.h: changes to listfile generation: start use of compiler
+	  configurations (cb_tab_width, cb_text_col)
+
+2016-08-02  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Fixes to put file not found into the listing file. Also,
+	  changes to list the "file.i" preprocessed file.
+
+2016-08-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (set_picture): fixed SIGSEGV on processing invalid
+	  picture definitions, print "INVALID" as picture instead
+	* error.c (print_error): fixed SIGSEGVs for empty prefix and
+	  missing source files
+	* parser.y: bug #259 - better checks for STRING syntax
+
+2016-08-01  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c, error.c, pplex.l: Changes to change fixed sized character
+	  arrays to pointers. Allocate strings based on length.
+	* cobc.h: Moved structure declatations and added comments.
+
+2016-08-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* error.c, cobc.h (cb_get_strerror): own reentrant version of strerror
+	* error.c: extracted (configuration_error_head) from (configuration_error)
+	* error.c: adjusted (cb_perror) to receive a formatted message
+	* adjusted callers of (cb_perror)
+
+2016-08-01  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (renames_entry): fixed bug #289 where PICTURE of renamed
+	  field was not copied to the RENAMES item.
+
+2016-07-31  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: FR #127 extracted (cobc_abort_msg) from (cobc_abort_terminate)
+	  and using it in (cobc_sig_handler), too
+	* cobc.c: minimized (cob_reg_sighnd) and register libcob's signal handler
+	  instead of self-registering one
+
+2016-07-31  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (program_type_clause): marked EXTERNAL as pending.
+
+2016-07-30  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (return_at_end): allow NOT AT END before AT END (bugs #242).
+
+2016-07-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, cobc.h, tree.c, typeck.c: removed COBC_DUMP_ABORT as it did not
+	  work as intended (fixing compiler warnings because of return not reached)
+	* pplex.l, scanner.l: removed standard C headers already included by flex
+	* error.c: removed inline attribute from (cb_verify), (cb_verify_x) and
+	  removed extra function (cb_verify_common)
+
+2016-07-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* error.c, cobc.h: new function cb_perror for returning system errors
+	* error.c (print_error): changes for cb_perror
+	* cobc.c (cobc_terminate), config.c (cb_load_conf_file), pplex.l (ppcopy):
+	  use cb_perror instead of output of a guessed error message
+
+2016-07-27  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, scanner.l: seperated 66-, 78- and 88-level handling from
+	  data_description, making it impossible to specify improper clauses.
+	* field.c: removed code made redundant by the above change.
+	* field.c, tree.h (cb_validate_renames_item): strengthened 66-level
+	  syntax checks.
+	* config.def: added renames-uncommon-levels config option (for MF
+	  extension).
+	* pplex.l: reverted gobbling of redundant periods after COPY/REPLACE
+	  (bugs #283).
+
+2016-07-24  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Additional picture information. TYPE field additions/changes.
+
 2016-07-18  Dave Pitts <dpitts@cozx.com>
 
 	* cobc.c: Added symbol listing support for LINKAGE and SCREEN sections.
@@ -181,6 +371,11 @@
 	* typeck.c (cb_validate_program_environment): FR #67 output duplicate values
 	  in errornous alphabet-names at correct error position
 
+2016-06-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: revised all message strings
+	* cobc.h: changed PENDING to not use apostrophe
+
 2016-06-12  Edward Hart <edward.dan.hart@gmail.com>
 
 	* tree.c (cb_build_picture): fixed bug where PIC SS9 was not detected as
@@ -361,6 +556,11 @@
 	* parser.y: disabled formal BY VALUE parameters, pending fix of bug
 	  #109.
 
+2016-02-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (process_command_line): Fix missing memory release for cobc -V,
+	  let --list-reserved work together with other --list-options again
+
 2016-02-28  Edward Hart <edward.dan.hart@gmail.com>
 
 	* config.def, config.c, reserved.c: added reserved and specify-all-
@@ -507,6 +707,13 @@
 	* codegen.c, codeoptim.c: Changed code to generate cob_screen as a
 	  doubly linked list.
 	* reserved.c (reserved_words): added GRID as synonym for LEFTLINE.
+
+2015-12-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, config.c: changes for replacing -cb_conf=<tag>:<value> with
+	  additional flags -f<tag>=<value> including -f[no-]<tag> for binary confs
+	* config.def, cobc.c, cobc.h, config.c: added additional parameter in
+	  config.def for help output; changed defines for CB_CONFIG_*
 
 2015-12-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -1500,7 +1707,7 @@
 2008-05-23  Roger While <simrw@sim-basis.de>
 
 	* parser.y, typeck.c : Allow FUNCTION (obviously only alphanumeric) as the
-	  object of a CALL (eg. CALL FUNCTION UPPER-CASE (dataitem) ...
+	  object of a CALL (e.g. CALL FUNCTION UPPER-CASE (dataitem) ...
 	* parser.y, tree.h, codegen.c : Better display of POINTER items
 
 2008-05-22  Roger While <simrw@sim-basis.de>
@@ -1818,7 +2025,7 @@
 2007-06-21  Roger While <simrw@sim-basis.de>
 
 	* tree.c : Produce error for partial expression code on WHEN clause
-	* codegen.c : When calling a "system" function (eg. CBL_OPEN_FILE) with
+	* codegen.c : When calling a "system" function (e.g. CBL_OPEN_FILE) with
 	  implicit "sticky linkage" (ie. -std=mvs), do not extend the parameter list
 	  with NULL's
 	* cobc.c : Help was missing for -conf=
@@ -2400,7 +2607,7 @@
 2006-01-07  Roger While <simrw@sim-basis.de>
 
 	* cobc.c : Remove --verbose long option. getopt_long_only
-	  has a problem with eg. -mv
+	  has a problem with e.g. -mv
 	  Change 'Version' back to 'version'.
 
 2006-01-05  Roger While <simrw@sim-basis.de>
@@ -2560,7 +2767,7 @@
 	  Retrieval of 1 byte binary fields always optimized
 	  Optimize referencing linkage section items
 	  Test/set of 1 byte fields
-	* cobc.c : Print patch level for -V (eg. 0.33.0)
+	* cobc.c : Print patch level for -V (e.g. 0.33.0)
 
 2005-08-07  Roger While <simrw@sim-basis.de>
 
@@ -2594,7 +2801,7 @@
 	* parser.y : Check for START on SEQ file
 	* All : Do malloc's through own new routine cob_malloc
 	  This will produce an error and terminate if memory
-	  can not be acquired.
+	  cannot be acquired.
 
 2005-07-02  Roger While <simrw@sim-basis.de>
 
@@ -2657,8 +2864,8 @@
 2005-05-21  Roger While <simrw@sim-basis.de>
 
 	* New file call.def : Defines entry points that will be generated as
-	  static calls in Cobol programs.
-	  eg. own C routines or other software entry points that are
+	  static calls in COBOL programs.
+	  e.g. own C routines or other software entry points that are
 	  linked to the main program (or cobcrun).
 
 	* codegen.c : Inline cob_module_xxx, cater for above call.def
@@ -2687,7 +2894,7 @@
 	     -std=cobol2002 and -std=mf.
 	  config.def : New variables - larger-redefines-ok and
 	     relaxed-syntax-check.
-	  codegen.c :  Do not generate unnecessary code eg. switch
+	  codegen.c :  Do not generate unnecessary code e.g. switch
 	     statement for only one entry point, loop counters.
 	     Cater for NUMBER-OF-CALL-PARAMETERS.
 	     Initialize variables.

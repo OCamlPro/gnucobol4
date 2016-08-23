@@ -233,7 +233,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 8: Warning: Overlapping MOVE may produce unpredictable results
+[prog.cob: 8: warning: overlapping MOVE may produce unpredictable results
 ])
 AT_CHECK([./prog], [0], [], [])
 
@@ -550,7 +550,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [1], [],
-[prog.cob: 6: Error: Level 01 item 'X' cannot have a OCCURS clause
+[prog.cob: 6: error: level 01 item 'X' cannot have a OCCURS clause
 ])
 
 AT_CLEANUP
@@ -811,7 +811,7 @@ AT_DATA([callee2.cob], [
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
-AT_CHECK([./caller], [1], [], [callee2.cob: 5: libcob: Invalid recursive COBOL CALL to 'callee'
+AT_CHECK([./caller], [1], [], [libcob: callee2.cob: 5: invalid recursive COBOL CALL to 'callee'
 ])
 
 AT_CLEANUP
@@ -916,7 +916,7 @@ AT_CHECK([./prog], [0],
 00000009
 00000004
 ])
-AT_CHECK([$COMPILE -cb_conf=binary-byteorder:native prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-byteorder=native prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [00000001
 00000009
@@ -1471,7 +1471,6 @@ AT_DATA([prog.cob], [
        WORKING-STORAGE  SECTION.
        01  INDVAL       PIC 9(4).
        PROCEDURE        DIVISION.
-       A01.
            PERFORM VARYING INDVAL FROM 1
             BY 1 UNTIL INDVAL > 2
            END-PERFORM
@@ -1499,13 +1498,16 @@ AT_DATA([prog.cob], [
        WORKING-STORAGE  SECTION.
        01  INDVAL       PIC 9(4).
        PROCEDURE        DIVISION.
-       A01.
            PERFORM VARYING INDVAL FROM 1
-            BY 1 UNTIL INDVAL > 2
+            BY 1 UNTIL INDVAL > 2.
+           IF INDVAL NOT = 3
+              DISPLAY INDVAL NO ADVANCING
+              END-DISPLAY
+           END-IF
            .
 ])
 
-AT_CHECK([$COMPILE -frelax-syntax prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -frelax-syntax-checks prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [])
 
 AT_CLEANUP
@@ -1804,7 +1806,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -frelax-syntax prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -ftop-level-occurs-clause=ok prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
@@ -2140,7 +2142,7 @@ AT_DATA([prog.cob], [
            EXIT.
 ])
 
-AT_CHECK([$COMPILE -cb_conf=perform-osvs:yes prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -fperform-osvs prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
@@ -2186,8 +2188,8 @@ AT_DATA([caller.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE -cb_conf=sticky-linkage:yes callee.cob], [0], [], [])
-AT_CHECK([$COMPILE -cb_conf=sticky-linkage:yes -o caller caller.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE -fsticky-linkage callee.cob], [0], [], [])
+AT_CHECK([$COMPILE -fsticky-linkage -o caller caller.cob], [0], [], [])
 AT_CHECK([./caller], [0], [], [])
 
 AT_CLEANUP
@@ -2278,11 +2280,11 @@ AT_DATA([main-prog.cob], [
         STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE prog.cob], [0], [], [prog.cob: 13: Warning: ENTRY is obsolete in GnuCOBOL
-prog.cob: 17: Warning: ENTRY is obsolete in GnuCOBOL
+AT_CHECK([$COMPILE_MODULE prog.cob], [0], [], [prog.cob: 13: warning: ENTRY is obsolete in GnuCOBOL
+prog.cob: 17: warning: ENTRY is obsolete in GnuCOBOL
 ])
-AT_CHECK([$COMPILE_MODULE prog1.cob], [0], [], [prog1.cob: 13: Warning: ENTRY is obsolete in GnuCOBOL
-prog1.cob: 17: Warning: ENTRY is obsolete in GnuCOBOL
+AT_CHECK([$COMPILE_MODULE prog1.cob], [0], [], [prog1.cob: 13: warning: ENTRY is obsolete in GnuCOBOL
+prog1.cob: 17: warning: ENTRY is obsolete in GnuCOBOL
 ])
 AT_CHECK([$COMPILE main-prog.cob], [0], [], [])
 AT_CHECK([export COB_PRE_LOAD="prog"$PATHSEP"prog1"; ./main-prog], [0], [12abc
@@ -2328,7 +2330,7 @@ AT_DATA([prog.cob], [
        .
 ])
 
-AT_CHECK([$COMPILE prog.cob], [0], [], [prog.cob: 26: Warning: ENTRY is obsolete in GnuCOBOL
+AT_CHECK([$COMPILE prog.cob], [0], [], [prog.cob: 26: warning: ENTRY is obsolete in GnuCOBOL
 ])
 AT_CHECK([./prog], [42], [subprogram+000000042], [])
 
@@ -2567,6 +2569,7 @@ AT_CHECK([./caller], [0], [], [])
 
 AT_CLEANUP
 
+
 AT_SETUP([CALL in from C, cob_call_params explicitly set])
 AT_KEYWORDS([runmisc])
 
@@ -2594,13 +2597,13 @@ int callee (char *);
 int
 main (int argc, char **argv)
 {
-    cob_global *cobol_global;
-    char *p1 = "A";
+	cob_global *cobol_global;
+	char *p1 = "A";
 
-    cob_init(argc, argv);
-    cobol_global = cob_get_global_ptr ();
-    cobol_global->cob_call_params = 1;
-    return callee (p1);
+	cob_init(argc, argv);
+	cobol_global = cob_get_global_ptr ();
+	cobol_global->cob_call_params = 1;
+	return callee (p1);
 }
 ])
 
@@ -2608,6 +2611,7 @@ AT_CHECK([$COMPILE -o caller caller.c callee.cob], [0], [], [])
 AT_CHECK([./caller], [0], [], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([CALL in from C, cob_call_params unknown])
 AT_KEYWORDS([runmisc])
@@ -2639,11 +2643,11 @@ int callee (char *, char *);
 int
 main (int argc, char **argv)
 {
-    char *p1 = "A";
-    char *p2 = "FROM C";
- 
-    cob_init(argc, argv);
-    return callee (p1, p2);
+	char *p1 = "A";
+	char *p2 = "FROM C";
+
+	cob_init(argc, argv);
+	return callee (p1, p2);
 }
 ])
 
@@ -2651,6 +2655,54 @@ AT_CHECK([$COMPILE -o caller caller.c callee.cob], [0], [], [])
 AT_CHECK([./caller], [0], [], [])
 
 AT_CLEANUP
+
+
+AT_SETUP([CALL in from C with init missing / implicit])
+AT_KEYWORDS([runmisc implicit-init])
+
+AT_DATA([callee.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      callee.
+       DATA             DIVISION.
+       LINKAGE          SECTION.
+       01 P1            PIC X.
+       01 P2            PIC X(6).
+       PROCEDURE        DIVISION USING P1 P2.
+           IF P1 NOT EQUAL "A"
+              DISPLAY P1
+              END-DISPLAY
+           END-IF.
+           IF P2 NOT EQUAL "FROM C"
+              DISPLAY P2
+              END-DISPLAY
+           END-IF.
+           EXIT PROGRAM.
+])
+
+AT_DATA([caller.c], [
+int callee (char *, char *);
+
+int
+main (int argc, char **argv)
+{
+
+	char *p1 = "A";
+	char *p2 = "FROM C";
+
+	return callee (p1, p2);
+}
+])
+
+AT_CHECK([$COMPILE -o caller caller.c callee.cob], [0], [], [])
+AT_CHECK([./caller], [1], [],
+[libcob: cob_init() has not been called
+])
+
+AT_CHECK([$COMPILE -fimplicit-init -o caller caller.c callee.cob], [0], [], [])
+AT_CHECK([./caller], [0], [], [])
+
+AT_CLEANUP
+
 
 AT_SETUP([ANY LENGTH (1)])
 AT_KEYWORDS([runmisc])
@@ -2771,10 +2823,10 @@ AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COMPILE prog2.cob], [0], [], [])
 
 AT_CHECK([./prog], [1], [],
-[prog.cob: 8: libcob: BASED/LINKAGE item 'X' has NULL address
+[libcob: prog.cob: 8: BASED/LINKAGE item 'X' has NULL address
 ])
 AT_CHECK([./prog2], [1], [],
-[prog2.cob: 9: libcob: BASED/LINKAGE item 'X' (accessed by 'Y') has NULL address
+[libcob: prog2.cob: 9: BASED/LINKAGE item 'X' (accessed by 'Y') has NULL address
 ])
 
 AT_CLEANUP
@@ -2816,7 +2868,7 @@ AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 
 AT_CHECK([./caller], [1], [],
-[callee.cob: 9: libcob: LINKAGE item 'X' (accessed by 'Y') not passed by caller
+[libcob: callee.cob: 9: LINKAGE item 'X' (accessed by 'Y') not passed by caller
 ])
 
 AT_CLEANUP
@@ -4602,7 +4654,7 @@ AT_DATA([prog.cob], [
            .
 ])
 
-AT_CHECK([$COMPILE  -cb_conf=accept-display-extensions:error prog.cob], [0], [], [])
+AT_CHECK([$COMPILE  -faccept-display-extensions=error prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], ignore, [])
 
 AT_CLEANUP
@@ -4862,4 +4914,60 @@ Program-Id: caller           Statement: MOVE                   Line: 16
 Program-Id: caller           Statement: STOP RUN               Line: 17
 ])
 
+AT_CLEANUP
+
+
+AT_SETUP([CALL with program prototypes])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       PROCEDURE DIVISION.
+           CALL "c"
+           .
+       END PROGRAM prog.
+
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. a AS "blah?Sdk".
+
+       PROCEDURE DIVISION.
+           DISPLAY "Hello!"
+           .
+       END PROGRAM a.
+
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. b.
+
+       PROCEDURE DIVISION.
+           DISPLAY "Hello again!"
+           .
+       END PROGRAM b.
+
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. c.
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       REPOSITORY.
+           PROGRAM d AS "blah?Sdk"
+           PROGRAM b
+           .          
+
+       PROCEDURE DIVISION.
+           CALL d
+           CALL b
+           .
+       END PROGRAM c.
+])
+
+AT_CHECK([$COMPILE -o prog prog.cob], [0], [], [])
+AT_CHECK([./prog], [0],
+[Hello!
+Hello again!
+])
 AT_CLEANUP

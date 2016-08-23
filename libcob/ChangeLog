@@ -1,5 +1,37 @@
 
-<<<<<<< .working
+2016-08-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c, common.h: new routine (cob_is_initialized)
+	* common.c (cob_module_enter): activated storing module call parameters
+	  on module entry
+
+2016-08-16  Edward Hart <edward.dan.hart@gmail.com>
+
+	* screenio.c (field_accept): fixed bug #300 (segfault on screen ACCEPT
+	  OMITTED).
+
+2016-08-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_runtime_error): reversed the prefix from runtime errors,
+	  always starts with "libcob: " now
+	* common.c (cob_get_strerror): own reentrant version of strerror
+	* common.c (cob_load_config_file): use cob_get_strerror instead of
+	  a guessed error message
+
+2016-07-31  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_reg_sighnd): call cob_set_signal() if not done already
+
+2016-07-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* coblocal.h: changed types in config_tbl to unsigned (compiler warnings)
+	* common.h [_MSC_VER]: added definitions for COB_NOINLINE, COB_A_INLINE
+
+2016-07-17  Edward Hart <edward.dan.hart@gmail.com>
+
+	* screenio.c: added support for LINE/COL 0.
+	* screenio.c: fixed small issues with DISPLAY ALL X"02" and X"07".
+
 2016-07-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* common.c: moved resolve of call_Xanim.funcvoid from generated modules to
@@ -12,14 +44,6 @@
 	* debugger.c: added draft for get_refmod(), fixed GCC warnings
 	* utils.c (ltrim): fixed not working function
 
-||||||| .merge-left.r978
-=======
-2016-07-17  Edward Hart <edward.dan.hart@gmail.com>
-
-	* screenio.c: added support for LINE/COL 0.
-	* screenio.c: fixed small issues with DISPLAY ALL X"02" and X"07".
-
->>>>>>> .merge-right.r1003
 2016-06-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* common.h, coblocal.h: moved internal functions to coblocal as COB_HIDDEN
@@ -48,6 +72,7 @@
 
 2016-06-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
+	* general: revised all message strings
 	* screenio.c: added (cob_get_scr_cols) and (cob_get_scr_lines) for
 	  providing the C interface with the current COBOL screen cols/lines
 	* common.h: FR #145: added defines for cobcols, coblines and cobrescanenv
@@ -140,7 +165,7 @@
 	* intrinsic.c: changed definition of string lengths for date/time
 	  according to existing ones (COB_xyz_BUFF)
 	* common.h [_MSC_VER]: adding alias for setenv/unsetenv fixing small memory
-	  leak for calls of (putenv) - _MSC duplicates the string, POSIX does not
+	  leak for calls of (putenv) - MSC duplicates the string, POSIX does not
 
 2016-01-30  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
@@ -1615,7 +1640,7 @@
 
 	* All: Do malloc's through own new routine cob_malloc
 	  This will produce an error and terminate if memory
-	  can not be acquired.
+	  cannot be acquired.
 
 2005-07-02  Roger While <simrw@sim-basis.de>
 
@@ -1657,7 +1682,7 @@
 2005-05-27  Roger While <simrw@sim-basis.de>
 
 	* byteswap.h: u_int16_t etc. are not necessarily defined
-	  in sys/types.h (eg. MinGW). So ifndef on __BIT_TYPES_DEFINED__
+	  in sys/types.h (e.g. MinGW). So ifndef on __BIT_TYPES_DEFINED__
 	  and typedef them.
 	  fileio.c: Cater for extended DB headers db4/ db4.1/ db4.2/ db4.3/
 

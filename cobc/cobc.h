@@ -1,6 +1,7 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch,
+   Edward Hart, Dave Pitts
 
    This file is part of GnuCOBOL.
 
@@ -59,7 +60,6 @@
 #endif
 
 #define COBC_ABORT()			cobc_abort(__FILE__, __LINE__)
-#define COBC_DUMB_ABORT()		cobc_dumb_abort(__FILE__, __LINE__)
 
 /* Source format defines */
 #define CB_FORMAT_FIXED			0
@@ -224,8 +224,11 @@ struct cb_exception {
 struct reserved_word_list {
 	struct reserved_word_list	*next;	/* next pointer */
 	char				*word;
-	int				is_context_sensitive;
 	char				*alias_for;
+#if 0 /* FIXME: store refence to origin */
+	char				*defined_by;
+#endif
+	int				is_context_sensitive;
 };
 
 /* Basic memory structure */
@@ -234,6 +237,70 @@ struct cobc_mem_struct {
 	void			*memptr;
 	size_t			memlen;
 };
+
+/* Listing structures and externals */
+
+#define CB_MAX_LINES	55
+
+#define CB_LINE_LENGTH	1024 /* hint: we only read PPLEX_BUF_LEN bytes */
+#define CB_READ_AHEAD	32 /* lines to read ahead */
+
+/* TODO: add new compiler configuration flags for this*/
+#define CB_INDICATOR	6
+#define CB_MARGIN_A	7
+#define CB_MARGIN_B	11	/* careful, for COBOL 85 this would be 11,
+						   for COBOL 2002 (removed it) would be 7 */
+#define CB_SEQUENCE	cb_text_column /* the only configuration available...*/
+#define CB_ENDLINE	cb_text_column + 8
+
+#define IS_DEBUG_LINE(line) ((line)[CB_INDICATOR] == 'D')
+#define IS_CONTINUE_LINE(line) ((line)[CB_INDICATOR] == '-')
+#define IS_COMMENT_LINE(line) \
+   ((line)[CB_INDICATOR] == '*' || (line)[CB_INDICATOR] == '/')
+
+/* List of error messages */
+struct list_error {
+	struct list_error	*next;
+	int			line;		/* Line number for error */
+	char			*prefix;	/* Error prefix */
+	char			*msg;		/* Error Message text */
+};
+
+/* List of REPLACE text blocks */
+struct list_replace {
+	struct list_replace	*next;
+	int			firstline;	/* First line for replace */
+	int			lastline;	/* Last line for replace */
+	int			lead_trail;	/* LEADING/TRAILING flag */
+	char			*from;		/* Old (from) text */
+	char			*to;		/* New (to) text */
+};
+
+/* List of skipped lines (conditional compilation) */
+struct list_skip {
+	struct list_skip	*next;
+	int			skipline;	/* line number of skipped line */
+};
+
+/* Listing file control structure */
+struct list_files {
+	struct list_files	*next;
+	struct list_files	*copy_head;	/* COPY book list head */
+	struct list_files	*copy_tail;	/* COPY book list tail */
+	struct list_error	*err_head;	/* Error message list head */
+	struct list_error	*err_tail;	/* Error message list tail */
+	struct list_replace	*replace_head;	/* REPLACE list head */
+	struct list_replace	*replace_tail;	/* REPLACE list tail */
+	struct list_skip	*skip_head;	/* Skip list head */
+	struct list_skip	*skip_tail;	/* Skip list tail */
+	int 			copy_line;	/* Line start for copy book */
+	int 			listing_on;	/* Listing flag for this file */
+	int			source_format;	/* source format for file */
+	char			*name;		/* Name of this file */
+};
+
+extern struct list_files	*cb_listing_files;
+extern struct list_files	*cb_current_file;
 
 
 extern int			cb_source_format;
@@ -248,8 +315,8 @@ extern struct cb_exception	cb_exception_table[];
 #undef	CB_FLAG_RQ
 #undef	CB_FLAG_NQ
 #define	CB_FLAG(var,pdok,name,doc)		extern int var;
-#define CB_FLAG_RQ(var,pdok,name,def,opt,doc)	extern int var;
-#define CB_FLAG_NQ(pdok,name,opt,doc)
+#define CB_FLAG_RQ(var,pdok,name,def,opt,doc,vdoc,ddoc)	extern int var;
+#define CB_FLAG_NQ(pdok,name,opt,doc,vdoc,ddoc)
 #include "flag.def"
 #undef	CB_FLAG
 #undef	CB_FLAG_RQ
@@ -351,7 +418,6 @@ extern void			cobc_err_msg (const char *, ...) COB_A_FORMAT12;
 DECLNORET extern void		cobc_abort (const char *,
 					    const int) COB_A_NORETURN;
 DECLNORET extern void		cobc_too_many_errors (void) COB_A_NORETURN;
-DECLNORET extern void			cobc_dumb_abort (const char *, const int);
 
 extern size_t			cobc_check_valid_name (const char *,
 						       const unsigned int);
@@ -364,11 +430,11 @@ extern size_t			cobc_check_valid_name (const char *,
 #undef	CB_CONFIG_BOOLEAN
 #undef	CB_CONFIG_SUPPORT
 
-#define	CB_CONFIG_ANY(type,var,name)	extern type var;
-#define	CB_CONFIG_INT(var,name)		extern unsigned int var;
-#define	CB_CONFIG_STRING(var,name)	extern const char *var;
-#define	CB_CONFIG_BOOLEAN(var,name)	extern unsigned int var;
-#define	CB_CONFIG_SUPPORT(var,name)	extern enum cb_support var;
+#define	CB_CONFIG_ANY(type,var,name,doc)	extern type var;
+#define	CB_CONFIG_INT(var,name,doc)			extern unsigned int var;
+#define	CB_CONFIG_STRING(var,name,doc)		extern const char *var;
+#define	CB_CONFIG_BOOLEAN(var,name,doc)		extern int var;
+#define	CB_CONFIG_SUPPORT(var,name,doc)		extern enum cb_support var;
 
 #include "config.def"
 
@@ -440,12 +506,13 @@ extern void		cob_gen_optim (const enum cb_optim);
 #define CB_MSG_STYLE_GCC	0
 #define CB_MSG_STYLE_MSC	1U
 
-#define CB_PENDING(x)		cb_warning (_("'%s' not implemented"), x)
+#define CB_PENDING(x)		cb_warning (_("%s not implemented"), x)
 
 extern size_t		cb_msg_style;
 
 extern void		cb_warning (const char *, ...) COB_A_FORMAT12;
 extern void		cb_error (const char *, ...) COB_A_FORMAT12;
+extern void		cb_perror (const int, const char *, ...) COB_A_FORMAT23;
 extern void		cb_plex_warning (const size_t,
 					 const char *, ...) COB_A_FORMAT23;
 extern void		cb_plex_error (const size_t,
@@ -454,6 +521,7 @@ extern void		configuration_warning (const char *, const int,
 					 const char *, ...) COB_A_FORMAT34;
 extern void		configuration_error (const char *, const int,
 					 const int, const char *, ...) COB_A_FORMAT45;
+extern char *	cb_get_strerror (void);
 
 extern unsigned int	cb_verify (const enum cb_support, const char *);
 
@@ -461,62 +529,7 @@ extern unsigned int	cb_verify (const enum cb_support, const char *);
 extern struct reserved_word_list	*cobc_user_res_list;
 
 extern void		remove_reserved_word (const char *);
-extern void		add_reserved_word (const char *, const char *,
-					   const int);
-
-/* Listing structures and externals */
-
-#define CB_MAX_LINES	55
-
-#define CB_LINE_LENGTH 1024
-#define CB_READ_AHEAD 32
-
-#define CB_INDICATOR	6
-#define CB_MARGIN_A	7
-#define CB_MARGIN_B	11
-#define CB_SEQUENCE	72
-
-#define IS_DEBUG_LINE(line) ((line)[CB_INDICATOR] == 'D')
-#define IS_CONTINUE_LINE(line) ((line)[CB_INDICATOR] == '-')
-#define IS_COMMENT_LINE(line) \
-   ((line)[CB_INDICATOR] == '*' || (line)[CB_INDICATOR] == '/')
-
-struct list_error {
-	struct list_error	*next;
-	int			line;
-	char			prefix[CB_LINE_LENGTH + 2];
-	char			msg[CB_LINE_LENGTH + 2];
-};
-struct list_replace {
-	struct list_replace	*next;
-	int			firstline;
-	int			lastline;
-	int			lead_trail;
-	char			from[CB_LINE_LENGTH + 2];
-	char			to[CB_LINE_LENGTH + 2];
-};
-
-struct list_skip {
-	struct list_skip	*next;
-	int			skipline;
-};
-
-struct list_files {
-	struct list_files	*next;
-	struct list_files	*copy_head;
-	struct list_files	*copy_tail;
-	struct list_error	*err_head;
-	struct list_error	*err_tail;
-	struct list_replace	*replace_head;
-	struct list_replace	*replace_tail;
-	struct list_skip	*skip_head;
-	struct list_skip	*skip_tail;
-	int 			copy_line;
-	int 			listing_on;
-	char			name[CB_LINE_LENGTH + 2];
-};
-
-extern struct list_files	*cb_listing_files;
-extern struct list_files	*cb_current_file;
+extern void		add_reserved_word (char *, const char *, const int);
+extern void		add_all_default_words (void);
 
 #endif /* CB_COBC_H */

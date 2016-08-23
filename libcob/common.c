@@ -258,7 +258,7 @@ static struct config_tbl gc_conf[] = {
 	/* checked before configuration load if set from environment in cob_init() */
 	{"COB_UNIX_LF","unix_lf",		"0",	NULL,GRP_FILE,ENV_BOOL,SETPOS(cob_unix_lf)},
 #endif
-	{"USERNAME","username",			"Unknown",	NULL,GRP_SYSENV,ENV_STR,SETPOS(cob_user_name)},
+	{"USERNAME","username",			_("unknown"),	NULL,GRP_SYSENV,ENV_STR,SETPOS(cob_user_name)},
 	{"LOGNAME","logname",			NULL,	NULL,GRP_HIDE,ENV_STR,SETPOS(cob_user_name)},
 #if !defined(_WIN32) || defined (__MINGW32__) /* cygwin does not define _WIN32 */
 	{"LANG","lang",				NULL,	NULL,GRP_SYSENV,ENV_STR,SETPOS(cob_sys_lang)},
@@ -388,10 +388,12 @@ cob_exit_common (void)
 	}
 	if (cobsetptr) {
 		if (cobsetptr->cob_config_file) {
-			for (i=0; i < cobsetptr->cob_config_num; i++) 
-				if (cobsetptr->cob_config_file[i])
+			for (i = 0; i < cobsetptr->cob_config_num; i++) {
+				if (cobsetptr->cob_config_file[i]) {
 				cob_free((void*)cobsetptr->cob_config_file[i]);
-			cob_free((void*)cobsetptr->cob_config_file);
+		}
+			}
+			cob_free ((void*)cobsetptr->cob_config_file);
 		}
 		/* Free all strings pointed to by cobsetptr */
 		for (i=0; i < NUM_CONFIG; i++) {
@@ -416,13 +418,10 @@ cob_exit_common (void)
 static void
 cob_terminate_routines (void)
 {
-	if (!cob_initialized) {
-		return;
-	}
-	if (!cobglobptr) {
-		return;
-	}
 
+	if (!cob_initialized || !cobglobptr) {
+		return;
+	}
 	if (cob_trace_file && cob_trace_file != stderr) {
 		fclose (cob_trace_file);
 		cob_trace_file = NULL;
@@ -508,8 +507,9 @@ cob_sig_handler (int sig)
 		break;
 #endif
 	default:
-		signal_name = "unkown";
-		fprintf(stderr, "Caught wrong signal: %d\n", sig);
+		signal_name = _("unknown");
+		fprintf(stderr, _("cob_sig_handler caught not handled signal: %d"), sig);
+		putc('\n', stderr);
 		break;
 	}
 
@@ -534,27 +534,27 @@ cob_sig_handler (int sig)
 
 #ifdef	SIGSEGV
 	if (sig == SIGSEGV) {
-		fprintf (stderr, _("Attempt to reference unallocated memory"));
+		fprintf (stderr, _("attempt to reference unallocated memory"));
 	} else {
-		fprintf (stderr, _("Caught Signal"));
+		fprintf (stderr, _("caught signal"));
 	}
 #else
-	fprintf (stderr, _("Caught Signal"));
+	fprintf (stderr, _("caught signal"));
 #endif
 	fprintf (stderr, " (");
-	fprintf (stderr, _("Signal %s"), signal_name);
+	fprintf (stderr, _("signal %s"), signal_name);
 	fprintf (stderr, ")\n");
 
 	if (cob_initialized) {
 		cob_terminate_routines ();
-		fprintf (stderr, _("Abnormal termination - File contents may be incorrect"));
+		fprintf (stderr, _("abnormal termination - file contents may be incorrect"));
 	}
 	putc ('\n', stderr);
 	fflush (stderr);
 
 	cob_sig_handler_ex(sig);
 }
-#endif
+#endif /* HAVE_SIGNAL_H */
 
 static void
 cob_set_signal (void)
@@ -1124,7 +1124,7 @@ cob_rescan_env_vals (void)
 			if(*env != 0					/* If *env -> Nul then ignore this */
 			&& set_config_val(env,i)) {
 				gc_conf[i].data_type = old_type;
-				
+
 				/* Remove invalid setting */
 #if HAVE_SETENV
 				(void)unsetenv(gc_conf[i].env_name);
@@ -1618,7 +1618,7 @@ cob_runtime_error (const char *fmt, ...)
 			if (runtime_err_str) {
 				h->proc (runtime_err_str);
 			} else {
-				h->proc ((char *)_("Malloc error"));
+				h->proc ((char *)_("malloc error"));
 			}
 			hp = h;
 			h = h->next;
@@ -1628,13 +1628,13 @@ cob_runtime_error (const char *fmt, ...)
 	}
 
 	/* Prefix */
+	fputs ("libcob: ", stderr);
 	if (cob_source_file) {
 		fprintf (stderr, "%s: ", cob_source_file);
 		if (cob_source_line) {
 			fprintf (stderr, "%u: ", cob_source_line);
 	}
 	}
-	fputs ("libcob: ", stderr);
 
 	/* Body */
 	va_start (ap, fmt);
@@ -1661,116 +1661,116 @@ cob_fatal_error (const int fatal_error)
 		break;
 #endif
 	case COB_FERROR_CANCEL:
-		cob_runtime_error (_("Attempt to CANCEL active program"));
+		cob_runtime_error (_("attempt to CANCEL active program"));
 		break;
 	case COB_FERROR_INITIALIZED:
 		cob_runtime_error (_("cob_init() has not been called"));
 		break;
 	case COB_FERROR_CODEGEN:
-		cob_runtime_error (_("Codegen error - Please report this"));
+		cob_runtime_error (_("codegen error - Please report this!"));
 		break;
 	case COB_FERROR_CHAINING:
-		cob_runtime_error (_("Recursive call of chained program"));
+		cob_runtime_error (_("recursive call of chained program"));
 		break;
 	case COB_FERROR_STACK:
-		cob_runtime_error (_("Stack overflow, possible PERFORM depth exceeded"));
+		cob_runtime_error (_("stack overflow, possible PERFORM depth exceeded"));
 		break;
 	case COB_FERROR_GLOBAL:
-		cob_runtime_error (_("Invalid entry/exit in GLOBAL USE procedure"));
+		cob_runtime_error (_("invalid entry/exit in GLOBAL USE procedure"));
 		break;
 	case COB_FERROR_MEMORY:
-		cob_runtime_error (_("Unable to allocate memory"));
+		cob_runtime_error (_("unable to allocate memory"));
 		break;
 	case COB_FERROR_MODULE:
-		cob_runtime_error (_("Invalid entry into module"));
+		cob_runtime_error (_("invalid entry into module"));
 		break;
 	case COB_FERROR_RECURSIVE:
-		cob_runtime_error (_("Invalid recursive COBOL CALL to '%s'"),
+		cob_runtime_error (_("invalid recursive COBOL CALL to '%s'"),
 				   COB_MODULE_PTR->module_name);
 		break;
 	case COB_FERROR_FREE:
-		cob_runtime_error (_("Call to %s with NULL pointer"), "cob_free");
+		cob_runtime_error (_("call to %s with NULL pointer"), "cob_free");
 		break;
 	case COB_FERROR_FILE:
 		file_status = cobglobptr->cob_error_file->file_status;
 		status = COB_D2I(file_status[0]) * 10 + COB_D2I(file_status[1]);
 		switch (status) {
 		case COB_STATUS_10_END_OF_FILE:
-			msg = _("End of file");
+			msg = _("end of file");
 			break;
 		case COB_STATUS_14_OUT_OF_KEY_RANGE:
-			msg = _("Key out of range");
+			msg = _("key out of range");
 			break;
 		case COB_STATUS_21_KEY_INVALID:
-			msg = _("Key order not ascending");
+			msg = _("key order not ascending");
 			break;
 		case COB_STATUS_22_KEY_EXISTS:
-			msg = _("Record key already exists");
+			msg = _("record key already exists");
 			break;
 		case COB_STATUS_23_KEY_NOT_EXISTS:
-			msg = _("Record key does not exist");
+			msg = _("record key does not exist");
 			break;
 		case COB_STATUS_30_PERMANENT_ERROR:
-			msg = _("Permanent file error");
+			msg = _("permanent file error");
 			break;
 		case COB_STATUS_35_NOT_EXISTS:
-			msg = _("File does not exist");
+			msg = _("file does not exist");
 			break;
 		case COB_STATUS_37_PERMISSION_DENIED:
-			msg = _("Permission denied");
+			msg = _("permission denied");
 			break;
 		case COB_STATUS_41_ALREADY_OPEN:
-			msg = _("File already open");
+			msg = _("file already open");
 			break;
 		case COB_STATUS_42_NOT_OPEN:
-			msg = _("File not open");
+			msg = _("file not open");
 			break;
 		case COB_STATUS_43_READ_NOT_DONE:
 			msg = _("READ must be executed first");
 			break;
 		case COB_STATUS_44_RECORD_OVERFLOW:
-			msg = _("Record overflow");
+			msg = _("record overflow");
 			break;
 		case COB_STATUS_46_READ_ERROR:
-			msg = _("Failed to READ");
+			msg = _("READ after uncessful READ/START");
 			break;
 		case COB_STATUS_47_INPUT_DENIED:
-			msg = _("READ/START not allowed");
+			msg = _("READ/START not allowed, file not open for input");
 			break;
 		case COB_STATUS_48_OUTPUT_DENIED:
-			msg = _("WRITE not allowed");
+			msg = _("WRITE not allowed, file not open for output");
 			break;
 		case COB_STATUS_49_I_O_DENIED:
-			msg = _("DELETE/REWRITE not allowed");
+			msg = _("DELETE/REWRITE not allowed, file not open for I-O");
 			break;
 		case COB_STATUS_51_RECORD_LOCKED:
-			msg = _("Record locked by another file connector");
+			msg = _("record locked by another file connector");
 			break;
 		case COB_STATUS_57_I_O_LINAGE:
 			msg = _("LINAGE values invalid");
 			break;
 		case COB_STATUS_61_FILE_SHARING:
-			msg = _("File sharing conflict");
+			msg = _("file sharing conflict");
 			break;
 		case COB_STATUS_91_NOT_AVAILABLE:
-			msg = _("Runtime library is not configured for this operation");
+			msg = _("runtime library is not configured for this operation");
 			break;
 		default:
-			msg = _("Unknown file error");
+			msg = _("unknown file error");
 			break;
 		}
 		err_cause = cob_malloc ((size_t)COB_FILE_BUFF);
 		cob_field_to_string (cobglobptr->cob_error_file->assign,
 				     err_cause, (size_t)COB_FILE_MAX);
-		cob_runtime_error (_("%s (Status = %02d) File : '%s'"),
+		cob_runtime_error (_("%s (status = %02d) file: '%s'"),
 				   msg, status, err_cause);
 		cob_free (err_cause);
 		break;
 	case COB_FERROR_FUNCTION:
-		cob_runtime_error (_("Attempt to use non-implemented function"));
+		cob_runtime_error (_("attempt to use non-implemented function"));
 		break;
 	default:
-		cob_runtime_error (_("Unknown failure : %d"), fatal_error);
+		cob_runtime_error (_("unknown failure: %d"), fatal_error);
 		break;
 	}
 	cob_stop_run (1);
@@ -1786,7 +1786,7 @@ conf_runtime_error_value(char *value, const int pos)
 	} else {
 		name = gc_conf[pos].env_name;
 	}
-	conf_runtime_error(0, _("Invalid value '%s' for configuration tag '%s'"), value, name);
+	conf_runtime_error(0, _("invalid value '%s' for configuration tag '%s'"), value, name);
 }
 
 void
@@ -1796,12 +1796,12 @@ conf_runtime_error(const int finish_error, const char *fmt, ...)
 
 	if (!conf_runtime_error_displayed) {
 		conf_runtime_error_displayed = 1;
-		fputs(_("Configuration Error"), stderr);
+		fputs(_("configuration error:"), stderr);
 		putc('\n', stderr);
 	}
 
 	/* Prefix */
-	if (cob_source_file != last_runtime_error_file 
+	if (cob_source_file != last_runtime_error_file
 	|| cob_source_line != last_runtime_error_line) {
 		last_runtime_error_file = cob_source_file;
 		last_runtime_error_line = cob_source_line;
@@ -1830,6 +1830,12 @@ conf_runtime_error(const int finish_error, const char *fmt, ...)
 		putc('\n', stderr);
 		fflush(stderr);
 	}
+}
+
+int
+cob_is_initialized (void)
+{
+	return (cobglobptr != NULL);
 }
 
 cob_global *
@@ -1862,7 +1868,7 @@ cob_module_enter (cob_module **module, cob_global **mglobal,
 		*module = cob_cache_malloc (sizeof(cob_module));
 	}
 
-#if	0	/* RXWRXW - Params */
+#if	1	/* RXWRXW - Params */
 	/* Save parameter count */
 	(*module)->module_num_params = cobglobptr->cob_call_params;
 #endif
@@ -1971,10 +1977,10 @@ void
 cob_check_version (const char *prog, const char *packver, const int patchlev)
 {
 	if (strcmp (packver, PACKAGE_VERSION) || patchlev != PATCH_LEVEL) {
-		cob_runtime_error (_("Error - Version mismatch"));
+		cob_runtime_error (_("error: version mismatch"));
 		cob_runtime_error (_("%s has version/patch level %s/%d"), prog,
 				   packver, patchlev);
-		cob_runtime_error (_("Library has version/patch level %s/%d"),
+		cob_runtime_error (_("libcob has version/patch level %s/%d"),
 				   PACKAGE_VERSION, PATCH_LEVEL);
 		cob_stop_run (1);
 	}
@@ -2364,6 +2370,9 @@ cob_real_put_sign (cob_field *f, const int sign)
 void
 cob_reg_sighnd	(void (*sighnd) (int))
 {
+	if (!cob_initialized) {
+		cob_set_signal ();
+	}
 	cob_ext_sighdl = sighnd;
 }
 
@@ -2670,7 +2679,7 @@ cob_check_subscript (const int i, const int min,
 	/* Check subscript */
 	if (i < min || max < i) {
 		cob_set_exception (COB_EC_BOUND_SUBSCRIPT);
-		cob_runtime_error (_("Subscript of '%s' out of bounds: %d"), name, i);
+		cob_runtime_error (_("subscript of '%s' out of bounds: %d"), name, i);
 		cob_stop_run (1);
 	}
 }
@@ -2682,14 +2691,14 @@ cob_check_ref_mod (const int offset, const int length,
 	/* Check offset */
 	if (offset < 1 || offset > size) {
 		cob_set_exception (COB_EC_BOUND_REF_MOD);
-		cob_runtime_error (_("Offset of '%s' out of bounds: %d"), name, offset);
+		cob_runtime_error (_("offset of '%s' out of bounds: %d"), name, offset);
 		cob_stop_run (1);
 	}
 
 	/* Check length */
 	if (length < 1 || offset + length - 1 > size) {
 		cob_set_exception (COB_EC_BOUND_REF_MOD);
-		cob_runtime_error (_("Length of '%s' out of bounds: %d"), name, length);
+		cob_runtime_error (_("length of '%s' out of bounds: %d"), name, length);
 		cob_stop_run (1);
 	}
 }
@@ -2922,7 +2931,7 @@ cob_accept_time (cob_field *field)
 {
 	struct cob_time	time;
 	char		str[9] = { '\0' };
-	
+
 	time = cob_get_current_date_and_time ();
 	snprintf (str, 9, "%2.2d%2.2d%2.2d%2.2d", time.hour, time.minute,
 		  time.second, time.nanosecond / 10000000);
@@ -3296,7 +3305,7 @@ cob_gettmpdir (void)
 #if !HAVE_SETENV
 	char	*put;
 #endif
-		
+
 	if ((tmpdir = getenv ("TMPDIR")) == NULL) {
 		tmp = NULL;
 #ifdef	_WIN32
@@ -3353,11 +3362,14 @@ cob_incr_temp_iteration (void)
 int
 cob_extern_init (void)
 {
+	/* can be called multiple times (MF docs say: should be done in all threads) */
+	if (!cob_initialized) {
 	cob_init (0, NULL);
+	}
 	return 0;
 }
 
-void *
+char *
 cob_command_line (int flags, int *pargc, char ***pargv,
 		  char ***penvp, char **pname)
 {
@@ -3372,8 +3384,7 @@ cob_command_line (int flags, int *pargc, char ***pargv,
 	COB_UNUSED (flags);
 
 	if (!cob_initialized) {
-		cob_runtime_error (_("'cobcommandline' - Runtime has not been initialized"));
-		cob_stop_run (1);
+		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
 	if (pargc && pargv) {
 		cob_argc = *pargc;
@@ -3517,7 +3528,7 @@ cob_sys_system (const void *cmdline)
 		cmd = cmdline;
 		i = (int)COB_MODULE_PTR->cob_procedure_params[0]->size;
 		if (unlikely(i > COB_MEDIUM_MAX)) {
-			cob_runtime_error (_("Parameter to SYSTEM call is larger than %d characters"), COB_MEDIUM_MAX);
+			cob_runtime_error (_("parameter to SYSTEM call is larger than %d characters"), COB_MEDIUM_MAX);
 			cob_stop_run (1);
 		}
 		i--;
@@ -3599,7 +3610,7 @@ cob_sys_hosted (void *p, const void *var)
 	}
 	return 1;
 }
-			
+
 int
 cob_sys_and (const void *p1, void *p2, const int length)
 {
@@ -3928,7 +3939,7 @@ cob_sys_calledby (void *data)
 	COB_CHK_PARMS (C$CALLEDBY, 1);
 
 	if (!COB_MODULE_PTR->cob_procedure_params[0]) {
-		/* check what ACU ccbl/runcbl returns, 
+		/* TO-DO: check what ACU ccbl/runcbl returns,
 		   the documentation doesn't say anything about this */
 		return -1;
 	}
@@ -3978,7 +3989,7 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 	size_t so_size = 0;
 	size_t lo_size = 0;
 	size_t optlen;
-	
+
 	unsigned int lo_amount;
 
 	int exit_status;
@@ -4073,11 +4084,11 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 
 	return_value = cob_getopt_long_long(cob_argc, cob_argv, shortoptions, longoptions, &longind, long_only);
 	temp = (char*) &return_value;
-	
+
 	/*
 	 * Write data back to COBOL
 	 */
-	if (temp[0] == '?' || temp[0] == ':' || temp[0] == 'W' 
+	if (temp[0] == '?' || temp[0] == ':' || temp[0] == 'W'
 		|| temp[0] == -1 || temp[0] == 0) exit_status = return_value;
 	else exit_status = 3;
 
@@ -4091,7 +4102,7 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 
 	if(cob_optarg != NULL) {
 		memset (opt_val, 0x00, opt_val_size);
-		
+
 		optlen = strlen (cob_optarg);
 		if (optlen > opt_val_size) {
 			/* Returncode 2 for "Optionvalue too long => cut" */
@@ -4400,6 +4411,20 @@ cob_strjoin (char** strarray, int size, char* separator)
 	return result;
 }
 
+/* reentrant version of strerror */
+static char *
+cob_get_strerror (void)
+{
+	char * msg;
+	msg = cob_cache_malloc ((size_t)COB_ERRBUF_SIZE);
+#ifdef HAVE_STRERROR
+	strncpy (msg, strerror (errno), COB_ERRBUF_SIZE - 1);
+#else
+	snprintf (msg, COB_ERRBUF_SIZE - 1, _("system error %d"), errno);
+#endif
+	return msg;
+}
+
 char *
 cob_save_env_value (char* env_var, char* env_val)
 {
@@ -4485,60 +4510,76 @@ var_print (const char *msg, const char *val, const char *default_val,
 
 
 /*
-	Expand a string with environment variable in it
+ Expand a string with environment variable in it. Return malloced string.
 */
-char *				/* Return malloced string */
+char *
 cob_expand_env_string (char *strval)
 {
-	unsigned int	i,j,k,envlen = 1280;
-	char	*env,*str = strval;
-	char	ename[128],*penv;
-	env = cob_malloc(envlen);
-	if (env) {
-		for (j=k=0; strval[k] != 0; k++) {
-			if(j >= (envlen-128)) {		/* String almost full?; Expand it */
-				env = cob_realloc(env,envlen,envlen+256);
+	unsigned int	i;
+	unsigned int	j = 0;
+	unsigned int	k = 0;
+	unsigned int	envlen = 1280;
+	char		*env = cob_malloc(envlen);
+	char		*str = strval;
+	char		ename[128] = { '\0' };
+	char		*penv;
+
+	if (!env) {
+		return str;
+	}
+
+	for (k = 0; strval[k] != 0; k++) {
+		/* String almost full?; Expand it */
+		if(j >= envlen - 128) {
+			env = cob_realloc(env, envlen, envlen+256);
 				envlen += 256;
 			}
-			if (strval[k] == '$'
-			&& strval[k+1] == '{') {	/* ${envname:default} */
+
+		/* ${envname:default} */
+		if (strval[k] == '$' && strval[k + 1] == '{') {
 				k += 2;
-				for (i=0; strval[k] != '}' 
+			for (i = 0; strval[k] != '}'
 						&& strval[k] != 0
 						&& strval[k] != ':'; k++) {
 					ename[i++] = strval[k];
 				}
 				ename[i++] = 0;
-				penv = getenv(ename);
+			penv = getenv (ename);
 				if (penv == NULL) {
-					if(strval[k] == ':') {	/* Copy 'default' value */
+				/* Copy 'default' value */
+				if (strval[k] == ':') {
 						k++;
-						if (strval[k] == '-') k++;	/* ${name:-default} */
+					/* ${name:-default} */
+					if (strval[k] == '-') {
+						k++;
+					}
 						while (strval[k] != '}' && strval[k] != 0) {
-							if(j >= (envlen-50)) {
-								env = cob_realloc(env,envlen,envlen+128);
+						if (j >= envlen - 50) {
+							env = cob_realloc (env, envlen, envlen + 128);
 								envlen += 128;
 							}
 							env[j++] = strval[k++];
 						}
-					} else if(strcmp(ename,"COB_CONFIG_DIR") == 0) {
+				} else if (strcmp (ename, "COB_CONFIG_DIR") == 0) {
 						penv = (char*)COB_CONFIG_DIR;
-					} else if(strcmp(ename,"COB_COPY_DIR") == 0) {
+				} else if (strcmp (ename, "COB_COPY_DIR") == 0) {
 						penv = (char*)COB_COPY_DIR;
 					}
 				}
-				if(penv != NULL) {
-					if((j + strlen(penv)) > (unsigned int)(envlen - 128)) {
-						env = cob_realloc(env,envlen, strlen(penv) + 256);
-						envlen = (unsigned int)strlen(penv) + 256;
+			if (penv != NULL) {
+				if ((j + strlen (penv)) > (unsigned int)(envlen - 128)) {
+					env = cob_realloc (env, envlen, strlen (penv) + 256);
+					envlen = (unsigned int)strlen (penv) + 256;
 					}
-					j += sprintf(&env[j],"%s",penv);
+				j += sprintf (&env[j], "%s", penv);
 					penv = NULL;
 				}
-				while(strval[k] != '}' && strval[k] != 0)
+			while (strval[k] != '}' && strval[k] != 0) {
 					k++;
-				if(strval[k] == '}')
+			}
+			if (strval[k] == '}') {
 					k++;
+			}
 				k--;
 			} else if (!isspace ((unsigned char)strval[k])) {
 				env[j++] = strval[k];
@@ -4546,16 +4587,17 @@ cob_expand_env_string (char *strval)
 				env[j++] = ' ';
 			}
 		}
-		env[j] = 0;
-		str = cob_strdup(env);
-		cob_free(env);
-	}
+
+	env[j] = '\0';
+	str = cob_strdup (env);
+	cob_free (env);
+
 	return str;
 }
 
 /* Store 'integer' value in field for correct length */
 static void
-set_value(char *data, int len, long val)
+set_value (char *data, int len, long val)
 {
 	if(len == sizeof(int)) {
 		*(int*)data = (int)val;
@@ -4570,7 +4612,7 @@ set_value(char *data, int len, long val)
 
 /* Get 'integer' value from field */
 static long
-get_value(char *data, int len)
+get_value (char *data, int len)
 {
 	if(len == sizeof(int)) {
 		return (long)*(int*)data;
@@ -4585,7 +4627,7 @@ get_value(char *data, int len)
 
 /* Set runtime setting with given value */
 static int					/* returns 1 if any error, else 0 */
-set_config_val(char *value, int pos)
+set_config_val (char *value, int pos)
 {
 	void 	*data;
 	char	*ptr = value,*str;
@@ -4661,13 +4703,13 @@ set_config_val(char *value, int pos)
 		if(gc_conf[pos].min_value > 0
 		&& numval < gc_conf[pos].min_value) {
 			conf_runtime_error_value(value, pos);
-			conf_runtime_error(1, _("minimum value: %lu"),gc_conf[pos].min_value); 
+			conf_runtime_error(1, _("minimum value: %lu"),gc_conf[pos].min_value);
 			return 1;
 		}
 		if(gc_conf[pos].max_value > 0
 		&& numval > gc_conf[pos].max_value) {
 			conf_runtime_error_value(value, pos);
-			conf_runtime_error(1, _("maximum value: %lu"),gc_conf[pos].max_value); 
+			conf_runtime_error(1, _("maximum value: %lu"),gc_conf[pos].max_value);
 			return 1;
 		}
 		set_value((char *)data,data_len,numval);
@@ -4676,7 +4718,7 @@ set_config_val(char *value, int pos)
 		numval = 2;
 		if(isdigit((unsigned char)*ptr)) {
 			numval = atoi(ptr);		/* 0 or 1 */
-		} else 
+		} else
 		if(strcasecmp(ptr,"true") == 0
 		|| strcasecmp(ptr,"t") == 0
 		|| strcasecmp(ptr,"on") == 0
@@ -4805,6 +4847,7 @@ get_config_val (char *value, int pos, char *orgvalue)
 		else
 			strcpy(value,"false");
 
+	/* TO-DO: Consolidate copy-and-pasted code! */
 	} else if((data_type & ENV_STR)) {	/* String stored as a string */
 		memcpy(&str,data,sizeof(char *));
 		if(str == NULL)
@@ -4888,7 +4931,7 @@ cb_config_entry (char *buf, int line)
 	keyword[j] = 0;
 
 	while (buf[i] != 0 && ( isspace((unsigned char)buf[i]) || buf[i] == ':' || buf[i] == '=')) i++;
-	if (buf[i] == '"' 
+	if (buf[i] == '"'
 	||  buf[i] == '\'') {
 		qt = buf[i++];
 		for (j=0; buf[i] != qt && buf[i] != 0; )
@@ -4910,7 +4953,7 @@ cb_config_entry (char *buf, int line)
 			value[k] = 0;
 		}
 		while(isspace((unsigned char)buf[i]) || buf[i] == ':' || buf[i] == '=') i++;
-		if(buf[i] == '"' 
+		if(buf[i] == '"'
 		|| buf[i] == '\'') {
 			qt = buf[i++];
 			for (j=0; buf[i] != qt && buf[i] != 0; )
@@ -4984,7 +5027,7 @@ cb_config_entry (char *buf, int line)
 	if (strcasecmp (keyword, "reset") == 0) {
 		i = cb_lookup_config(value);
 		if(i >= NUM_CONFIG) {
-			conf_runtime_error (1,_("Unknown configuration tag '%s'"), value);
+			conf_runtime_error (1,_("unknown configuration tag '%s'"), value);
 			return -1;
 		}
 		gc_conf[i].data_type &= ~(STS_ENVSET|STS_CNFSET|STS_ENVCLR);	/* Clear status */
@@ -5010,7 +5053,7 @@ cb_config_entry (char *buf, int line)
 	i = cb_lookup_config(keyword);
 
 	if (i >= NUM_CONFIG) {
-		conf_runtime_error (1,_("Unknown configuration tag '%s'"), keyword);
+		conf_runtime_error (1,_("unknown configuration tag '%s'"), keyword);
 		return -1;
 	}
 	if (strcmp(value, "") == 0) {
@@ -5090,7 +5133,7 @@ cob_load_config_file (const char *config_file, int isoptional)
 	for (i=0; i < cobsetptr->cob_config_num; i++) {
 		if (strcmp(cobsetptr->cob_config_file[i], config_file) == 0) {
 			cob_source_line = 0;
-			conf_runtime_error (1,_("Recursive inclusion"));
+			conf_runtime_error (1,_("recursive inclusion"));
 			return -2;
 		}
 	}
@@ -5099,7 +5142,7 @@ cob_load_config_file (const char *config_file, int isoptional)
 	conf_fd = fopen (config_file, "r");
 	if (conf_fd == NULL && !isoptional) {
 		cob_source_line = 0;
-		conf_runtime_error (1,_("No such file or directory"));
+		conf_runtime_error (1, cob_get_strerror());
 		if (cobsetptr->cob_config_file) {
 			cob_source_file = cobsetptr->cob_config_file[cobsetptr->cob_config_num-1];
 		}
@@ -5141,7 +5184,7 @@ cob_load_config_file (const char *config_file, int isoptional)
 			if (sub_ret < 0) {
 				ret = -1;
 				cob_source_line = line;
-				conf_runtime_error (1, _("Configuration file was included here"));
+				conf_runtime_error (1, _("configuration file was included here"));
 				break;
 			}
 		}
@@ -5167,13 +5210,13 @@ cob_load_config (void)
 	char		conf_file[COB_MEDIUM_BUFF];
 	int		isoptional = 1, sts, i, j;
 
-	
+
 	/* Get the name for the configuration file */
 	if ((env = getenv ("COB_RUNTIME_CONFIG")) != NULL && env[0]) {
 		strcpy (conf_file, env);
 		isoptional = 0;			/* If declared then it is NOT optional */
 		if(strchr(conf_file,PATHSEP_CHAR) != NULL) {
-			conf_runtime_error(0, _("Invalid value '%s' for configuration tag '%s'"), conf_file, "COB_RUNTIME_CONFIG");
+			conf_runtime_error(0, _("invalid value '%s' for configuration tag '%s'"), conf_file, "COB_RUNTIME_CONFIG");
 			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
 			return -1;
 		}
@@ -5186,7 +5229,7 @@ cob_load_config (void)
 	}
 		isoptional = 1;			/* If not present, then just use env vars */
 		if(strchr(conf_file,PATHSEP_CHAR) != NULL) {
-			conf_runtime_error(0, _("Invalid value '%s' for configuration tag '%s'"), conf_file, "COB_CONFIG_DIR");
+			conf_runtime_error(0, _("invalid value '%s' for configuration tag '%s'"), conf_file, "COB_CONFIG_DIR");
 			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
 			return -1;
 	}
@@ -5202,13 +5245,13 @@ cob_load_config (void)
 	cob_rescan_env_vals(); 			/* Check for possible environment variables */
 
 	/* Set with default value if present and not set otherwise */
-	for (i=0; i < NUM_CONFIG; i++) {				
+	for (i=0; i < NUM_CONFIG; i++) {
 		if (gc_conf[i].default_val
 		&& !(gc_conf[i].data_type & STS_CNFSET)
 		&& !(gc_conf[i].data_type & STS_ENVSET)) {
 			for (j=0; j < NUM_CONFIG; j++) {	/* Any alias present? */
 				if(j != i
-				&& gc_conf[i].data_loc == gc_conf[j].data_loc) 
+				&& gc_conf[i].data_loc == gc_conf[j].data_loc)
 					break;
 			}
 			if(j < NUM_CONFIG) {
@@ -5269,8 +5312,8 @@ print_info (void)
 
 	print_version ();
 	putchar ('\n');
-	puts (_("Build information"));
-	var_print (_("Build environment"),	COB_BLD_BUILD, "", 0);
+	puts (_("build information"));
+	var_print (_("build environment"),	COB_BLD_BUILD, "", 0);
 	var_print ("CC", COB_BLD_CC, "", 0);
 	var_print ("CPPFLAGS", COB_BLD_CPPFLAGS, "", 0);
 	var_print ("CFLAGS", COB_BLD_CFLAGS, "", 0);
@@ -5289,22 +5332,24 @@ print_info (void)
 #endif
 
 #if	defined(USE_LIBDL) || defined(_WIN32)
-	var_print (_("Dynamic loading"),	_("System"), "", 0);
+	var_print (_("Dynamic loading"),	"system", "", 0);
 #else
-	var_print (_("Dynamic loading"),	_("Libtool"), "", 0);
+	var_print (_("Dynamic loading"),	"libtool", "", 0);
 #endif
 
+#if 0 /* Simon: only a marginal performance influence - removed from output */
 #ifdef	COB_PARAM_CHECK
-	var_print ("\"CBL_\" param check",	_("Enabled"), "", 0);
+	var_print ("\"CBL_\" param check",	_("enabled"), "", 0);
 #else
-	var_print ("\"CBL_\" param check",	_("Disabled"), "", 0);
+	var_print ("\"CBL_\" param check",	_("disabled"), "", 0);
+#endif
 #endif
 
-	if (sizeof (void *) > 4U) {
+#ifdef COB_64_BIT_POINTER
 		var_print ("64bit-mode",	_("yes"), "", 0);
-	} else {
+#else
 		var_print ("64bit-mode",	_("no"), "", 0);
-	}
+#endif
 
 #ifdef	COB_LI_IS_LL
 	var_print ("BINARY-C-LONG",	_("8 bytes"), "", 0);
@@ -5321,13 +5366,13 @@ print_info (void)
 	}
 
 #ifdef	WITH_SEQRA_EXTFH
-	var_print (_("Sequential handler"),	_("External"), "", 0);
+	var_print (_("Sequential handler"),	_("EXTFH"), "", 0);
 #else
-	var_print (_("Sequential handler"), _("Internal"), "", 0);
+	var_print (_("Sequential handler"), _("built-in"), "", 0);
 #endif
 
 #if defined	(WITH_INDEX_EXTFH)
-	var_print (_("ISAM handler"),		_("External"), "", 0);
+	var_print (_("ISAM handler"),		_("EXTFH"), "", 0);
 #elif defined	(WITH_DB)
 	var_print (_("ISAM handler"),		"BDB", "", 0);
 #elif defined	(WITH_CISAM)
@@ -5337,7 +5382,7 @@ print_info (void)
 #elif defined	(WITH_VBISAM)
 	var_print (_("ISAM handler"),		"VBISAM", "", 0);
 #else
-	var_print (_("ISAM handler"),		_("Not available"), "", 0);
+	var_print (_("ISAM handler"),		_("disabled"), "", 0);
 #endif
 }
 
@@ -5469,7 +5514,7 @@ print_runtime_conf()
 		}
 	}
 
-	
+
 	/* checkme
 
 	var_print ("resolve_path",
@@ -5513,7 +5558,7 @@ cob_init (const int argc, char **argv)
 #endif
 	int		i;
 
-#if 0	/* Simon: Should not happen - is it neccessary any where?
+#if 0	/* Simon: Should not happen - is it neccessary anywhere?
 		   We may change this to a runtime warning/error */
 	if (cob_initialized) {
 		return;
@@ -5555,7 +5600,7 @@ cob_init (const int argc, char **argv)
 
 	/* Get global structure */
 	cobglobptr = cob_malloc (sizeof(cob_global));
-	
+
 	/* Get settings structure */
 	cobsetptr = cob_malloc (sizeof(cob_settings));
 
@@ -5615,7 +5660,7 @@ cob_init (const int argc, char **argv)
 #endif
 
 #ifdef	_WIN32
-	/* cob_unix_lf needs to be set before configuration load, 
+	/* cob_unix_lf needs to be set before configuration load,
 	   possible error messages would have wrong line endings otherwise */
 	if ((s = getenv("COB_UNIX_LF")) != NULL) {
 		set_config_val_by_name (s, "unix_lf", NULL);
@@ -5688,7 +5733,7 @@ cob_init (const int argc, char **argv)
 		}
 
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
-   /* Get function pointer for most precisise time function */
+   /* Get function pointer for most precise time function */
    kernel32_handle = GetModuleHandle (TEXT ("kernel32.dll"));
    if (kernel32_handle != NULL) {
        time_as_filetime_func = (VOID (WINAPI *) (LPFILETIME))
@@ -5768,7 +5813,7 @@ cob_init (const int argc, char **argv)
 			cobglobptr->cob_main_argv0 = cob_strdup (argv[0]);
 		}
 	} else {
-		cobglobptr->cob_main_argv0 = cob_strdup (_("Unknown"));
+		cobglobptr->cob_main_argv0 = cob_strdup (_("unknown"));
 	}
 	/* The above must be last in this function as we do early return */
 	/* from certain ifdef's */

@@ -36,7 +36,7 @@
 /* Object extension */
 #define COB_OBJEXT ".obj"
 
-/* Enable CALL parameter checking */
+/* Enable minimum parameter check for system libraries */
 /* #undef COB_PARAM_CHECK */
 
 /* Compile/link option for PIC code */
@@ -454,6 +454,12 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
+
+#ifdef _WIN64
+#define COB_32_BIT_LONG 1
+#endif
+
+#define COB_64_BIT_POINTER 1
 
 #undef BDB
 #undef VBISAM

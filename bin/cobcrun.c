@@ -36,8 +36,9 @@
 #endif
 
 static int arg_shift = 1;
+static int print_runtime_wanted = 0;
 
-static const char short_options[] = "+hirc:VM:";
+static const char short_options[] = "+hirc:VqM:";
 
 #define	CB_NO_ARG	no_argument
 #define	CB_RQ_ARG	required_argument
@@ -46,6 +47,7 @@ static const char short_options[] = "+hirc:VM:";
 static const struct option long_options[] = {
 	{"help",		CB_NO_ARG, NULL, 'h'},
 	{"info",		CB_NO_ARG, NULL, 'i'},
+	{"brief",		CB_NO_ARG, NULL, 'q'},
 	{"runtime-conf",		CB_NO_ARG, NULL, 'r'},
 	{"config",		CB_RQ_ARG, NULL, 'C'},
 	{"version",   		CB_NO_ARG, NULL, 'V'},
@@ -102,26 +104,29 @@ cobcrun_print_usage (char * prog)
 {
 	puts (_("COBOL driver program for GnuCOBOL modules"));
 	putchar ('\n');
-	printf (_("usage: %s [options] PROGRAM [parameter ...]"), prog);
+	printf (_("Usage: %s [options] PROGRAM [parameter ...]"), prog);
 	putchar ('\n');
 	printf (_("  or:  %s options"), prog);
 	putchar ('\n');
 	putchar ('\n');
-	puts (_("options:"));
+	puts (_("Options:"));
 	puts (_("  -h, -help                      display this help and exit"));
 	puts (_("  -V, -version                   display cobcrun and runtime version and exit"));
 	puts (_("  -i, -info                      display runtime information (build/environment)"));
+#if 0 /* Simon: currently only removing the path from cobcrun in output --> don't show */
+	puts (_("  -q, -brief                     reduced displays"));
+#endif
 	puts (_("  -c <file>, -config=<file>      set runtime configuration from <file>"));
 	puts (_("  -r, -runtime-conf              display current runtime configuration\n"
 	        "                                 (value and origin for all settings)"));
-	puts (_("  -M <module>, -module=<module>  set entry point module name and/or load path"));
-	puts (_("                                 where -M module prepends any directory to the"));
-	puts (_("                                 dynamic link loader library search path"));
-	puts (_("                                 and any basename to the module preload list"));
-	puts (_("                                 (COB_LIBRARY_PATH and/or COB_PRELOAD)"));
+	puts (_("  -M <module>, -module=<module>  set entry point module name and/or load path\n"
+			"                                 where -M module prepends any directory to the\n"
+			"                                 dynamic link loader library search path\n"
+			"                                 and any basename to the module preload list\n"
+			"                                 (COB_LIBRARY_PATH and/or COB_PRELOAD)"));
 	putchar ('\n');
-	printf (_("Report bugs to: %s or\n"
-			  "use the preferred issue tracker via home page"), "bug-gnucobol@gnu.org");
+	printf (_("Report bugs to: %s\n" 
+			  "or (preferably) use the issue tracker via the home page."), "bug-gnucobol@gnu.org");
 	putchar ('\n');
 	puts (_("GnuCOBOL home page: <http://www.gnu.org/software/gnucobol/>"));
 	puts (_("General help using GNU software: <http://www.gnu.org/gethelp/>"));
@@ -199,7 +204,8 @@ cobcrun_initial_module (char *module_argument)
 #if HAVE_SETENV
 		envop_return = setenv ("COB_LIBRARY_PATH", env_space, 1);
 		if (envop_return) {
-			fprintf (stderr, "Problem with setenv COB_LIBRARY_PATH: %d\n", errno);
+			fprintf (stderr, _("problem with setenv %s: %d"), "COB_LIBRARY_PATH", errno);
+			fputc ('\n', stderr);
 			return 1;
 		}
 #else
@@ -223,7 +229,8 @@ cobcrun_initial_module (char *module_argument)
 #if HAVE_SETENV
 		envop_return = setenv ("COB_PRE_LOAD", env_space, 1);
 		if (envop_return) {
-			fprintf (stderr, "Problem with setenv COB_PRE_LOAD: %d\n", errno);
+			fprintf (stderr, _("problem with setenv %s: %d"), "COB_PRE_LOAD", errno);
+			fputc ('\n', stderr);
 			return 1;
 		}
 #else
@@ -293,11 +300,18 @@ process_command_line (int argc, char *argv[])
 			print_info ();
 			exit (0);
 
+		case 'q':
+			/* --brief : reduced reporting */
+			/* removes the path to cobc in argv[0] */
+			strcpy (argv[0], "cobcrun");	/* set for simple compare in test suite
+										   and other static output */
+			break;
+
 		case 'r':
 			/* --runtime-conf */
-			cob_init (0, &argv[0]);
-			print_runtime_conf ();
-			exit (0);
+			print_runtime_wanted = 1;
+			arg_shift++;
+			break;
 
 		case 'V':
 			/* --version */
@@ -340,16 +354,30 @@ main (int argc, char **argv)
 
 	/* At least one option or module name needed */
 	if (argc <= arg_shift) {
+		if (print_runtime_wanted) {
+			cob_init (0, &argv[0]);
+			print_runtime_conf ();
+			cob_stop_run (0);
+		}
 		cobcrun_print_usage (argv[0]);
-		exit (1);
+		return 1;
 	}
 
 	if (strlen (argv[arg_shift]) > 31) {
+		if (print_runtime_wanted) {
+			cob_init (0, &argv[0]);
+			print_runtime_conf ();
+			putc ('\n', stderr);
+		}
 		fputs (_("PROGRAM name exceeds 31 characters"), stderr);
 		putc ('\n', stderr);
-		return 1;
+		cob_stop_run (1);
 	}
 	cob_init (argc - arg_shift, &argv[arg_shift]);
+	if (print_runtime_wanted) {
+		print_runtime_conf ();
+		putc ('\n', stderr);
+	}
 	unifunc.funcvoid = cob_resolve (argv[arg_shift]);
 	if (unifunc.funcvoid == NULL) {
 		cob_call_error ();
