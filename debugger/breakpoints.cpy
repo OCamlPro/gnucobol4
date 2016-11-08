@@ -20,7 +20,7 @@
                 open output bp-file
                 close bp-file
             else
-                read bp-file into bp-line end-read
+                read bp-file end-read
                 perform varying bp-line-counter
                      from 1 by 1 until bp-line-counter = 1000
                      or bp-file-status not = 0
@@ -45,7 +45,7 @@
                             to bp-src-line(bp-amount)
                     end-if
 
-                    read bp-file into bp-line end-read
+                    read bp-file end-read
                 end-perform
 
                 if bp-amount = 0

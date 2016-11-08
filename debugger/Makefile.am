@@ -21,11 +21,18 @@
 animdir = @COB_LIBRARY_PATH@
 anim_DATA = gc-debugger.$(COB_MODULE_EXT)
 
-EXTRA_DIST = gc-debugger.cob
+EXTRA_DIST = $(debugger_sources)
 CLEANFILES = $(extras_DATA)
 
-SUFFIXES = .cob .$(COB_MODULE_EXT)
-.cob.$(COB_MODULE_EXT):
-	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
-		cobc -m -Wall -O -o $@ $<
+debugger_sources = \
+	gc-debugger.cob \
+	screen.cpy breakpoints.cpy \
+	view-variable.cpy \
+	logging.cpy \
+	helpers.cpy \
+	fulltext-search.cpy \
+	watchpoints.cpy
 
+gc-debugger.$(COB_MODULE_EXT) : $(debugger_sources)
+	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
+		cobc -m -Wall -O -o debugger.$(COB_MODULE_EXT) -I $(srcdir) $(srcdir)/gc-debugger.cob

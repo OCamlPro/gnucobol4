@@ -325,9 +325,16 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 animdir = @COB_LIBRARY_PATH@
 anim_DATA = gc-debugger.$(COB_MODULE_EXT)
-EXTRA_DIST = gc-debugger.cob
+EXTRA_DIST = $(debugger_sources)
 CLEANFILES = $(extras_DATA)
-SUFFIXES = .cob .$(COB_MODULE_EXT)
+debugger_sources = \
+	gc-debugger.cob \
+	screen.cpy breakpoints.cpy \
+	view-variable.cpy \
+	logging.cpy \
+	helpers.cpy \
+	fulltext-search.cpy \
+	watchpoints.cpy
 all: all-am
 
 .SUFFIXES:
@@ -545,9 +552,9 @@ uninstall-am: uninstall-animDATA
 	mostlyclean-libtool pdf pdf-am ps ps-am tags-am uninstall \
 	uninstall-am uninstall-animDATA
 
-.cob.$(COB_MODULE_EXT):
+gc-debugger.$(COB_MODULE_EXT) : $(debugger_sources)
 	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
-		cobc -m -Wall -O -o $@ $<
+		cobc -m -Wall -O -o debugger.$(COB_MODULE_EXT) -I $(srcdir) $(srcdir)/gc-debugger.cob
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

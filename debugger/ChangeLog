@@ -1,10 +1,16 @@
 
+2016-11-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: fixed to include copies as dependencies for gc-debugger.cob
+	  and included them in the dist target
+	* breakpoints.cpy: fixed implicit "Overlapping MOVE" in "READ bp-file"
+
 2016-07-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* general: only enable logging code if ENABLE-LOGGING defined
 	  (still checks COB_ANIM_LOGGING at run-time to be activated)
 	* gc-debugger.cob, watchpoints.cpy: store number of watchpoints in wp-count
-	   for leaving PERFORMs early
+	  for leaving PERFORMs early
 	* helpers.cpy: check for "STOP" and " RUN" instead of "STOP RUN."
 
 2016-06-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
