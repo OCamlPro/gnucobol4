@@ -1,25 +1,43 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\libcob\call.c" />
-    <ClCompile Include="..\..\libcob\cobgetopt.c" />
-    <ClCompile Include="..\..\libcob\common.c" />
-    <ClCompile Include="..\..\libcob\fileio.c" />
-    <ClCompile Include="..\..\libcob\intrinsic.c" />
-    <ClCompile Include="..\..\libcob\move.c" />
-    <ClCompile Include="..\..\libcob\numeric.c" />
-    <ClCompile Include="..\..\libcob\screenio.c" />
-    <ClCompile Include="..\..\libcob\strings.c" />
-    <ClCompile Include="..\..\libcob\termio.c" />
-  </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\cobc\tree.h" />
-    <ClInclude Include="..\..\libcob\cobgetopt.h" />
-    <ClInclude Include="..\..\libcob\coblocal.h" />
-    <ClInclude Include="..\..\libcob\codegen.h" />
-    <ClInclude Include="..\..\libcob\common.h" />
-    <ClInclude Include="config.h" />
-    <ClInclude Include="defaults.h" />
+    <ClCompile Include="..\..\libcob\call.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\cobgetopt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\common.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\fileio.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\intrinsic.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\move.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\numeric.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\screenio.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\strings.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\termio.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\debugger.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\libcob\utils.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\config.h">
@@ -45,8 +63,17 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\libcob\exception.def" />
-    <None Include="..\..\libcob\system.def" />
+    <None Include="..\..\libcob\exception.def">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include="..\..\libcob\system.def">
+      <Filter>Header Files</Filter>
+    </None>
     <None Include="..\..\libcob\ChangeLog" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\version_libcob.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

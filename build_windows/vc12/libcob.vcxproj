@@ -210,6 +210,7 @@
     <ClCompile Include="..\..\libcob\call.c" />
     <ClCompile Include="..\..\libcob\cobgetopt.c" />
     <ClCompile Include="..\..\libcob\common.c" />
+    <ClCompile Include="..\..\libcob\debugger.c" />
     <ClCompile Include="..\..\libcob\fileio.c" />
     <ClCompile Include="..\..\libcob\intrinsic.c" />
     <ClCompile Include="..\..\libcob\move.c" />
@@ -217,6 +218,7 @@
     <ClCompile Include="..\..\libcob\screenio.c" />
     <ClCompile Include="..\..\libcob\strings.c" />
     <ClCompile Include="..\..\libcob\termio.c" />
+    <ClCompile Include="..\..\libcob\utils.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\config.h" />
