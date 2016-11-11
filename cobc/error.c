@@ -63,8 +63,9 @@ print_error (const char *file, int line, const char *prefix,
 	/* Print section and/or paragraph name */
 	if (current_section != last_section) {
 		if (current_section && !current_section->flag_dummy_section) {
-			if (file)
+			if (file) {
 				fprintf (stderr, "%s: ", file);
+			}
 			fputs (_("in section"), stderr);
 			fprintf (stderr, " '%s':\n",
 				(char *)current_section->name);
@@ -73,8 +74,9 @@ print_error (const char *file, int line, const char *prefix,
 	}
 	if (current_paragraph != last_paragraph) {
 		if (current_paragraph && !current_paragraph->flag_dummy_paragraph) {
-			if (file)
+			if (file) {
 				fprintf (stderr, "%s: ", file);
+			}
 			fputs (_("in paragraph"), stderr);
 			fprintf (stderr, " '%s':\n",
 				(char *)current_paragraph->name);
@@ -111,16 +113,16 @@ print_error (const char *file, int line, const char *prefix,
 		if (cb_current_file) {
 
 			/* set correct listing entry for this file */
-		cfile = cb_current_file;
+			cfile = cb_current_file;
 			if (!cfile->name || strcmp (cfile->name, file)) {
-			cfile = cfile->copy_head;
-			while (cfile) {
+				cfile = cfile->copy_head;
+				while (cfile) {
 					if (cfile->name && !strcmp (cfile->name, file)) {
-					break;
+						break;
+					}
+					cfile = cfile->next;
 				}
-				cfile = cfile->next;
 			}
-		}
 			/* if file doesn't exist in the list then add to current file */
 			if (!cfile) {
 				cfile = cb_current_file;
@@ -252,6 +254,45 @@ cb_plex_error (const size_t sline, const char *fmt, ...)
 	if (++errorcount > 100) {
 		cobc_too_many_errors ();
 	}
+}
+
+unsigned int
+cb_plex_verify (const size_t sline, const enum cb_support tag,
+		const char *feature)
+{
+	switch (tag) {
+	case CB_OK:
+		return 1;
+	case CB_WARNING:
+		cb_plex_warning (sline, _("%s used"), feature);
+		return 1;
+	case CB_ARCHAIC:
+		if (cb_warn_archaic) {
+			cb_plex_warning (sline, _("%s is archaic in %s"), feature, cb_config_name);
+		}
+		return 1;
+	case CB_OBSOLETE:
+		if (cb_warn_obsolete) {
+			cb_plex_warning (sline, _("%s is obsolete in %s"), feature, cb_config_name);
+		}
+		return 1;
+	case CB_SKIP:
+		return 0;
+	case CB_IGNORE:
+		if (warningopt) {
+			cb_plex_warning (sline, _("%s ignored"), feature);
+		}
+		return 0;
+	case CB_ERROR:
+		cb_plex_error (sline, _("%s used"), feature);
+		return 0;
+	case CB_UNCONFORMABLE:
+		cb_plex_error (sline, _("%s does not conform to %s"), feature, cb_config_name);
+		return 0;
+	default:
+		break;
+	}
+	return 0;
 }
 
 /* Warning/Error for config.c */
@@ -458,7 +499,7 @@ undefined_error (cb_tree x)
 {
 	struct cb_reference	*r = CB_REFERENCE (x);
 	cb_tree			c;
-        void (* const emit_error_func)(cb_tree, const char *, ...)
+	void (* const emit_error_func)(cb_tree, const char *, ...)
 		= r->flag_optional ? &cb_warning_x : &cb_error_x;
 	const char		*error_message;
 
@@ -537,6 +578,14 @@ ambiguous_error (cb_tree x)
 			listprint_restore ();
 		}
 	}
+}
+
+/* error routine for flex */
+void
+flex_fatal_error (const char *msg, const char * filename, const int line_num)
+{
+	cobc_err_msg (_ ("fatal error: %s"), msg);
+	cobc_abort (filename, line_num);
 }
 
 void

@@ -1,4 +1,25 @@
 
+2016-10-22  Dave Pitts <dpitts@cozx.com>
+
+	* gnucobol.texi: Added --no_symbols option.
+
+2016-10-17  Dave Pitts <dpitts@cozx.com>
+
+	* gnucobol.texi: Added a COPY to listing example.
+
+2016-10-16  Dave Pitts <dpitts@cozx.com>
+
+	* gnucobol.texi: Added a listing example.
+
+2016-10-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* gnucobol.texi: replaced cb_conf by samples of compiler configuration
+	  flags and added minimal entry for listing options
+
+2016-10-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* gnucobol.texi: Added entries for all GC-specific system libraries
+
 2016-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobcinfo.sh: used new option -q to remove most `sed` calls

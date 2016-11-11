@@ -15,6 +15,16 @@
 /* Define if building universal (internal helper macro) */
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
+/* long int is 32 bits */
+#define COB_32_BIT_LONG 1
+
+/* Pointers are longer than 32 bits */
+#ifdef _WIN64
+#define COB_64_BIT_POINTER 1
+#else
+#undef COB_64_BIT_POINTER
+#endif
+
 /* Executable extension */
 #define COB_EXEEXT ".exe"
 
@@ -321,6 +331,9 @@
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 /* #undef LT_OBJDIR */
 
+/* Define maximum parameters for CALL */
+#define MAX_CALL_FIELD_PARAMS 192
+
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 /* #undef NO_MINUS_C_MINUS_O */
 
@@ -345,7 +358,7 @@
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "2.0"
 
-/* Define a patch level */
+/* Define a patch level (numeric, max. 8 digits) */
 #define PATCH_LEVEL COB_NUM_TAR_DATE
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -454,12 +467,6 @@
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */
 /* #undef size_t */
-
-#ifdef _WIN64
-#define COB_32_BIT_LONG 1
-#endif
-
-#define COB_64_BIT_POINTER 1
 
 #undef BDB
 #undef VBISAM

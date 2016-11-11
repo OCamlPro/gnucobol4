@@ -1,11 +1,9 @@
 @section General instructions
 
-
 @*
-The initial runtime.cfg file is found in the @code{$COB_CONFIG_DIR/config
-}
-( @code{COB_CONFIG_DIR @code{defaults to  installdir/gnu-cobol} ).
-}
+@*
+The initial runtime.cfg file is found in the @code{$COB_CONFIG_DIR/config}
+( @code{COB_CONFIG_DIR @code{defaults to  installdir/gnu-cobol} ).}
 The environment variable @code{COB_RUNTIME_CONFIG} may define a different runtime
 configuration file to read.
 @*
@@ -20,36 +18,29 @@ All values set to string variables or environment variables are checked
 for @code{$@{envvar@}} and replacement is done at the time of the setting.
 @*
 Any environment variable may be set with the directive @code{setenv} .
-Example: @code{setenv COB_LIBARAY_PATH $@{LD_LIBRARY_PATH@}
-}
+Example: @code{setenv COB_LIBARAY_PATH $@{LD_LIBRARY_PATH@}}
 @*
-Any environment variable may be unset with the directive @code{unsetenv
-}
+Any environment variable may be unset with the directive @code{unsetenv}
 (one var per line).
-Example: @code{unsetenv COB_LIBRARY_PATH
-}
+Example: @code{unsetenv COB_LIBRARY_PATH}
 @*
 Runtime configuration files can include other files with the directive
 include.
-Example: @code{include my-runtime-configuration-file
-}
+Example: @code{include my-runtime-configuration-file}
 @*
 To include another configuration file only if it is present use the directive
 includeif.
 You can also use @code{$@{envvar@}} inside this.
-Example: @code{includeif $@{HOME@}/mygc.cfg
-}
+Example: @code{includeif $@{HOME@}/mygc.cfg}
 @*
 If you want to reset a parameter to its default value use:
-  @code{reset parametername
-}
+  @code{reset parametername}
 @*
 Most runtime variables have boolean values, some are switches, some have
 string values, integer values and some are size values.
 The boolean values will be evaluated as following:
 	to true:	 @code{1, Y, ON, YES, TRUE} (no matter of case)
-	to false:	 @code{0, N, OFF
-}
+	to false:	 @code{0, N, OFF}
 A 'size' value is an integer optionally followed by K, M, or G for kilo, mega
 or giga.
 @*
@@ -58,7 +49,7 @@ either the environment variable name or the parameter name.
 In most cases the environment variable name is the parameter name (in upper
 case) with the prefix @code{COB_} .
 @*
-
+@*
 @verbatim
 
 
@@ -154,12 +145,13 @@ Environment name:  COB_PHYSICAL_CANCEL
 
 Environment name:  COB_VARSEQ_FORMAT
   Parameter name:  varseq_format
-         Purpose:  declare format to be used for variable length sequential
-                   files (different types and lengths preceding each record)
-            Type:  0   means 2 byte record length (big-endian)
+         Purpose:  declare format used for variable length sequential files 
+                   - different types and lengths precede each record
+                   - 'length' is the data length & does not include the prefix
+            Type:  0   means 2 byte record length (big-endian) + 2 NULs
                    1   means 4 byte record length (big-endian)
                    2   means 4 byte record length (local machine int)
-                   3   means 2 byte record length (local machine short)
+                   3   means 2 byte record length (big-endian)
          Default:  0
          Example:  VARSEQ_FORMAT 1
 

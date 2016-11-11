@@ -266,24 +266,23 @@ enum cb_usage {
 	CB_USAGE_OBJECT,		/* 9 */
 	CB_USAGE_PACKED,		/* 10 */
 	CB_USAGE_POINTER,		/* 11 */
-	CB_USAGE_PROGRAM,		/* 12 */
-	CB_USAGE_LENGTH,		/* 13 */
-	CB_USAGE_PROGRAM_POINTER,	/* 14 */
-	CB_USAGE_UNSIGNED_CHAR,		/* 15 */
-	CB_USAGE_SIGNED_CHAR,		/* 16 */
-	CB_USAGE_UNSIGNED_SHORT,	/* 17 */
-	CB_USAGE_SIGNED_SHORT,		/* 18 */
-	CB_USAGE_UNSIGNED_INT,		/* 19 */
-	CB_USAGE_SIGNED_INT,		/* 20 */
-	CB_USAGE_UNSIGNED_LONG,		/* 21 */
-	CB_USAGE_SIGNED_LONG,		/* 22 */
-	CB_USAGE_COMP_6,		/* 23 */
-	CB_USAGE_FP_DEC64,		/* 24 */
-	CB_USAGE_FP_DEC128,		/* 25 */
-	CB_USAGE_FP_BIN32,		/* 26 */
-	CB_USAGE_FP_BIN64,		/* 27 */
-	CB_USAGE_FP_BIN128,		/* 28 */
-	CB_USAGE_LONG_DOUBLE		/* 29 */
+	CB_USAGE_LENGTH,		/* 12 */
+	CB_USAGE_PROGRAM_POINTER,	/* 13 */
+	CB_USAGE_UNSIGNED_CHAR,		/* 14 */
+	CB_USAGE_SIGNED_CHAR,		/* 15 */
+	CB_USAGE_UNSIGNED_SHORT,	/* 16 */
+	CB_USAGE_SIGNED_SHORT,		/* 17 */
+	CB_USAGE_UNSIGNED_INT,		/* 18 */
+	CB_USAGE_SIGNED_INT,		/* 19 */
+	CB_USAGE_UNSIGNED_LONG,		/* 20 */
+	CB_USAGE_SIGNED_LONG,		/* 21 */
+	CB_USAGE_COMP_6,		/* 22 */
+	CB_USAGE_FP_DEC64,		/* 23 */
+	CB_USAGE_FP_DEC128,		/* 24 */
+	CB_USAGE_FP_BIN32,		/* 25 */
+	CB_USAGE_FP_BIN64,		/* 26 */
+	CB_USAGE_FP_BIN128,		/* 27 */
+	CB_USAGE_LONG_DOUBLE		/* 28 */
 };
 
 
@@ -632,7 +631,7 @@ struct cb_picture {
 #define CB_PICTURE(x)	(CB_TREE_CAST (CB_TAG_PICTURE, struct cb_picture, x))
 #define CB_PICTURE_P(x)	(CB_TREE_TAG (x) == CB_TAG_PICTURE)
 
-/* Field */
+/* Key */
 
 struct cb_key {
 	cb_tree	key;			/* KEY */
@@ -640,6 +639,8 @@ struct cb_key {
 	cb_tree	val;			/* Value to be compared in SEARCH ALL */
 	int	dir;			/* ASCENDING or DESCENDING */
 };
+
+/* Field */
 
 struct cb_field {
 	struct cb_tree_common	common;		/* Common values */
@@ -651,6 +652,7 @@ struct cb_field {
 	cb_tree			index_list;	/* INDEXED BY */
 	struct cb_field		*parent;	/* Upper level field (if any) */
 	struct cb_field		*children;	/* Top of lower level fields */
+	struct cb_field		*validation;	/* First level 88 field (if any) */
 	struct cb_field		*sister;	/* Fields at the same level */
 	struct cb_field		*redefines;	/* REDEFINES */
 	struct cb_field		*rename_thru;	/* RENAMES THRU */
@@ -660,6 +662,7 @@ struct cb_field {
 	struct cb_picture	*pic;		/* PICTURE */
 	struct cb_field		*vsize;		/* Variable size cache */
 	struct cb_label		*debug_section;	/* DEBUG section */
+	struct cb_xref		xref;		/* xref elements */
 
 	cb_tree			screen_line;	/* LINE */
 	cb_tree			screen_column;	/* COLUMN */
@@ -683,12 +686,12 @@ struct cb_field {
 	int			mem_offset;	/* Memory offset */
 	int			nkeys;		/* Number of keys */
 	int			param_num;	/* CHAINING param number */
-	int			screen_flag;	/* Flags used in SCREEN SECTION */
+	cob_flags_t		screen_flag;	/* Flags used in SCREEN SECTION */
 	int			step_count;	/* STEP in REPORT */
 	unsigned int		vaddr;		/* Variable address cache */
 	unsigned int		odo_level;	/* ODO level (0 = no ODO item)
-									   could be direct ODO (check via depending)
-									   or via subordinate) */
+						   could be direct ODO (check via depending)
+						   or via subordinate) */
 	cob_u32_t		special_index;	/* Special field */
 
 	enum cb_storage		storage;	/* Storage section */
@@ -702,13 +705,14 @@ struct cb_field {
 
 	unsigned int flag_local		: 1;	/* Has local scope */
 	unsigned int flag_occurs	: 1;	/* OCCURS */
+	unsigned int flag_sign_clause	: 1;	/* Any SIGN clause */
 	unsigned int flag_sign_separate	: 1;	/* SIGN IS SEPARATE */
 	unsigned int flag_sign_leading	: 1;	/* SIGN IS LEADING */
 	unsigned int flag_blank_zero	: 1;	/* BLANK WHEN ZERO */
 	unsigned int flag_justified	: 1;	/* JUSTIFIED RIGHT */
 	unsigned int flag_binary_swap	: 1;	/* Binary byteswap */
+	
 	unsigned int flag_real_binary	: 1;	/* BINARY-CHAR/SHORT/LONG/DOUBLE */
-
 	unsigned int flag_is_pointer	: 1;	/* Is POINTER */
 	unsigned int flag_item_78	: 1;	/* Is 78 level */
 	unsigned int flag_any_length	: 1;	/* Is ANY LENGTH */
@@ -716,8 +720,8 @@ struct cb_field {
 	unsigned int flag_filler	: 1;	/* Implicit/explicit filler */
 	unsigned int flag_synchronized	: 1;	/* SYNCHRONIZED */
 	unsigned int flag_invalid	: 1;	/* Is broken */
+	
 	unsigned int flag_field		: 1;	/* Has been internally cached */
-
 	unsigned int flag_chained	: 1;	/* CHAINING item */
 	unsigned int flag_anylen_done	: 1;	/* ANY LENGTH is set up */
 	unsigned int flag_indexed_by	: 1;	/* INDEXED BY item */
@@ -725,9 +729,9 @@ struct cb_field {
 	unsigned int flag_is_c_long	: 1;	/* Is BINARY-C-LONG */
 	unsigned int flag_is_pdiv_parm	: 1;	/* Is PROC DIV USING */
 	unsigned int flag_is_pdiv_opt	: 1;	/* Is PROC DIV USING OPTIONAL */
+	
 	unsigned int flag_local_alloced	: 1;	/* LOCAL storage is allocated */
 	unsigned int flag_no_init	: 1;	/* No initialize unless used */
-
 	unsigned int flag_vsize_done	: 1;	/* Variable size cached */
 	unsigned int flag_vaddr_done	: 1;	/* Variable address cached */
 	unsigned int flag_odo_relative	: 1;	/* complex-odo: item address depends
@@ -735,6 +739,7 @@ struct cb_field {
 	unsigned int flag_field_debug	: 1;	/* DEBUGGING */
 	unsigned int flag_all_debug	: 1;	/* DEBUGGING */
 	unsigned int flag_no_field	: 1;	/* SCREEN dummy field */
+	
 	unsigned int flag_any_numeric	: 1;	/* Is ANY NUMERIC */
 	unsigned int flag_is_returning	: 1;	/* Is RETURNING item */
 
@@ -775,6 +780,7 @@ struct cb_label {
 	struct cb_label		*section;		/* Parent SECTION */
 	struct cb_label		*debug_section;		/* DEBUG SECTION */
 	struct cb_para_label	*para_label;		/* SECTION Paragraphs */
+	struct cb_xref		xref;			/* xref elements */
 	cb_tree			exit_label;		/* EXIT label */
 	struct cb_alter_id	*alter_gotos;		/* ALTER ids */
 	int			id;			/* Unique id */
@@ -846,12 +852,13 @@ struct cb_file {
 	struct cb_label		*debug_section;		/* DEBUG SECTION */
 	struct cb_alphabet_name	*code_set;		/* CODE-SET */
 	struct cb_list		*code_set_items;	/* CODE-SET FOR items */
+	struct cb_xref		xref;			/* xref elements */
 	int			record_min;		/* RECORD CONTAINS */
 	int			record_max;		/* RECORD CONTAINS */
 	int			optional;		/* OPTIONAL */
 	int			organization;		/* ORGANIZATION */
 	int			access_mode;		/* ACCESS MODE */
-	int			lock_mode;		/* LOCK MODE */
+	cob_flags_t		lock_mode;		/* LOCK MODE */
 	int			special;		/* Special file */
 	int			same_clause;		/* SAME clause */
 	unsigned int		flag_finalized	: 1;	/* Is finalized */
@@ -1134,8 +1141,8 @@ struct cb_attr_struct {
 	cb_tree			scroll;		/* SCROLL */
 	cb_tree			timeout;	/* TIMEOUT */
 	cb_tree			prompt;		/* PROMPT */
-	cb_tree			size_is;        /* [PROTECTED] SIZE [IS] */
-	int			dispattrs;	/* Attributes */
+	cb_tree			size_is;	/* [PROTECTED] SIZE [IS] */
+	cob_flags_t		dispattrs;	/* Attributes */
 };
 
 /* Exception handler type */
@@ -1190,8 +1197,8 @@ struct cb_continue {
 struct cb_set_attr {
 	struct cb_tree_common	common;		/* Common values */
 	struct cb_field		*fld;
-	int			val_on;
-	int			val_off;
+	cob_flags_t		val_on;
+	cob_flags_t		val_off;
 };
 
 #define CB_SET_ATTR(x)		(CB_TREE_CAST (CB_TAG_SET_ATTR, struct cb_set_attr, x))
@@ -1433,6 +1440,8 @@ extern cb_tree			cb_int_hex (const int);
 
 extern cb_tree			cb_build_string (const void *, const size_t);
 
+extern cb_tree			cb_flags_t (const cob_flags_t);
+
 extern cb_tree			cb_build_class_name (cb_tree, cb_tree);
 
 extern cb_tree			cb_build_locale_name (cb_tree, cb_tree);
@@ -1441,6 +1450,8 @@ extern cb_tree			cb_build_numeric_literal (const int,
 							  const void *,
 							  const int);
 extern cb_tree			cb_build_alphanumeric_literal (const void *,
+							       const size_t);
+extern cb_tree			cb_build_national_literal (const void *,
 							       const size_t);
 extern cb_tree			cb_build_numsize_literal (const void *,
 							  const size_t,
@@ -1576,9 +1587,12 @@ struct cb_literal	*build_literal (enum cb_category,
 extern cb_tree	cb_build_system_name (const enum cb_system_name_category,
 				      const int);
 
+extern const char	*cb_get_usage_string (const enum cb_usage);
+
 /* parser.y */
 extern cb_tree		cobc_printer_node;
 extern int		non_const_word;
+extern unsigned int	cobc_repeat_last_token;
 extern unsigned int	cobc_in_id;
 extern unsigned int	cobc_in_procedure;
 extern unsigned int	cobc_in_repository;
@@ -1598,8 +1612,8 @@ extern void			cb_list_system (void);
 extern void			cb_list_map (cb_tree (*) (cb_tree), cb_tree);
 
 /* error.c */
-extern void	cb_warning_x (cb_tree, const char *, ...) COB_A_FORMAT23;
-extern void	cb_error_x (cb_tree, const char *, ...) COB_A_FORMAT23;
+extern void		cb_warning_x (cb_tree, const char *, ...) COB_A_FORMAT23;
+extern void		cb_error_x (cb_tree, const char *, ...) COB_A_FORMAT23;
 extern unsigned int	cb_verify_x (cb_tree, const enum cb_support,
 				     const char *);
 extern void		listprint_suppress (void);
@@ -1789,9 +1803,12 @@ extern void		cb_emit_set_up_down (cb_tree, cb_tree, cb_tree);
 extern void		cb_emit_set_on_off (cb_tree, cb_tree);
 extern void		cb_emit_set_true (cb_tree);
 extern void		cb_emit_set_false (cb_tree);
-extern void		cb_emit_set_attribute (cb_tree, const int, const int);
+extern void		cb_emit_set_attribute (cb_tree,
+					       const cob_flags_t,
+					       const cob_flags_t);
 extern cb_tree		cb_build_set_attribute (const struct cb_field *,
-						const int, const int);
+						const cob_flags_t,
+						const cob_flags_t);
 extern void		cb_emit_set_last_exception_to_off (void);
 
 extern void		cb_emit_sort_init (cb_tree, cb_tree, cb_tree);

@@ -247,7 +247,7 @@ typedef struct __cob_settings {
 	unsigned int	cob_extended_status;	/* Extended status */
 	unsigned int	cob_use_esc;		/* Check ESC key */
 	int		cob_timeout_scale;	/* timeout scale */
-	int			cob_insert_mode;	/* insert toggle, 0=off, 1=on */
+	int		cob_insert_mode;	/* insert toggle, 0=off, 1=on */
 } cob_settings;
 
 
@@ -284,7 +284,7 @@ struct config_tbl {
 	unsigned int		data_len;		/* Length of referenced field */
 	unsigned int		config_num;		/* Set by which runtime.cfg file */
 	unsigned int		set_by;			/* value set by a different keyword */
-	unsigned long		min_value;		/* Minium accepted value */
+	unsigned long		min_value;		/* Minimum accepted value */
 	unsigned long		max_value;		/* Maximum accepted value */
 };
 

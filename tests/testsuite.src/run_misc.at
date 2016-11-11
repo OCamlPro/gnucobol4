@@ -507,7 +507,7 @@ AT_CLEANUP
 
 
 AT_SETUP([SOURCE FIXED/FREE directives])
-AT_KEYWORDS([extensions])
+AT_KEYWORDS([runmisc SOURCEFORMAT FIXED FREE])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -524,15 +524,22 @@ AT_DATA([prog.cob], [
    "OK"
  NO ADVANCING
    END-DISPLAY.
+   >>SET SOURCEFORMAT "FIXED"
+             DISPLAY "OK" NO ADVANCING                                  FIXED
+             END-DISPLAY.
+       >>SET SOURCEFORMAT "FREE"
+                                                                        DISPLAY
+   "OK"
+ NO ADVANCING
+   END-DISPLAY.
              STOP RUN.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
-[OKOK])
+[OKOKOKOK])
 
 AT_CLEANUP
-
 
 ## OCCURS clause
 
@@ -2059,7 +2066,7 @@ AT_CLEANUP
 
 
 AT_SETUP([PIC ZZZ-, ZZZ+])
-AT_KEYWORDS([runmisc])
+AT_KEYWORDS([runmisc editing])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -2582,17 +2589,23 @@ AT_DATA([callee.cob], [
        01 P2            PIC X(6).
        PROCEDURE        DIVISION USING P1 OPTIONAL P2.
            IF P2 NOT OMITTED
-              DISPLAY P2
+              DISPLAY 'UNEXPECTED P2: ' P2
               END-DISPLAY
-           END-IF.
+           END-IF
+           DISPLAY 'P1: ' P1 WITH NO ADVANCING
+           END-DISPLAY.
            EXIT PROGRAM.
 ])
 
-AT_DATA([caller.c], [
+AT_DATA([caller.c], [[
 #include <libcob.h>
 
 
-int callee (char *);
+int callee (char *, char *);
+  
+#ifndef NULL
+#define NULL (void*)0
+#endif
 
 int
 main (int argc, char **argv)
@@ -2603,12 +2616,12 @@ main (int argc, char **argv)
 	cob_init(argc, argv);
 	cobol_global = cob_get_global_ptr ();
 	cobol_global->cob_call_params = 1;
-	return callee (p1);
+	return callee (p1, NULL);
 }
-])
+]])
 
 AT_CHECK([$COMPILE -o caller caller.c callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([./caller], [0], [P1: A], [])
 
 AT_CLEANUP
 
@@ -2631,11 +2644,14 @@ AT_DATA([callee.cob], [
            IF P2 NOT EQUAL "FROM C"
               DISPLAY P2
               END-DISPLAY
+           ELSE
+              DISPLAY "OK" WITH NO ADVANCING
+              END-DISPLAY
            END-IF.
            EXIT PROGRAM.
 ])
 
-AT_DATA([caller.c], [
+AT_DATA([caller.c], [[
 #include <libcob.h>
 
 int callee (char *, char *);
@@ -2649,10 +2665,10 @@ main (int argc, char **argv)
 	cob_init(argc, argv);
 	return callee (p1, p2);
 }
-])
+]])
 
 AT_CHECK([$COMPILE -o caller caller.c callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([./caller], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -2675,11 +2691,14 @@ AT_DATA([callee.cob], [
            IF P2 NOT EQUAL "FROM C"
               DISPLAY P2
               END-DISPLAY
+           ELSE
+              DISPLAY "OK" WITH NO ADVANCING
+              END-DISPLAY
            END-IF.
            EXIT PROGRAM.
 ])
 
-AT_DATA([caller.c], [
+AT_DATA([caller.c], [[
 int callee (char *, char *);
 
 int
@@ -2691,7 +2710,7 @@ main (int argc, char **argv)
 
 	return callee (p1, p2);
 }
-])
+]])
 
 AT_CHECK([$COMPILE -o caller caller.c callee.cob], [0], [], [])
 AT_CHECK([./caller], [1], [],
@@ -2699,7 +2718,63 @@ AT_CHECK([./caller], [1], [],
 ])
 
 AT_CHECK([$COMPILE -fimplicit-init -o caller caller.c callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([./caller], [0], [OK], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([CALL STATIC C from COBOL])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([caller.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      caller.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 P1            PIC X VALUE "A".
+       01 P2            PIC X(7).
+       77 P2-COB        PIC X(7).
+       PROCEDURE        DIVISION.
+           CALL STATIC 'callee' USING P1 P2
+           IF P1 NOT EQUAL "B"
+              DISPLAY 'NOT A: ' P1
+              END-DISPLAY
+           END-IF
+           UNSTRING P2 DELIMITED BY LOW-VALUE
+              INTO P2-COB
+           END-UNSTRING
+           EVALUATE TRUE
+              WHEN P2-COB NOT EQUAL "FROM C"
+                 DISPLAY P2-COB '-' P2
+                 END-DISPLAY
+              WHEN RETURN-CODE NOT = 3
+                 DISPLAY RETURN-CODE
+                 END-DISPLAY
+              WHEN OTHER
+                 DISPLAY 'OK'  WITH NO ADVANCING
+                 END-DISPLAY
+                 MOVE 0  TO RETURN-CODE
+           END-EVALUATE
+           EXIT PROGRAM.
+])
+
+AT_DATA([callee.c], [[
+#include <string.h>
+
+int
+callee (char *p1, char *p2)
+{
+	if (p1[0] == 'A') {
+		p1[0] = 'B';
+	}
+	strncpy (p2, "FROM C", 6);
+
+	return 3;
+}
+]])
+
+AT_CHECK([$COMPILE -o caller caller.cob callee.c], [0], [], [])
+AT_CHECK([./caller], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -4970,4 +5045,110 @@ AT_CHECK([./prog], [0],
 [Hello!
 Hello again!
 ])
+AT_CLEANUP
+
+
+AT_SETUP([PICTURE with constant-name])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       01  foo-bar     CONSTANT 8.
+       01  x           PIC 9(foo-bar)9(foo-bar).
+       
+       PROCEDURE DIVISION.
+           IF FUNCTION LENGTH (x) <> 16
+               DISPLAY FUNCTION LENGTH (x)
+           END-IF
+           .
+       END PROGRAM prog.
+])
+
+AT_CHECK([$COMPILE -o prog prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [])
+AT_CLEANUP
+
+
+AT_SETUP([Quote marks in comment paragraphs])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+       DATE-written.  hello'".
+      *> Written is intentionally lowercase.
+      *> extra " to fix syntax highlighting
+       PROCEDURE      DIVISION.
+           DISPLAY "Hello, world!"
+           .
+])
+
+AT_CHECK([$COMPILE -o prog prog.cob], [0], [],
+[prog.cob: 4: warning: DATE-WRITTEN is obsolete in GnuCOBOL
+])
+AT_CHECK([$COMPILE -free -o prog prog.cob], [0], [],
+[prog.cob: 3: warning: DATE-WRITTEN is obsolete in GnuCOBOL
+])
+AT_CHECK([./prog], [0],
+[Hello, world!
+])
+AT_CLEANUP
+
+AT_SETUP([MOVE with -fbinary-truncate])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC 9(4) COMP.
+       
+       PROCEDURE       DIVISION.
+           MOVE 30000 TO x
+           PERFORM check-x-val
+
+           COMPUTE x = 30000
+           PERFORM check-x-val
+
+           MOVE ZERO TO x
+           ADD 30000 TO x
+           PERFORM check-x-val
+
+           GOBACK
+           .
+       check-x-val     SECTION.
+           EVALUATE x
+               WHEN >= 10000
+                   DISPLAY "x >= 10000"
+
+               WHEN ZERO
+                   DISPLAY "x IS ZERO"
+
+               WHEN OTHER
+                   CONTINUE
+           END-EVALUATE
+           .
+       END PROGRAM prog.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0],
+[x IS ZERO
+x IS ZERO
+x IS ZERO
+])
+
+AT_CHECK([$COMPILE -fno-binary-truncate prog.cob], [0], [], [])
+AT_CHECK([./prog], [0],
+[x >= 10000
+x >= 10000
+x >= 10000
+])
+
 AT_CLEANUP

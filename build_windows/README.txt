@@ -15,16 +15,23 @@ How to build in native Windows environments:
   https://sourceforge.net/projects/open-cobol/files/win_prerequisites/
 * if you want to build against CISAM/DISAM get the additional necessary files
   from the vendor and change linker input in libcob.sln
-* copy build_windows\config.h.tmpl to build_windows\config.h,
+* copy build_windows\config.h.in to build_windows\config.h,
   if you don't want to build with VBISAM change the define CONFIGURED_ISAM
   accordingly; you may want to change the PATCHLEVEL, too
-* copy build_windows\defaults.h.tmpl to build_windows\defaults.h,
+* copy build_windows\defaults.h.in to build_windows\defaults.h,
   change COB_MAIN_DIR according to your local path and/or MAKE_DIST
 * you may want to change version information in build_windows\version_*.rc
 * compile with your environment, for example via IDE by opening the solution
-  and click "build" or starting the VS/WinSDK command prompt and calling
+  and click "build" or by starting the VS/WinSDK command prompt and calling
   msbuild "GnuCOBOL.sln" /p:Platform=x64 /Configuration=Release
+
+How to create the dist package:
+
+* set up the above
+* compile the release version you want (Win32 and/or x64)
 * sign the binaries if needed
+* if you want a 7z and have a non-standard installation: change "makedist.bat"
+* call "makedist.bat" (uses the last build from Win32\release and x64\release)
 
 How to use the dist package:
 

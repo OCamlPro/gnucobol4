@@ -292,6 +292,9 @@
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 
+/* Define maximum parameters for CALL */
+#undef MAX_CALL_FIELD_PARAMS
+
 /* Name of package */
 #undef PACKAGE
 
@@ -313,7 +316,7 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define a patch level */
+/* Define a patch level (numeric, max. 8 digits) */
 #undef PATCH_LEVEL
 
 /* Define to 1 if you have the ANSI C header files. */
@@ -385,10 +388,6 @@
 #  undef WORDS_BIGENDIAN
 # endif
 #endif
-
-/* Define to 1 if `lex' declares `yytext' as a `char *' by default, not a
-   `char[]'. */
-#undef YYTEXT_POINTER
 
 /* Define to 1 if on MINIX. */
 #undef _MINIX

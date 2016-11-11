@@ -32,7 +32,7 @@
 #define	cob_sli_t		long int
 #define	cob_uli_t		unsigned long int
 
-#if	defined(_WIN32) && !defined(__MINGW32__) && !defined(__MINGW64__)
+#if	defined(_WIN32) && !defined(__MINGW32__)
 
 #define	cob_s64_t		__int64
 #define	cob_u64_t		unsigned __int64
@@ -41,6 +41,7 @@
 #define	COB_U64_C(x)		x ## UI64
 #define	CB_FMT_LLD		"%I64d"
 #define	CB_FMT_LLU		"%I64u"
+#define	CB_FMT_LLX		"%I64x"
 #define	CB_FMT_PLLD		"%+*.*I64d"
 #define	CB_FMT_PLLU		"%*.*I64u"
 #define	CB_FMT_LLD_F		"%I64dI64"
@@ -55,6 +56,7 @@
 #define	COB_U64_C(x)		x ## ULL
 #define	CB_FMT_LLD		"%lld"
 #define	CB_FMT_LLU		"%llu"
+#define	CB_FMT_LLX		"%llx"
 #define	CB_FMT_PLLD		"%+*.*lld"
 #define	CB_FMT_PLLU		"%*.*llu"
 #define	CB_FMT_LLD_F		"%lldLL"
@@ -285,9 +287,9 @@
 #define setenv(name,value,overwrite)	_putenv_s(name,value)
 #define unsetenv(name)					_putenv_s(name,"")
 #if defined COB_USE_VC2013_OR_GREATER
-#define timezone			_timezone
-#define tzname				_tzname
-#define daylight			_daylight
+#define timezone		_timezone
+#define tzname			_tzname
+#define daylight		_daylight
 #endif
 
 #define __attribute__(x)
@@ -441,7 +443,7 @@
 #define	COB_NOINLINE	__declspec(noinline)
 #define	COB_A_INLINE	__forceinline
 #define	COB_A_COLD
-#define	COB_HAVE_STEXPR	1
+/* #undef	COB_HAVE_STEXPR */
 
 #else
 
@@ -505,14 +507,13 @@
 
 
 
-#if	defined(_MSC_VER) || defined(__WATCOMC__) || defined(__BORLANDC__)
+#if	defined(_MSC_VER) || defined(__WATCOMC__) || defined(__BORLANDC__) || defined(__MINGW32__)
 #define PATHSEP_CHAR (char) ';'
 #define PATHSEP_STR (char *) ";"
 #else
 #define PATHSEP_CHAR (char) ':'
 #define PATHSEP_STR (char *) ":"
 #endif
-
 #ifndef	_WIN32
 #define SLASH_CHAR	(char) '/'
 #define SLASH_STR	(char *) "/"
@@ -533,16 +534,14 @@
 
 /* Macro to prevent compiler warning "conditional expression is constant" */
 #if defined (_MSC_VER) && COB_USE_VC2008_OR_GREATER
-#define CONSTANT_EXPR(x)			\
+#define ONCE_COB \
 	__pragma( warning(push) )		\
 	__pragma( warning(disable:4127) )	\
-	x					\
+	while (0) \
 	__pragma( warning(pop) )
 #else
-#define CONSTANT_EXPR(x) x
+#define ONCE_COB while (0)
 #endif
-
-#define ONCE_COB while (CONSTANT_EXPR (0))
 
 /* Macro to prevent unused parameter warning */
 
@@ -569,16 +568,13 @@
 /* Maximum size of file records */
 #define	MAX_FD_RECORD		65535
 
-/* Maximum number of parameters, possible values: 16,36,56,76,96 */
-#define	COB_MAX_FIELD_PARAMS	36	/* ToDo: move to config.h */
-
 /* Maximum number of field digits */
 #define	COB_MAX_DIGITS		38
 
 /* Maximum digits in binary field */
 #define	COB_MAX_BINARY		39
 
-/* Maximum digits in binary field */
+/* Maximum bytes in a single field (on 01/77 level) */
 #define	COB_MAX_FIELD_SIZE	268435456
 
 /* Maximum number of cob_decimal structures */
@@ -759,6 +755,7 @@ enum cob_exception_id {
 #define COB_ORG_INDEXED		3
 #define COB_ORG_SORT		4
 #define COB_ORG_MAX		5
+#define COB_ORG_MESSAGE	6 /* only for syntax checks */
 
 /* Access mode */
 
@@ -906,37 +903,43 @@ enum cob_exception_id {
 #define COB_SCREEN_YELLOW		6
 #define COB_SCREEN_WHITE		7
 
-#define COB_SCREEN_LINE_PLUS		(1 << 0)
-#define COB_SCREEN_LINE_MINUS		(1 << 1)
-#define COB_SCREEN_COLUMN_PLUS		(1 << 2)
-#define COB_SCREEN_COLUMN_MINUS		(1 << 3)
-#define COB_SCREEN_AUTO			(1 << 4)
-#define COB_SCREEN_BELL			(1 << 5)
-#define COB_SCREEN_BLANK_LINE		(1 << 6)
-#define COB_SCREEN_BLANK_SCREEN		(1 << 7)
-#define COB_SCREEN_BLINK		(1 << 8)
-#define COB_SCREEN_ERASE_EOL		(1 << 9)
-#define COB_SCREEN_ERASE_EOS		(1 << 10)
-#define COB_SCREEN_FULL			(1 << 11)
-#define COB_SCREEN_HIGHLIGHT		(1 << 12)
-#define COB_SCREEN_LOWLIGHT		(1 << 13)
-#define COB_SCREEN_REQUIRED		(1 << 14)
-#define COB_SCREEN_REVERSE		(1 << 15)
-#define COB_SCREEN_SECURE		(1 << 16)
-#define COB_SCREEN_UNDERLINE		(1 << 17)
-#define COB_SCREEN_OVERLINE		(1 << 18)
-#define COB_SCREEN_PROMPT		(1 << 19)
-#define COB_SCREEN_UPDATE		(1 << 20)
-#define COB_SCREEN_INPUT		(1 << 21)
-#define COB_SCREEN_SCROLL_DOWN		(1 << 22)
-#define COB_SCREEN_INITIAL		(1 << 23)
-#define COB_SCREEN_NO_ECHO		(1 << 24)
-#define COB_SCREEN_LEFTLINE		(1 << 25)
-#define COB_SCREEN_NO_DISP		(1 << 26)
-#define COB_SCREEN_EMULATE_NL		(1 << 27)
-#define COB_SCREEN_UPPER		(1 << 28)
-#define COB_SCREEN_LOWER		(1 << 29)
-#define COB_SCREEN_GRID			(1 << 30)
+typedef cob_s64_t cob_flags_t;
+
+#define COB_SCREEN_LINE_PLUS		((cob_flags_t)1 << 0)
+#define COB_SCREEN_LINE_MINUS		((cob_flags_t)1 << 1)
+#define COB_SCREEN_COLUMN_PLUS		((cob_flags_t)1 << 2)
+#define COB_SCREEN_COLUMN_MINUS		((cob_flags_t)1 << 3)
+#define COB_SCREEN_AUTO			((cob_flags_t)1 << 4)
+#define COB_SCREEN_BELL			((cob_flags_t)1 << 5)
+#define COB_SCREEN_BLANK_LINE		((cob_flags_t)1 << 6)
+#define COB_SCREEN_BLANK_SCREEN		((cob_flags_t)1 << 7)
+#define COB_SCREEN_BLINK		((cob_flags_t)1 << 8)
+#define COB_SCREEN_ERASE_EOL		((cob_flags_t)1 << 9)
+#define COB_SCREEN_ERASE_EOS		((cob_flags_t)1 << 10)
+#define COB_SCREEN_FULL			((cob_flags_t)1 << 11)
+#define COB_SCREEN_HIGHLIGHT		((cob_flags_t)1 << 12)
+#define COB_SCREEN_LOWLIGHT		((cob_flags_t)1 << 13)
+#define COB_SCREEN_REQUIRED		((cob_flags_t)1 << 14)
+#define COB_SCREEN_REVERSE		((cob_flags_t)1 << 15)
+#define COB_SCREEN_SECURE		((cob_flags_t)1 << 16)
+#define COB_SCREEN_UNDERLINE		((cob_flags_t)1 << 17)
+#define COB_SCREEN_OVERLINE		((cob_flags_t)1 << 18)
+#define COB_SCREEN_PROMPT		((cob_flags_t)1 << 19)
+#define COB_SCREEN_UPDATE		((cob_flags_t)1 << 20)
+#define COB_SCREEN_INPUT		((cob_flags_t)1 << 21)
+#define COB_SCREEN_SCROLL_DOWN		((cob_flags_t)1 << 22)
+#define COB_SCREEN_INITIAL		((cob_flags_t)1 << 23)
+#define COB_SCREEN_NO_ECHO		((cob_flags_t)1 << 24)
+#define COB_SCREEN_LEFTLINE		((cob_flags_t)1 << 25)
+#define COB_SCREEN_NO_DISP		((cob_flags_t)1 << 26)
+#define COB_SCREEN_EMULATE_NL		((cob_flags_t)1 << 27)
+#define COB_SCREEN_UPPER		((cob_flags_t)1 << 28)
+#define COB_SCREEN_LOWER		((cob_flags_t)1 << 29)
+#define COB_SCREEN_GRID			((cob_flags_t)1 << 30)
+//#define COB_SCREEN_reserved		((cob_flags_t)1 << 31) /* reserved for next flag used in screenio */
+#define COB_SCREEN_TAB			((cob_flags_t)1 << 32) /* used for syntax checking */
+#define COB_SCREEN_NO_UPDATE		((cob_flags_t)1 << 33) /* used for syntax checking */
+#define COB_SCREEN_SCROLL_UP		((cob_flags_t)1 << 34) /* used for syntax checking */
 
 #define COB_SCREEN_TYPE_GROUP		0
 #define COB_SCREEN_TYPE_FIELD		1
@@ -959,10 +962,10 @@ typedef struct {
 /* Field attribute structure */
 
 typedef struct {
-	unsigned short	type;		/* Field type */
-	unsigned short	digits;		/* Digit count */
-	signed short	scale;		/* Field scale */
-	unsigned short	flags;		/* Field flags */
+	unsigned short		type;		/* Field type */
+	unsigned short		digits;		/* Digit count */
+	signed short		scale;		/* Field scale */
+	unsigned short		flags;		/* Field flags */
 	const cob_pic_symbol	*pic;		/* Pointer to picture string */
 } cob_field_attr;
 
@@ -1030,7 +1033,7 @@ typedef union cob_call_union {
 	int		(*funcint)();	/* Function returning "int" */
 	void		*funcvoid;	/* Redefine to "void *" */
 #ifdef	_WIN32
-	/* stdcall variants */
+							/* stdcall variants */
 	void		*(__stdcall *funcptr_std)();
 	void		(__stdcall *funcnull_std)();
 	cob_field	*(__stdcall *funcfld_std)();
@@ -1122,7 +1125,7 @@ struct cob_func_loc {
 typedef struct {
 	cob_field	*field;	/* Key field */
 	int		flag;	/* WITH DUPLICATES (for RELATIVE/INDEXED) */
-				/* ASCENDING/DESCENDING (for SORT) */
+					/* ASCENDING/DESCENDING (for SORT) */
 	unsigned int	offset;	/* Offset of field */
 } cob_file_key;
 
@@ -1233,9 +1236,9 @@ typedef struct __cob_global {
 	unsigned int		cob_screen_initialized;	/* Screen initialized */
 	unsigned int		cob_physical_cancel;	/* Unloading of modules */
 
-	/* Library routine variables */
+												/* Library routine variables */
 
-	/* screenio / termio */
+												/* screenio / termio */
 	unsigned char		*cob_term_buff;		/* Screen I/O buffer */
 	int			cob_accept_status;	/* ACCEPT STATUS */
 
@@ -1307,12 +1310,12 @@ typedef struct anim_field {
 
 /*******************************/
 /* Functions in common.c */
-COB_EXPIMP void print_info(void);
-COB_EXPIMP void print_version(void);
-COB_EXPIMP int cob_load_config(void);
-COB_EXPIMP void print_runtime_conf(void);
+COB_EXPIMP void		print_info(void);
+COB_EXPIMP void		print_version(void);
+COB_EXPIMP int		cob_load_config(void);
+COB_EXPIMP void		print_runtime_conf(void);
 
-COB_EXPIMP void cob_set_exception(const int);
+COB_EXPIMP void		cob_set_exception(const int);
 
 /* General functions */
 
@@ -1589,14 +1592,15 @@ COB_EXPIMP void cob_screen_line_col	(cob_field *, const int);
 COB_EXPIMP void cob_screen_display	(cob_screen *, cob_field *,
 					 cob_field *, const int);
 COB_EXPIMP void cob_screen_accept	(cob_screen *, cob_field *,
-					 cob_field *, cob_field *, const int);
+					 cob_field *, cob_field *,
+					 const int);
 COB_EXPIMP void cob_field_display	(cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
-					 cob_field *, const int);
+					 cob_field *, const cob_flags_t);
 COB_EXPIMP void cob_field_accept	(cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
-					 const int);
+					 const cob_flags_t);
 COB_EXPIMP void cob_accept_escape_key	(cob_field *);
 COB_EXPIMP int	cob_sys_clear_screen	(void);
 COB_EXPIMP int	cob_sys_sound_bell	(void);

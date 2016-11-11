@@ -27,6 +27,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "cobc.h"
 
@@ -48,7 +49,7 @@ enum cb_config_type {
 #undef	CB_CONFIG_SUPPORT
 
 #define CB_CONFIG_ANY(type,var,name,doc)	type		var = (type)0;
-#define CB_CONFIG_INT(var,name,doc)		unsigned int		var = 0;
+#define CB_CONFIG_INT(var,name,min,max,odoc,doc)	unsigned int		var = 0;
 #define CB_CONFIG_STRING(var,name,doc)	const char	*var = NULL;
 #define CB_CONFIG_BOOLEAN(var,name,doc)	int		var = 0;
 #define CB_CONFIG_SUPPORT(var,name,doc)	enum cb_support	var = CB_OK;
@@ -61,25 +62,30 @@ enum cb_config_type {
 #undef	CB_CONFIG_BOOLEAN
 #undef	CB_CONFIG_SUPPORT
 
-#define CB_CONFIG_ANY(type,var,name,doc)	, {CB_ANY, name, (void *)&var, NULL, 1}
-#define CB_CONFIG_INT(var,name,doc)		, {CB_INT, name, (void *)&var, NULL, 1}
-#define CB_CONFIG_STRING(var,name,doc)	, {CB_STRING, name, (void *)&var, NULL, 1}
-#define CB_CONFIG_BOOLEAN(var,name,doc)	, {CB_BOOLEAN, name, (void *)&var, NULL, 1}
-#define CB_CONFIG_SUPPORT(var,name,doc)	, {CB_SUPPORT, name, (void *)&var, NULL, 1}
+#define CB_CONFIG_ANY(type,var,name,doc)	, {CB_ANY, name, (void *)&var}
+#define CB_CONFIG_INT(var,name,min,max,odoc,doc)	, {CB_INT, name, (void *)&var, NULL, min, max}
+#define CB_CONFIG_STRING(var,name,doc)	, {CB_STRING, name, (void *)&var}
+#define CB_CONFIG_BOOLEAN(var,name,doc)	, {CB_BOOLEAN, name, (void *)&var}
+#define CB_CONFIG_SUPPORT(var,name,doc)	, {CB_SUPPORT, name, (void *)&var}
 
 /* Local variables */
 
 static struct config_struct {
 	const enum cb_config_type	type;
-	const char			*name;
-	void				*var;
-	char				*val;
-	const int			doc;
+	const char			*name;		/* Print name set in compiler configuration */
+	void				*var;		/* Var name */
+	char				*val;		/* value from configuration / command line */
+#if 0 /* Currently not used */
+	const int			doc;		/* documented, 1 = yes */
+#endif
+	int					min_value;		/* Minimum accepted value */
+	long				max_value;		/* Maximum accepted value */
+
 } config_table[] = {
-	{CB_STRING, "include", NULL, NULL, 0},
-	{CB_STRING, "includeif", NULL, NULL, 0},
-	{CB_STRING, "not-reserved", NULL, NULL, 1},
-	{CB_STRING, "reserved", NULL, NULL, 1}
+	{CB_STRING, "include"},
+	{CB_STRING, "includeif"},
+	{CB_STRING, "not-reserved"},
+	{CB_STRING, "reserved"}
 #include "config.def"
 };
 
@@ -99,17 +105,17 @@ static struct includelist {
 
 /* Local functions */
 
-static char *
+static char const *
 read_string (const char *text)
 {
-	char			*p;
-	char			*s;
+	char			*p = (char *) text;
+	char			const *s;
 
-	s = cobc_main_strdup (text);
-	if (*s == '\"') {
-		s++;
+	if (*p == '\"') {
+		p++;
 	}
-	for (p = s; *p; p++) {
+	s = cobc_main_strdup (p);
+	for (p = (char *)s; *p; p++) {
 		if (*p == '\"') {
 			*p = '\0';
 		}
@@ -119,7 +125,7 @@ read_string (const char *text)
 
 static void
 invalid_value (const char *fname, const int line, const char *name, const char *val,
-			   const char *str, const int max, const int min)
+			   const char *str, const int min, const long max)
 {
 	configuration_error (fname, line, 0,
 		_("invalid value '%s' for configuration tag '%s'"), val, name);
@@ -131,8 +137,31 @@ invalid_value (const char *fname, const int line, const char *name, const char *
 	} else if (max) {
 		configuration_error (fname, line, 1, _("maximum value: %lu"), (unsigned long)max);
 	} else {
-		configuration_error (fname, line, 1, _("minimum value: %lu"), (unsigned long)min);
+		configuration_error (fname, line, 1, _("minimum value: %d"), min);
 	}
+}
+
+static int
+check_valid_value (const char *fname, const int line, const char *name, const char *val,
+				const void *var, const int min_value, const long max_value)
+{
+	int ret = 1;
+	long v;
+
+	v = atol (val);
+	
+	if (v < min_value) {
+		invalid_value (fname, line, name, val, NULL, min_value, 0);
+		ret = 0;
+	}
+	if (v > max_value) {
+		invalid_value (fname, line, name, val, NULL, 0, max_value);
+		ret = 0;
+	}
+	if (ret) {
+		*((int *)var) = v;
+	}
+	return ret;
 }
 
 static void
@@ -140,6 +169,46 @@ unsupported_value (const char *fname, const int line, const char *name, const ch
 {
 	configuration_error (fname, line, 1, 
 		_("unsupported value '%s' for configuration tag '%s'"), val, name);
+}
+
+static void
+split_and_iterate_on_comma_separated_str (void (* const func)(const char *, const char *, const int),
+					  const int replace_colons,
+					  const char *val,
+					  const char *fname,
+					  const int line)
+{
+	int	i;
+	int	j = 0;
+	char	word_buff[COB_MINI_BUFF];
+	
+	for (i = 0; val[i] && j < COB_MINI_MAX; i++) {
+		switch (val[i]) {
+		case ' ':
+		case '\t':
+			/* Remove all possible whitespace. */
+			break;
+		case ',':
+			word_buff[j] = 0;
+			(*func) (word_buff, fname, line);
+			memset (word_buff, 0, COB_MINI_BUFF);
+			j = 0;
+			break;
+		case ':':
+			if (replace_colons) {
+				word_buff[j++] = '=';
+				break;
+			}
+		default:
+			word_buff[j++] = val[i];
+			break;
+		}
+	}
+	word_buff[j] = 0;
+	
+	if (j != 0) {
+		(*func) (word_buff, fname, line);
+	}
 }
 
 /* Global functions */
@@ -160,15 +229,14 @@ cb_config_entry (char *buff, const char *fname, const int line)
 	void			*var;
 	size_t			i;
 	size_t			j;
-	int				v;
-
-	char word_buff[COB_MINI_BUFF];
 
 	/* Get tag */
 	s = strpbrk (buff, " \t:=");
 	if (!s) {
-		for (j=strlen(buff); buff[j-1] == '\r' || buff[j-1] == '\n'; )	/* Remove CR LF */
+		/* Remove CR LF */
+		for (j = strlen(buff); buff[j - 1] == '\r' || buff[j - 1] == '\n';) {
 			buff[--j] = 0;
+		}
 		configuration_error (fname, line, 1,
 			_("invalid configuration tag '%s'"), buff);
 		return -1;
@@ -260,72 +328,36 @@ cb_config_entry (char *buff, const char *fname, const int line)
 					return -1;
 				}
 			}
-			v = atoi (val);
-			if (strcmp (name, "tab-width") == 0) {
-				if (v < 1) {
-					invalid_value (fname, line, name, val, NULL, 1, 0);
-					return -1;
-				}
-				if (v > 8) {
-					invalid_value (fname, line, name, val, NULL, 0, 8);
-					return -1;
-				}
-			} else if (strcmp (name, "text-column") == 0) {
-				if (v < 72) {
-					invalid_value (fname, line, name, val, NULL, 72, 0);
-					return -1;
-				}
-				if (v > 255) {
-					invalid_value (fname, line, name, val, NULL, 0, 255);
-					return -1;
-				}
-			} else if (strcmp (name, "word-length") == 0) {
-				if (v < 1) {
-					invalid_value (fname, line, name, val, NULL, 1, 0);
-					return -1;
-				}
-				if (v > COB_MAX_WORDLEN) {
-					invalid_value (fname, line, name, val, NULL, 0, COB_MAX_WORDLEN);
-					return -1;
-				}
+			
+			if (check_valid_value (fname, line, name, val, var,
+					config_table[i].min_value, config_table[i].max_value)) {
+				break;
+			} else {
+				return -1;
 			}
-			*((int *)var) = v;
-			break;
 		case CB_STRING:
 			val = read_string (val);
 
 			if (strcmp (name, "include") == 0 ||
 				strcmp (name, "includeif") == 0) {
-					/* Include another conf file */
-					s = cob_expand_env_string((char *)val);
-					strcpy (buff, s);
-					cob_free (s);
+				/* Include another conf file */
+				s = cob_expand_env_string((char *)val);
+				strncpy (buff, s, COB_SMALL_MAX);
+				/* special case: use cob_free (libcob) here as the memory
+				   was allocated in cob_expand_env_string -> libcob */
+				cob_free (s);
 				cobc_main_free ((void *) val);
-					if (strcmp (name, "includeif") == 0) {
-						return 3;
-					} else {
-						return 1;
-					}
-			} else if (strcmp (name, "not-reserved") == 0) {
-				remove_reserved_word (val);
-			} else if (strcmp (name, "reserved") == 0) {
-				/* Remove all possible white space, change : to = */
-				j = 0;
-				for (i = 0; val [i] && j < COB_MINI_MAX ; i++) {
-					switch (val [i]) {
-						case ' ':
-						case '\t':
-							break;
-						case ':':
-							word_buff[j++] = '=';
-							break;
-						default:
-							word_buff[j++] = val [i];
-							break;
-					}
+				if (strcmp (name, "includeif") == 0) {
+					return 3;
+				} else {
+					return 1;
 				}
-				word_buff[j] = 0;
-				add_reserved_word (word_buff, fname, line);
+			} else if (strcmp (name, "not-reserved") == 0) {
+				split_and_iterate_on_comma_separated_str (&remove_reserved_word,
+									  0, val, fname, line);
+			} else if (strcmp (name, "reserved") == 0) {
+				split_and_iterate_on_comma_separated_str (&add_reserved_word,
+									  1, val, fname, line);
 			} else {
 				*((const char **)var) = val;
 			}
@@ -502,7 +534,7 @@ int
 cb_load_conf (const char *fname, const int prefix_dir)
 {
 	const char	*name;
-	int		ret;
+	int			ret;
 	size_t		i;
 	char		buff[COB_NORMAL_BUFF];
 
@@ -537,7 +569,7 @@ cb_load_conf (const char *fname, const int prefix_dir)
 				if (ret == 0) {
 					configuration_error (fname, 0, 1, _("missing definitions:"));
 				}
-				configuration_error (fname, 0, 1, _("\tNo definition of '%s'"),
+				configuration_error (fname, 0, 1, _("\tno definition of '%s'"),
 						config_table[i].name);
 				ret = -1;
 			}

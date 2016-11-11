@@ -60,10 +60,14 @@
 #endif
 
 #define COBC_ABORT()			cobc_abort(__FILE__, __LINE__)
+#define YY_FATAL_ERROR(msg)		\
+	flex_fatal_error (msg, __FILE__, __LINE__)
 
-/* Source format defines */
-#define CB_FORMAT_FIXED			0
-#define CB_FORMAT_FREE			1
+/* Source format enum */
+enum cb_format {
+	CB_FORMAT_FIXED = 0,
+	CB_FORMAT_FREE
+};
 
 /* COPY extended syntax defines */
 #define CB_REPLACE_LEADING		1U
@@ -72,6 +76,7 @@
 /* Stringify macros */
 #define CB_STRINGIFY(s)			#s
 #define CB_XSTRINGIFY(s)		CB_STRINGIFY(s)
+#define CB_XRANGE(min,max)		CB_XSTRINGIFY(min) ".." CB_XSTRINGIFY(max)
 
 /* ASSIGN clause interpretation */
 #define CB_ASSIGN_MF			0	/* Micro Focus compatibility */
@@ -117,6 +122,9 @@
 #define	CB_CS_STOP			(1U << 14)
 #define	CB_CS_WITH			(1U << 15)
 #define	CB_CS_RECORDING			(1U << 16)
+#define	CB_CS_PERFORM			(1U << 17)
+#define	CB_CS_RETRY			(1U << 18)
+#define	CB_CS_READ			(1U << 19)
 
 /* Support for cobc from stdin */
 #define COB_DASH			"-"
@@ -151,6 +159,7 @@ enum cb_std_def {
 	CB_STD_MVS,
 	CB_STD_BS2000,
 	CB_STD_ACU,
+	/* the following must contain ANSI/ISO standards in order */
 	CB_STD_85,
 	CB_STD_2002,
 	CB_STD_2014
@@ -220,17 +229,6 @@ struct cb_exception {
 	int		enable;			/* If turned on */
 };
 
-/* Structure for reserved words that have been reverted */
-struct reserved_word_list {
-	struct reserved_word_list	*next;	/* next pointer */
-	char				*word;
-	char				*alias_for;
-#if 0 /* FIXME: store refence to origin */
-	char				*defined_by;
-#endif
-	int				is_context_sensitive;
-};
-
 /* Basic memory structure */
 struct cobc_mem_struct {
 	struct	cobc_mem_struct	*next;			/* next pointer */
@@ -238,12 +236,19 @@ struct cobc_mem_struct {
 	size_t			memlen;
 };
 
+/* Type of name to check in cobc_check_valid_name */
+enum cobc_name_type {
+	FILE_BASE_NAME = 0,
+	ENTRY_NAME,
+	PROGRAM_ID_NAME
+};
+
 /* Listing structures and externals */
 
 #define CB_MAX_LINES	55
 
 #define CB_LINE_LENGTH	1024 /* hint: we only read PPLEX_BUF_LEN bytes */
-#define CB_READ_AHEAD	32 /* lines to read ahead */
+#define CB_READ_AHEAD	800 /* lines to read ahead */
 
 /* TODO: add new compiler configuration flags for this*/
 #define CB_INDICATOR	6
@@ -252,6 +257,7 @@ struct cobc_mem_struct {
 						   for COBOL 2002 (removed it) would be 7 */
 #define CB_SEQUENCE	cb_text_column /* the only configuration available...*/
 #define CB_ENDLINE	cb_text_column + 8
+#define CB_LIST_PICSIZE 80
 
 #define IS_DEBUG_LINE(line) ((line)[CB_INDICATOR] == 'D')
 #define IS_CONTINUE_LINE(line) ((line)[CB_INDICATOR] == '-')
@@ -295,15 +301,27 @@ struct list_files {
 	struct list_skip	*skip_tail;	/* Skip list tail */
 	int 			copy_line;	/* Line start for copy book */
 	int 			listing_on;	/* Listing flag for this file */
-	int			source_format;	/* source format for file */
+	enum cb_format		source_format;	/* source format for file */
 	char			*name;		/* Name of this file */
 };
 
 extern struct list_files	*cb_listing_files;
 extern struct list_files	*cb_current_file;
 
+struct cb_xref_elem {
+	struct cb_xref_elem	*next;
+	int			line;
+};
+
+struct cb_xref {
+	struct cb_xref_elem	*head;
+	struct cb_xref_elem	*tail;
+	int			skip;
+};
+
 
 extern int			cb_source_format;
+extern int			cb_text_column;
 
 extern struct cb_exception	cb_exception_table[];
 
@@ -311,26 +329,47 @@ extern struct cb_exception	cb_exception_table[];
 #define CB_EXCEPTION_CODE(id)	cb_exception_table[id].code
 #define CB_EXCEPTION_ENABLE(id)	cb_exception_table[id].enable
 
+/* undef macros that are only for internal use with def-files */
+
 #undef	CB_FLAG
+#undef	CB_FLAG_ON
 #undef	CB_FLAG_RQ
 #undef	CB_FLAG_NQ
-#define	CB_FLAG(var,pdok,name,doc)		extern int var;
-#define CB_FLAG_RQ(var,pdok,name,def,opt,doc,vdoc,ddoc)	extern int var;
-#define CB_FLAG_NQ(pdok,name,opt,doc,vdoc,ddoc)
-#include "flag.def"
-#undef	CB_FLAG
-#undef	CB_FLAG_RQ
-#undef	CB_FLAG_nQ
 
 #undef	CB_WARNDEF
-#undef	CB_NOWARNDEF
-#define	CB_WARNDEF(var,name,doc)	extern int var;
-#define	CB_NOWARNDEF(var,name,doc)	extern int var;
-#include "warning.def"
-#undef	CB_WARNDEF
+#undef	CB_ONWARNDEF
 #undef	CB_NOWARNDEF
 
 #undef	CB_OPTIM_DEF
+
+#undef	CB_CONFIG_ANY
+#undef	CB_CONFIG_INT
+#undef	CB_CONFIG_STRING
+#undef	CB_CONFIG_BOOLEAN
+#undef	CB_CONFIG_SUPPORT
+
+#undef	COB_EXCEPTION
+
+
+#define	CB_FLAG(var,pdok,name,doc)		extern int var;
+#define	CB_FLAG_ON(var,pdok,name,doc)		extern int var;
+#define CB_FLAG_RQ(var,pdok,name,def,opt,doc,vdoc,ddoc)	extern int var;
+#define CB_FLAG_NQ(pdok,name,opt,doc,vdoc)
+#include "flag.def"
+#undef	CB_FLAG
+#undef	CB_FLAG_ON
+#undef	CB_FLAG_RQ
+#undef	CB_FLAG_nQ
+
+#define	CB_WARNDEF(var,name,doc)	extern int var;
+#define	CB_ONWARNDEF(var,name,doc)	extern int var;
+#define	CB_NOWARNDEF(var,name,doc)	extern int var;
+#include "warning.def"
+#undef	CB_WARNDEF
+#undef	CB_ONWARNDEF
+#undef	CB_NOWARNDEF
+
+
 #define	CB_OPTIM_DEF(x)			x,
 enum cb_optim {
 	COB_OPTIM_MIN = 0,
@@ -420,21 +459,22 @@ DECLNORET extern void		cobc_abort (const char *,
 DECLNORET extern void		cobc_too_many_errors (void) COB_A_NORETURN;
 
 extern size_t			cobc_check_valid_name (const char *,
-						       const unsigned int);
+						       const enum cobc_name_type);
+
+extern void			cobc_xref_link (struct cb_xref *, int);
 
 /* config.c */
 
-#undef	CB_CONFIG_ANY
-#undef	CB_CONFIG_INT
-#undef	CB_CONFIG_STRING
-#undef	CB_CONFIG_BOOLEAN
-#undef	CB_CONFIG_SUPPORT
-
-#define	CB_CONFIG_ANY(type,var,name,doc)	extern type var;
-#define	CB_CONFIG_INT(var,name,doc)			extern unsigned int var;
-#define	CB_CONFIG_STRING(var,name,doc)		extern const char *var;
-#define	CB_CONFIG_BOOLEAN(var,name,doc)		extern int var;
-#define	CB_CONFIG_SUPPORT(var,name,doc)		extern enum cb_support var;
+#define	CB_CONFIG_ANY(type,var,name,doc)	\
+extern type			var;
+#define	CB_CONFIG_INT(var,name,min,max,odoc,doc)	\
+extern unsigned int		var;
+#define	CB_CONFIG_STRING(var,name,doc)	\
+extern const char		*var;
+#define	CB_CONFIG_BOOLEAN(var,name,doc)	\
+extern int				var;
+#define	CB_CONFIG_SUPPORT(var,name,doc)	\
+extern enum				cb_support var;
 
 #include "config.def"
 
@@ -449,8 +489,7 @@ extern int		cb_config_entry (char *, const char *, const int);
 extern int		cb_load_conf (const char *, const int);
 
 #ifndef	HAVE_DESIGNATED_INITS
-/* Initialization routines in scanner.l, typeck.c, reserved.c */
-extern void		cobc_init_scanner (void);
+/* Initialization routines in typeck.c and reserved.c */
 extern void		cobc_init_typeck (void);
 extern void		cobc_init_reserved (void);
 #endif
@@ -497,7 +536,7 @@ extern void		ylex_clear_all (void);
 extern void		ylex_call_destroy (void);
 
 /* typeck.c */
-extern size_t		suppress_warn;
+extern size_t		suppress_warn;	/* no warnings for internal generated stuff */
 
 /* codeoptim.c */
 extern void		cob_gen_optim (const enum cb_optim);
@@ -506,7 +545,12 @@ extern void		cob_gen_optim (const enum cb_optim);
 #define CB_MSG_STYLE_GCC	0
 #define CB_MSG_STYLE_MSC	1U
 
-#define CB_PENDING(x)		cb_warning (_("%s not implemented"), x)
+#define CB_PENDING(x)		cb_warning (_("%s is not implemented"), x)
+#define CB_PENDING_X(x,y)		cb_warning_x (x, _("%s is not implemented"), y)
+#define CB_UNFINISHED(x)		\
+	cb_warning (_("handling of %s is unfinished; implementation is likely to be changed"), x)
+#define CB_UNFINISHED_X(x,y)	\
+	cb_warning_x (x, _("handling of %s is unfinished; implementation is likely to be changed"), y)
 
 extern size_t		cb_msg_style;
 
@@ -516,20 +560,22 @@ extern void		cb_perror (const int, const char *, ...) COB_A_FORMAT23;
 extern void		cb_plex_warning (const size_t,
 					 const char *, ...) COB_A_FORMAT23;
 extern void		cb_plex_error (const size_t,
-				       const char *, ...) COB_A_FORMAT23;
+					 const char *, ...) COB_A_FORMAT23;
+extern unsigned int	cb_plex_verify (const size_t, const enum cb_support,
+					const char *);
 extern void		configuration_warning (const char *, const int,
 					 const char *, ...) COB_A_FORMAT34;
 extern void		configuration_error (const char *, const int,
 					 const int, const char *, ...) COB_A_FORMAT45;
-extern char *	cb_get_strerror (void);
-
+extern char *		cb_get_strerror (void);
+DECLNORET extern void		flex_fatal_error (const char *, const char *,
+					 const int) COB_A_NORETURN;
 extern unsigned int	cb_verify (const enum cb_support, const char *);
 
 /* reserved.c */
 extern struct reserved_word_list	*cobc_user_res_list;
 
-extern void		remove_reserved_word (const char *);
-extern void		add_reserved_word (char *, const char *, const int);
-extern void		add_all_default_words (void);
+extern void		remove_reserved_word (const char *, const char *, const int);
+extern void		add_reserved_word (const char *, const char *, const int);
 
 #endif /* CB_COBC_H */

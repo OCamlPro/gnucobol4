@@ -55,27 +55,27 @@ static int yywrap (void) {
     return 1;
 }
 
-#define YY_INPUT(buf,result,max_size)	\
-	{	\
+#define YY_INPUT(buf,result,max_size)				\
+	{							\
 		if (fgets (buf, (int)max_size, yyin) == NULL) { \
-			result = YY_NULL; \
-		} else { \
-			result = strlen (buf); \
-		} \
+			result = YY_NULL;			\
+		} else {					\
+			result = strlen (buf);			\
+		}						\
 	}
 
-#define	YY_USER_INIT	\
+#define	YY_USER_INIT						\
 	if (!plexbuff) {					\
 		plexsize = COB_MINI_BUFF;			\
-		plexbuff = cobc_malloc (plexsize);	\
+		plexbuff = cobc_malloc (plexsize);		\
 	}							\
 	if (!picbuff1) {					\
 		pic1size = COB_MINI_BUFF;			\
-		picbuff1 = cobc_malloc (pic1size);	\
+		picbuff1 = cobc_malloc (pic1size);		\
 	}							\
 	if (!picbuff2) {					\
 		pic2size = COB_MINI_BUFF;			\
-		picbuff2 = cobc_malloc (pic2size);	\
+		picbuff2 = cobc_malloc (pic2size);		\
 	}
 
 #include "config.h"
@@ -92,8 +92,22 @@ static int yywrap (void) {
 #include "cobc.h"
 #include "tree.h"
 
+/* ignore unused functions here as flex generates unused ones */
+#ifdef	__GNUC__
+#if	__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+#endif
+
 #define YYSTYPE			cb_tree
 #include "parser.h"
+
+#define RETURN_TOK(expr)			\
+	do {					\
+		last_yylval = yylval;		\
+		last_token = (expr);		\
+		return last_token;		\
+	} ONCE_COB
 
 /* CONSTANT (78 level) structure */
 struct cb_level_78 {
@@ -102,9 +116,7 @@ struct cb_level_78 {
 	struct cb_level_78	*last;		/* Last in chain */
 	struct cb_field		*fld78;		/* Pointer to field */
 	struct cb_program	*prog;		/* Program where defined */
-	const char		*pic_replace;	/* Can replace in PICTURE */
 	cob_u32_t		name_len;	/* Length of name */
-	cob_u32_t		pic_len;	/* Length of pic_replace */
 	cob_u32_t		not_const;	/* Invalid usage check */
 	cob_u32_t		chk_const;	/* Check global level use */
 };
@@ -115,6 +127,8 @@ struct cb_top_level_78 {
 };
 
 /* Local variables */
+static cb_tree			last_yylval;
+static int			last_token;
 static struct cb_level_78	*top78ptr = NULL;
 static struct cb_level_78	*const78ptr = NULL;
 static struct cb_level_78	*lev78ptr = NULL;
@@ -131,86 +145,13 @@ static unsigned int		inside_bracket = 0;
 static unsigned int		literal_error;
 static char			err_msg[COB_MINI_BUFF];
 
-#ifdef	HAVE_DESIGNATED_INITS
-static const unsigned char	valid_char[256] = {
-	['-'] = 1,
-	['0'] = 1,
-	['1'] = 1,
-	['2'] = 1,
-	['3'] = 1,
-	['4'] = 1,
-	['5'] = 1,
-	['6'] = 1,
-	['7'] = 1,
-	['8'] = 1,
-	['9'] = 1,
-	['A'] = 1,
-	['B'] = 1,
-	['C'] = 1,
-	['D'] = 1,
-	['E'] = 1,
-	['F'] = 1,
-	['G'] = 1,
-	['H'] = 1,
-	['I'] = 1,
-	['J'] = 1,
-	['K'] = 1,
-	['L'] = 1,
-	['M'] = 1,
-	['N'] = 1,
-	['O'] = 1,
-	['P'] = 1,
-	['Q'] = 1,
-	['R'] = 1,
-	['S'] = 1,
-	['T'] = 1,
-	['U'] = 1,
-	['V'] = 1,
-	['W'] = 1,
-	['X'] = 1,
-	['Y'] = 1,
-	['Z'] = 1,
-	['_'] = 1,
-	['a'] = 1,
-	['b'] = 1,
-	['c'] = 1,
-	['d'] = 1,
-	['e'] = 1,
-	['f'] = 1,
-	['g'] = 1,
-	['h'] = 1,
-	['i'] = 1,
-	['j'] = 1,
-	['k'] = 1,
-	['l'] = 1,
-	['m'] = 1,
-	['n'] = 1,
-	['o'] = 1,
-	['p'] = 1,
-	['q'] = 1,
-	['r'] = 1,
-	['s'] = 1,
-	['t'] = 1,
-	['u'] = 1,
-	['v'] = 1,
-	['w'] = 1,
-	['x'] = 1,
-	['y'] = 1,
-	['z'] = 1
-};
-#else
-static unsigned char		valid_char[256];
-static const unsigned char	pvalid_char[] =
-	"-0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz";
-#endif
-
 /* Function declarations */
-static void	read_literal (const char);
-static int	scan_x (const char *);
-static int	scan_z (const char *, const cob_u32_t);
-static int	scan_h (const char *, const cob_u32_t);
-static int	scan_b (const char *, const cob_u32_t);
-static int	scan_o (const char *);
+static void	read_literal (const char, const char *);
+static int	scan_x (const char *, const char *);
+static int	scan_z (const char *, const char *);
+static int	scan_h (const char *, const char *);
+static int	scan_b (const char *, const char *);
+static int	scan_o (const char *, const char *);
 static int	scan_numeric (const char *);
 static int	scan_floating_numeric (const char *);
 static void	scan_picture (const char *);
@@ -232,6 +173,12 @@ static void	scan_options (const char *, const unsigned int);
 		} else {
 			BEGIN DECIMAL_IS_COMMA;
 		}
+	}
+
+	if (cobc_repeat_last_token) {
+		cobc_repeat_last_token = 0;
+		yylval = last_yylval;
+	        return last_token;
 	}
 
 	/* We treat integer literals immediately after '.' as labels;
@@ -295,7 +242,7 @@ static void	scan_options (const char *, const unsigned int);
 "FUNCTION" {
 	if (cobc_in_repository || cobc_cs_check == CB_CS_EXIT) {
 		yylval = NULL;
-		return FUNCTION;
+	        RETURN_TOK (FUNCTION);
 	}
 	BEGIN FUNCTION_STATE;
 }
@@ -303,43 +250,65 @@ static void	scan_options (const char *, const unsigned int);
 [\'\"] {
 	/* String literal */
 	cobc_force_literal = 0;
-	read_literal (yytext[0]);
-	return LITERAL;
+	read_literal (yytext[0], "");
+	RETURN_TOK (LITERAL);
 }
 
 X\'[^\'\n]*\' |
 X\"[^\"\n]*\" {
 	/* X string literal */
 	cobc_force_literal = 0;
-	return scan_x (yytext + 2);
+	RETURN_TOK (scan_x (yytext + 2, "X"));
+}
+
+N[\'\"] {
+	/* N national string literal */
+	cobc_force_literal = 0;
+	/* TODO: national string - needs different handling */
+	read_literal (yytext [1], "N");
+	RETURN_TOK (LITERAL);
+}
+
+NX\'[^\'\n]*\' |
+NX\"[^\"\n]*\" {
+	/* NX string literal */
+	cobc_force_literal = 0;
+	RETURN_TOK (scan_x (yytext + 3, "NX"));
 }
 
 Z\'[^\'\n]*\' |
 Z\"[^\"\n]*\" {
 	/* Z string literal */
 	cobc_force_literal = 0;
-	return scan_z (yytext + 2, 0);
+	RETURN_TOK (scan_z (yytext + 2, "Z"));
 }
 
 L\'[^\'\n]*\' |
 L\"[^\"\n]*\" {
 	/* L string literal */
 	cobc_force_literal = 0;
-	return scan_z (yytext + 2, 1);
+	RETURN_TOK (scan_z (yytext + 2, "L"));
 }
 
 H\'[^\'\n]*\' |
 H\"[^\"\n]*\" {
-	/* H numeric literal */
+	/* H hexdecimal/numeric literal */
 	cobc_force_literal = 0;
-	return scan_h (yytext + 2, 1);
+	RETURN_TOK (scan_h (yytext + 2, "H"));
 }
 
 B\'[^\'\n]*\' |
 B\"[^\"\n]*\" {
 	/* B boolean/numeric literal */
 	cobc_force_literal = 0;
-	return scan_b (yytext + 2, 1);
+	RETURN_TOK (scan_b (yytext + 2, "B"));
+}
+
+BX\'[^\'\n]*\' |
+BX\"[^\"\n]*\" {
+	/* BX boolean hexadecimal string literal */
+	cobc_force_literal = 0;
+	RETURN_TOK (scan_x (yytext + 3, "BX"));
 }
 
 B#[0-9]* {
@@ -350,32 +319,34 @@ B#[0-9]* {
 	*/
 	/* ACUCOBOL binary numeric literal */
 	cobc_force_literal = 0;
-	return scan_b (yytext + 2, 0);
+	RETURN_TOK (scan_b (yytext + 2, "B#"));
 }
 
 O#[0-9]* {
 	/* ACUCOBOL octal numeric literal */
 	cobc_force_literal = 0;
-	return scan_o (yytext + 2);
+	RETURN_TOK (scan_o (yytext + 2, "O#"));
 }
 
 X#[0-9A-Za-z]* |
 H#[0-9A-Za-z]* {
 	/* ACUCOBOL hexadecimal numeric literal */
+	char type[3] = "x#";
+	type[0] = yytext [0];
 	cobc_force_literal = 0;
-	return scan_h (yytext + 2, 0);
+	RETURN_TOK (scan_h (yytext + 2, type));
 }
 
 \( {
 	inside_bracket++;
-	return TOK_OPEN_PAREN;
+	RETURN_TOK (TOK_OPEN_PAREN);
 }
 
 \) {
 	if (inside_bracket > 0) {
 		inside_bracket--;
 	}
-	return TOK_CLOSE_PAREN;
+	RETURN_TOK (TOK_CLOSE_PAREN);
 }
 
 [0-9]+ {
@@ -385,28 +356,28 @@ H#[0-9A-Za-z]* {
 		if (!cobc_in_procedure) {
 			if (!strcmp (yytext, "66")) {
 				/* Level number 66 */
-				return SIXTY_SIX;
+				RETURN_TOK (SIXTY_SIX);
 			} else if (!strcmp (yytext, "78")) {
 				/* Level number 78 */
-				return SEVENTY_EIGHT;
+				RETURN_TOK (SEVENTY_EIGHT);
 			} else if (!strcmp (yytext, "88")) {
 				/* Level number 88 */
-				return EIGHTY_EIGHT;
+				RETURN_TOK (EIGHTY_EIGHT);
 			}
 		}
 
 		/* Integer label or level number */
-		return WORD;
+		RETURN_TOK (WORD);
 	}
 	/* Numeric literal or referenced integer label */
 	/* All transformations/checks are postponed to tree.c */
 	yylval = cb_build_numeric_literal (0, yytext, 0);
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 }
 
 [+-][0-9]+ {
 	/* Numeric literal (signed) */
-	return scan_numeric (yytext);
+	RETURN_TOK (scan_numeric (yytext));
 }
 
 <*>[ ]+ {
@@ -415,46 +386,46 @@ H#[0-9A-Za-z]* {
 
 <*>;+ {
 	if (inside_bracket) {
-		return SEMI_COLON;
+		RETURN_TOK (SEMI_COLON);
 	}
 	/* Ignore */
 }
 
 <DECIMAL_IS_PERIOD>[+-]?[0-9]*\.[0-9]+E[+-]?[0-9]+ {
 	/* Numeric floating point literal */
-	return scan_floating_numeric (yytext);
+	RETURN_TOK (scan_floating_numeric (yytext));
 }
 
 <DECIMAL_IS_PERIOD>[+-]?[0-9]*\.[0-9]+E[+-]?[0-9]*\.[0-9]+ {
 	/* Invalid numeric floating point literal */
-	return scan_floating_numeric (yytext);
+	RETURN_TOK (scan_floating_numeric (yytext));
 }
 
 <DECIMAL_IS_PERIOD>[+-]?[0-9]*\.[0-9]+ {
 	/* Numeric literal */
-	return scan_numeric (yytext);
+	RETURN_TOK (scan_numeric (yytext));
 }
 
 <DECIMAL_IS_PERIOD>,+ {
 	if (inside_bracket) {
-		return COMMA_DELIM;
+		RETURN_TOK (COMMA_DELIM);
 	}
 	/* Ignore */
 }
 
 <DECIMAL_IS_COMMA>[+-]?[0-9]*,[0-9]+E[+-]?[0-9]+ {
 	/* Numeric floating point literal */
-	return scan_floating_numeric (yytext);
+	RETURN_TOK (scan_floating_numeric (yytext));
 }
 
 <DECIMAL_IS_COMMA>[+-]?[0-9]*,[0-9]+E[+-]?[0-9]*,[0-9]+ {
 	/* Invalid numeric floating point literal */
-	return scan_floating_numeric (yytext);
+	RETURN_TOK (scan_floating_numeric (yytext));
 }
 
 <DECIMAL_IS_COMMA>[+-]?[0-9]*,[0-9]+ {
 	/* Numeric literal */
-	return scan_numeric (yytext);
+	RETURN_TOK (scan_numeric (yytext));
 }
 
 <DECIMAL_IS_COMMA>,{2,} {
@@ -463,7 +434,7 @@ H#[0-9A-Za-z]* {
 
 <DECIMAL_IS_COMMA>, {
 	if (inside_bracket) {
-		return COMMA_DELIM;
+		RETURN_TOK (COMMA_DELIM);
 	}
 	/* Ignore */
 }
@@ -471,43 +442,43 @@ H#[0-9A-Za-z]* {
 "END"[ ,;\n]+"PROGRAM" {
 	cobc_force_literal = 1;
 	count_lines (yytext);
-	return END_PROGRAM;
+	RETURN_TOK (END_PROGRAM);
 }
 
 "END"[ ,;\n]+"FUNCTION" {
 	cobc_force_literal = 1;
 	count_lines (yytext);
-	return END_FUNCTION;
+	RETURN_TOK (END_FUNCTION);
 }
 
 "PICTURE"[ ,;\n]+"SYMBOL" {
 	count_lines (yytext);
-	return PICTURE_SYMBOL;
+	RETURN_TOK (PICTURE_SYMBOL);
 }
 
 "FROM"[ ,;\n]+"CRT" {
 	count_lines (yytext);
-	return FROM_CRT;
+	RETURN_TOK (FROM_CRT);
 }
 
 "SCREEN"[ ,;\n]+"CONTROL" {
 	count_lines (yytext);
-	return SCREEN_CONTROL;
+	RETURN_TOK (SCREEN_CONTROL);
 }
 
 "EVENT"[ ,;\n]+"STATUS" {
 	count_lines (yytext);
-	return EVENT_STATUS;
+	RETURN_TOK (EVENT_STATUS);
 }
 
 "READY"[ ,;\n]+"TRACE" {
 	count_lines (yytext);
-	return READY_TRACE;
+	RETURN_TOK (READY_TRACE);
 }
 
 "RESET"[ ,;\n]+"TRACE" {
 	count_lines (yytext);
-	return RESET_TRACE;
+	RETURN_TOK (RESET_TRACE);
 }
 
 "GREATER"[ ,;\n]+"OR"[ ,;\n]+"EQUAL"[ ,;\n]+"TO"[ ,;\n] |
@@ -515,12 +486,12 @@ H#[0-9A-Za-z]* {
 "GREATER"[ ,;\n]+"THAN"[ ,;\n]+"OR"[ ,;\n]+"EQUAL"[ ,;\n]+"TO"[ ,;\n] |
 "GREATER"[ ,;\n]+"THAN"[ ,;\n]+"OR"[ ,;\n]+"EQUAL"[ ,;\n] {
 	count_lines (yytext);
-	return GREATER_OR_EQUAL;
+	RETURN_TOK (GREATER_OR_EQUAL);
 }
 
 "GREATER"[ ,;\n]+"THAN"[ ,;\n] {
 	count_lines (yytext);
-	return GREATER;
+	RETURN_TOK (GREATER);
 }
 
 "LESS"[ ,;\n]+"OR"[ ,;\n]+"EQUAL"[ ,;\n]+"TO"[ ,;\n] |
@@ -528,105 +499,105 @@ H#[0-9A-Za-z]* {
 "LESS"[ ,;\n]+"THAN"[ ,;\n]+"OR"[ ,;\n]+"EQUAL"[ ,;\n]+"TO"[ ,;\n] |
 "LESS"[ ,;\n]+"THAN"[ ,;\n]+"OR"[ ,;\n]+"EQUAL"[ ,;\n] {
 	count_lines (yytext);
-	return LESS_OR_EQUAL;
+	RETURN_TOK (LESS_OR_EQUAL);
 }
 
 "LESS"[ ,;\n]+"THAN"[ ,;\n] {
 	count_lines (yytext);
-	return LESS;
+	RETURN_TOK (LESS);
 }
 
 "EQUAL"[ ,;\n]+"TO"[ ,;\n] {
 	count_lines (yytext);
-	return EQUAL;
+	RETURN_TOK (EQUAL);
 }
 
 "THEN"[ ,;\n]+"REPLACING"[ ,;\n] {
 	count_lines (yytext);
-	return REPLACING;
+	RETURN_TOK (REPLACING);
 }
 
 "LINES"[ ,;\n]+"AT"[ ,;\n]+"TOP"[ ,;\n] |
 "LINES"[ ,;\n]+"TOP"[ ,;\n] |
 "AT"[ ,;\n]+"TOP"[ ,;\n] {
 	count_lines (yytext);
-	return TOP;
+	RETURN_TOK (TOP);
 }
 
 "LINES"[ ,;\n]+"AT"[ ,;\n]+"BOTTOM"[ ,;\n] |
 "LINES"[ ,;\n]+"BOTTOM"[ ,;\n] |
 "AT"[ ,;\n]+"BOTTOM"[ ,;\n] {
 	count_lines (yytext);
-	return BOTTOM;
+	RETURN_TOK (BOTTOM);
 }
 
 "WITH"[ ,;\n]+"NO"[ ,;\n]+"ADVANCING" |
 "NO"[ ,;\n]+"ADVANCING" {
 	count_lines (yytext);
-	return NO_ADVANCING;
+	RETURN_TOK (NO_ADVANCING);
 }
 
 "ON"[ ,;\n]+"NEXT"[ ,;\n]+"PAGE"[ ,;\n] |
 "NEXT"[ ,;\n]+"PAGE"[ ,;\n] {
 	count_lines (yytext);
-	return NEXT_PAGE;
+	RETURN_TOK (NEXT_PAGE);
 }
 
 "NOT"[ ,;\n]+"ON"[ ,;\n]+"SIZE"[ ,;\n]+"ERROR"[ ,;\n] |
 "NOT"[ ,;\n]+"SIZE"[ ,;\n]+"ERROR"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_SIZE_ERROR;
+	RETURN_TOK (NOT_SIZE_ERROR);
 }
 
 "ON"[ ,;\n]+"SIZE"[ ,;\n]+"ERROR"[ ,;\n] |
 "SIZE"[ ,;\n]+"ERROR"[ ,;\n] {
 	count_lines (yytext);
-	return SIZE_ERROR;
+	RETURN_TOK (SIZE_ERROR);
 }
 
 "NOT"[ ,;\n]+"ON"[ ,;\n]+"ESCAPE"[ ,;\n] |
 "NOT"[ ,;\n]+"ESCAPE"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_ESCAPE;
+	RETURN_TOK (NOT_ESCAPE);
 }
 
 "NOT"[ ,;\n]+"ON"[ ,;\n]+"EXCEPTION"[ ,;\n] |
 "NOT"[ ,;\n]+"EXCEPTION"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_EXCEPTION;
+	RETURN_TOK (NOT_EXCEPTION);
 }
 
 "ON"[ ,;\n]+"ESCAPE"[ ,;\n] {
 	count_lines (yytext);
-	return ESCAPE;
+	RETURN_TOK (ESCAPE);
 }
 
 "ON"[ ,;\n]+"EXCEPTION"[ ,;\n] {
 	count_lines (yytext);
-	return EXCEPTION;
+	RETURN_TOK (EXCEPTION);
 }
 
 "NOT"[ ,;\n]+"ON"[ ,;\n]+"OVERFLOW"[ ,;\n] |
 "NOT"[ ,;\n]+"OVERFLOW"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_OVERFLOW;
+	RETURN_TOK (NOT_OVERFLOW);
 }
 
 "NOT"[ ,;\n]+"AT"[ ,;\n]+"END"[ ,;\n] |
 "NOT"[ ,;\n]+"END"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_END;
+	RETURN_TOK (NOT_END);
 }
 
 "AT"[ ,;\n]+"END"[ ,;\n] {
 	count_lines (yytext);
-	return END;
+	RETURN_TOK (END);
 }
 
 "ON"[ ,;\n]+"OVERFLOW"[ ,;\n] |
 "OVERFLOW"[ ,;\n] {
 	count_lines (yytext);
-	return TOK_OVERFLOW;
+	RETURN_TOK (TOK_OVERFLOW);
 }
 
 "NOT"[ ,;\n]+"AT"[ ,;\n]+"END-OF-PAGE"[ ,;\n] |
@@ -634,7 +605,7 @@ H#[0-9A-Za-z]* {
 "NOT"[ ,;\n]+"END-OF-PAGE"[ ,;\n] |
 "NOT"[ ,;\n]+"EOP"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_EOP;
+	RETURN_TOK (NOT_EOP);
 }
 
 "AT"[ ,;\n]+"END-OF-PAGE"[ ,;\n] |
@@ -642,67 +613,67 @@ H#[0-9A-Za-z]* {
 "END-OF-PAGE"[ ,;\n] |
 "EOP"[ ,;\n] {
 	count_lines (yytext);
-	return EOP;
+	RETURN_TOK (EOP);
 }
 
 "NOT"[ ,;\n]+"INVALID"[ ,;\n]+"KEY"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_INVALID_KEY;
+	RETURN_TOK (NOT_INVALID_KEY);
 }
 
 "NOT"[ ,;\n]+"INVALID"[ ,;\n] {
 	count_lines (yytext);
-	return NOT_INVALID_KEY;
+	RETURN_TOK (NOT_INVALID_KEY);
 }
 
 "INVALID"[ ,;\n]+"KEY"[ ,;\n] {
 	count_lines (yytext);
-	return INVALID_KEY;
+	RETURN_TOK (INVALID_KEY);
 }
 
 "INVALID"[ ,;\n] {
 	count_lines (yytext);
-	return INVALID_KEY;
+	RETURN_TOK (INVALID_KEY);
 }
 
 "UPON"[ ,;\n]+"ENVIRONMENT-NAME" {
 	count_lines (yytext);
-	return UPON_ENVIRONMENT_NAME;
+	RETURN_TOK (UPON_ENVIRONMENT_NAME);
 }
 
 "UPON"[ ,;\n]+"ENVIRONMENT-VALUE" {
 	count_lines (yytext);
-	return UPON_ENVIRONMENT_VALUE;
+	RETURN_TOK (UPON_ENVIRONMENT_VALUE);
 }
 
 "UPON"[ ,;\n]+"ARGUMENT-NUMBER" {
 	count_lines (yytext);
-	return UPON_ARGUMENT_NUMBER;
+	RETURN_TOK (UPON_ARGUMENT_NUMBER);
 }
 
 "UPON"[ ,;\n]+"COMMAND-LINE" {
 	count_lines (yytext);
-	return UPON_COMMAND_LINE;
+	RETURN_TOK (UPON_COMMAND_LINE);
 }
 
 "AFTER"[ ,;\n]+"EXCEPTION"[ ,;\n]+"CONDITION"[ ,;\n] {
 	count_lines (yytext);
-	return EXCEPTION_CONDITION;
+	RETURN_TOK (EXCEPTION_CONDITION);
 }
 
 "EXCEPTION"[ ,;\n]+"CONDITION"[ ,;\n] {
 	count_lines (yytext);
-	return EXCEPTION_CONDITION;
+	RETURN_TOK (EXCEPTION_CONDITION);
 }
 
 "AFTER"[ ,;\n]+"EC"[ ,;\n] {
 	count_lines (yytext);
-	return EC;
+	RETURN_TOK (EC);
 }
 
 "LENGTH"[ ,;\n]+"OF"[ ,;\n] {
 	count_lines (yytext);
-	return LENGTH_OF;
+	RETURN_TOK (LENGTH_OF);
 }
 
 "SWITCH"[ ]+([0-9][0-9]?|[A-Z])[ ,;\n] {
@@ -737,7 +708,7 @@ H#[0-9A-Za-z]* {
 		strcat(name, suffix);
 		yylval = cb_build_reference (name);
 	}
-	return WORD;
+	RETURN_TOK (WORD);
 }
 
 [A-Z0-9\x80-\xFF]([_A-Z0-9\x80-\xFF-]*[A-Z0-9\x80-\xFF]+)? {
@@ -771,16 +742,16 @@ H#[0-9A-Za-z]* {
 		if (cbp) {
 			if (cobc_in_repository) {
 				yylval = cb_build_alphanumeric_literal (yytext, (size_t)yyleng);
-				return FUNCTION_NAME;
+				RETURN_TOK (FUNCTION_NAME);
 			}
 			if (functions_are_all) {
 				yylval = cb_build_reference (yytext);
-				return (enum yytokentype)(cbp->token);
+				RETURN_TOK ((enum yytokentype)(cbp->token));
 			}
 			for (tlp = cb_intrinsic_list; tlp; tlp = tlp->next) {
 				if (!strcasecmp (yytext, tlp->text)) {
 					yylval = cb_build_reference (yytext);
-					return (enum yytokentype)(cbp->token);
+					RETURN_TOK ((enum yytokentype)(cbp->token));
 				}
 			}
 			l = current_program->function_spec_list;
@@ -789,7 +760,7 @@ H#[0-9A-Za-z]* {
 				if (!strcasecmp (yytext,
 						 (char *)(CB_LITERAL(x)->data))) {
 					yylval = cb_build_reference (yytext);
-					return (enum yytokentype)(cbp->token);
+					RETURN_TOK ((enum yytokentype)(cbp->token));
 				}
 			}
 		}
@@ -801,10 +772,10 @@ H#[0-9A-Za-z]* {
 		cobc_force_literal = 0;
 		if (cb_fold_call) {
 			yylval = cb_build_reference (yytext);
-			return PROGRAM_NAME;
+			RETURN_TOK (PROGRAM_NAME);
 		} else {
 			yylval = cb_build_alphanumeric_literal (yytext, (size_t)yyleng);
-			return LITERAL;
+			RETURN_TOK (LITERAL);
 		}
 	}
 
@@ -818,38 +789,38 @@ H#[0-9A-Za-z]* {
 		} else {
 			yylval = NULL;
 		}
-		return resptr->token;
+		RETURN_TOK (resptr->token);
 	}
 
 	/* New user-defined word in REPOSITORY entry */
 	if (cobc_in_repository) {
 		yylval = cb_build_reference (yytext);
-		return WORD;
+		RETURN_TOK (WORD);
 	}
 
 	/* Direct recursive reference in function */
 	if (current_program->prog_type == CB_FUNCTION_TYPE
 		   && !functions_are_all
 		   && !strcasecmp (yytext, current_program->orig_program_id)) {
-			yylval = cb_build_reference (yytext);
-			return USER_FUNCTION_NAME;
-	}	
+		yylval = cb_build_reference (yytext);
+		RETURN_TOK (USER_FUNCTION_NAME);
+	}
 
 	/* Check prototype names */
 	for (l = current_program->user_spec_list; l; l = CB_CHAIN (l)) {
-			x = CB_VALUE (l);
+		x = CB_VALUE (l);
 		if (!strcasecmp (yytext, CB_PROTOTYPE (x)->name)) {
-				yylval = cb_build_reference (yytext);
-				return USER_FUNCTION_NAME;
-			}
+			yylval = cb_build_reference (yytext);
+			RETURN_TOK (USER_FUNCTION_NAME);
 		}
+	}
 	if (cobc_allow_program_name) {
 		for (l = current_program->program_spec_list; l; l = CB_CHAIN (l)) {
 			x = CB_VALUE (l);
 			if (!strcasecmp (yytext, CB_PROTOTYPE (x)->name)) {
 				yylval = cb_build_reference (yytext);
-				return PROGRAM_NAME;
-	}
+				RETURN_TOK (PROGRAM_NAME);
+			}
 		}
 	}
 
@@ -858,10 +829,10 @@ H#[0-9A-Za-z]* {
 		program = cb_find_defined_program_by_name (yytext);
 		if (program) {
 			yylval = cb_build_reference (yytext);
-			return PROGRAM_NAME;
+			RETURN_TOK (PROGRAM_NAME);
 		}
 	}
-	
+
 	/* User word */
 
 	/* Check local, global and source global CONSTANT (78) items */
@@ -872,7 +843,7 @@ H#[0-9A-Za-z]* {
 				if (p78->prog == current_program) {
 					cb_error (_("a constant may not be used here - '%s'"), yytext);
 					yylval = cb_error_node;
-					return WORD;
+					RETURN_TOK (WORD);
 				}
 				if (p78->chk_const) {
 					p78->not_const = 1;
@@ -883,7 +854,7 @@ H#[0-9A-Za-z]* {
 				break;
 			}
 			yylval = CB_VALUE (p78->fld78->values);
-			return LITERAL;
+			RETURN_TOK (LITERAL);
 		}
 	}
 
@@ -893,33 +864,33 @@ H#[0-9A-Za-z]* {
 	if (CB_WORD_COUNT (yylval) > 0 && CB_WORD_ITEMS (yylval)) {
 		x = CB_VALUE (CB_WORD_ITEMS (yylval));
 		if (CB_SYSTEM_NAME_P (x)) {
-			return MNEMONIC_NAME;
+			RETURN_TOK (MNEMONIC_NAME);
 		} else if (CB_CLASS_NAME_P (x)) {
-			return CLASS_NAME;
+			RETURN_TOK (CLASS_NAME);
 		}
 	}
 
-	return WORD;
+	RETURN_TOK (WORD);
 }
 
 "<=" {
 	yylval = NULL;
-	return LESS_OR_EQUAL;
+	RETURN_TOK (LESS_OR_EQUAL);
 }
 
 ">=" {
 	yylval = NULL;
-	return GREATER_OR_EQUAL;
+	RETURN_TOK (GREATER_OR_EQUAL);
 }
 
 "<>" {
 	yylval = NULL;
-	return NOT_EQUAL;
+	RETURN_TOK (NOT_EQUAL);
 }
 
 "**" {
 	yylval = NULL;
-	return EXPONENTIATION;
+	RETURN_TOK (EXPONENTIATION);
 }
 
 "."([ \n]*".")* {
@@ -930,53 +901,53 @@ H#[0-9A-Za-z]* {
 	if (!last_token_is_dot) {
 		last_token_is_dot = 1;
 		yylval = NULL;
-		return TOK_DOT;
+		RETURN_TOK (TOK_DOT);
 	}
 }
 
 "&" {
 	yylval = NULL;
-	return TOK_AMPER;
+	RETURN_TOK (TOK_AMPER);
 }
 
 ":" {
 	yylval = NULL;
-	return TOK_COLON;
+	RETURN_TOK (TOK_COLON);
 }
 
 "=" {
 	yylval = NULL;
-	return TOK_EQUAL;
+	RETURN_TOK (TOK_EQUAL);
 }
 
 "/" {
 	yylval = NULL;
-	return TOK_DIV;
+	RETURN_TOK (TOK_DIV);
 }
 
 "*" {
 	yylval = NULL;
-	return TOK_MUL;
+	RETURN_TOK (TOK_MUL);
 }
 
 "+" {
 	yylval = NULL;
-	return TOK_PLUS;
+	RETURN_TOK (TOK_PLUS);
 }
 
 "-" {
 	yylval = NULL;
-	return TOK_MINUS;
+	RETURN_TOK (TOK_MINUS);
 }
 
 "<" {
 	yylval = NULL;
-	return TOK_LESS;
+	RETURN_TOK (TOK_LESS);
 }
 
 ">" {
 	yylval = NULL;
-	return TOK_GREATER;
+	RETURN_TOK (TOK_GREATER);
 }
 
 . {
@@ -1001,7 +972,7 @@ H#[0-9A-Za-z]* {
   [^ \n;]+ {
 	BEGIN INITIAL;
 	scan_picture (yytext);
-	return PICTURE;
+	RETURN_TOK (PICTURE);
   }
 }
 
@@ -1009,25 +980,25 @@ H#[0-9A-Za-z]* {
   [A-Z0-9-]+ {
 	struct cb_intrinsic_table	*cbp;
 	cb_tree				l;
-        cb_tree				x;
+	cb_tree				x;
 
 	BEGIN INITIAL;
 	yylval = cb_build_reference (yytext);
 	for (l = current_program->user_spec_list; l; l = CB_CHAIN(l)) {
 		x = CB_VALUE (l);
 		if (!strcasecmp (yytext, CB_PROTOTYPE (x)->name)) {
-			return USER_FUNCTION_NAME;
+			RETURN_TOK (USER_FUNCTION_NAME);
 		}
 	}
 	cbp = lookup_intrinsic (yytext, 0);
 	if (cbp) {
-		return (enum yytokentype)(cbp->token);
+		RETURN_TOK ((enum yytokentype)(cbp->token));
 	}
-	return FUNCTION_NAME;
+	RETURN_TOK (FUNCTION_NAME);
   }
   . {
 	yylval = NULL;
-	return yytext[0];
+	RETURN_TOK (yytext[0]);
   }
 }
 
@@ -1069,31 +1040,40 @@ error_literal (const char *type, const char *literal)
 	char		lit_out[39];
 
 	if (!literal_error) {
+#if 0 /* national literal, check for different truncation and wcslen
+		 or not show it at all */
+		if (strcmp (type, "national") == 0) {
+			cb_error (_("invalid national literal"), lit_out);
+		} else {
+#endif
 		/* snip literal for output, if too long */
-		strncpy (lit_out, literal, 38);
-		if (strlen (literal) > 38) {
-			strcpy (lit_out + 35, "...");
-		} else {
-			lit_out[38] = '\0';
+			strncpy (lit_out, literal, 38);
+			if (strlen (literal) > 38) {
+				strcpy (lit_out + 35, "...");
+			} else {
+				lit_out[38] = '\0';
+			}
+			if (strcmp (type, "") == 0) {
+				cb_error (_("invalid literal: '%s'"), lit_out);
+			} else if (strcmp (type, "hex") == 0) {
+				cb_error (_("invalid hexadecimal literal: '%s'"), lit_out);
+			} else if (strcmp (type, "num") == 0) {
+				cb_error (_("invalid numeric literal: '%s'"), lit_out);
+			} else if (strcmp (type, "float") == 0) {
+				cb_error (_("invalid floating-point literal: '%s'"), lit_out);
+			} else {
+				cb_error (_("invalid %s literal: '%s'"), type, lit_out);
+			}
+#if 0 /* national literal */
 		}
-		if (strcmp (type, "") == 0) {
-			cb_error (_("invalid literal: '%s'"), lit_out);
-		} else if (strcmp (type, "hex") == 0) {
-			cb_error (_("invalid hexadecimal literal: '%s'"), lit_out);
-		} else if (strcmp (type, "num") == 0) {
-			cb_error (_("invalid numeric literal: '%s'"), lit_out);
-		} else if (strcmp (type, "float") == 0) {
-			cb_error (_("invalid floating-point literal: '%s'"), lit_out);
-		} else {
-			cb_error (_("invalid %s literal: '%s'"), type, lit_out);
-		}
+#endif
 	}
 	literal_error++;
 	cb_error ("%s", err_msg);
 }
 
 static void
-read_literal (const char mark)
+read_literal (const char mark, const char *type)
 {
 	size_t		i;
 	int		c;
@@ -1103,6 +1083,7 @@ read_literal (const char mark)
 	i = 0;
 	/* read until a not-escaped mark is found (see break)
 	   or (unliky) we reach EOF */
+	/* NO early exit possible as the literal has to be consumed */
 	while ((c = input ()) != EOF) {
 		if (!literal_error) {
 			if (unlikely (i == plexsize)) {
@@ -1141,102 +1122,180 @@ read_literal (const char mark)
 	   "ignore" => assume a space without warning; make sure zero length items
 	   work everywhere (should do as we support zero lengths via ODO items already)
 	*/
+
 	if (!i) {
 		cb_warning (_("alphanumeric literal has zero length; a SPACE will be assumed"));
 		plexbuff[i++] = ' ';
 	} else if (i > cb_lit_length) {
 		i = cb_lit_length;
 	}
+
 	/* build literal with given size */
 	plexbuff[i] = 0;
-	yylval = cb_build_alphanumeric_literal (plexbuff, i);
+	if (type[0] != 'N') {
+		yylval = cb_build_alphanumeric_literal (plexbuff, i);
+	} else {
+		if (cb_verify (cb_national_literals, _("national literal"))) {
+			CB_UNFINISHED (_("national literal"));
+		}
+		yylval = cb_build_national_literal (plexbuff, i);
+	}
 }
 
 static int
-scan_x (const char *text)
+scan_x (const char *text, const char *type)
 {
 	char		*p;
 	char		*e;
 	char		*dst;
 	size_t		currlen;
+	size_t		result_len;
 	int			high = 1;
 	int			c;
+	cob_u64_t	val = 0;
 
 	literal_error = 0;
 
-	/* currlen includes the terminating quote */
+	/* Remark:
+	   The standard allows for 8,191 (normal/national/boolean) character positions */
+
+	/* currlen includes the terminating quote 
+	   and has to be adjusted according to type */
+
 	currlen = strlen (text);
-	if (unlikely (currlen - 1 > cb_lit_length)) {
-		currlen--;
-		snprintf (err_msg, COB_MINI_MAX,
-			_("literal length %d exceeds %d characters"),
-			  (int) currlen, cb_lit_length);
-		error_literal ("X", text);
-		goto error;
-	}
-	if (unlikely (currlen > plexsize)) {
-		plexsize = currlen;
+	currlen--;
+	if (unlikely (currlen + 1 > plexsize)) {
+		plexsize = currlen + 1;
 		plexbuff = cobc_realloc (plexbuff, plexsize);
 	}
-	p = (char *)text;
-	e = (char *)p + currlen - 1;
-	dst = plexbuff;
-	for (; *p != *e; p++) {
-		c = (int)*p;
-		if ('0' <= c && c <= '9') {
-			c = c - '0';
-		} else if ('A' <= c && c <= 'F') {
-			c = c - 'A' + 10;
-		} else if ('a' <= c && c <= 'f') {
-			c = c - 'a' + 10;
-		} else {
+	memcpy (plexbuff, text, currlen);
+	if (likely(type[0] == 'X')) {
+		result_len = currlen / 2; /* characters, two half-bytes (hex) = 1 byte */
+	} else if (type[0] == 'B') {
+		if (!cb_verify (cb_hexadecimal_boolean, _("hexadecimal-boolean literal"))) {
+			goto error; /* early exit possible as complete literal is consumed */
+		}
+		result_len = currlen * 4; /* boolean characters B -> 1110 */
+		/* GnuCOBOL currently only support 64 bit booleans */
+		if (unlikely (result_len > 64)) {
 			snprintf (err_msg, COB_MINI_MAX,
-				_("literal contains invalid character '%c'"), c);
-			if (likely (literal_error == 0)) {
-				memcpy (plexbuff, text, currlen);
-				plexbuff[currlen - 1] = 0;
-			}
-			error_literal ("X", plexbuff);
-			continue;
-			/* By not breaking immediately, we detect any following
-			   invalid chars
-			*/
+				_("literal length %d exceeds %d characters"),
+				  (int) result_len, 64);
+			error_literal (type, plexbuff);
+			goto error;
 		}
-		if (likely (literal_error == 0)) {
-			if (high) {
-				*dst = (cob_u8_t)(c << 4);
-			} else {
-				*dst++ += (cob_u8_t)c;
-			}
+	} else {
+		if (!cb_verify (cb_national_hex_literals, _("hexadecimal-national literal"))) {
+			goto error; /* early exit possible as complete literal is consumed */
 		}
-		high = 1 - high;
+		CB_UNFINISHED (_("national literal"));
+		result_len = currlen / (2 * COB_NATIONAL_SIZE); /* national characters */
 	}
-
-	if (!high) {
-		/* This is non-standard behaviour */
+	if (unlikely (result_len > cb_lit_length)) {
 		snprintf (err_msg, COB_MINI_MAX,
-			_("literal does not have an even number of digits"));
-		if (likely (literal_error == 0)) {
-			memcpy (plexbuff, text, currlen);
-			plexbuff[currlen - 1] = 0;
-		}
-		error_literal ("X", plexbuff);
-	}
-
-	if (unlikely (literal_error != 0)) {
+			_("literal length %d exceeds %d characters"),
+			  (int) result_len, cb_lit_length);
+		error_literal (type, plexbuff);
 		goto error;
 	}
 
-	yylval = cb_build_alphanumeric_literal (plexbuff, (size_t)(dst - plexbuff));
-	return LITERAL;
+	p = (char *)text;
+	e = (char *)p + currlen;
+	dst = plexbuff;
+
+	if (unlikely(type[0] == 'B')) {
+		/* hexadecimal-boolean */
+		for (; *p != *e; p++) {
+			c = (int) *p;
+			if ('0' <= c && c <= '9') {
+				val = (val << 4) + (c - '0');
+			} else if ('A' <= c && c <= 'F') {
+				val = (val << 4) + (c - 'A' + 10);
+			} else if ('a' <= c && c <= 'f') {
+				val = (val << 4) + (c - 'a' + 10);
+			} else {
+				snprintf (err_msg, COB_MINI_MAX,
+					_("literal contains invalid character '%c'"), c);
+				if (likely (literal_error == 0)) {
+					memcpy (plexbuff, text, currlen + 1);
+					plexbuff[currlen] = 0;
+				}
+				error_literal (type, plexbuff);
+				/* By not breaking immediately, we detect any following
+					invalid chars
+				*/
+				continue;
+			}
+		}
+		if (unlikely (literal_error != 0)) {
+			goto error;
+		}
+		sprintf ((char *)plexbuff, CB_FMT_LLU, val);
+		yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
+
+	} else {
+
+		/* hexadecimal */
+		for (; *p != *e; p++) {
+			c = (int) *p;
+			if ('0' <= c && c <= '9') {
+				c = c - '0';
+			} else if ('A' <= c && c <= 'F') {
+				c = c - 'A' + 10;
+			} else if ('a' <= c && c <= 'f') {
+				c = c - 'a' + 10;
+			} else {
+				snprintf (err_msg, COB_MINI_MAX,
+					_("literal contains invalid character '%c'"), c);
+				if (likely (literal_error == 0)) {
+					memcpy (plexbuff, text, currlen + 1);
+					plexbuff[currlen] = 0;
+				}
+				error_literal (type, plexbuff);
+				/* By not breaking immediately, we detect any following
+					invalid chars
+				*/
+				continue;
+			}
+			if (likely (literal_error == 0)) {
+				if (high) {
+					*dst = (cob_u8_t)(c << 4);
+				} else {
+					*dst++ += (cob_u8_t)c;
+				}
+			}
+			high = 1 - high;
+		}
+
+		if (!high) {
+			/* This is non-standard behaviour */
+			snprintf (err_msg, COB_MINI_MAX,
+				_("literal does not have an even number of digits"));
+			if (likely (literal_error == 0)) {
+				memcpy (plexbuff, text, currlen + 1);
+				plexbuff[currlen] = 0;
+			}
+			error_literal (type, plexbuff);
+		}
+		if (unlikely (literal_error != 0)) {
+			goto error;
+		}
+		if (type [0] != 'N') {
+			yylval = cb_build_alphanumeric_literal (plexbuff, (size_t)(dst - plexbuff));
+		} else {
+			yylval = cb_build_national_literal (plexbuff, (size_t)(dst - plexbuff));
+		}
+	}
+
+	RETURN_TOK (LITERAL);
 
 error:
 	yylval = cb_error_node;
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 }
 
 static int
-scan_z (const char *text, const cob_u32_t llit)
+scan_z (const char *text, const char *type)
 {
 	size_t		currlen;
 
@@ -1249,13 +1308,9 @@ scan_z (const char *text, const cob_u32_t llit)
 		snprintf (err_msg, COB_MINI_MAX,
 			_("literal length %d exceeds %d characters"),
 			  (int) currlen, cb_lit_length);
-		if (llit) {
-			error_literal ("L", text);
-		} else {
-			error_literal ("Z", text);
-		}
+		error_literal (type, text);
 		yylval = cb_error_node;
-		return LITERAL;
+		RETURN_TOK (LITERAL);
 	}
 	if (unlikely (currlen > plexsize)) {
 		plexsize = currlen;
@@ -1266,12 +1321,14 @@ scan_z (const char *text, const cob_u32_t llit)
 
 	/* Count is correct here as the trailing quote is now a null */
 	yylval = cb_build_alphanumeric_literal (plexbuff, currlen);
-	CB_LITERAL(yylval)->llit = llit;
-	return LITERAL;
+	if (type[0] == 'L') {
+		CB_LITERAL(yylval)->llit = 1;
+	}
+	RETURN_TOK (LITERAL);
 }
 
 static int
-scan_h (const char *text, const cob_u32_t with_mark)
+scan_h (const char *text, const char *type)
 {
 	size_t		currlen;
 	char		*p;
@@ -1280,16 +1337,16 @@ scan_h (const char *text, const cob_u32_t with_mark)
 
 	literal_error = 0;
 
-	if (!with_mark &&
+	if (type[1] == '#' &&
 		!cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"))) {
-		goto error;
+		goto error; /* early exit possible as complete literal is consumed */
 	}
 
 
 	/* currlen can include the terminating quote */
 	currlen = strlen (text);
 	memcpy (plexbuff, text, currlen + 1);
-	if (with_mark) {
+	if (type[1] != '#') {
 		currlen--;
 		plexbuff[currlen] = 0;
 	}
@@ -1302,7 +1359,7 @@ scan_h (const char *text, const cob_u32_t with_mark)
 	}
 
 	for (p = plexbuff; *p != 0; p++) {
-		c = (int)*p;
+		c = (int) *p;
 		if ('0' <= c && c <= '9') {
 			c = c - '0';
 		} else if ('A' <= c && c <= 'F') {
@@ -1312,7 +1369,10 @@ scan_h (const char *text, const cob_u32_t with_mark)
 		} else {
 			snprintf (err_msg, COB_MINI_MAX,
 				_("literal contains invalid character '%c'"), c);
-			error_literal ("hex", plexbuff);
+			error_literal (type, plexbuff);
+			/* By not breaking immediately, we detect any following
+				invalid chars
+			*/
 			continue;
 		}
 
@@ -1327,16 +1387,20 @@ scan_h (const char *text, const cob_u32_t with_mark)
 	sprintf ((char *)plexbuff, CB_FMT_LLU, val);
 	yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
 
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 
 error:
 	yylval = cb_error_node;
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 }
 
 static int
-scan_b (const char *text, const cob_u32_t with_mark)
+scan_b (const char *text, const char *type)
 {
+	/* Fixme: the standard allows up to 8,192 boolean characters
+	   GnuCOBOL currently only support 64 bit booleans, check if it work to
+	   add concatenation after 64 bit, similar to read_literal() */
+
 	size_t		currlen;
 	char		*p;
 	cob_u64_t	val = 0;
@@ -1344,25 +1408,31 @@ scan_b (const char *text, const cob_u32_t with_mark)
 
 	literal_error = 0;
 
-	if (( with_mark &&
-		 !cb_verify (cb_numeric_boolean, _("numeric boolean literal"))) ||
-		(!with_mark &&
-		 !cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal")))) {
-		goto error;
-	}
-
 	/* currlen can include the terminating quote */
 	currlen = strlen (text);
-	memcpy (plexbuff, text, currlen + 1);
-	if (with_mark) {
-		currlen--;
-		plexbuff[currlen] = 0;
+
+	if (type[1] == 0) {
+		if (!cb_verify (cb_numeric_boolean, _("numeric boolean literal"))) {
+			goto error; /* early exit possible as complete literal is consumed */
+		}
+	} else {
+		if (!cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"))) {
+			goto error; /* early exit possible as complete literal is consumed */
+		}
+	};
+	if (unlikely (currlen >= plexsize)) {
+		currlen = plexsize - 1;
 	}
+	memcpy (plexbuff, text, currlen + 1);
+	if (type[1] == 0) {
+		currlen--;
+	}
+	plexbuff[currlen] = 0;
 	if (unlikely (currlen > 64)) {
 		snprintf (err_msg, COB_MINI_MAX,
 			_("literal length %d exceeds %d characters"),
 			  (int) currlen, 64);
-		error_literal ("B", plexbuff);
+		error_literal (type, plexbuff);
 		goto error;
 	}
 
@@ -1375,7 +1445,7 @@ scan_b (const char *text, const cob_u32_t with_mark)
 		} else {
 			snprintf (err_msg, COB_MINI_MAX,
 				_("literal contains invalid character '%c'"), c);
-			error_literal ("B", plexbuff);
+			error_literal (type, plexbuff);
 			continue;
 		}
 
@@ -1387,17 +1457,18 @@ scan_b (const char *text, const cob_u32_t with_mark)
 	}
 
 	sprintf ((char *)plexbuff, CB_FMT_LLU, val);
+	/* FIXME: we should likely build a boolean literal ... */
 	yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
 
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 
  error:
 	yylval = cb_error_node;
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 }
 
 static int
-scan_o (const char *text)
+scan_o (const char *text, const char *type)
 {
 	size_t		currlen;
 	char		*p;
@@ -1407,7 +1478,7 @@ scan_o (const char *text)
 	literal_error = 0;
 
 	if (!cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"))) {
-		goto error;
+		goto error; /* early exit possible as complete literal is consumed */
 	}
 
 	currlen = strlen (text);
@@ -1416,7 +1487,7 @@ scan_o (const char *text)
 		snprintf (err_msg, COB_MINI_MAX,
 			  _("literal length %d exceeds %d characters"),
 			  (int) currlen, 22);
-		error_literal ("O", plexbuff);
+		error_literal (type, plexbuff);
 		goto error;
 	}
 
@@ -1425,7 +1496,7 @@ scan_o (const char *text)
 		if (!('0' <= c && c <= '7')) {
 			snprintf (err_msg, COB_MINI_MAX,
 				_("literal contains invalid character '%c'"), c);
-			error_literal ("O", plexbuff);
+			error_literal (type, plexbuff);
 			continue;
 		}
 
@@ -1440,11 +1511,11 @@ scan_o (const char *text)
 	sprintf ((char *)plexbuff, CB_FMT_LLU, val);
 	yylval = cb_build_numeric_literal (0, (const void *)plexbuff, 0);
 
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 
  error:
 	yylval = cb_error_node;
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 }
 
 static int
@@ -1507,7 +1578,7 @@ scan_numeric (const char *text)
 	} else {
 		yylval = cb_build_numeric_literal (sign, p, scale);
 	}
-	return LITERAL;
+	RETURN_TOK (LITERAL);
 }
 
 static int
@@ -1559,7 +1630,7 @@ scan_floating_numeric (const char *text)
 		this should never happen as the flex rule ensures this */
 	if (n == 0) {
 		yylval = cb_error_node;
-		return LITERAL;
+		RETURN_TOK (LITERAL);
 	}
 
 	/* Get signs and adjust string positions accordingly */
@@ -1607,7 +1678,7 @@ scan_floating_numeric (const char *text)
 		   this should never happen as the flex rule ensures this */
 		if (n == 0) {
 			yylval = cb_error_node;
-			return LITERAL;
+			RETURN_TOK (LITERAL);
 		}
 
 		if (exp_sign == -1) {
@@ -1641,7 +1712,7 @@ scan_floating_numeric (const char *text)
 
 	if (literal_error) {
 		yylval = cb_error_node;
-		return LITERAL;
+		RETURN_TOK (LITERAL);
 	}
 
 	/* Determine scale */
@@ -1682,72 +1753,13 @@ scan_floating_numeric (const char *text)
 
 	yylval = cb_build_numeric_literal (sig_sign, result,
 					   scale);
-	return LITERAL;
-}
-
-static int
-can_replace (const char *src1, const char *src2, const size_t size,
-	     const size_t iteration)
-{
-	const unsigned char	*p;
-
-	/* Check if we can do a replacement */
-	if (strncasecmp (src1, src2, size)) {
-		return 0;
-	}
-	p = (const unsigned char *)src1 + size;
-	if (valid_char[*p]) {
-		return 0;
-	}
-	if (iteration) {
-		p = (const unsigned char *)src1 - 1;
-		if (valid_char[*p]) {
-			return 0;
-		}
-	}
-	return 1;
-}
-
-static const char *
-check_78_replace (const cb_tree p)
-{
-	/* Check if we can do a constant replacement within PICTURE */
-	if (CB_LITERAL_P (p)) {
-		if (CB_LITERAL(p)->size > 50) {
-			return NULL;
-		}
-		return (const char *)(CB_LITERAL(p)->data);
-	}
-	if (p == cb_low) {
-		return "LOW-VALUE";
-	}
-	if (p == cb_high) {
-		return "HIGH-VALUE";
-	}
-	if (p == cb_space) {
-		return "SPACE";
-	}
-	if (p == cb_zero) {
-		return "ZERO";
-	}
-	if (p == cb_quote) {
-		return "QUOTE";
-	}
-	if (p == cb_null) {
-		return "NULL";
-	}
-	return NULL;
+	RETURN_TOK (LITERAL);
 }
 
 static void
 scan_picture (const char *text)
 {
 	unsigned char			*p;
-	const struct cb_level_78	*p78;
-	size_t				n;
-	size_t				i;
-	size_t				size;
-	size_t				sizep;
 
 	/* Scan a PICTURE clause */
 	/* Normalize the input */
@@ -1761,35 +1773,7 @@ scan_picture (const char *text)
 		*p = (unsigned char)toupper (*p);
 	}
 
-	if (!top78ptr) {
-		yylval = cb_build_picture (text);
-		return;
-	}
-
-	memset (picbuff1, 0, pic1size);
-	memset (picbuff2, 0, pic2size);
-	strcpy (picbuff1, text);
-	for (p78 = top78ptr; p78; p78 = p78->globnext) {
-		if (!p78->pic_replace) {
-			strcpy (picbuff2, picbuff1);
-			continue;
-		}
-		size = p78->name_len;
-		sizep = p78->pic_len;
-		i = 0;
-		for (n = 0; n < strlen (picbuff1); n++) {
-			if (can_replace (&picbuff1[n], p78->fld78->name, size, n)) {
-				memcpy (&picbuff2[i], p78->pic_replace, sizep);
-				n += size - 1;
-				i += sizep;
-			} else {
-				picbuff2[i++] = picbuff1[n];
-			}
-		}
-		picbuff2[i] = 0;
-		strcpy (picbuff1, picbuff2);
-	}
-	yylval = cb_build_picture (picbuff2);
+	yylval = cb_build_picture (text);
 }
 
 static void
@@ -1825,10 +1809,6 @@ cb_add_const_var (const char *name, cb_tree value)
 	p78 = cobc_malloc (sizeof(struct cb_level_78));
 	p78->fld78 = f;
 	p78->prog = NULL;
-	p78->pic_replace = check_78_replace (CB_VALUE(f->values));
-	if (p78->pic_replace) {
-		p78->pic_len = (cob_u32_t)strlen (p78->pic_replace);
-	}
 	p78->name_len = (cob_u32_t)strlen (f->name);
 	/* RXWRXW - Check this */
 	p78->chk_const = 0;
@@ -2041,10 +2021,6 @@ cb_add_78 (struct cb_field *f)
 	p78 = cobc_malloc (sizeof(struct cb_level_78));
 	p78->fld78 = f;
 	p78->prog = current_program;
-	p78->pic_replace = check_78_replace (CB_VALUE(f->values));
-	if (p78->pic_replace) {
-		p78->pic_len = (cob_u32_t)strlen (p78->pic_replace);
-	}
 	p78->name_len = (cob_u32_t)strlen (f->name);
 	if (f->flag_is_global) {
 		if (!globlev78ptr) {
@@ -2142,16 +2118,3 @@ cb_find_defined_program_by_id (const char *orig_id)
 
 	return NULL;
 }
-
-#ifndef	HAVE_DESIGNATED_INITS
-void
-cobc_init_scanner (void)
-{
-	const unsigned char	*p;
-
-	memset (valid_char, 0, sizeof(valid_char));
-	for (p = pvalid_char; *p; ++p) {
-		valid_char[*p] = 1;
-	}
-}
-#endif

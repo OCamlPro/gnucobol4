@@ -160,7 +160,7 @@ cobcrun_split_path_file(char** p, char** f, char *pf)
 {
 	char *slash = pf, *next;
 	
-	while ((next = strpbrk(slash + 1, "\\/"))) slash = next;
+	while ((next = strpbrk(slash + 1, "\\/")) != NULL) slash = next;
 	if (pf != slash) slash++;
 	
 	/* *p = strndup(pf, slash - pf); */
@@ -179,10 +179,11 @@ cobcrun_split_path_file(char** p, char** f, char *pf)
 static int
 cobcrun_initial_module (char *module_argument)
 {
-	int envop_return;
 	char *pathname, *filename;
 	char env_space[COB_MEDIUM_BUFF], *envptr;
-#if !HAVE_SETENV
+#if HAVE_SETENV
+	int envop_return;
+#else
 	char	*put;
 #endif
 	/* FIXME: split in two functions (one setting module, one setting path)
@@ -197,10 +198,11 @@ cobcrun_initial_module (char *module_argument)
 		memset (env_space, 0, COB_MEDIUM_BUFF);
 		envptr = getenv ("COB_LIBRARY_PATH");
 		if (envptr) {
-			snprintf (env_space, COB_MEDIUM_BUFF, "%s%c%s", pathname, PATHSEP_CHAR, envptr);
+			snprintf (env_space, COB_MEDIUM_MAX, "%s%c%s", pathname, PATHSEP_CHAR, envptr);
 		} else {
-			snprintf (env_space, COB_MEDIUM_BUFF, "%s", pathname);
+			snprintf (env_space, COB_MEDIUM_MAX, "%s", pathname);
 		}
+		env_space[COB_MEDIUM_MAX] = 0; /* fixing code analyser warning */
 #if HAVE_SETENV
 		envop_return = setenv ("COB_LIBRARY_PATH", env_space, 1);
 		if (envop_return) {
@@ -222,10 +224,11 @@ cobcrun_initial_module (char *module_argument)
 		memset(env_space, 0, COB_MEDIUM_BUFF);
 		envptr = getenv ("COB_PRE_LOAD");
 		if (envptr) {
-			snprintf (env_space, COB_MEDIUM_BUFF, "%s%c%s", filename, PATHSEP_CHAR, envptr);
+			snprintf (env_space, COB_MEDIUM_MAX, "%s%c%s", filename, PATHSEP_CHAR, envptr);
 		} else {
-			snprintf (env_space, COB_MEDIUM_BUFF, "%s", filename);
+			snprintf (env_space, COB_MEDIUM_MAX, "%s", filename);
 		}
+		env_space[COB_MEDIUM_MAX] = 0; /* fixing code analyser warning */
 #if HAVE_SETENV
 		envop_return = setenv ("COB_PRE_LOAD", env_space, 1);
 		if (envop_return) {

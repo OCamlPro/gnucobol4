@@ -2727,6 +2727,9 @@ indexed_file_delete (cob_file *f, const char *filename)
 		file_open_buff[COB_FILE_MAX] = 0;
 		unlink (file_open_buff);
 	}
+#else
+	COB_UNUSED (f);
+	COB_UNUSED (filename);
 #endif
 }
 
@@ -3137,6 +3140,10 @@ dobuild:
 				if (bdb_env) {
 					bdb_env->dbremove (bdb_env, NULL, runtime_buffer, NULL, 0);
 				} else {
+					/* FIXME: test "First READ on empty SEQUENTIAL INDEXED file ..."
+					   on OPEN-OUTPUT results with MinGW & BDB 6 in 
+					   BDB1565 DB->pget: method not permitted before handle's open method
+					*/
 					p->db[i]->remove (p->db[i], runtime_buffer, NULL, 0);
 					ret = db_create (&p->db[i], bdb_env, 0);
 				}
@@ -3149,9 +3156,12 @@ dobuild:
 		} else {
 			handle_created = 0;
 		}
-
 		/* Open db */
 		if (!ret) {
+			/* FIXME: test "First READ on empty SEQUENTIAL INDEXED file ..."
+			   on OPEN-OUTPUT results with MinGW & BDB 6 in 
+			   BDB0588 At least one secondary cursor must be specified to DB->join
+			*/
 			ret = p->db[i]->open (p->db[i], NULL, runtime_buffer, NULL,
 						DB_BTREE, flags, COB_FILE_MODE);
 		}
@@ -3233,6 +3243,10 @@ dobuild:
 	return 0;
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (filename);
+	COB_UNUSED (sharing);
+	COB_UNUSED (mode);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -3306,6 +3320,8 @@ indexed_close (cob_file *f, const int opt)
 	return COB_STATUS_00_SUCCESS;
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (opt);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 
@@ -3419,6 +3435,9 @@ indexed_start (cob_file *f, const int cond, cob_field *key)
 	return indexed_start_internal (f, cond, key, 0, 0);
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (cond);
+	COB_UNUSED (key);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -3542,6 +3561,9 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 	return COB_STATUS_00_SUCCESS;
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (key);
+	COB_UNUSED (read_opts);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -4070,6 +4092,8 @@ indexed_read_next (cob_file *f, const int read_opts)
 	return COB_STATUS_00_SUCCESS;
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (read_opts);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -4144,6 +4168,8 @@ indexed_write (cob_file *f, const int opt)
 	return indexed_write_internal (f, 0, opt);
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (opt);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -4199,6 +4225,7 @@ indexed_delete (cob_file *f)
 	return indexed_delete_internal (f, 0);
 
 #else
+	COB_UNUSED (f);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -4366,6 +4393,8 @@ indexed_rewrite (cob_file *f, const int opt)
 	return ret;
 
 #else
+	COB_UNUSED (f);
+	COB_UNUSED (opt);
 
 	return COB_STATUS_91_NOT_AVAILABLE;
 #endif
@@ -6378,12 +6407,13 @@ cob_init_fileio (cob_global *lptr, cob_settings *sptr)
 	check_eop_status = 0;
 	if (cobsetptr->cob_sort_chunk > (cobsetptr->cob_sort_memory / 2)) {
 		cobsetptr->cob_sort_chunk = cobsetptr->cob_sort_memory / 2;
-		}
+	}
 
-	if(cobsetptr->cob_varseq_type == 3)
-	cob_vsq_len = 2;
-	else
-	cob_vsq_len = 4;
+	if (cobsetptr->cob_varseq_type == 3) {
+		cob_vsq_len = 2;
+	} else {
+		cob_vsq_len = 4;
+	}
 
 	runtime_buffer = cob_fast_malloc ((size_t)(4 * COB_FILE_BUFF));
 	file_open_env = runtime_buffer + COB_FILE_BUFF;

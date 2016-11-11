@@ -399,7 +399,6 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 11: error: syntax error, unexpected BEFORE
-prog.cob: 13: error: syntax error, unexpected end of file
 ])
 AT_CLEANUP
 
@@ -517,6 +516,122 @@ AT_CHECK([$COMPILE_ONLY prog2.cob], [0], [], [])
 AT_CLEANUP
 
 
+AT_SETUP([CURRENCY SIGN])
+AT_KEYWORDS([SPECIAL-NAMES misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY SIGN IS '*'.
+])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog2.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY 'T'.
+])
+
+AT_DATA([prog3.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog3.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY 'DOLLAR'.
+])
+
+AT_DATA([prog4.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog4.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY 'DOLLAR'
+           WITH PICTURE SYMBOL '$'.
+])
+
+AT_DATA([prog5.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog5.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY '   '
+           PICTURE SYMBOL '*'.
+])
+
+AT_DATA([prog6.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog6.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY ' T '
+           PICTURE SYMBOL ' '.
+])
+
+AT_DATA([prog7.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog7.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY '+-'
+           PICTURE SYMBOL 'TT'.
+])
+
+AT_DATA([prog8.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog8.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           CURRENCY SIGN IS 'T'.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77 SOME-CASH     PIC 9(04).99T.
+       PROCEDURE        DIVISION.
+           MOVE 123.4 TO SOME-CASH
+           DISPLAY SOME-CASH END-DISPLAY.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 7: error: invalid CURRENCY SIGN '*'
+prog.cob: 7: error: invalid character '*' in PICTURE SYMBOL for CURRENCY
+])
+AT_CHECK([$COMPILE_ONLY prog2.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY prog3.cob], [1], [],
+[prog3.cob: 7: error: PICTURE SYMBOL for CURRENCY must be one character long
+])
+AT_CHECK([$COMPILE_ONLY prog4.cob], [0], [],
+[prog4.cob: 7: warning: CURRENCY SIGN longer than one character is not implemented
+])
+AT_CHECK([$COMPILE_ONLY prog5.cob], [1], [],
+[prog5.cob: 7: warning: CURRENCY SIGN longer than one character is not implemented
+prog5.cob: 7: error: invalid CURRENCY SIGN '   '
+prog5.cob: 8: error: invalid character '*' in PICTURE SYMBOL for CURRENCY
+])
+AT_CHECK([$COMPILE_ONLY prog6.cob], [1], [],
+[prog6.cob: 7: warning: CURRENCY SIGN longer than one character is not implemented
+prog6.cob: 8: error: invalid character ' ' in PICTURE SYMBOL for CURRENCY
+])
+AT_CHECK([$COMPILE_ONLY prog7.cob], [1], [],
+[prog7.cob: 7: warning: CURRENCY SIGN longer than one character is not implemented
+prog7.cob: 7: error: invalid CURRENCY SIGN '+-'
+prog7.cob: 8: error: PICTURE SYMBOL for CURRENCY must be one character long
+])
+AT_CHECK([$COMPILE_ONLY prog8.cob], [0], [], [])
+
+AT_CLEANUP
+
+
 AT_SETUP([SWITCHES])
 AT_KEYWORDS([runmisc extensions])
 
@@ -621,8 +736,7 @@ prog.cob: 49: error: 'SWIT1-ON' is not defined
 prog.cob: 56: error: 'SWIT2-ON' is not defined
 prog.cob: 63: error: 'SWITCH-B' is not defined
 prog.cob: 63: error: syntax error, unexpected OFF
-prog.cob: 64: error: syntax error, unexpected Identifier
-prog.cob: 66: error: syntax error, unexpected END-IF
+prog.cob: 64: error: 'SWIT2-ON' is not defined
 prog.cob: 70: error: 'SWIT26-ON' is not defined
 prog.cob: 76: error: 'SWIT32-OFF' is not defined
 ])
@@ -641,6 +755,109 @@ prog.cob: 76: error: 'SWIT32-OFF' is not defined
 #prog.cob: 15: error: 'SWITCH-25' previously defined here
 #prog.cob: 27: error: duplicate definition of 'SWITCH Y'
 #prog.cob: 15: error: 'SWITCH-25' previously defined here
+
+AT_CLEANUP
+
+
+AT_SETUP([Unexpected mnemonic-name location])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+       ENVIRONMENT    DIVISION.
+       CONFIGURATION  SECTION.
+       SPECIAL-NAMES.
+           stdin IS my-stdin
+           .
+       PROCEDURE      DIVISION.
+           CALL "something" USING stdout
+           CALL "something" USING stdin
+           CALL "something" USING my-stdin
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 10: error: invalid mnemonic identifier
+prog.cob: 11: error: invalid mnemonic identifier
+prog.cob: 12: error: invalid mnemonic identifier
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Wrong device for mnemonic-name])
+AT_KEYWORDS([misc ACCEPT DISPLAY SPECIAL-NAMES])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       77 var          PIC x.
+       PROCEDURE       DIVISION.
+           ACCEPT  var FROM SYSOUT
+           DISPLAY var UPON SYSIN
+           ACCEPT  var FROM SYSIN
+           DISPLAY var UPON SYSOUT
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 8: error: 'SYSOUT' is not an input device
+prog.cob: 9: error: 'SYSIN' is not an output device
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Missing mnemonic-name declaration])
+AT_KEYWORDS([misc ACCEPT SPECIAL-NAMES])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       77 var          PIC x.
+       PROCEDURE       DIVISION.
+           ACCEPT var FROM mnemonic-name
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 8: error: unknown device 'mnemonic-name'; not defined in SPECIAL-NAMES
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Unknown device in dialect])
+AT_KEYWORDS([misc ACCEPT DISPLAY SPECIAL-NAMES])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       77 var          PIC x.
+       PROCEDURE       DIVISION.
+           ACCEPT var  FROM COMMAND-LINE
+           DISPLAY var UPON COMMAND-LINE
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+
+# Checkme: Error currently doesn't occur for UPON_COMMAND_LINE as this is already tokenized
+# in scanner.l. We just ignore this for now and maybe fix it later.
+#AT_CHECK([$COMPILE_ONLY -fnot-reserved=COMMAND-LINE prog.cob], [1], [],
+#[prog.cob: 8: error: unknown device 'COMMAND-LINE'; it may exist in another dialect
+#prog.cob: 9: error: unknown device 'COMMAND-LINE'; it may exist in another dialect
+#])
+AT_CHECK([$COMPILE_ONLY -fnot-reserved=COMMAND-LINE prog.cob], [1], [],
+[prog.cob: 8: error: unknown device 'COMMAND-LINE'; it may exist in another dialect
+])
 
 AT_CLEANUP
 
@@ -811,7 +1028,7 @@ AT_CLEANUP
 
 
 AT_SETUP([Continuation Indicator - too many lines])
-AT_KEYWORDS([misc fixed literals])
+AT_KEYWORDS([misc fixed literals listing])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1358,6 +1575,12 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 538: error: buffer overrun - too many continuation lines
 ])
 
+# extra test with listing as this is an edge case there
+AT_CAPTURE_FILE([prog.lst])
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [1], [],
+[prog.cob: 538: error: buffer overrun - too many continuation lines
+])
+
 AT_CLEANUP
 
 
@@ -1373,17 +1596,17 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [0], [],
-[prog.cob: 5: warning: continuation of COBOL words is archaic in COBOL 2014
+[prog.cob: 6: warning: continuation of COBOL words is archaic in COBOL 2014
 ])
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
-[prog.cob: 5: warning: continuation of COBOL words used
+[prog.cob: 6: warning: continuation of COBOL words used
 ])
 
 AT_CLEANUP
 
 
 AT_SETUP([Literal too long])
-AT_KEYWORDS([misc literals literal-length continuation])
+AT_KEYWORDS([misc literals literal-length continuation listing])
 
 
 AT_DATA([prog.cob], [
@@ -1586,12 +1809,12 @@ AT_DATA([prog2.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_ONLY -std=default prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 9: error: invalid literal: '                                   ...'
 prog.cob: 9: error: literal length exceeds 8191 characters
 ])
 
-AT_CHECK([$COMPILE_ONLY -std=default -free prog2.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY -free prog2.cob], [1], [],
 [prog2.cob: 9: error: invalid literal: '                                   ...'
 prog2.cob: 9: error: literal length 8299 exceeds 8191 characters
 ])
@@ -1614,6 +1837,19 @@ prog.cob: 9: error: literal length exceeds 160 characters
 AT_CHECK([$COMPILE_ONLY -std=cobol2002 prog.cob], [1], [],
 [prog.cob: 9: error: invalid literal: '                                   ...'
 prog.cob: 9: error: literal length exceeds 160 characters
+])
+
+# extra test with listing as this is an edge case there
+AT_CAPTURE_FILE([prog.lst])
+AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [1], [],
+[prog.cob: 9: error: invalid literal: '                                   ...'
+prog.cob: 9: error: literal length exceeds 8191 characters
+])
+
+AT_CAPTURE_FILE([prog2.lst])
+AT_CHECK([$COMPILE_ONLY -free -t prog2.lst prog2.cob], [1], [],
+[prog2.cob: 9: error: invalid literal: '                                   ...'
+prog2.cob: 9: error: literal length 8299 exceeds 8191 characters
 ])
 
 AT_CLEANUP
@@ -1738,43 +1974,28 @@ NOFLOATING
 AT_CHECK([$COMPILE_ONLY -free prog3.cob], [1], [],
 [prog3.cob: 11: warning: spurious '$' detected - ignored
 prog3.cob: 9: error: syntax error, unexpected *
-prog3.cob: 9: error: syntax error, unexpected Literal
 prog3.cob: 10: error: syntax error, unexpected /
-prog3.cob: 10: error: syntax error, unexpected Literal
 prog3.cob: 12: error: syntax error, unexpected *
-prog3.cob: 12: error: syntax error, unexpected Literal
 prog3.cob: 13: error: syntax error, unexpected /
-prog3.cob: 13: error: syntax error, unexpected Literal
 prog3.cob: 14: error: invalid symbol '|' - skipping word
 prog3.cob: 16: error: syntax error, unexpected Identifier
-prog3.cob: 16: error: syntax error, unexpected Literal
 ])
 AT_CHECK([$COMPILE_ONLY -free -fmfcomment prog3.cob], [1], [],
 [prog3.cob: 11: warning: spurious '$' detected - ignored
 prog3.cob: 9: error: syntax error, unexpected *
-prog3.cob: 9: error: syntax error, unexpected Literal
 prog3.cob: 10: error: syntax error, unexpected /
-prog3.cob: 10: error: syntax error, unexpected Literal
 prog3.cob: 12: error: syntax error, unexpected *
-prog3.cob: 12: error: syntax error, unexpected Literal
 prog3.cob: 13: error: syntax error, unexpected /
-prog3.cob: 13: error: syntax error, unexpected Literal
 prog3.cob: 14: error: invalid symbol '|' - skipping word
 prog3.cob: 16: error: syntax error, unexpected Identifier
-prog3.cob: 16: error: syntax error, unexpected Literal
 ])
 AT_CHECK([$COMPILE_ONLY -free -facucomment prog3.cob], [1], [],
 [prog3.cob: 11: warning: spurious '$' detected - ignored
 prog3.cob: 9: error: syntax error, unexpected *
-prog3.cob: 9: error: syntax error, unexpected Literal
 prog3.cob: 10: error: syntax error, unexpected /
-prog3.cob: 10: error: syntax error, unexpected Literal
 prog3.cob: 12: error: syntax error, unexpected *
-prog3.cob: 12: error: syntax error, unexpected Literal
 prog3.cob: 13: error: syntax error, unexpected /
-prog3.cob: 13: error: syntax error, unexpected Literal
 prog3.cob: 16: error: syntax error, unexpected Identifier
-prog3.cob: 16: error: syntax error, unexpected Literal
 ])
 # Check that invalid indicator and doesn't abort preprocessing
 # and that errors in preprocessing doesn't abort compilation
@@ -2029,7 +2250,7 @@ AT_DATA([prog.cob], [
            *> invalid form
            DISPLAY X"GH"
                    X"1"
-           END-DISPLAY           .
+           END-DISPLAY.
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
@@ -2039,6 +2260,75 @@ prog.cob: 9: error: literal contains invalid character 'H'
 prog.cob: 10: error: invalid X literal: '1'
 prog.cob: 10: error: literal does not have an even number of digits
 ])
+
+AT_CLEANUP
+
+
+AT_SETUP([national literals])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+       PROCEDURE      DIVISION.
+           DISPLAY N"UTF-16 string".
+           DISPLAY N'0123456789ABCDEF'.
+           DISPLAY N"0123456789ABCDEF"-
+                   N"0123456789ABCDEF".
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 5: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 6: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 7: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 8: warning: handling of national literal is unfinished; implementation is likely to be changed
+])
+
+AT_CHECK([$COMPILE_ONLY -std=cobol85 prog.cob], [1], [],
+[prog.cob: 5: error: national literal does not conform to COBOL 85
+prog.cob: 6: error: national literal does not conform to COBOL 85
+prog.cob: 7: error: national literal does not conform to COBOL 85
+prog.cob: 8: error: national literal does not conform to COBOL 85
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([NX literals])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+       PROCEDURE      DIVISION.
+           *> Valid form 
+           DISPLAY NX"265E"
+           DISPLAY NX"0123456789ABCDEF"
+
+           *> invalid form
+           DISPLAY NX"GH"
+                   NX"1".
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 6: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 7: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 10: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 10: error: invalid NX literal: 'GH'
+prog.cob: 10: error: literal contains invalid character 'G'
+prog.cob: 10: error: literal contains invalid character 'H'
+prog.cob: 11: warning: handling of national literal is unfinished; implementation is likely to be changed
+prog.cob: 11: error: invalid NX literal: '1'
+prog.cob: 11: error: literal does not have an even number of digits
+])
+
+AT_CHECK([$COMPILE_ONLY -std=cobol85 prog.cob], [1], [],
+[prog.cob: 6: error: hexadecimal-national literal does not conform to COBOL 85
+prog.cob: 7: error: hexadecimal-national literal does not conform to COBOL 85
+prog.cob: 10: error: hexadecimal-national literal does not conform to COBOL 85
+prog.cob: 11: error: hexadecimal-national literal does not conform to COBOL 85
+])
+
 AT_CLEANUP
 
 
@@ -2049,15 +2339,14 @@ AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
        PROGRAM-ID.      prog.
        PROCEDURE        DIVISION.
-           DISPLAY B"101010" END-DISPLAY
+           DISPLAY B"101010"
            DISPLAY B"111111111111111111111111111111111111111111111111111
       -             "1111111111111" *> " Syntax highlighting hack
 
-           DISPLAY B"23" END-DISPLAY
+           DISPLAY B"23"
            DISPLAY B"111111111111111111111111111111111111111111111111111
       -             "111111111111111111111111111111111111111111111111111
       -             "11111111111111111111111111111111111111111111111111"
-           END-DISPLAY
            STOP RUN.
 ])
 
@@ -2069,11 +2358,40 @@ prog.cob: 10: error: invalid B literal: '11111111111111111111111111111111111...'
 prog.cob: 10: error: literal length 152 exceeds 64 characters
 ])
 
-AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [1], [],
-[prog.cob: 5: error: numeric boolean literal does not conform to COBOL 2014
-prog.cob: 6: error: numeric boolean literal does not conform to COBOL 2014
-prog.cob: 9: error: numeric boolean literal does not conform to COBOL 2014
-prog.cob: 10: error: numeric boolean literal does not conform to COBOL 2014
+AT_CHECK([$COMPILE_ONLY -std=cobol85 prog.cob], [1], [],
+[prog.cob: 5: error: numeric boolean literal does not conform to COBOL 85
+prog.cob: 6: error: numeric boolean literal does not conform to COBOL 85
+prog.cob: 9: error: numeric boolean literal does not conform to COBOL 85
+prog.cob: 10: error: numeric boolean literal does not conform to COBOL 85
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Binary-hexadecimal literals])
+AT_KEYWORDS([misc extensions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       PROCEDURE        DIVISION.
+           DISPLAY BX"AB05CD0F"
+           DISPLAY        BX"0123456789ABCDEF0123456789ABCDEF0123456789A
+      -              "BCDEF" *> " Syntax highlighting hack
+
+           DISPLAY BX"A"
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 6: error: invalid BX literal: '0123456789ABCDEF0123456789ABCDEF012...'
+prog.cob: 6: error: literal length 192 exceeds 64 characters
+])
+
+AT_CHECK([$COMPILE_ONLY -std=cobol85 prog.cob], [1], [],
+[prog.cob: 5: error: hexadecimal-boolean literal does not conform to COBOL 85
+prog.cob: 6: error: hexadecimal-boolean literal does not conform to COBOL 85
+prog.cob: 9: error: hexadecimal-boolean literal does not conform to COBOL 85
 ])
 
 AT_CLEANUP
@@ -2101,24 +2419,24 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [1], [],
-[prog.cob: 11: error: invalid B literal: '11111111111111111111111111111111111...'
+[prog.cob: 11: error: invalid B# literal: '11111111111111111111111111111111111...'
 prog.cob: 11: error: literal length 65 exceeds 64 characters
-prog.cob: 12: error: invalid O literal: '11111111111111111111111'
+prog.cob: 12: error: invalid O# literal: '11111111111111111111111'
 prog.cob: 12: error: literal length 23 exceeds 22 characters
 prog.cob: 12: error: invalid hexadecimal literal: '11111111111111111'
 prog.cob: 12: error: literal length 17 exceeds 16 characters
 prog.cob: 12: error: invalid hexadecimal literal: '22222222222222222'
 prog.cob: 12: error: literal length 17 exceeds 16 characters
-prog.cob: 14: error: invalid B literal: '23'
+prog.cob: 14: error: invalid B# literal: '23'
 prog.cob: 14: error: literal contains invalid character '2'
 prog.cob: 14: error: literal contains invalid character '3'
-prog.cob: 14: error: invalid O literal: '89'
+prog.cob: 14: error: invalid O# literal: '89'
 prog.cob: 14: error: literal contains invalid character '8'
 prog.cob: 14: error: literal contains invalid character '9'
-prog.cob: 14: error: invalid hexadecimal literal: 'GG'
+prog.cob: 14: error: invalid X# literal: 'GG'
 prog.cob: 14: error: literal contains invalid character 'G'
 prog.cob: 14: error: literal contains invalid character 'G'
-prog.cob: 14: error: invalid hexadecimal literal: 'HH'
+prog.cob: 14: error: invalid H# literal: 'HH'
 prog.cob: 14: error: literal contains invalid character 'H'
 prog.cob: 14: error: literal contains invalid character 'H'
 ])
@@ -2150,6 +2468,8 @@ AT_DATA([prog.cob], [
        DATA            DIVISION.
        WORKING-STORAGE SECTION.
        01  hello       PIC X.
+       01  foo         PIC X.
+       01  bar         PIC X.
        01  file        PIC X.
 
        PROCEDURE       DIVISION.
@@ -2157,8 +2477,10 @@ AT_DATA([prog.cob], [
            .
 ])
 
-AT_CHECK([$COMPILE_ONLY -freserved=hello -fnot-reserved=file prog.cob], [1], [],
+AT_CHECK([$COMPILE_ONLY -freserved=hello,foo,bar -fnot-reserved=file prog.cob], [1], [],
 [prog.cob: 7: error: 'hello' is a reserved word, but isn't supported
+prog.cob: 8: error: 'foo' is a reserved word, but isn't supported
+prog.cob: 9: error: 'bar' is a reserved word, but isn't supported
 ])
 AT_CLEANUP
 
@@ -2214,9 +2536,7 @@ AT_CHECK([$COMPILE_ONLY -std=ibm prog.cob], [1], [],
 prog.cob: 7: error: PICTURE clause required for 'SQLCABC'
 ])
 AT_CHECK([$COMPILE_ONLY -std=ibm -freserved=BINARY-LONG prog.cob], [0], [], [])
-# currently not working, temporarily added -reserve-all as dirty workaround
-#AT_CHECK([$COMPILE_ONLY -std=ibm -fno-specify-all-reserved prog.cob], [0], [], [])
-AT_CHECK([$COMPILE_ONLY -std=ibm -reserve-all prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -std=ibm -fno-specify-all-reserved prog.cob], [0], [], [])
 AT_CLEANUP
 
 
@@ -2237,7 +2557,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 9: warning: parameters passed BY VALUE not implemented
+[prog.cob: 9: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
 prog.cob: 9: error: ANY LENGTH items may only be BY REFERENCE formal parameters
 ])
 AT_CLEANUP
@@ -2444,33 +2764,6 @@ prog.cob: 43: error: syntax error, unexpected DELIMITED, expecting INTO
 AT_CLEANUP
 
 
-AT_SETUP([Unexpected mnemonic-name location])
-AT_KEYWORDS([misc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION DIVISION.
-       PROGRAM-ID.    prog.
-       ENVIRONMENT    DIVISION.
-       CONFIGURATION  SECTION.
-       SPECIAL-NAMES.
-           stdin IS my-stdin
-           .
-       PROCEDURE      DIVISION.
-           CALL "something" USING stdout
-           CALL "something" USING stdin
-           CALL "something" USING my-stdin
-           STOP RUN
-           .
-])
-
-AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 10: error: invalid mnemonic identifier
-prog.cob: 11: error: invalid mnemonic identifier
-prog.cob: 12: error: invalid mnemonic identifier
-])
-AT_CLEANUP
-
-
 AT_SETUP([Use of program-prototypes])
 AT_KEYWORDS([misc])
 
@@ -2509,12 +2802,12 @@ AT_DATA([prog.cob], [
        INPUT-OUTPUT SECTION.
        FILE-CONTROL.
            SELECT f ASSIGN "A".
-           
+
        DATA            DIVISION.
        FILE            SECTION.
        FD  f.
        01  f-rec PIC X.
-       
+
        WORKING-STORAGE SECTION.
        01  not-display PIC 9(5) COMP.
        01  not-a-num   PIC X(5).
@@ -2538,5 +2831,30 @@ prog.cob: 22: error: 'f' is not a field
 prog.cob: 22: error: 3 is not an alphanumeric literal
 prog.cob: 22: error: 2 is not an alphanumeric literal
 prog.cob: 22: error: invalid target for TRANSFORM
+])
+AT_CLEANUP
+
+
+AT_SETUP([SIGN clause checks])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       01  valid-1     SIGN TRAILING.
+           03  x       PIC S999.
+           03  y       PIC S999.
+       01  valid-2     PIC S99.
+
+       01  invalid-1   PIC 99 SIGN LEADING.
+       01  invalid-2   PIC S99 SIGN TRAILING, USAGE BINARY.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 12: error: elementary items with SIGN clause must have S in PICTURE
+prog.cob: 13: error: elementary items with SIGN clause must be USAGE DISPLAY or NATIONAL
 ])
 AT_CLEANUP

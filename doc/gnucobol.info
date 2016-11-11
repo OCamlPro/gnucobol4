@@ -1,4 +1,4 @@
-This is gnucobol.info, produced by makeinfo version 5.2 from
+This is gnucobol.info, produced by makeinfo version 5.1 from
 gnucobol.texi.
 
 Permission is granted to make and distribute verbatim copies of this
@@ -14,16 +14,15 @@ permission notice identical to this one.
 manual into another language, under the above conditions for modified
 versions, except that this permission notice may be stated in a
 translation approved by the Free Software Foundation.
+
 INFO-DIR-SECTION Software development
 START-INFO-DIR-ENTRY
 * cobc: (gnucobol)Compile.      The GnuCOBOL compiler.
 END-INFO-DIR-ENTRY
-
 INFO-DIR-SECTION COBOL
 START-INFO-DIR-ENTRY
 * GnuCOBOL: (gnucobol).         A COBOL compiler
 END-INFO-DIR-ENTRY
-
 INFO-DIR-SECTION GnuCOBOL
 START-INFO-DIR-ENTRY
 * Overview: (gnucobol).         COBOL compiler overview.
@@ -32,7 +31,7 @@ END-INFO-DIR-ENTRY
 
 File: gnucobol.info,  Node: Top,  Next: Getting started,  Up: (dir)
 
-Welcome to the GnuCOBOL 2.0 manual.
+   Welcome to the GnuCOBOL 2.0 manual.
 
 * Menu:
 
@@ -43,18 +42,18 @@ Welcome to the GnuCOBOL 2.0 manual.
 * Debug::                       Debugging your program
 * Extensions::                  Non-standard extensions
 * System routines::             Additional routines
-* Appendix A::                  'cobc --help'
-* Appendix B::                  'cobc --list-reserved'
-* Appendix C::                  'cobc --list-intrinsics'
-* Appendix D::                  'cobc --list-system'
-* Appendix E::                  'cobc --list-mnemonics'
+* Appendix A::                  `cobc --help'
+* Appendix B::                  `cobc --list-reserved'
+* Appendix C::                  `cobc --list-intrinsics'
+* Appendix D::                  `cobc --list-system'
+* Appendix E::                  `cobc --list-mnemonics'
 * Appendix F::                  Compiler Configuration
-* Appendix G::                  'cobcrun --help'
+* Appendix G::                  `cobcrun --help'
 * Appendix H::                  Runtime configuration
 * Appendix I::                  GNU Free Documentation License
 * Index::                       Index
 
- -- The Detailed Node Listing --
+ --- The Detailed Node Listing ---
 
 Getting started
 
@@ -73,6 +72,7 @@ Compiler options
 * Source format::               Source format
 * Warning options::             Warning options
 * Configuration options::       Configuration options
+* Listing options::             Listing options
 * Debug switches::              Debug switches
 * Miscellaneous::               Miscellaneous
 
@@ -116,7 +116,9 @@ Extensions
 
 System routines
 
-* CBL_OC_GETOPT					GETOPT for Cobol
+* CBL_OC_GETOPT                 GETOPT for Cobol
+* CBL_OC_HOSTED                 Access to C hosted variables
+* CBL_OC_NANOSLEEP              Sleep for nanoseconds
 
 Appendix A
 
@@ -133,7 +135,6 @@ Appendix F
 Appendix G
 
 Appendix H
-
 
 
 File: gnucobol.info,  Node: Getting started,  Next: Compile,  Prev: Top,  Up: Top
@@ -162,28 +163,24 @@ This is a sample program that displays "Hello, world!":
             STOP RUN.
      ----------------------------------------
 
-
-   The compiler, 'cobc', is executed as follows:
+The compiler, `cobc', is executed as follows:
 
      $ cobc -x hello.cob
      $ ./hello
      Hello, world!
 
-
-   The executable file name ('hello' in this case) is determined by
+The executable file name (`hello' in this case) is determined by
 removing the extension from the source file name.
 
-
-   You can specify the executable file name by specifying the compiler
-option '-o' as follows:
+You can specify the executable file name by specifying the compiler
+option `-o' as follows:
 
      $ cobc -x -o hello-world hello.cob
      $ ./hello-world
      Hello, world!
 
-
-   The program can be written in a more modern style, with free format
-code, inline comments, the 'GOBACK' verb and an optional 'END-DISPLAY'
+The program can be written in a more modern style, with free format
+code, inline comments, the `GOBACK' verb and an optional `END-DISPLAY'
 terminator:
 
      ---- hellonew.cob ----------------
@@ -197,7 +194,7 @@ terminator:
      goback.
      ----------------------------------
 
-   To compile free-format code, you must use the '-free' compiler
+   To compile free-format code, you must use the `-free' compiler
 option.
 
      $ cobc -x -free hellonew.cob
@@ -224,10 +221,10 @@ File: gnucobol.info,  Node: Compiler options,  Next: Multiple sources,  Prev: Co
 2.1 Compiler options
 ====================
 
-The compiler 'cobc' accepts the options described in this section.  The
-compiler arguments follow the general syntax 'cobc' [options] file [file
-...].  A complete list of options can be displayed by using the help
-option.
+The compiler `cobc' accepts the options described in this section. The
+compiler arguments follow the general syntax `cobc' [options] file
+[file ...]. A complete list of options can be displayed by using the
+help option.
 
 * Menu:
 
@@ -236,6 +233,7 @@ option.
 * Source format::               Source format
 * Warning options::             Warning options
 * Configuration options::       Configuration options
+* Listing options::             Listing options
 * Debug switches::              Debug switches
 * Miscellaneous::               Miscellaneous
 
@@ -247,21 +245,21 @@ File: gnucobol.info,  Node: Help options,  Next: Build target,  Prev: Compiler o
 
 The following switches display information about the compiler:
 
-'--help, -h'
+`--help, -h'
      Display help screen (*note cobc -help: Appendix A.).  No further
      actions will be taken.
 
-'--version'
+`--version'
      Display compiler version, author package date and executable build
-     date.  '-V' will also display version.  No further actions will be
+     date.  `-V' will also display version. No further actions will be
      taken.
 
-'--info'
+`--info'
      Display build information along with the default and current
-     compiler configurations.  No further actions will be taken except
+     compiler configurations. No further actions will be taken except
      for further display options.
 
-'-v'
+`-v'
      Verbosely display the programs invoked during compilation.
 
 '--list-reserved'
@@ -269,7 +267,7 @@ The following switches display information about the compiler:
      Y/N field shows if the word is supported.  (1) No further actions
      will be taken except for further display options.
 
-'--list-intrinsics'
+`--list-intrinsics'
      Display intrinsic functions (*note cobc -list-intrinsics: Appendix
      C.).  A Y/N field shows if the function is implemented.  No further
      actions will be taken except for further display options.
@@ -278,10 +276,16 @@ The following switches display information about the compiler:
      Display system routines (*note cobc -list-system: Appendix D.).  No
      further actions will be taken except for further display options.
 
-'--list-mnemonics'
+`--list-system'
+     Display system routines (*note cobc -list-system: Appendix D.).
+     No further actions will be taken except for further display
+     options.
+
+`--list-mnemonics'
      Display mnemonic names (*note cobc -list-mnemonics: Appendix E.).
      No further actions will be taken except for further display
      options.
+
 
    ---------- Footnotes ----------
 
@@ -293,74 +297,75 @@ File: gnucobol.info,  Node: Build target,  Next: Source format,  Prev: Help opti
 2.1.2 Build target
 ------------------
 
-The 'cobc' compiler treats files like '*.cob', '*.cbl' as COBOL source
-code, '*.c' as C source code, '*.o' as object code, '*.i' as
-preprocessed code and '*.so' as dynamic modules and knows how to handle
+The `cobc' compiler treats files like `*.cob', `*.cbl' as COBOL source
+code, `*.c' as C source code, `*.o' as object code, `*.i' as
+preprocessed code and `*.so' as dynamic modules and knows how to handle
 such files in the generation, compilation, and linking steps.
 
-   The special input name '-' takes input from 'stdin' which is assumed
-to be COBOL source, and uses a default output name of 'a.out' (or
-'a.so/c/o/i', selected as appropriate) for the build type.
+   The special input name `-' takes input from `stdin' which is assumed
+to be COBOL source, and uses a default output name of `a.out' (or
+`a.so/c/o/i', selected as appropriate) for the build type.
 
    By default, the compiler builds a dynamically loadable module.
 
    The following options specify the target type produced by the
 compiler:
 
-'-E'
+`-E'
      Preprocess only: compiler directives are executed, comment lines
-     are removed and 'COPY' statements are expanded.  The output is
-     saved in file '*.i'.
+     are removed and `COPY' statements are expanded. The output is
+     saved in file `*.i'.
 
-'-C'
+`-C'
      Translation only.  COBOL source files are translated into C files.
-     The output is saved in file '*.c'.
+     The output is saved in file `*.c'.
 
-'-S'
-     Compile only.  Translated C files are compiled by the C compiler to
-     assembler code.  The output is saved in file '*.s'.
+`-S'
+     Compile only.  Translated C files are compiled by the C compiler
+     to assembler code. The output is saved in file `*.s'.
 
-'-c'
-     Compile and assemble.  This is equivalent to 'cc -c'.  The output
-     is saved in file '*.o'.
+`-c'
+     Compile and assemble.  This is equivalent to `cc -c'. The output
+     is saved in file `*.o'.
 
-'-m'
-     Compile, assemble, and build a dynamically loadable module (i.e., a
-     shared library).  The output is saved in file '*.so'.(1)  This is
+`-m'
+     Compile, assemble, and build a dynamically loadable module (i.e.,
+     a shared library). The output is saved in file `*.so'.(1) This is
      the default behaviour.
 
-'-b'
+`-b'
      Compile, assemble, and combine all input files into a single
-     dynamically loadable module.  Unless '-o' is also used, the output
-     is saved using the first filename as '*.so'.
+     dynamically loadable module.  Unless `-o' is also used, the output
+     is saved using the first filename as `*.so'.
 
-'-x'
+`-x'
      Include the main function in the output, creating an executable
      image.  The main entry point being the first program in the file.
 
      This option takes effect at the translation stage.  If you give
-     this option with '-C', you will see the main function at the end of
-     the generated C file.
+     this option with `-C', you will see the main function at the end
+     of the generated C file.
 
-'-j(=<args>), -job(=<args>)'
-     Run job after compilation.  Either from executable with '-x', or
-     with 'cobcrun' when compiling a module.  Optional arguments, if
+`-j(=<args>), -job(=<args>)'
+     Run job after compilation.  Either from executable with `-x', or
+     with `cobcrun' when compiling a module.  Optional arguments, if
      given, are passed to the program or module command line.
 
-'-I <directory>'
+`-I <directory>'
      Add <directory> to copy/include search path.
 
-'-L <directory>'
+`-L <directory>'
      Add <directory> to library search path.
 
-'-l <lib>'
+`-l <lib>'
      Link the library <lib>.
 
-'-D <define>'
+`-D <define>'
      Pass <define> to the COBOL compiler.
 
-'-o <file>'
+`-o <file>'
      Place the output into <file>.
+
 
    ---------- Footnotes ----------
 
@@ -372,20 +377,21 @@ File: gnucobol.info,  Node: Source format,  Next: Warning options,  Prev: Build 
 2.1.3 Source format
 -------------------
 
-GnuCOBOL supports both fixed and free source format.  The default format
-is the fixed format.  This can be overriden either by the '>>SOURCE
+GnuCOBOL supports both fixed and free source format. The default format
+is the fixed format. This can be overriden either by the `>>SOURCE
 [FORMAT] [IS] {FIXED|FREE}' directive, or by one of the following
 options:
 
-'-free, -F'
+`-free, -F'
      Free format.  The program-text area starts in column 1 and
      continues till the end of line (effectively 255 characters in
      GnuCOBOL).
 
-'-fixed'
+`-fixed'
      Fixed format.  Source code is divided into: columns 1-6, the
      sequence number area; column 7, the indicator area; columns 8-72,
      the program-text area; and columns 72-80 as the reference area.(1)
+
 
    ---------- Footnotes ----------
 
@@ -397,186 +403,300 @@ File: gnucobol.info,  Node: Warning options,  Next: Configuration options,  Prev
 2.1.4 Warning options
 ---------------------
 
-'-W'
-     Enable every possible warning.  This includes more information than
-     '-Wall' would normally provide.
+`-W'
+     Enable every possible warning.  This includes more information
+     than `-Wall' would normally provide.
 
-'-Wall'
+`-Wall'
      Enable all common warnings.
 
-'-Warchaic'
+`-Warchaic'
      Warn if archaic features are used, such as continuation lines or
-     the 'NEXT SENTENCE' statement.
+     the `NEXT SENTENCE' statement.
 
-'-Wcall-params'
-     Warn if non-01/77-level items are used as arguments in a 'CALL'
-     statement.  This is _not_ set with '-Wall'.
+`-Wcall-params'
+     Warn if non-01/77-level items are used as arguments in a `CALL'
+     statement. This is _not_ set with `-Wall'.
 
-'-Wcolumn-overflow'
-     Warn if text after column 72 in FIXED format.  This is _not_ set
-     with '-Wall'.
+`-Wcolumn-overflow'
+     Warn if text after column 72 in FIXED format. This is _not_ set
+     with `-Wall'.
 
-'-Wconstant'
+`-Wconstant'
      Warn inconsistent constant
 
-'-Wimplicit-define'
+`-Wimplicit-define'
      Warn if implicitly defined data items are used.
 
-'-Wlinkage'
-     Warn dangling 'LINKAGE' items.  This is _not_ set with '-Wall'.
+`-Wlinkage'
+     Warn dangling `LINKAGE' items. This is _not_ set with `-Wall'.
 
-'-Wobsolete'
+`-Wobsolete'
      Warn if obsolete features are used.
 
-'-Wparentheses'
-     Warn about any lack of parentheses around 'AND' within 'OR'.
+`-Wparentheses'
+     Warn about any lack of parentheses around `AND' within `OR'.
 
-'-Wredefinition'
+`-Wredefinition'
      Warn about incompatible redefinitions of data items.
 
-'-Wstrict-typing'
+`-Wstrict-typing'
      Warn about type mismatch strictly.
 
-'-Wterminator'
+`-Wterminator'
      Warn about the lack of scope terminator END-XXX. This is _not_ set
-     with '-Wall'.
+     with `-Wall'.
 
-'-Wtruncate'
-     Warn on possible field truncation.  This is _not_ set with '-Wall'.
+`-Wtruncate'
+     Warn on possible field truncation. This is _not_ set with `-Wall'.
 
-'-Wunreachable'
-     Warn if statements are unreachable.  This is _not_ set with
-     '-Wall'.
+`-Wunreachable'
+     Warn if statements are unreachable. This is _not_ set with `-Wall'.
 
 
-File: gnucobol.info,  Node: Configuration options,  Next: Debug switches,  Prev: Warning options,  Up: Compiler options
+File: gnucobol.info,  Node: Configuration options,  Next: Listing options,  Prev: Warning options,  Up: Compiler options
 
 2.1.5 Configuration options
 ---------------------------
 
-'-std=<dialect>'
+`-std=<dialect>'
      Compiler uses the given dialect to determine certain compiler
      features and warnings.
-     *Note Compiler Configuration: Appendix F, and 'config/*.conf'.
+     *Note Compiler Configuration: Appendix F, and `config/*.conf'.
 
-'-std=cobol2002'
+`-std=cobol2002'
      COBOL 2002
 
-'-std=cobol2014'
+`-std=cobol2014'
      COBOL 2014
 
-'-std=cobol85'
+`-std=cobol85'
      COBOL-85
 
-'-std=ibm'
+`-std=ibm'
      IBM compatible
 
-'-std=mvs'
+`-std=mvs'
      MVS compatible
 
-'-std=bs2000'
+`-std=bs2000'
      BS2000 compatible
 
-'-std=mf'
+`-std=mf'
      Micro Focus compatible
 
-'-std=acu'
+`-std=acu'
      ACUCOBOL-GT compatible
 
-'-std=default'
+`-std=default'
      GnuCOBOL
 
-'-conf=<file>'
-     User-defined dialect configuration.  See '-std=' above.
-     *Note Compiler Configuration: Appendix F, and 'config/*.conf'.
+`-conf=<file>'
+     User-defined dialect configuration. See `-std=' above.
+     *Note Compiler Configuration: Appendix F, and `config/*.conf'.
 
-'-cb_conf=<tag:value>'
-     Override a single configuration entry.  *Note Compiler
-     Configuration: Appendix F.
+
+   You can override each single configuration entry found in *Note
+Compiler Configuration: Appendix F.  by using compiler configuration
+options on command line, see *Note 'cobc --help': Appendix A.  Examples:
+
+`-frelax-syntax-checks'
+
+`-frenames-uncommon-levels=warning'
+
+`-fnot-reserved=CHAIN,SCREEN'
+
+`-ftab-width=4'
 
 
-File: gnucobol.info,  Node: Debug switches,  Next: Miscellaneous,  Prev: Configuration options,  Up: Compiler options
+File: gnucobol.info,  Node: Listing options,  Next: Debug switches,  Prev: Configuration options,  Up: Compiler options
 
-2.1.6 Debug switches
+2.1.6 Listing options
+---------------------
+
+`-t=<file>'
+     Generate and place the standard print listing into `*.lst'.
+
+`-T=<file>'
+     Generate and place a wide print listing into `*.lst'.
+
+`--tlines=<lines>'
+     Specify lines per page in print listing, default = 55.  Set to
+     zero for no aditional page breaks.
+
+`--no_symbols'
+     Do not generate symbol table in listing.
+
+`-P(=<dir or file>)'
+     Generate and place a preprocessed listing (old format) into
+     `*.lst'.
+
+'-Xref'
+'-X'
+     Generate cross reference in the listing.
+
+
+   Here is an example program listing with the -t option:
+
+     GnuCOBOL 2.0.0   test.cbl                   Mon Oct 17 10:23:45 2016  Page 0001
+
+     LINE    PG/LN  A...B............................................................
+
+     000001         IDENTIFICATION   DIVISION.
+     000002         PROGRAM-ID.      prog.
+     000003         ENVIRONMENT DIVISION.
+     000004         CONFIGURATION SECTION.
+     000005         DATA             DIVISION.
+     000006         WORKING-STORAGE  SECTION.
+     000007         COPY 'values.cpy'.
+     000001C        78  I   VALUE 20.
+     000002C        78  J   VALUE 5000.
+     000003C        78  M   VALUE 5.
+     000008         01  SETUP-REC.
+     000009             05  FL1       PIC X(04).
+     000010             05  FL2       PIC ZZZZZ.
+     000011             05  FL3       PIC 9(04).
+     000012             05  FL4       PIC 9(08) COMP.
+     000013             05  FL5       PIC 9(04) COMP-4.
+     000014             05  FL6       PIC Z,ZZZ.99.
+     000015             05  FL7       PIC S9(05) SIGN LEADING SEPARATE.
+     000016             05  FL8       PIC X(04).
+     000017             05  FL9 REDEFINES FL8 PIC 9(04).
+     000018             05  FLA.
+     000019                 10  FLB OCCURS I TIMES.
+     000020                     15  FLC PIC X(02).
+     000021                 10  FLD   PIC X(20).
+     000022             05  FLD1      PIC X(100).
+     000023             05  FLD2 OCCURS M TO J TIMES DEPENDING ON FL5.
+     000024                 10  FILLER PIC X(01).
+     000025             05  FLD3      PIC X(3).
+     000026             05  FLD4      PIC X(4).
+     000027         PROCEDURE        DIVISION.
+     000028             STOP RUN.
+
+   The first part of the listing lists the program text.  If the
+program text is a COPY the line number reflects the COPY line number
+and is appended with a 'C'.
+
+   When the wide list option is specified (-T), the SEQUENCE columns
+are included in the listing.
+
+   The second part of the listing file is the listing of the Symbol
+Table:
+
+     GnuCOBOL 2.0.0   test.cbl                   Mon Oct 17 10:23:45 2016  Page 0002
+
+     SIZE TYPE           LVL  NAME                           PICTURE
+
+     5204 GROUP          01   SETUP-REC
+     0004 ALPHANUMERIC   05     FL1                          X(04)
+     0005 ALPHANUMERIC   05     FL2                          ZZZZZ
+     0004 ALPHANUMERIC   05     FL3                          9(04)
+     0004 NUMERIC        05     FL4                          9(08) COMP
+     0002 NUMERIC        05     FL5                          9(04) COMP
+     0008 ALPHANUMERIC   05     FL6                          Z,ZZZ.99
+     0006 ALPHANUMERIC   05     FL7                          S9(05)
+     0004 ALPHANUMERIC   05     FL8                          X(04)
+     0004 ALPHANUMERIC-R 05     FL9                          9(04)
+     0060 ALPHANUMERIC   05     FLA
+     0040 ALPHANUMERIC   10       FLB                        OCCURS 20
+     0002 ALPHANUMERIC   15         FLC                      X(02)
+     0020 ALPHANUMERIC   10       FLD                        X(20)
+     0100 ALPHANUMERIC   05     FLD1                         X(100)
+     5000 ALPHANUMERIC   05     FLD2                         OCCURS 5 TO 5000
+     0001 ALPHANUMERIC   10       FILLER                     X(01)
+     0003 ALPHANUMERIC   05     FLD3                         X(3)
+     0004 ALPHANUMERIC   05     FLD4                         X(4)
+
+     0 Warnings in program
+     0 Errors in program
+
+   If the symbol redefines another variable the TYPE is marked with
+'R'. If the symbol is an array the OCCURS phrase is in the PICTURE
+field.
+
+
+File: gnucobol.info,  Node: Debug switches,  Next: Miscellaneous,  Prev: Listing options,  Up: Compiler options
+
+2.1.7 Debug switches
 --------------------
 
-'-debug, -d'
+`-debug, -d'
      Enable all run-time error checks.
 
-'-g'
+`-g'
      Produce debugging information in the output.
 
-'-O'
-     Enable optimization of code size and execution speed.  See 'man
+`-O'
+     Enable optimization of code size and execution speed.  See `man
      gcc' for details.
 
-'-O2'
+`-O2'
      Optimize even more.
 
-'-Os'
-     Optimize for size.  Optimizer will favour code size over execution
+`-Os'
+     Optimize for size. Optimizer will favour code size over execution
      speed.
 
-'-ftrace'
+`-ftrace'
      Generate trace code (log executed procedures).
 
-'-ftraceall'
+`-ftraceall'
      Generate trace code (log executed procedures and statements).
 
-'-fsyntax-only'
+`-fsyntax-only'
      Check syntax only; don't emit any output.
 
-'-fdebugging-line'
-     Enable debugging lines ('D' in indicator column).
+`-fdebugging-line'
+     Enable debugging lines (`D' in indicator column).
 
-'-fsource-location'
-     Generate source location code (implied by '-debug' or '-g').
+`-fsource-location'
+     Generate source location code (implied by `-debug' or `-g').
 
-'-fimplicit-init'
+`-fimplicit-init'
      Do automatic initialization of the COBOL runtime system.
 
-'-fstack-check'
-     Enable 'PERFORM' stack checking (implied by '-debug' or '-g').
+`-fstack-check'
+     Enable `PERFORM' stack checking (implied by `-debug' or `-g').
 
-'-fnotrunc'
+`-fnotrunc'
      Do not truncate binary fields according to PICTURE.
+
 
 
 File: gnucobol.info,  Node: Miscellaneous,  Prev: Debug switches,  Up: Compiler options
 
-2.1.7 Miscellaneous
+2.1.8 Miscellaneous
 -------------------
 
-'-P(=<dir or file>)'
-     Generate and place a program listing into '*.lst'.
-
-'-ext <extension>'
+`-ext <extension>'
      Add default file extension.
 
-'-fmfcomment'
-     Treat lines with '*' or '/' in column 1 as comment (fixed-format
+`-fmfcomment'
+     Treat lines with `*' or `/' in column 1 as comment (fixed-format
      only).
 
-'-acucomment'
-     Treat '|' as an inline comment marker.
+`-acucomment'
+     Treat `|' as an inline comment marker.
 
-'-fsign=ASCII'
+`-fsign=ASCII'
      Numeric display sign ASCII (default on ASCII machines).
 
-'-fsign=EBCDIC'
+`-fsign=EBCDIC'
      Numeric display sign EBCDIC (default on EBCDIC machines).
 
-'-ffunctions-all'
-     Allow use of intrinsic functions without 'FUNCTION' keyword.
+`-ffunctions-all'
+     Allow use of intrinsic functions without `FUNCTION' keyword.
 
-'-ffold-copy=LOWER'
-     Fold 'COPY' subject to lower case (default no transformation).
+`-ffold-copy=LOWER'
+     Fold `COPY' subject to lower case (default no transformation).
 
-'-ffold-copy=UPPER'
-     Fold 'COPY' subject to upper case (default no transformation).
+`-ffold-copy=UPPER'
+     Fold `COPY' subject to upper case (default no transformation).
 
-'-save-temps(=<dir>)'
+`-save-temps(=<dir>)'
      Save intermediate files (by default, in current directory).
+
 
 
 File: gnucobol.info,  Node: Multiple sources,  Next: C interface,  Prev: Compiler options,  Up: Compile
@@ -587,8 +707,8 @@ File: gnucobol.info,  Node: Multiple sources,  Next: C interface,  Prev: Compile
 This section describes how to compile a program from multiple source
 files.
 
-   This section also describes how to build a shared library that can be
-used by any COBOL program and how to use external libraries in COBOL
+   This section also describes how to build a shared library that can
+be used by any COBOL program and how to use external libraries in COBOL
 programs.
 
 * Menu:
@@ -611,9 +731,9 @@ single executable.
 
      $ cobc -x -o prog main.cob subr1.cob subr2.cob
 
-   Another way is to compile each file with the option '-c', and link
-them at the end.  The top-level program must be compiled with the option
-'-x'.
+   Another way is to compile each file with the option `-c', and link
+them at the end.  The top-level program must be compiled with the
+option `-x'.
 
      $ cobc -c subr1.cob
      $ cobc -c subr2.cob
@@ -643,13 +763,13 @@ statement
      if (func != NULL)
        func (X);
 
-   With the compiler option '-fstatic-call', more efficient code will be
-generated:
+   With the compiler option `-fstatic-call', more efficient code will
+be generated:
 
      subr(X);
 
    Note that this option only takes effect when the called program name
-is in a literal (like 'CALL "subr"').  With a data name (like 'CALL
+is in a literal (like `CALL "subr"').  With a data name (like `CALL
 SUBR'), the program is still called dynamically.
 
 
@@ -664,14 +784,14 @@ the main program and subprograms separately.
 2.2.2.1 Driver program
 ......................
 
-Compile all programs with the option '-m':
+Compile all programs with the option `-m':
      $ cobc -m main.cob subr.cob
-   This creates the shared object files 'main.so subr.so'.(1)
+   This creates the shared object files `main.so subr.so'.(1)
 
    Before running the main program, install the module files in your
 library directory:
      $ cp subr.so /your/cobol/lib
-   Set the runtime variable 'COB_LIBRARY_PATH' to your library
+   Set the runtime variable `COB_LIBRARY_PATH' to your library
 directory, and run the main program:
      $ export COB_LIBRARY_PATH=/your/cobol/lib
    (Note: You may set the variable via a runtime configuration file,
@@ -687,15 +807,15 @@ to directly point to the directory where you compiled the sources.)
 The main program is compiled as usual:
      $ cobc -x -o main main.cob
 
-   Subprograms are compiled with the option '-m':
+   Subprograms are compiled with the option `-m':
      $ cobc -m subr.cob
-   This creates a module file 'subr.so'(2).
+   This creates a module file `subr.so'(2).
 
    Before running the main program, install the module files in your
 library directory:
      $ cp subr.so /your/cobol/lib
 
-   Now, set the environment variable 'COB_LIBRARY_PATH' to your library
+   Now, set the environment variable `COB_LIBRARY_PATH' to your library
 directory, and run the main program:
      $ export COB_LIBRARY_PATH=/your/cobol/lib
      $ ./main
@@ -731,7 +851,7 @@ You can use a shared library by linking it with your main program.
    Before linking the library, install it in your system library
 directory:
      $ cp libsubrs.so /usr/lib
-   or install it somewhere else and set 'LD_LIBRARY_PATH':
+   or install it somewhere else and set `LD_LIBRARY_PATH':
      $ cp libsubrs.so /your/cobol/lib
      $ export LD_LIBRARY_PATH=/your/cobol/lib
 
@@ -760,7 +880,7 @@ File: gnucobol.info,  Node: Main C program,  Next: Static C to COBOL,  Prev: C i
 2.3.1 Writing Main Program in C
 -------------------------------
 
-Include 'libcob.h' in your C program and call 'cob_init' before using
+Include `libcob.h' in your C program and call `cob_init' before using
 any COBOL module:
 
      #include <libcob.h>
@@ -781,7 +901,7 @@ any COBOL module:
        cob_stop_run (return_status);
      }
 
-   You can write 'cobc_init(0, NULL);' if you do not want to pass
+   You can write `cobc_init(0, NULL);' if you do not want to pass
 command line arguments to COBOL.
 
    You can compile your C program as follows:
@@ -857,11 +977,11 @@ File: gnucobol.info,  Node: Dynamic C to COBOL,  Next: Static COBOL to C,  Prev:
 -----------------------------------------
 
 You can find a COBOL module having a specific name by using the C
-function 'cob_resolve', which takes the module name as a string and
+function `cob_resolve', which takes the module name as a string and
 returns a pointer to the module function.
 
-   'cob_resolve' returns 'NULL' if there is no module.  In this case,
-the function 'cob_resolve_error' returns the error message.
+   `cob_resolve' returns `NULL' if there is no module.  In this case,
+the function `cob_resolve_error' returns the error message.
 
    Let's see an example:
 
@@ -924,10 +1044,10 @@ Let's call the following C function from COBOL:
      }
      ----------------------------------------
 
-   This program is equivalent to the program in 'say.cob' above.
+   This program is equivalent to the program in `say.cob' above.
 
    Note that, unlike C, the arguments passed from COBOL programs are not
-terminated by the null character (i.e., ''\0'').
+terminated by the null character (i.e., `'\0'').
 
    You can call this function in the same way you call COBOL programs:
 
@@ -959,7 +1079,7 @@ File: gnucobol.info,  Node: Dynamic COBOL to C,  Prev: Static COBOL to C,  Up: C
 -------------------------------------
 
 You can create a dynamically-linked module from a C program by passing
-an option '-shared' to the C compiler:
+an option `-shared' to the C compiler:
 
      $ cc -shared -o say.so say.c
      $ cobc -x hello.cob
@@ -988,16 +1108,20 @@ These settings are effective at compile-time.
 
    Environment variables (default value in brackets):
 
-'COB_CC'
+`COB_CC'
      C compiler ("gcc")
-'COB_CFLAGS'
+
+`COB_CFLAGS'
      Flags passed to the C compiler ("-I$(PREFIX)/include")
-'COB_LDFLAGS'
+
+`COB_LDFLAGS'
      Flags passed to the C compiler ("")
-'COB_LIBS'
+
+`COB_LIBS'
      Standard libraries linked with the program ("-L$(PREFIX)/lib
      -lcob")
-'COB_LDADD'
+
+`COB_LDADD'
      Additional libraries linked with the program ("")
 
 
@@ -1006,16 +1130,16 @@ File: gnucobol.info,  Node: Customizing library,  Prev: Customizing compiler,  U
 3.2 Customizing library
 =======================
 
-These settings are effective at run-time.  You can set them either via
+These settings are effective at run-time. You can set them either via
 the environment or by a runtime configuration file.
 
    To set the global runtime configuration file export
-'COB_RUNTIME_CONFIG' to point to your configuration file.  To set an
-explicit runtime configuration file for a single run via 'cobcrun' you
-can use its option '-c <file>, -config=<file>'.
+`COB_RUNTIME_CONFIG' to point to your configuration file.  To set an
+explicit runtime configuration file for a single run via `cobcrun' you
+can use its option `-c <file>, -config=<file>'.
 
    For displaying the current runtime settings you can use the option
-'-r, -runtime-env' of 'cobcrun'.
+`-r, -runtime-env' of `cobcrun'.
 
    For a complete list of runtime variables, aliases, their default
 values and options to set them *note Runtime Configuration: Appendix H.
@@ -1038,15 +1162,15 @@ File: gnucobol.info,  Node: Optimize options,  Next: Optimize call,  Prev: Optim
 4.1 Optimize options
 ====================
 
-There are three compiler options for optimization: '-O', '-Os' and
-'-O2'.  These options enable optimization at both translation (from
+There are three compiler options for optimization: `-O', `-Os' and
+`-O2'.  These options enable optimization at both translation (from
 COBOL to C) and compilation (C to assembly) levels.
 
    Currently, there is no difference between these optimization options
 at the translation level.
 
-   The option '-O', '-Os' or '-O2' is passed to the C compiler as is and
-used for C level optimization.
+   The option `-O', `-Os' or `-O2' is passed to the C compiler as is
+and used for C level optimization.
 
 
 File: gnucobol.info,  Node: Optimize call,  Next: Optimize binary,  Prev: Optimize options,  Up: Optimize
@@ -1054,8 +1178,8 @@ File: gnucobol.info,  Node: Optimize call,  Next: Optimize binary,  Prev: Optimi
 4.2 Optimize call
 =================
 
-When a 'CALL' statement is executed, the called program is linked at run
-time.  By specifying the compiler option '-fstatic-call', you can
+When a `CALL' statement is executed, the called program is linked at run
+time.  By specifying the compiler option `-fstatic-call', you can
 statically link the program at compile time and call it efficiently.
 (*note Static linking::)
 
@@ -1070,11 +1194,11 @@ form.  On those machines whose native byte order is little-endian, this
 is not quite efficient.
 
    If you prefer, you can store binary items in the native form of your
-machine.  Set the config option 'binary-byteorder' to 'native' in your
+machine.  Set the config option `binary-byteorder' to `native' in your
 config file (*note Customize::).
 
-   In addition, setting the option 'binary-size' to '2-4-8' or '1-2-4-8'
-is more efficient than others.
+   In addition, setting the option `binary-size' to `2-4-8' or
+`1-2-4-8' is more efficient than others.
 
 
 File: gnucobol.info,  Node: Debug,  Next: Debug options,  Prev: Optimize,  Up: Top
@@ -1092,7 +1216,7 @@ File: gnucobol.info,  Node: Debug options,  Next: Extensions,  Prev: Debug,  Up:
 5.1 Debug options
 =================
 
-The compiler option '-debug' can be used during the development of your
+The compiler option `-debug' can be used during the development of your
 programs.  It enables all run-time error checking, such as subscript
 boundary checks and numeric data checks, and displays run-time errors
 with source locations.
@@ -1105,11 +1229,11 @@ File: gnucobol.info,  Node: Extensions,  Next: SELECT,  Prev: Debug options,  Up
 
 * Menu:
 
-* SELECT::                      'SELECT ASSIGN TO'.
+* SELECT::                      `SELECT ASSIGN TO'.
 * Indexed::                     Indexed file packages.
-* Extended ACCEPT::             Extended 'ACCEPT' statement.
-* ACCEPT special::              'ACCEPT' special keys.
-* Extended DISPLAY::            Extended 'DISPLAY' statement.
+* Extended ACCEPT::             Extended `ACCEPT' statement.
+* ACCEPT special::              `ACCEPT' special keys.
+* Extended DISPLAY::            Extended `DISPLAY' statement.
 
 
 File: gnucobol.info,  Node: SELECT,  Next: Indexed,  Prev: Extensions,  Up: Extensions
@@ -1133,59 +1257,57 @@ File: gnucobol.info,  Node: Extended ACCEPT,  Next: ACCEPT special,  Prev: Index
 6.3 Extended ACCEPT statement
 =============================
 
-Extended 'ACCEPT' statements allow for full control of items accepted
+Extended `ACCEPT' statements allow for full control of items accepted
 from the screen.  Items accept by line and column positioning.
 
 
-     ACCEPT variable-1
-        LINE <line> COLUMN <column>
-        WITH
-           AUTO-SKIP | AUTO
-           [PROTECTED] SIZE [IS] variable-2 | literal-2
-     END-ACCEPT.
-
+ACCEPT variable-1
+   LINE <line> COLUMN <column>
+   WITH
+      AUTO-SKIP | AUTO
+      [PROTECTED] SIZE [IS] variable-2 | literal-2
+END-ACCEPT.
 
 6.3.1 AUTO-SKIP
 ---------------
 
-With this option the 'ACCEPT' statement returns after the last character
-is typed at the end of the field.  This is the same as if the Enter key
-were pressed.
+With this option the `ACCEPT' statement returns after the last
+character is typed at the end of the field.  This is the same as if the
+Enter key were pressed.
 
    Without this option the cursor remains at the end of the field and
 waits for the user to press Enter.
 
-   The word 'AUTO' may be used for 'AUTO-SKIP'.
+   The word `AUTO' may be used for `AUTO-SKIP'.
 
    The Right-Arrow key returns from the end of the field.  The
 Left-Arrow key returns from the beginning.  *Note Arrow keys: ACCEPT
 special.
 
-   The Alt-Right-Arrow and Alt-Left-Arrow keys never 'AUTO-SKIP'.
+   The Alt-Right-Arrow and Alt-Left-Arrow keys never `AUTO-SKIP'.
 
 6.3.2 PROTECTED
 ---------------
 
-'PROTECTED' is ignored.  It is optional.
+`PROTECTED' is ignored.  It is optional.
 
 6.3.3 SIZE
 ----------
 
 The size of variable-1 to accept from the screen.  It is optional.
 
-'SIZE <greater than zero>'
-
-     If 'SIZE' is less than the length of variable-1 then only the
-     'SIZE' number of characters accept into the field.  Variable-1 pads
-     with spaces after 'SIZE' to the end of the field.
+``SIZE' <greater than zero>'
+     If `SIZE' is less than the length of variable-1 then only the
+     `SIZE' number of characters accept into the field.  Variable-1
+     pads with spaces after `SIZE' to the end of the field.
 
      If SIZE is greater than variable-1, then the screen pads with
-     spaces after variable-1 to the 'SIZE' length.
+     spaces after variable-1 to the `SIZE' length.
 
-'SIZE ZERO'
-'<SIZE option not specified>'
-
+``SIZE ZERO''
+`<`SIZE' option not specified>'
      The variable-1 field accepts with its length.
+
 
 
 File: gnucobol.info,  Node: ACCEPT special,  Next: Extended DISPLAY,  Prev: Extended ACCEPT,  Up: Extensions
@@ -1193,28 +1315,28 @@ File: gnucobol.info,  Node: ACCEPT special,  Next: Extended DISPLAY,  Prev: Exte
 6.4 ACCEPT special keys
 =======================
 
-Special keys are available for extended 'ACCEPT' statements.
+Special keys are available for extended `ACCEPT' statements.
 
-   The 'COB-CRT-STATUS' values are in the screenio.cpy copy file.
+   The `COB-CRT-STATUS' values are in the screenio.cpy copy file.
 
 6.4.1 Arrow keys
 ----------------
 
-The Left-Arrow key moves the cursor to the left.  Without 'AUTO-SKIP'
-the cursor stops at the beginning of the field.  With 'AUTO-SKIP' it
-returns with the 'COB-SCR-KEY-LEFT' value of 2009.  *Note AUTO-SKIP:
+The Left-Arrow key moves the cursor to the left.  Without `AUTO-SKIP'
+the cursor stops at the beginning of the field.  With `AUTO-SKIP' it
+returns with the `COB-SCR-KEY-LEFT' value of 2009.  *Note AUTO-SKIP:
 Extended ACCEPT.
 
-   The Alt-Left-Arrow key is the same as Left-Arrow except that it never
-returns, even for 'AUTO-SKIP'.
+   The Alt-Left-Arrow key is the same as Left-Arrow except that it
+never returns, even for `AUTO-SKIP'.
 
    The Right-Arrow key moves the cursor to the right.  Without
-'AUTO-SKIP' the cursor stops at the end of the field.  With 'AUTO-SKIP'
-it returns with the 'COB-SCR-KEY-RIGHT' value of 2010.  *Note AUTO-SKIP:
-Extended ACCEPT.
+`AUTO-SKIP' the cursor stops at the end of the field.  With `AUTO-SKIP'
+it returns with the `COB-SCR-KEY-RIGHT' value of 2010.  *Note
+AUTO-SKIP: Extended ACCEPT.
 
    The Alt-Right-Arrow key is the same as Right-Arrow except that it
-never returns, even for 'AUTO-SKIP'.
+never returns, even for `AUTO-SKIP'.
 
 6.4.2 Backspace key
 -------------------
@@ -1225,11 +1347,11 @@ the left.
 6.4.3 Delete keys
 -----------------
 
-The Delete key deletes the cursor's character and moves the remainder of
-the text to the left.  The cursor does not move.
+The Delete key deletes the cursor's character and moves the remainder
+of the text to the left.  The cursor does not move.
 
-   The Alt-Delete key deletes all text from the cursor to the end of the
-field.
+   The Alt-Delete key deletes all text from the cursor to the end of
+the field.
 
 6.4.4 End keys
 --------------
@@ -1259,16 +1381,16 @@ existing characters.
 first extended 'ACCEPT', 'DISPLAY', or any routine that gets information
 from the screen.
 
-   The last press of the Insert key is used in all following 'ACCEPT'
+   The last press of the Insert key is used in all following `ACCEPT'
 statements while the program is running.
 
 6.4.7 Tab keys
 --------------
 
-The Tab key returns from the 'ACCEPT' with the 'COB-SCR-TAB' value of
+The Tab key returns from the `ACCEPT' with the `COB-SCR-TAB' value of
 2007.
 
-   The Shift-Tab key returns with the 'COB-SCR-BACK-TAB' value of 2008.
+   The Shift-Tab key returns with the `COB-SCR-BACK-TAB' value of 2008.
 
 
 File: gnucobol.info,  Node: Extended DISPLAY,  Next: System routines,  Prev: ACCEPT special,  Up: Extensions
@@ -1276,18 +1398,17 @@ File: gnucobol.info,  Node: Extended DISPLAY,  Next: System routines,  Prev: ACC
 6.5 Extended DISPLAY statement
 ==============================
 
-Extended 'DISPLAY' statements allow for full control of items that
+Extended `DISPLAY' statements allow for full control of items that
 display on the screen.  Items display by line and column positioning.
 
 
-     DISPLAY variable-1 | literal-1 | figurative constant
-        LINE <line> COLUMN <column>
-        WITH BELL
-             BLANK LINE | SCREEN
-             ERASE EOL | EOS
-             SIZE [IS] variable-2 | literal-2
-     END-DISPLAY.
-
+DISPLAY variable-1 | literal-1 | figurative constant
+   LINE <line> COLUMN <column>
+   WITH BELL
+        BLANK LINE | SCREEN
+        ERASE EOL | EOS
+        SIZE [IS] variable-2 | literal-2
+END-DISPLAY.
 
 6.5.1 BELL
 ----------
@@ -1299,27 +1420,25 @@ Ring the bell.  It is optional.
 
 Clear the whole line or screen.  It is optional.
 
-'BLANK LINE'
-
+``BLANK LINE''
      Clear the line from the beginning of the line to the end of the
      line.
 
-'BLANK SCREEN'
-
+``BLANK SCREEN''
      Clear the whole screen.
+
 
 6.5.3 ERASE
 -----------
 
-Clear the line or screen from LINE and COLUMN. It is optional.
+Clear the line or screen from LINE and COLUMN.  It is optional.
 
-'ERASE EOL'
-
+``ERASE EOL''
      Clear the line from LINE and COLUMN to the end of the line.
 
-'ERASE EOS'
-
+``ERASE EOS''
      Clear the screen from LINE and COLUMN to the end of the screen.
+
 
 6.5.4 SIZE
 ----------
@@ -1327,42 +1446,41 @@ Clear the line or screen from LINE and COLUMN. It is optional.
 The size of variable-1, literal-1, or figurative constant to display
 onto the screen.  It is optional.
 
-'SIZE <greater than zero>'
+``SIZE' <greater than zero>'
+     If `SIZE' is less than the length of variable-1 or literal-1 then
+     only the `SIZE' number of characters display.
 
-     If 'SIZE' is less than the length of variable-1 or literal-1 then
-     only the 'SIZE' number of characters display.
-
-     If 'SIZE' is greater than the length of variable-1 or literal-1,
-     then the screen pads with spaces after the field to the 'SIZE'
+     If `SIZE' is greater than the length of variable-1 or literal-1,
+     then the screen pads with spaces after the field to the `SIZE'
      length.
 
      Figurative constants display repeatedly the number of times in
-     'SIZE'.  Except that 'LOW-VALUES' always positions the cursor (see
-     'SIZE' ZERO below).
+     `SIZE'.  Except that `LOW-VALUES' always positions the cursor (see
+     `SIZE' ZERO below).
 
-'SIZE ZERO'
-'<SIZE option not specified>'
-
+``SIZE ZERO''
+`<`SIZE' option not specified>'
      Variable-1 or literal-1 displays with the field length.
 
      Certain figurative constants have special functions.
 
-     'SPACE': Display spaces from LINE and COLUMN to the end of the
+     `SPACE':  Display spaces from LINE and COLUMN to the end of the
      screen.  This is the same as WITH ERASE EOS.
 
-     'LOW-VALUE': Position the cursor to LINE and COLUMN. The next
-     'DISPLAY' statement does not need a LINE or COLUMN to display at
+     `LOW-VALUE':  Position the cursor to LINE and COLUMN.  The next
+     `DISPLAY' statement does not need a LINE or COLUMN to display at
      that position.
 
-     ALL "1" Display spaces from LINE and COLUMN to the end of the line.
-     This is the same as 'WITH ERASE EOL'.
+     ALL "1"  Display spaces from LINE and COLUMN to the end of the
+     line.  This is the same as `WITH ERASE EOL'.
 
-     ALL "2" Clear the whole screen.  This is the same as 'WITH BLANK
+     ALL "2"  Clear the whole screen.  This is the same as `WITH BLANK
      SCREEN'.
 
-     ALL "7" Ring the bell.  This is the same as 'WITH BELL'.
+     ALL "7"  Ring the bell.  This is the same as `WITH BELL'.
 
      All other figurative constants display as a single character.
+
 
 
 File: gnucobol.info,  Node: System routines,  Next: Appendix A,  Prev: Extended DISPLAY,  Up: Top
@@ -1376,6 +1494,8 @@ For a complete list of supported system routines *Note cobc
 * Menu:
 
 * CBL_OC_GETOPT::				CBL_OC_GETOPT
+* CBL_OC_HOSTED::				CBL_OC_HOSTED
+* CBL_OC_NANOSLEEP::				CBL_OC_NANOSLEEP
 
 
 File: gnucobol.info,  Node: CBL_OC_GETOPT,  Prev: System routines,  Up: System routines
@@ -1383,31 +1503,31 @@ File: gnucobol.info,  Node: CBL_OC_GETOPT,  Prev: System routines,  Up: System r
 7.1 CBL_OC_GETOPT
 =================
 
-'CBL_OC_GETOPT' realises the quite well-known option parser, getopt, for
-GnuCOBOL. The usage of this system routine is described by the following
-example.
+`CBL_OC_GETOPT' realises the quite well-known option parser, getopt, for
+GnuCOBOL. The usage of this system routine is described by the
+following example.
 
-             identification division.
-             program-id. prog.
+        identification division.
+        program-id. prog.
 
-             data division.
-             working-storage section.
-                 78 shortoptions value "jkl".
+        data division.
+        working-storage section.
+            78 shortoptions value "jkl".
 
-                 01 longoptions.
-                     05 optionrecord occurs 2 times.
-                         10 optionname   pic x(25).
-                         10 has-value    pic 9.
-                         10 valpoint     pointer value NULL.
-                         10 return-value pic x(4).
+            01 longoptions.
+                05 optionrecord occurs 2 times.
+                    10 optionname   pic x(25).
+                    10 has-value    pic 9.
+                    10 valpoint     pointer value NULL.
+                    10 return-value pic x(4).
 
-                 01 longind     pic 99.
-                 01 long-only   pic 9 value 1.
+            01 longind     pic 99.
+            01 long-only   pic 9 value 1.
 
-                 01 return-char pic x(4).
-                 01 opt-val     pic x(10).
+            01 return-char pic x(4).
+            01 opt-val     pic x(10).
 
-                 01 counter     pic 9 value 0.
+            01 counter     pic 9 value 0.
 
    We first need to define the necessary fields for getopt's
 shortoptions (so), longoptions (lo), longoption index (longind),
@@ -1418,77 +1538,233 @@ codes).
    The shortoptions are written down as an alphanumeric field (i.e., a
 string with arbitrary size) as follows:
 
-     "ab:c::d"
+"ab:c::d"
 
-   This means we want getopt to look for shortoptions named a, b, c or d
-and we demand an option value for b and we are accepting an optional one
-for c.
+   This means we want getopt to look for shortoptions named a, b, c or
+d and we demand an option value for b and we are accepting an optional
+one for c.
 
    The longoptions are defined as a table of records with oname,
 has-value, valpoint and val.
    * oname defines the name of a longoption.
+
    * has-value defines if an option value is demanded (has-val = 1),
      optional (has-val = 2) or not required (has-val = 0).
+
    * valpoint is a pointer used to specify an address to save getopt's
-     return value to.  The pointer is optional.  If it is 'NULL', getopt
-     returns a value as usual.  If you use the pointer it has to point
-     to a 'PIC X(4)' field.
-   * The field val is a 'PIC X(4)' character which is returned if the
+     return value to. The pointer is optional. If it is `NULL', getopt
+     returns a value as usual. If you use the pointer it has to point
+     to a `PIC X(4)' field.
+
+   * The field val is a `PIC X(4)' character which is returned if the
      longoption was recognized.
-   The longoption structure is immutable!  You can only vary the number
+   The longoption structure is immutable! You can only vary the number
 of records.
 
-   Now we have the tools to run 'CBL_OC_GETOPT' within the procedure
+   Now we have the tools to run `CBL_OC_GETOPT' within the procedure
 division.
 
-             procedure division.
-                 move "version" to optionname   (1).
-                 move 0         to has-value    (1).
-                 move "v"       to return-value (1).
+        procedure division.
+            move "version" to optionname   (1).
+            move 0         to has-value    (1).
+            move "v"       to return-value (1).
 
-                 move "verbose" to optionname   (2).
-                 move 0         to has-value    (2).
-                 move "V"       to return-value (2).
+            move "verbose" to optionname   (2).
+            move 0         to has-value    (2).
+            move "V"       to return-value (2).
 
-                 perform with test after until return-code = -1
-                     call 'CBL_OC_GETOPT' using
-                        by reference shortoptions longoptions longind
-                        by value long-only
-                        by reference return-char opt-val
-                     end-call
+            perform with test after until return-code = -1
+                call 'CBL_OC_GETOPT' using
+                   by reference shortoptions longoptions longind
+                   by value long-only
+                   by reference return-char opt-val
+                end-call
 
-                     display return-char end-display
-                     display opt-val     end-display
-                 end-perform
-                 stop run.
-
+                display return-char end-display
+                display opt-val     end-display
+            end-perform
+            stop run.
 
    The example shows how we initialize all parameters and call the
-routine until 'CBL_OC_GETOPT' runs out of options and returns -1.
+routine until `CBL_OC_GETOPT' runs out of options and returns -1.
 
    The return-char might contain the following:
    * regular character if an option was recognized
+
    * '?'   if we have an undefined or ambiguous option
+
    * '1'   if we have a non-option (only if first byte of so is '-')
+
    * '0'   if valpoint != NULL and we are writing the return value to
      the specified address
-   * '-1'  if we don't have any more options (or reach the first
-     non-option if first byte of so is '+')
 
-   The return-codes of 'CBL_OC_GETOPT' are:
+   * '-1'  if we don't have any more options (or reach the first
+     non-option  if first byte of so is '+')
+
+   The return-codes of `CBL_OC_GETOPT' are:
    * 1   if we've got a non-option (only if first byte of so is '-')
-   * 0   if valpoint != 'NULL' and we are writing the return value to
+
+   * 0   if valpoint != `NULL' and we are writing the return value to
      the specified address
+
    * -1  if we don't have any more options (or reach the first
-     non-option if first byte of so is '+')
+     non-option  if first byte of so is '+')
+
    * 2   if we have got an truncated option value in opt-val (because
      opt-val was too small)
+
    * 3   if we got a regular answer from getopt
+
+
+File: gnucobol.info,  Node: CBL_OC_HOSTED,  Prev: System routines,  Up: System routines
+
+7.2 CBL_OC_HOSTED
+=================
+
+`CBL_OC_HOSTED' provides access to the following C hosted variables:
+   * `argc'  to binary-long by value
+
+   * `argv'  to pointer to char **
+
+   * `stdin', `stdout', `stderr'  to pointer
+
+   * `errno'  giving address of errno in pointer to binary-long, use
+     based for more direct access
+
+   and conditional access to the following variables:
+   * `tzname'  pointer to pointer to array of two char pointers
+
+   * `timezone'  C long, will be seconds west of UTC
+
+   * `daylight'  C int, will be 1 during daylight savings
+
+   System will need to HAVE_TIMEZONE defined for these to return
+anything meaningful.  Attempts made when they are not available return
+1 from CBL_OC_HOSTED.
+
+   It returns 0 when match, 1 on failure, case matters as does length,
+"arg" won't match.
+
+   The usage of this system routine is described by the following
+example.
+
+HOSTED identification division.
+       program-id. hosted.
+       data division.
+       working-storage section.
+       01 argc  usage binary-long.
+       01 argv  usage pointer.
+
+       01 stdin usage pointer.
+       01 stdout usage pointer.
+       01 stderr usage pointer.
+
+       01 errno usage pointer.
+       01 err   usage binary-long based.
+
+       01 domain usage float-long value 3.0.
+
+       01 tzname usage pointer.
+       01 tznames usage pointer based.
+          05 tzs usage pointer occurs 2 times.
+
+       01 timezone   usage binary-long.
+       01 daylight   usage binary-short.
+
+
+      *> Testing CBL_OC_HOSTED
+       procedure division.
+       call "CBL_OC_HOSTED" using stdin "stdin"
+       display "stdin                : " stdin
+       call "feof" using by value stdin
+       display "feof stdin           : " return-code
+
+       call "CBL_OC_HOSTED" using stdout "stdout"
+       display "stdout               : " stdout
+       call "fprintf" using by value stdout by content "Hello" & x"0a"
+
+       call "CBL_OC_HOSTED" using stderr "stderr"
+       display "stderr               : " stderr
+       call "fprintf" using by value stderr by content "on err" & x"0a"
+
+       call "CBL_OC_HOSTED" using argc "argc"
+       display "argc                 : " argc
+
+       call "CBL_OC_HOSTED" using argv "argv"
+       display "argv                 : " argv
+
+       call "args" using by value argc argv
+
+       call "CBL_OC_HOSTED" using errno "errno"
+       display "&errno               : " errno
+       set address of err to errno
+       display "errno                : " err
+       call "acos" using by value domain
+       display "errno after acos(3.0): " err ", EDOM is 33"
+
+       call "CBL_OC_HOSTED" using argc "arg"
+       display "'arg' lookup         : " return-code
+       call "CBL_OC_HOSTED" using null "argc"
+       display "null with argc       : " return-code
+       display "argc is still        : " argc
+
+
+       *> the following only returns zero if the system has HAVE_TIMEZONE set
+
+       call "CBL_OC_HOSTED" using daylight "daylight "
+       display "'timezone' lookup    : " return-code
+
+       if return-code not = 0
+          display "system doesn't has timezone"
+       else
+
+          display "timezone is          : " timezone
+
+          call "CBL_OC_HOSTED" using daylight "daylight "
+          display "'daylight' lookup    : " return-code
+          display "daylight is          : " daylight
+
+          set environment "TZ" to "PST8PDT"
+          call static "tzset" returning omitted on exception continue end-call
+
+          call "CBL_OC_HOSTED" using tzname "tzname"
+          display "'tzname' lookup      : " return-code
+
+          *> tzs(1) will point to z"PST" and tzs(2) to z"PDT"
+          if return-code equal 0 and tzname not equal null then
+              set address of tznames to tzname
+              if tzs(1) not equal null then
+                 display "tzs #1               : " tzs(1)
+              end-if
+              if tzs(2) not equal null then
+                 display "tzs #2               : " tzs(2)
+              end-if
+          end-if
+
+       end-if
+
+       goback.
+       end program hosted.
+
+
+File: gnucobol.info,  Node: CBL_OC_NANOSLEEP,  Prev: System routines,  Up: System routines
+
+7.3 CBL_OC_NANOSLEEP
+====================
+
+`CBL_OC_NANOSLEEP' allows you to pause the program for nanoseconds.
+The actual precision depends on the system.
+
+      *> Waiting a half second
+       call "CBL_OC_NANOSLEEP" using "500000000" end-call
+
+      *> Waiting five seconds using compiler string catenation for readability
+       call "CBL_OC_NANOSLEEP" using "500" & "0000000"  end-call
 
 
 File: gnucobol.info,  Node: Appendix A,  Next: Appendix B,  Prev: System routines,  Up: Top
 
-Appendix A 'cobc --help'
+Appendix A `cobc --help'
 ************************
 
 GnuCOBOL compiler for most COBOL dialects with lots of extensions
@@ -1505,18 +1781,18 @@ Options:
   -q, -brief            reduced displays, commands invoked not shown
   -x                    build an executable program
   -m                    build a dynamically loadable module (default)
-  -j [<args>], -job[=<args>] run program after build, passing <args>
+  -j [<args>], -job[=<args>]	run program after build, passing <args>
   -std=<dialect>        warnings/features for a specific dialect
                         <dialect> can be one of:
                         cobol2014, cobol2002, cobol85, default,
                         ibm, mvs, bs2000, mf, acu;
                         see configuration files in directory config
-  -R, -reserve-all      allow all words that are not unreserved
   -F, -free             use free source format
   -fixed                use fixed source format (default)
   -O, -O2, -Os          enable optimization
   -g                    enable C compiler debug / stack check / trace
   -d, -debug            enable all run-time error checking
+  -a, -animate          prepare program for being animated
   -o <file>             place the output into <file>
   -b                    combine all input files into a single
                         dynamically loadable module
@@ -1527,9 +1803,9 @@ Options:
   -T <file>             generate and place a wide program listing into <file>
   -t <file>             generate and place a program listing into <file>
   --tlines=<lines>      specify lines per page in listing, default = 55
+  --no-symbols          specify no symbols in listing
   -P[=<dir or file>]    generate preprocessed program listing (.lst)
-  -Xref                 generate cross reference through 'cobxref'
-                        (V. Coen's 'cobxref' must be in path)
+  -Xref                 specify cross reference in listing
   -I <directory>        add <directory> to copy/include search path
   -L <directory>        add <directory> to library search path
   -l <lib>              link the library <lib>
@@ -1549,126 +1825,135 @@ Options:
   -W                    enable all warnings
   -Wall                 enable most warnings (all except as noted below)
   -Wno-<warning>        disable warning enabled by -W or -Wall
-  -Wobsolete            warn if obsolete features are used
-  -Warchaic             warn if archaic features are used
-  -Wredefinition        warn incompatible redefinition of data items
-  -Wconstant            warn inconsistent constant
-  -Woverlap             warn overlapping MOVE items
-  -Wparentheses         warn lack of parentheses around AND within OR
-  -Wstrict-typing       warn type mismatch strictly
-  -Wimplicit-define     warn implicitly defined data items
-  -Wcorresponding       warn CORRESPONDING with no matching items
-  -Wexternal-value      warn EXTERNAL item with VALUE clause
-  -Wprototypes          warn missing FUNCTION prototypes/definitions
-  -Wcall-params         warn non 01/77 items for CALL params
+  -Wno-unfinished      	don't warn if unfinished features are used
+			- ALWAYS active
+  -Wobsolete           	warn if obsolete features are used
+  -Warchaic            	warn if archaic features are used
+  -Wredefinition       	warn incompatible redefinition of data items
+  -Wconstant           	warn inconsistent constant
+  -Woverlap            	warn overlapping MOVE items
+  -Wpossible-overlap   	warn MOVE items that may overlap depending on variables
 			- NOT set with -Wall
-  -Wcolumn-overflow     warn text after program-text area, FIXED format
+  -Wparentheses        	warn lack of parentheses around AND within OR
+  -Wstrict-typing      	warn type mismatch strictly
+  -Wimplicit-define    	warn implicitly defined data items
+  -Wcorresponding      	warn CORRESPONDING with no matching items
+  -Wexternal-value     	warn EXTERNAL item with VALUE clause
+  -Wprototypes         	warn missing FUNCTION prototypes/definitions
+  -Wcall-params        	warn non 01/77 items for CALL params
 			- NOT set with -Wall
-  -Wterminator          warn lack of scope terminator END-XXX
+  -Wcolumn-overflow    	warn text after program-text area, FIXED format
 			- NOT set with -Wall
-  -Wtruncate            warn possible field truncation
+  -Wterminator         	warn lack of scope terminator END-XXX
 			- NOT set with -Wall
-  -Wlinkage             warn dangling LINKAGE items
+  -Wtruncate           	warn possible field truncation
 			- NOT set with -Wall
-  -Wunreachable         warn unreachable statements
+  -Wlinkage            	warn dangling LINKAGE items
+			- NOT set with -Wall
+  -Wunreachable        	warn unreachable statements
 			- NOT set with -Wall
 
-  -fsign=[ASCII|EBCDIC] define display sign representation
+  -fsign=[ASCII|EBCDIC]	define display sign representation
 			- default: machine native
-  -ffold-copy=[UPPER|LOWER] fold COPY subject to value
+  -ffold-copy=[UPPER|LOWER]	fold COPY subject to value
 			- default: no transformation
-  -ffold-call=[UPPER|LOWER] fold PROGRAM-ID, CALL, CANCEL subject to value
+  -ffold-call=[UPPER|LOWER]	fold PROGRAM-ID, CALL, CANCEL subject to value
 			- default: no transformation
-  -fdefaultbyte=0..255  initialize fields without VALUE to decimal value
+  -fdefaultbyte=0..255 	initialize fields without VALUE to decimal value
 			- default: initialize to picture
-  -fintrinsics=[ALL|intrinsic function name(,name,...)] intrinsics to be used without FUNCTION keyword
-  -ftrace               generate trace code
+  -fintrinsics=[ALL|intrinsic function name(,name,...)]	intrinsics to be used without FUNCTION keyword
+  -ftrace              	generate trace code
 			- executed SECTION/PARAGRAPH
-  -ftraceall            generate trace code
+  -ftraceall           	generate trace code
 			- executed SECTION/PARAGRAPH/STATEMENTS
 			- turned on by -debug
-  -fsyntax-only         syntax error checking only; don't emit any output
-  -fdebugging-line      enable debugging lines
+  -fsyntax-only        	syntax error checking only; don't emit any output
+  -fdebugging-line     	enable debugging lines
 			- 'D' in indicator column or floating >>D
-  -fsource-location     generate source location code
+  -fsource-location    	generate source location code
 			- turned on by -debug/-g/-ftraceall
-  -fimplicit-init       automatic initialization of the COBOL runtime system
-  -fstack-check         PERFORM stack checking
+  -fimplicit-init      	automatic initialization of the COBOL runtime system
+  -fstack-check        	PERFORM stack checking
 			- turned on by -debug or -g
-  -fsyntax-extension    allow syntax extensions
+  -fsyntax-extension   	allow syntax extensions
 			- e.g. switch name SW1, etc.
-  -fwrite-after         use AFTER 1 for WRITE of LINE SEQUENTIAL
+  -fwrite-after        	use AFTER 1 for WRITE of LINE SEQUENTIAL
 			- default: BEFORE 1
-  -fmfcomment           '*' or '/' in column 1 treated as comment
+  -fmfcomment          	'*' or '/' in column 1 treated as comment
 			- FIXED format only
-  -facucomment          '$' in indicator area treated as '*',
+  -facucomment         	'$' in indicator area treated as '*',
 			'|' treated as floating comment
-  -fnotrunc             allow numeric field overflow
+  -fnotrunc            	allow numeric field overflow
 			- non-ANSI behaviour
-  -fodoslide            adjust items following OCCURS DEPENDING
+  -fodoslide           	adjust items following OCCURS DEPENDING
 			- requires implicit/explicit relaxed syntax
-  -fsingle-quote        use a single quote (apostrophe) for QUOTE
+  -fsingle-quote       	use a single quote (apostrophe) for QUOTE
 			- default: double quote
-  -frecursive-check     check recursive program call
-  -foptional-file       treat all files as OPTIONAL
+  -frecursive-check    	check recursive program call
+  -foptional-file      	treat all files as OPTIONAL
 			- unless NOT OPTIONAL specified
 
-  -ftab-width=<number>  set number of spaces that are asumed for tabs
-  -ftext-column=<number> set right margin for source (fixed format only)
-  -fword-length=<number> maximum word-length for COBOL words / Programmer defined words
-  -fliteral-length=<number> maximum literal size in general
-  -fnumeric-literal-length=<number> maximum numeric literal size
-  -fassign-clause=<value> set way of interpreting ASSIGN
-  -fbinary-size=<value> binary byte size - defines the allocated bytes according to PIC
-  -fbinary-byteorder=<value> binary byte order
-  -fstandard-define=<value>
-  -ffilename-mapping    resolve file names at run time using environment variables.
-  -fpretty-display      alternate formatting of numeric fields
-  -fbinary-truncate     numeric truncation according to ANSI
-  -fcomplex-odo         allow complex OCCURS DEPENDING ON
-  -findirect-redefines  allow REDEFINES to other than last equal level number
-  -flarger-redefines-ok allow larger REDEFINES items
-  -frelax-syntax-checks allow certain syntax variations (e.g. REDEFINES position)
-  -fperform-osvs        exit point of any currently executing perform is recognized if reached
-  -fsticky-linkage      linkage-section items remain allocated between invocations
-  -frelax-level-hierarchy allow non-matching level numbers
-  -fhostsign            allow hexadecimal value 'F' for NUMERIC test of signed PACKED DECIMAL field
-  -faccept-update       set WITH UPDATE clause as default for ACCEPT dest-item, except if WITH NO UPDATE clause is used
-  -faccept-auto         set WITH AUTO clause as default for ACCEPT dest-item, except if WITH TAB clause is used
-  -fconsole-is-crt      assume CONSOLE IS CRT if not set otherwise
-  -fprogram-name-redefinition program names don't lead to a reserved identifier
-  -fcomment-paragraphs=<support> comment paragraphs in IDENTIFICATION DIVISION (AUTHOR, DATE-WRITTEN, ...)
-  -fmemory-size-clause=<support> MEMORY-SIZE clause
-  -fmultiple-file-tape-clause=<support> MULTIPLE-FILE-TAPE clause
-  -flabel-records-clause=<support> LABEL-RECORDS clause
-  -fvalue-of-clause=<support> VALUE-OF clause
-  -fdata-records-clause=<support> DATA-RECORDS clause
-  -ftop-level-occurs-clause=<support> OCCURS clause on top-level
-  -fsynchronized-clause=<support> SYNCHRONIZED clause
-  -fgoto-statement-without-name=<support> GOTO statement without name
-  -fstop-literal-statement=<support> STOP-LITERAL statement
-  -fdebugging-line=<support> DEBUGGING MODE and indicator 'D'
-  -fpadding-character-clause=<support> PADDING CHARACTER clause
-  -fnext-sentence-phrase=<support> NEXT SENTENCE phrase
-  -feject-statement=<support> EJECT statement
-  -fentry-statement=<support> ENTRY statement
-  -fmove-noninteger-to-alphanumeric=<support> move noninteger to alphanumeric
-  -fodo-without-to=<support> OCCURS DEPENDING ON without to
-  -fsection-segments=<support> section segments
-  -falter-statement=<support> ALTER statement
-  -fcall-overflow=<support> OVERFLOW clause for CALL
-  -fnumeric-boolean=<support> boolean literals (b'0001')
-  -facucobol-literals=<support> ACUCOBOL-GT literals (#B #O #H #X)
-  -fword-continuation=<support> continuation of COBOL words
-  -fnot-exception-before-exception=<support> NOT ON EXCEPTION before ON EXCEPTION
-  -faccept-display-extensions=<support> extensions to ACCEPT and DISPLAY
-  -frenames-uncommon-levels=<support> RENAMES of 01-, 66- and 77-level items
-  -fprogram-prototypes=<support> CALL/CANCEL with program-prototype-name
+  -ftab-width=1..12    	set number of spaces that are asumed for tabs
+  -ftext-column=72..255	set right margin for source (fixed format only)
+  -fpic-length=<number>	maximum number of characters allowed in the character-string
+  -fword-length=1..61  	maximum word-length for COBOL words / Programmer defined words
+  -fliteral-length=<number>	maximum literal size in general
+  -fnumeric-literal-length=1..38	maximum numeric literal size
+  -fassign-clause=<value>	set way of interpreting ASSIGN
+  -fbinary-size=<value>	binary byte size - defines the allocated bytes according to PIC
+  -fbinary-byteorder=<value>	binary byte order
+  -ffilename-mapping   	resolve file names at run time using environment variables.
+  -fpretty-display     	alternate formatting of numeric fields
+  -fbinary-truncate    	numeric truncation according to ANSI
+  -fcomplex-odo        	allow complex OCCURS DEPENDING ON
+  -findirect-redefines 	allow REDEFINES to other than last equal level number
+  -flarger-redefines-ok	allow larger REDEFINES items
+  -frelax-syntax-checks	allow certain syntax variations (e.g. REDEFINES position)
+  -fperform-osvs       	exit point of any currently executing perform is recognized if reached
+  -fsticky-linkage     	linkage-section items remain allocated between invocations
+  -frelax-level-hierarchy	allow non-matching level numbers
+  -fhostsign           	allow hexadecimal value 'F' for NUMERIC test of signed PACKED DECIMAL field
+  -faccept-update      	set WITH UPDATE clause as default for ACCEPT dest-item, instead of WITH NO UPDATE
+  -faccept-auto        	set WITH AUTO clause as default for ACCEPT dest-item, instead of WITH TAB
+  -fconsole-is-crt     	assume CONSOLE IS CRT if not set otherwise
+  -fprogram-name-redefinition	program names don't lead to a reserved identifier
+  -fno-echo-means-secure	NO-ECHO hides input with asterisks like SECURE
+  -fcomment-paragraphs=<support>	comment paragraphs in IDENTIFICATION DIVISION (AUTHOR, DATE-WRITTEN, ...)
+  -fmemory-size-clause=<support>	MEMORY-SIZE clause
+  -fmultiple-file-tape-clause=<support>	MULTIPLE-FILE-TAPE clause
+  -flabel-records-clause=<support>	LABEL-RECORDS clause
+  -fvalue-of-clause=<support>	VALUE-OF clause
+  -fdata-records-clause=<support>	DATA-RECORDS clause
+  -ftop-level-occurs-clause=<support>	OCCURS clause on top-level
+  -fsynchronized-clause=<support>	SYNCHRONIZED clause
+  -fgoto-statement-without-name=<support>	GOTO statement without name
+  -fstop-literal-statement=<support>	STOP-LITERAL statement
+  -fdebugging-line=<support>	DEBUGGING MODE and indicator 'D'
+  -fpadding-character-clause=<support>	PADDING CHARACTER clause
+  -fnext-sentence-phrase=<support>	NEXT SENTENCE phrase
+  -feject-statement=<support>	EJECT statement
+  -fentry-statement=<support>	ENTRY statement
+  -fmove-noninteger-to-alphanumeric=<support>	move noninteger to alphanumeric
+  -fodo-without-to=<support>	OCCURS DEPENDING ON without to
+  -fsection-segments=<support>	section segments
+  -falter-statement=<support>	ALTER statement
+  -fcall-overflow=<support>	OVERFLOW clause for CALL
+  -fnumeric-boolean=<support>	boolean literals (B'1010')
+  -fhexadecimal-boolean=<support>	hexadecimal-boolean literals (BX'A')
+  -fnational-literals=<support>	national literals (N'UTF-16 string')
+  -fhexadecimal-national-literals=<support>	hexadecimal-national literals (NX'265E')
+  -facucobol-literals=<support>	ACUCOBOL-GT literals (#B #O #H #X)
+  -fword-continuation=<support>	continuation of COBOL words
+  -fnot-exception-before-exception=<support>	NOT ON EXCEPTION before ON EXCEPTION
+  -faccept-display-extensions=<support>	extensions to ACCEPT and DISPLAY
+  -frenames-uncommon-levels=<support>	RENAMES of 01-, 66- and 77-level items
+  -fprogram-prototypes=<support>	CALL/CANCEL with program-prototype-name
+  -freference-out-of-declaratives=<support>	references to sections not in DECLARATIVES from within DECLARATIVES
 	where <support> is one of the following:
 	'ok', 'warning', 'archaic', 'obsolete', 'skip', 'ignore', 'error', 'unconformable'
-  -fnot-reserved=<word> word to be taken out of the reserved words list
-  -freserved=<word>     word to be added to reserved words list
-  -freserved=<word>:<alias> word to be added to reserved words list as alias
+  -fnot-reserved=<word>	word to be taken out of the reserved words list
+  -freserved=<word>    	word to be added to reserved words list
+  -freserved=<word>:<alias>	word to be added to reserved words list as alias
 
 
 Report bugs to: bug-gnucobol@gnu.org
@@ -1679,7 +1964,7 @@ General help using GNU software: <http://www.gnu.org/gethelp/>
 
 File: gnucobol.info,  Node: Appendix B,  Next: Appendix C,  Prev: Appendix A,  Up: Top
 
-Appendix B 'cobc --list-reserved'
+Appendix B `cobc --list-reserved'
 *********************************
 
 
@@ -1752,6 +2037,7 @@ BYTE-LENGTH                     Yes (Context sensitive)
 CALL                            Yes
 CANCEL                          Yes
 CAPACITY                        Yes (Context sensitive)
+CD                              Yes
 CENTER                          No (Context sensitive)
 CF                              Yes
 CH                              Yes
@@ -1767,6 +2053,7 @@ CODE                            Yes
 CODE-SET                        Yes
 COL                             Yes
 COLLATING                       Yes
+COLOR                           No
 COLS                            Yes
 COLUMN                          Yes
 COLUMNS                         Yes
@@ -1774,6 +2061,7 @@ COMMA                           Yes
 COMMAND-LINE                    Yes
 COMMIT                          Yes
 COMMON                          Yes
+COMMUNICATION                   Yes
 COMP                            Yes
 COMP-1                          Yes
 COMP-2                          Yes
@@ -1837,8 +2125,10 @@ DUPLICATES                      Yes
 DYNAMIC                         Yes
 EBCDIC                          Yes (Context sensitive)
 EC                              Yes
+ECHO                            Yes
 ELSE                            Yes
 EMPTY-CHECK                     Yes
+ENABLE                          No
 END                             Yes
 END-ACCEPT                      Yes
 END-ADD                         Yes
@@ -1909,7 +2199,7 @@ FOOTING                         Yes
 FOR                             Yes
 FOREGROUND-COLOR                Yes
 FOREGROUND-COLOUR               Yes
-FOREVER                         Yes
+FOREVER                         Yes (Context sensitive)
 FORMAT                          No
 FREE                            Yes
 FROM                            Yes
@@ -1937,13 +2227,12 @@ ID                              Yes
 IDENTIFICATION                  Yes
 IF                              Yes
 IGNORE                          Yes
-IGNORING                        Yes
+IGNORING                        Yes (Context sensitive)
 IMPLEMENTS                      No (Context sensitive)
 IN                              Yes
 INDEX                           Yes
 INDEXED                         Yes
 INDICATE                        Yes
-INDIRECT                        No (Context sensitive)
 INHERITS                        No
 INITIAL                         Yes
 INITIALISE                      Yes
@@ -2115,9 +2404,10 @@ REQUIRED                        Yes
 RESERVE                         Yes
 RESET                           Yes
 RESUME                          No
-RETRY                           No
+RETRY                           Yes
 RETURN                          Yes
 RETURNING                       Yes
+REVERSE                         Yes
 REVERSE-VIDEO                   Yes
 REVERSED                        Yes
 REWIND                          Yes
@@ -2136,7 +2426,7 @@ SCREEN                          Yes
 SCROLL                          Yes (Context sensitive)
 SD                              Yes
 SEARCH                          Yes
-SECONDS                         No (Context sensitive)
+SECONDS                         Yes (Context sensitive)
 SECTION                         Yes
 SECURE                          Yes
 SEGMENT-LIMIT                   Yes
@@ -2278,7 +2568,7 @@ TALLY                           GLOBAL PIC 9(5) USAGE BINARY VALUE ZERO
 
 File: gnucobol.info,  Node: Appendix C,  Next: Appendix D,  Prev: Appendix B,  Up: Top
 
-Appendix C 'cobc --list-intrinsics'
+Appendix C `cobc --list-intrinsics'
 ***********************************
 
 
@@ -2391,7 +2681,7 @@ YEAR-TO-YYYY                    Yes             1 - 3
 
 File: gnucobol.info,  Node: Appendix D,  Next: Appendix E,  Prev: Appendix C,  Up: Top
 
-Appendix D 'cobc --list-system'
+Appendix D `cobc --list-system'
 *******************************
 
 
@@ -2453,7 +2743,7 @@ X"F5"                           2
 
 File: gnucobol.info,  Node: Appendix E,  Next: Appendix F,  Prev: Appendix D,  Up: Top
 
-Appendix E 'cobc --list-mnemonics'
+Appendix E `cobc --list-mnemonics'
 **********************************
 
 
@@ -2601,7 +2891,7 @@ File: gnucobol.info,  Node: Appendix F,  Next: Appendix G,  Prev: Appendix E,  U
 Appendix F Compiler Configuration
 *********************************
 
-The following list was extracted from 'config/default.conf'.
+The following list was extracted from `config/default.conf'.
 
 
 
@@ -2631,8 +2921,11 @@ word-length:			31
 # Maximum literal size in general
 literal-length:			8191
 
-# Maximum numeric literal size
-numeric-literal-length:	61
+# Maximum numeric literal size (absolute maximum: 38)
+numeric-literal-length:	38
+
+# Maximum number of characters allowed in the character-string (max. 255)
+pic-length:				255
 
 # Value: 'mf', 'ibm'
 #
@@ -2724,6 +3017,10 @@ console-is-crt:			no
 # use in a prototype-format CALL/CANCEL statement.
 program-name-redefinition:	yes
 
+# If yes, NO ECHO/NO-ECHO/OFF is the same as SECURE (hiding input with
+# asterisks, not spaces).
+no-echo-means-secure:		no
+
 # Dialect features
 # Value: 'ok', 'warning', 'archaic', 'obsolete', 'skip', 'ignore', 'error',
 #        'unconformable'
@@ -2748,13 +3045,17 @@ stop-literal-statement:			obsolete
 synchronized-clause:			ok
 top-level-occurs-clause:		ok
 value-of-clause:			obsolete
-numeric-boolean:			unconformable
+numeric-boolean:			ok
+hexadecimal-boolean:			ok
+national-literals:			ok
+hexadecimal-national-literals:			ok
 acucobol-literals:			unconformable
 word-continuation:			warning
 not-exception-before-exception:		ok
 accept-display-extensions:		ok
 renames-uncommon-levels:		ok
 program-prototypes:			ok
+reference-out-of-declaratives:		error
 
 # If yes, all the reserved words must be specified in a list of reserved:
 # entries; the default reserved word list will not be used.
@@ -2764,6 +3065,7 @@ specify-all-reserved: no
 # Value: Word to be taken out of the reserved words list
 # (case independent)
 # Words that are in the (proposed) standard but may conflict
+not-reserved: TERMINAL
 
 # reserved:
 # Value: Word to make up reserved words list (case independent)
@@ -2791,7 +3093,7 @@ reserved:	TIMEOUT=TIME-OUT
 
 File: gnucobol.info,  Node: Appendix G,  Next: Appendix H,  Prev: Appendix F,  Up: Top
 
-Appendix G 'cobcrun --help'
+Appendix G `cobcrun --help'
 ***************************
 
 COBOL driver program for GnuCOBOL modules
@@ -2823,45 +3125,42 @@ File: gnucobol.info,  Node: Appendix H,  Next: Appendix I,  Prev: Appendix G,  U
 Appendix H Runtime configuration
 ********************************
 
-The following list was extracted from 'config/runtime.cfg'.
+The following list was extracted from `config/runtime.cfg'.
 
 H.1 General instructions
 ========================
 
-
-The initial runtime.cfg file is found in the '$COB_CONFIG_DIR/config ' (
-'COB_CONFIG_DIR defaults to installdir/gnu-cobol ). ' The environment
-variable 'COB_RUNTIME_CONFIG' may define a different runtime
+The initial runtime.cfg file is found in the `$COB_CONFIG_DIR/config' (
+`COB_CONFIG_DIR `defaults to  installdir/gnu-cobol' ).' The environment
+variable `COB_RUNTIME_CONFIG' may define a different runtime
 configuration file to read.
 If settings are included in the runtime environment file multiple times
 then the last setting value is used, no warning occurs.
 Settings via environment variables always take precedence over settings
-that are given in runtime configuration files.  And the environment is
+that are given in runtime configuration files. And the environment is
 checked after completing processing of the runtime configuration file(s)
-
 All values set to string variables or environment variables are checked
-for '${envvar}' and replacement is done at the time of the setting.
-Any environment variable may be set with the directive 'setenv' .
-Example: 'setenv COB_LIBARAY_PATH ${LD_LIBRARY_PATH} '
-Any environment variable may be unset with the directive 'unsetenv '
-(one var per line).  Example: 'unsetenv COB_LIBRARY_PATH '
+for `${envvar}' and replacement is done at the time of the setting.
+Any environment variable may be set with the directive `setenv' .
+Example: `setenv COB_LIBARAY_PATH ${LD_LIBRARY_PATH}'
+Any environment variable may be unset with the directive `unsetenv'
+(one var per line).  Example: `unsetenv COB_LIBRARY_PATH'
 Runtime configuration files can include other files with the directive
-include.  Example: 'include my-runtime-configuration-file '
+include.  Example: `include my-runtime-configuration-file'
 To include another configuration file only if it is present use the
-directive includeif.  You can also use '${envvar}' inside this.
-Example: 'includeif ${HOME}/mygc.cfg '
-If you want to reset a parameter to its default value use: 'reset
-parametername '
+directive includeif.  You can also use `${envvar}' inside this.
+Example: `includeif ${HOME}/mygc.cfg'
+If you want to reset a parameter to its default value use:   `reset
+parametername'
 Most runtime variables have boolean values, some are switches, some have
 string values, integer values and some are size values.  The boolean
-values will be evaluated as following:	to true:	'1, Y, ON, YES, TRUE'
-(no matter of case)	to false:	'0, N, OFF ' A 'size' value is an integer
+values will be evaluated as following: to true: '1, Y, ON, YES, TRUE'
+(no matter of case) to false: '0, N, OFF ' A 'size' value is an integer
 optionally followed by K, M, or G for kilo, mega or giga.
 For convenience a parameter in the runtime.cfg file may be defined by
 using either the environment variable name or the parameter name.  In
 most cases the environment variable name is the parameter name (in upper
-case) with the prefix 'COB_' .
-
+case) with the prefix `COB_' .
 
 
 
@@ -2906,8 +3205,6 @@ Environment name:  COB_ANIM
          Default:  false
          Example:  ANIM  TRUE
 
-
-
 H.3 Call environment
 ====================
 
@@ -2950,8 +3247,6 @@ Environment name:  COB_PHYSICAL_CANCEL
          Default:  false
          Example:  PHYSICAL_CANCEL  TRUE
 
-
-
 H.4 File I/O
 ============
 
@@ -2959,12 +3254,13 @@ H.4 File I/O
 
 Environment name:  COB_VARSEQ_FORMAT
   Parameter name:  varseq_format
-         Purpose:  declare format to be used for variable length sequential
-                   files (different types and lengths preceding each record)
-            Type:  0   means 2 byte record length (big-endian)
+         Purpose:  declare format used for variable length sequential files
+                   - different types and lengths precede each record
+                   - 'length' is the data length & does not include the prefix
+            Type:  0   means 2 byte record length (big-endian) + 2 NULs
                    1   means 4 byte record length (big-endian)
                    2   means 4 byte record length (local machine int)
-                   3   means 2 byte record length (local machine short)
+                   3   means 2 byte record length (big-endian)
          Default:  0
          Example:  VARSEQ_FORMAT 1
 
@@ -3015,8 +3311,6 @@ Environment name:  COB_SORT_CHUNK
             Type:  size  but must be within 128K and 16M
          Default:  256K
          Example:  SORT_CHUNK 1M
-
-
 
 H.5 Screen I/O
 ==============
@@ -3087,11 +3381,11 @@ Appendix I GNU Free Documentation License
 
                      Version 1.3, 3 November 2008
 
-     Copyright (C) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
-     <http://fsf.org/>
+Copyright (C) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
+`http://fsf.org/'
 
-     Everyone is permitted to copy and distribute verbatim copies
-     of this license document, but changing it is not allowed.
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
 
   0. PREAMBLE
 
@@ -3113,21 +3407,21 @@ Appendix I GNU Free Documentation License
      free program should come with manuals providing the same freedoms
      that the software does.  But this License is not limited to
      software manuals; it can be used for any textual work, regardless
-     of subject matter or whether it is published as a printed book.  We
-     recommend this License principally for works whose purpose is
+     of subject matter or whether it is published as a printed book.
+     We recommend this License principally for works whose purpose is
      instruction or reference.
 
   1. APPLICABILITY AND DEFINITIONS
 
      This License applies to any manual or other work, in any medium,
-     that contains a notice placed by the copyright holder saying it can
-     be distributed under the terms of this License.  Such a notice
+     that contains a notice placed by the copyright holder saying it
+     can be distributed under the terms of this License.  Such a notice
      grants a world-wide, royalty-free license, unlimited in duration,
      to use that work under the conditions stated herein.  The
      "Document", below, refers to any such manual or work.  Any member
-     of the public is a licensee, and is addressed as "you".  You accept
-     the license if you copy, modify or distribute the work in a way
-     requiring permission under copyright law.
+     of the public is a licensee, and is addressed as "you".  You
+     accept the license if you copy, modify or distribute the work in a
+     way requiring permission under copyright law.
 
      A "Modified Version" of the Document means any work containing the
      Document or a portion of it, either copied verbatim, or with
@@ -3145,12 +3439,12 @@ Appendix I GNU Free Documentation License
      regarding them.
 
      The "Invariant Sections" are certain Secondary Sections whose
-     titles are designated, as being those of Invariant Sections, in the
-     notice that says that the Document is released under this License.
-     If a section does not fit the above definition of Secondary then it
-     is not allowed to be designated as Invariant.  The Document may
-     contain zero Invariant Sections.  If the Document does not identify
-     any Invariant Sections then there are none.
+     titles are designated, as being those of Invariant Sections, in
+     the notice that says that the Document is released under this
+     License.  If a section does not fit the above definition of
+     Secondary then it is not allowed to be designated as Invariant.
+     The Document may contain zero Invariant Sections.  If the Document
+     does not identify any Invariant Sections then there are none.
 
      The "Cover Texts" are certain short passages of text that are
      listed, as Front-Cover Texts or Back-Cover Texts, in the notice
@@ -3161,27 +3455,27 @@ Appendix I GNU Free Documentation License
      A "Transparent" copy of the Document means a machine-readable copy,
      represented in a format whose specification is available to the
      general public, that is suitable for revising the document
-     straightforwardly with generic text editors or (for images composed
-     of pixels) generic paint programs or (for drawings) some widely
-     available drawing editor, and that is suitable for input to text
-     formatters or for automatic translation to a variety of formats
-     suitable for input to text formatters.  A copy made in an otherwise
-     Transparent file format whose markup, or absence of markup, has
-     been arranged to thwart or discourage subsequent modification by
-     readers is not Transparent.  An image format is not Transparent if
-     used for any substantial amount of text.  A copy that is not
-     "Transparent" is called "Opaque".
+     straightforwardly with generic text editors or (for images
+     composed of pixels) generic paint programs or (for drawings) some
+     widely available drawing editor, and that is suitable for input to
+     text formatters or for automatic translation to a variety of
+     formats suitable for input to text formatters.  A copy made in an
+     otherwise Transparent file format whose markup, or absence of
+     markup, has been arranged to thwart or discourage subsequent
+     modification by readers is not Transparent.  An image format is
+     not Transparent if used for any substantial amount of text.  A
+     copy that is not "Transparent" is called "Opaque".
 
      Examples of suitable formats for Transparent copies include plain
      ASCII without markup, Texinfo input format, LaTeX input format,
-     SGML or XML using a publicly available DTD, and standard-conforming
-     simple HTML, PostScript or PDF designed for human modification.
-     Examples of transparent image formats include PNG, XCF and JPG.
-     Opaque formats include proprietary formats that can be read and
-     edited only by proprietary word processors, SGML or XML for which
-     the DTD and/or processing tools are not generally available, and
-     the machine-generated HTML, PostScript or PDF produced by some word
-     processors for output purposes only.
+     SGML or XML using a publicly available DTD, and
+     standard-conforming simple HTML, PostScript or PDF designed for
+     human modification.  Examples of transparent image formats include
+     PNG, XCF and JPG.  Opaque formats include proprietary formats that
+     can be read and edited only by proprietary word processors, SGML or
+     XML for which the DTD and/or processing tools are not generally
+     available, and the machine-generated HTML, PostScript or PDF
+     produced by some word processors for output purposes only.
 
      The "Title Page" means, for a printed book, the title page itself,
      plus such following pages as are needed to hold, legibly, the
@@ -3219,8 +3513,8 @@ Appendix I GNU Free Documentation License
      may not use technical measures to obstruct or control the reading
      or further copying of the copies you make or distribute.  However,
      you may accept compensation in exchange for copies.  If you
-     distribute a large enough number of copies you must also follow the
-     conditions in section 3.
+     distribute a large enough number of copies you must also follow
+     the conditions in section 3.
 
      You may also lend copies, under the same conditions stated above,
      and you may publicly display copies.
@@ -3234,11 +3528,12 @@ Appendix I GNU Free Documentation License
      these Cover Texts: Front-Cover Texts on the front cover, and
      Back-Cover Texts on the back cover.  Both covers must also clearly
      and legibly identify you as the publisher of these copies.  The
-     front cover must present the full title with all words of the title
-     equally prominent and visible.  You may add other material on the
-     covers in addition.  Copying with changes limited to the covers, as
-     long as they preserve the title of the Document and satisfy these
-     conditions, can be treated as verbatim copying in other respects.
+     front cover must present the full title with all words of the
+     title equally prominent and visible.  You may add other material
+     on the covers in addition.  Copying with changes limited to the
+     covers, as long as they preserve the title of the Document and
+     satisfy these conditions, can be treated as verbatim copying in
+     other respects.
 
      If the required texts for either cover are too voluminous to fit
      legibly, you should put the first ones listed (as many as fit
@@ -3246,39 +3541,40 @@ Appendix I GNU Free Documentation License
      adjacent pages.
 
      If you publish or distribute Opaque copies of the Document
-     numbering more than 100, you must either include a machine-readable
-     Transparent copy along with each Opaque copy, or state in or with
-     each Opaque copy a computer-network location from which the general
-     network-using public has access to download using public-standard
-     network protocols a complete Transparent copy of the Document, free
-     of added material.  If you use the latter option, you must take
-     reasonably prudent steps, when you begin distribution of Opaque
-     copies in quantity, to ensure that this Transparent copy will
-     remain thus accessible at the stated location until at least one
-     year after the last time you distribute an Opaque copy (directly or
-     through your agents or retailers) of that edition to the public.
+     numbering more than 100, you must either include a
+     machine-readable Transparent copy along with each Opaque copy, or
+     state in or with each Opaque copy a computer-network location from
+     which the general network-using public has access to download
+     using public-standard network protocols a complete Transparent
+     copy of the Document, free of added material.  If you use the
+     latter option, you must take reasonably prudent steps, when you
+     begin distribution of Opaque copies in quantity, to ensure that
+     this Transparent copy will remain thus accessible at the stated
+     location until at least one year after the last time you
+     distribute an Opaque copy (directly or through your agents or
+     retailers) of that edition to the public.
 
      It is requested, but not required, that you contact the authors of
-     the Document well before redistributing any large number of copies,
-     to give them a chance to provide you with an updated version of the
-     Document.
+     the Document well before redistributing any large number of
+     copies, to give them a chance to provide you with an updated
+     version of the Document.
 
   4. MODIFICATIONS
 
      You may copy and distribute a Modified Version of the Document
      under the conditions of sections 2 and 3 above, provided that you
-     release the Modified Version under precisely this License, with the
-     Modified Version filling the role of the Document, thus licensing
-     distribution and modification of the Modified Version to whoever
-     possesses a copy of it.  In addition, you must do these things in
-     the Modified Version:
+     release the Modified Version under precisely this License, with
+     the Modified Version filling the role of the Document, thus
+     licensing distribution and modification of the Modified Version to
+     whoever possesses a copy of it.  In addition, you must do these
+     things in the Modified Version:
 
        A. Use in the Title Page (and on the covers, if any) a title
-          distinct from that of the Document, and from those of previous
-          versions (which should, if there were any, be listed in the
-          History section of the Document).  You may use the same title
-          as a previous version if the original publisher of that
-          version gives permission.
+          distinct from that of the Document, and from those of
+          previous versions (which should, if there were any, be listed
+          in the History section of the Document).  You may use the
+          same title as a previous version if the original publisher of
+          that version gives permission.
 
        B. List on the Title Page, as authors, one or more persons or
           entities responsible for authorship of the modifications in
@@ -3308,30 +3604,31 @@ Appendix I GNU Free Documentation License
 
        I. Preserve the section Entitled "History", Preserve its Title,
           and add to it an item stating at least the title, year, new
-          authors, and publisher of the Modified Version as given on the
-          Title Page.  If there is no section Entitled "History" in the
-          Document, create one stating the title, year, authors, and
-          publisher of the Document as given on its Title Page, then add
-          an item describing the Modified Version as stated in the
-          previous sentence.
+          authors, and publisher of the Modified Version as given on
+          the Title Page.  If there is no section Entitled "History" in
+          the Document, create one stating the title, year, authors,
+          and publisher of the Document as given on its Title Page,
+          then add an item describing the Modified Version as stated in
+          the previous sentence.
 
        J. Preserve the network location, if any, given in the Document
           for public access to a Transparent copy of the Document, and
           likewise the network locations given in the Document for
-          previous versions it was based on.  These may be placed in the
-          "History" section.  You may omit a network location for a work
-          that was published at least four years before the Document
-          itself, or if the original publisher of the version it refers
-          to gives permission.
+          previous versions it was based on.  These may be placed in
+          the "History" section.  You may omit a network location for a
+          work that was published at least four years before the
+          Document itself, or if the original publisher of the version
+          it refers to gives permission.
 
        K. For any section Entitled "Acknowledgements" or "Dedications",
-          Preserve the Title of the section, and preserve in the section
-          all the substance and tone of each of the contributor
+          Preserve the Title of the section, and preserve in the
+          section all the substance and tone of each of the contributor
           acknowledgements and/or dedications given therein.
 
-       L. Preserve all the Invariant Sections of the Document, unaltered
-          in their text and in their titles.  Section numbers or the
-          equivalent are not considered part of the section titles.
+       L. Preserve all the Invariant Sections of the Document,
+          unaltered in their text and in their titles.  Section numbers
+          or the equivalent are not considered part of the section
+          titles.
 
        M. Delete any section Entitled "Endorsements".  Such a section
           may not be included in the Modified Version.
@@ -3344,11 +3641,11 @@ Appendix I GNU Free Documentation License
 
      If the Modified Version includes new front-matter sections or
      appendices that qualify as Secondary Sections and contain no
-     material copied from the Document, you may at your option designate
-     some or all of these sections as invariant.  To do this, add their
-     titles to the list of Invariant Sections in the Modified Version's
-     license notice.  These titles must be distinct from any other
-     section titles.
+     material copied from the Document, you may at your option
+     designate some or all of these sections as invariant.  To do this,
+     add their titles to the list of Invariant Sections in the Modified
+     Version's license notice.  These titles must be distinct from any
+     other section titles.
 
      You may add a section Entitled "Endorsements", provided it contains
      nothing but endorsements of your Modified Version by various
@@ -3357,15 +3654,15 @@ Appendix I GNU Free Documentation License
      definition of a standard.
 
      You may add a passage of up to five words as a Front-Cover Text,
-     and a passage of up to 25 words as a Back-Cover Text, to the end of
-     the list of Cover Texts in the Modified Version.  Only one passage
-     of Front-Cover Text and one of Back-Cover Text may be added by (or
-     through arrangements made by) any one entity.  If the Document
-     already includes a cover text for the same cover, previously added
-     by you or by arrangement made by the same entity you are acting on
-     behalf of, you may not add another; but you may replace the old
-     one, on explicit permission from the previous publisher that added
-     the old one.
+     and a passage of up to 25 words as a Back-Cover Text, to the end
+     of the list of Cover Texts in the Modified Version.  Only one
+     passage of Front-Cover Text and one of Back-Cover Text may be
+     added by (or through arrangements made by) any one entity.  If the
+     Document already includes a cover text for the same cover,
+     previously added by you or by arrangement made by the same entity
+     you are acting on behalf of, you may not add another; but you may
+     replace the old one, on explicit permission from the previous
+     publisher that added the old one.
 
      The author(s) and publisher(s) of the Document do not by this
      License give permission to use their names for publicity for or to
@@ -3375,8 +3672,8 @@ Appendix I GNU Free Documentation License
 
      You may combine the Document with other documents released under
      this License, under the terms defined in section 4 above for
-     modified versions, provided that you include in the combination all
-     of the Invariant Sections of all of the original documents,
+     modified versions, provided that you include in the combination
+     all of the Invariant Sections of all of the original documents,
      unmodified, and list them all as Invariant Sections of your
      combined work in its license notice, and that you preserve all
      their Warranty Disclaimers.
@@ -3403,20 +3700,20 @@ Appendix I GNU Free Documentation License
      documents released under this License, and replace the individual
      copies of this License in the various documents with a single copy
      that is included in the collection, provided that you follow the
-     rules of this License for verbatim copying of each of the documents
-     in all other respects.
+     rules of this License for verbatim copying of each of the
+     documents in all other respects.
 
      You may extract a single document from such a collection, and
      distribute it individually under this License, provided you insert
-     a copy of this License into the extracted document, and follow this
-     License in all other respects regarding verbatim copying of that
-     document.
+     a copy of this License into the extracted document, and follow
+     this License in all other respects regarding verbatim copying of
+     that document.
 
   7. AGGREGATION WITH INDEPENDENT WORKS
 
      A compilation of the Document or its derivatives with other
-     separate and independent documents or works, in or on a volume of a
-     storage or distribution medium, is called an "aggregate" if the
+     separate and independent documents or works, in or on a volume of
+     a storage or distribution medium, is called an "aggregate" if the
      copyright resulting from the compilation is not used to limit the
      legal rights of the compilation's users beyond what the individual
      works permit.  When the Document is included in an aggregate, this
@@ -3461,8 +3758,8 @@ Appendix I GNU Free Documentation License
 
      However, if you cease all violation of this License, then your
      license from a particular copyright holder is reinstated (a)
-     provisionally, unless and until the copyright holder explicitly and
-     finally terminates your license, and (b) permanently, if the
+     provisionally, unless and until the copyright holder explicitly
+     and finally terminates your license, and (b) permanently, if the
      copyright holder fails to notify you of the violation by some
      reasonable means prior to 60 days after the cessation.
 
@@ -3474,33 +3771,33 @@ Appendix I GNU Free Documentation License
      after your receipt of the notice.
 
      Termination of your rights under this section does not terminate
-     the licenses of parties who have received copies or rights from you
-     under this License.  If your rights have been terminated and not
-     permanently reinstated, receipt of a copy of some or all of the
-     same material does not give you any rights to use it.
+     the licenses of parties who have received copies or rights from
+     you under this License.  If your rights have been terminated and
+     not permanently reinstated, receipt of a copy of some or all of
+     the same material does not give you any rights to use it.
 
-  10. FUTURE REVISIONS OF THIS LICENSE
+ 10. FUTURE REVISIONS OF THIS LICENSE
 
      The Free Software Foundation may publish new, revised versions of
      the GNU Free Documentation License from time to time.  Such new
      versions will be similar in spirit to the present version, but may
      differ in detail to address new problems or concerns.  See
-     <http://www.gnu.org/copyleft/>.
+     `http://www.gnu.org/copyleft/'.
 
      Each version of the License is given a distinguishing version
      number.  If the Document specifies that a particular numbered
      version of this License "or any later version" applies to it, you
      have the option of following the terms and conditions either of
      that specified version or of any later version that has been
-     published (not as a draft) by the Free Software Foundation.  If the
-     Document does not specify a version number of this License, you may
-     choose any version ever published (not as a draft) by the Free
-     Software Foundation.  If the Document specifies that a proxy can
-     decide which future versions of this License can be used, that
+     published (not as a draft) by the Free Software Foundation.  If
+     the Document does not specify a version number of this License,
+     you may choose any version ever published (not as a draft) by the
+     Free Software Foundation.  If the Document specifies that a proxy
+     can decide which future versions of this License can be used, that
      proxy's public statement of acceptance of a version permanently
      authorizes you to choose that version for the Document.
 
-  11. RELICENSING
+ 11. RELICENSING
 
      "Massive Multiauthor Collaboration Site" (or "MMC Site") means any
      World Wide Web server that publishes copyrightable works and also
@@ -3530,6 +3827,7 @@ Appendix I GNU Free Documentation License
      site under CC-BY-SA on the same site at any time before August 1,
      2009, provided the MMC is eligible for relicensing.
 
+
 ADDENDUM: How to use this License for your documents
 ====================================================
 
@@ -3537,29 +3835,29 @@ To use this License in a document you have written, include a copy of
 the License in the document and put the following copyright and license
 notices just after the title page:
 
-       Copyright (C)  YEAR  YOUR NAME.
-       Permission is granted to copy, distribute and/or modify this document
-       under the terms of the GNU Free Documentation License, Version 1.3
-       or any later version published by the Free Software Foundation;
-       with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
-       Texts.  A copy of the license is included in the section entitled ``GNU
-       Free Documentation License''.
+  Copyright (C)  YEAR  YOUR NAME.
+  Permission is granted to copy, distribute and/or modify this document
+  under the terms of the GNU Free Documentation License, Version 1.3
+  or any later version published by the Free Software Foundation;
+  with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
+  Texts.  A copy of the license is included in the section entitled ``GNU
+  Free Documentation License''.
 
    If you have Invariant Sections, Front-Cover Texts and Back-Cover
 Texts, replace the "with...Texts." line with this:
 
-         with the Invariant Sections being LIST THEIR TITLES, with
-         the Front-Cover Texts being LIST, and with the Back-Cover Texts
-         being LIST.
+    with the Invariant Sections being LIST THEIR TITLES, with
+    the Front-Cover Texts being LIST, and with the Back-Cover Texts
+    being LIST.
 
    If you have Invariant Sections without Cover Texts, or some other
 combination of the three, merge those two alternatives to suit the
 situation.
 
    If your document contains nontrivial examples of program code, we
-recommend releasing these examples in parallel under your choice of free
-software license, such as the GNU General Public License, to permit
-their use in free software.
+recommend releasing these examples in parallel under your choice of
+free software license, such as the GNU General Public License, to
+permit their use in free software.
 
 
 File: gnucobol.info,  Node: Index,  Prev: Appendix I,  Up: Top
@@ -3572,17 +3870,17 @@ Index
 
 * 'ACCEPT' special keys:                 ACCEPT special.       (line  6)
 * Arrow keys:                            ACCEPT special.       (line 13)
-* 'AUTO':                                Extended ACCEPT.      (line 21)
-* 'AUTO-SKIP':                           Extended ACCEPT.      (line 21)
+* 'AUTO':                                Extended ACCEPT.      (line 20)
+* 'AUTO-SKIP':                           Extended ACCEPT.      (line 20)
 * Backspace key:                         ACCEPT special.       (line 32)
-* 'BELL':                                Extended DISPLAY.     (line 22)
-* 'BLANK LINE':                          Extended DISPLAY.     (line 27)
-* 'BLANK SCREEN':                        Extended DISPLAY.     (line 27)
+* 'BELL':                                Extended DISPLAY.     (line 21)
+* 'BLANK LINE':                          Extended DISPLAY.     (line 26)
+* 'BLANK SCREEN':                        Extended DISPLAY.     (line 26)
 * Copying:                               Appendix I.           (line  6)
 * Delete keys:                           ACCEPT special.       (line 38)
 * End keys:                              ACCEPT special.       (line 47)
-* 'ERASE EOL':                           Extended DISPLAY.     (line 41)
-* 'ERASE EOS':                           Extended DISPLAY.     (line 41)
+* 'ERASE EOL':                           Extended DISPLAY.     (line 40)
+* 'ERASE EOS':                           Extended DISPLAY.     (line 40)
 * Extended 'ACCEPT' statement:           Extended ACCEPT.      (line  6)
 * Extended 'DISPLAY' statement:          Extended DISPLAY.     (line  6)
 * Extensions:                            Extensions.           (line  6)
@@ -3592,70 +3890,73 @@ Index
 * Insert key:                            ACCEPT special.       (line 61)
 * Invoking:                              Compile.              (line  6)
 * Non-standard extensions:               Extensions.           (line  6)
-* 'PROTECTED':                           Extended ACCEPT.      (line 39)
+* 'PROTECTED':                           Extended ACCEPT.      (line 38)
 * 'SELECT':                              SELECT.               (line  6)
 * 'SELECT ASSIGN TO':                    SELECT.               (line  6)
-* 'SIZE':                                Extended ACCEPT.      (line 44)
-* 'SIZE' <1>:                            Extended DISPLAY.     (line 54)
+* 'SIZE':                                Extended ACCEPT.      (line 43)
+* 'SIZE' <1>:                            Extended DISPLAY.     (line 53)
 * Tab keys:                              ACCEPT special.       (line 78)
 
 
 
 Tag Table:
 Node: Top1118
-Node: Getting started4019
-Node: Hello world!4197
-Node: Compile5649
-Node: Compiler options6007
-Node: Help options6717
-Ref: Help options-Footnote-18279
-Node: Build target8323
-Ref: Build target-Footnote-110842
-Node: Source format10895
-Ref: Source format-Footnote-111681
-Node: Warning options11755
-Node: Configuration options13209
-Node: Debug switches14140
-Node: Miscellaneous15240
-Node: Multiple sources16167
-Node: Static linking16807
-Node: Dynamic linking18298
-Ref: Dynamic linking-Footnote-119890
-Ref: Dynamic linking-Footnote-219951
-Node: Building library20012
-Node: Using library20395
-Node: C interface20966
-Node: Main C program21310
-Node: Static C to COBOL22226
-Node: Dynamic C to COBOL23723
-Node: Static COBOL to C25168
-Node: Dynamic COBOL to C26604
-Node: Customize27013
-Node: Customizing compiler27237
-Node: Customizing library27823
-Node: Optimize28581
-Node: Optimize options28884
-Node: Optimize call29421
-Node: Optimize binary29801
-Node: Debug30377
-Node: Debug options30536
-Node: Extensions30898
-Node: SELECT31335
-Node: Indexed31500
-Node: Extended ACCEPT31680
-Node: ACCEPT special33315
-Node: Extended DISPLAY35749
-Node: System routines38196
-Node: CBL_OC_GETOPT38466
-Node: Appendix A42639
-Node: Appendix B53063
-Node: Appendix C75646
-Node: Appendix D81250
-Node: Appendix E83186
-Node: Appendix F89326
-Node: Appendix G94981
-Node: Appendix H96280
-Node: Appendix I105921
-Node: Index131047
+Node: Getting started4194
+Node: Hello world!4372
+Node: Compile5824
+Node: Compiler options6182
+Node: Help options6940
+Ref: Help options-Footnote-18502
+Node: Build target8546
+Ref: Build target-Footnote-111065
+Node: Source format11118
+Ref: Source format-Footnote-111904
+Node: Warning options11978
+Node: Configuration options13432
+Node: Listing options14565
+Node: Debug switches18878
+Node: Miscellaneous19972
+Node: Multiple sources20821
+Node: Static linking21461
+Node: Dynamic linking22952
+Ref: Dynamic linking-Footnote-124544
+Ref: Dynamic linking-Footnote-224605
+Node: Building library24666
+Node: Using library25049
+Node: C interface25620
+Node: Main C program25964
+Node: Static C to COBOL26880
+Node: Dynamic C to COBOL28377
+Node: Static COBOL to C29822
+Node: Dynamic COBOL to C31258
+Node: Customize31667
+Node: Customizing compiler31891
+Node: Customizing library32477
+Node: Optimize33235
+Node: Optimize options33538
+Node: Optimize call34075
+Node: Optimize binary34455
+Node: Debug35031
+Node: Debug options35190
+Node: Extensions35552
+Node: SELECT35989
+Node: Indexed36154
+Node: Extended ACCEPT36334
+Node: ACCEPT special37968
+Node: Extended DISPLAY40402
+Node: System routines42848
+Node: CBL_OC_GETOPT43194
+Node: CBL_OC_HOSTED47366
+Node: CBL_OC_NANOSLEEP51868
+Node: Appendix A52374
+Node: Appendix B63341
+Node: Appendix C86125
+Node: Appendix D91729
+Node: Appendix E93665
+Node: Appendix F99805
+Node: Appendix G105837
+Node: Appendix H107136
+Node: Appendix I116650
+Node: Index141775
 
 End Tag Table

@@ -258,11 +258,11 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-# -fcobcflag must work
+# configuration flags must work
 AT_CHECK([$COMPILE_ONLY \
 -fcomment-paragraphs=ok prog.cob], [0], [], [])
 
-# fccobcflag must override all (no matter where it's used)
+# configuration flag on command line must override all (no matter where it's used)
 AT_CHECK([$COMPILE_ONLY \
 -fcomment-paragraphs=ok -conf=test.conf prog.cob], [0], [], [])
 AT_CHECK([$COMPILE_ONLY \
@@ -286,12 +286,10 @@ AT_DATA([prog.cob], [
 ])
 
 # conf entries must be clean
-AT_CHECK([$COMPILE_ONLY \
--fcomment-paragraphsok prog.cob 2>/dev/null], [1], [], [])
-AT_CHECK([$COMPILE_ONLY \
--fcomment-paragraphsok prog.cob 2>&1 | sed -e 's/.*\(cobc: \)/\1/g'], [0],
+AT_CHECK([$COMPILE_ONLY -q \
+-fcomment-paragraphsok prog.cob], [1], [],
 [cobc: unrecognized option '-fcomment-paragraphsok'
-], [])
+])
 AT_CHECK([$COMPILE_ONLY \
 -fassign-clause=cobol2002 prog.cob], [1], [],
 [configuration error:
@@ -382,58 +380,64 @@ name: "Sample Conf"
 AT_CHECK([$COMPILE_ONLY -conf=test.conf prog.cob], [1], [],
 [configuration error:
 test.conf: missing definitions:
-	No definition of 'tab-width'
-	No definition of 'text-column'
-	No definition of 'word-length'
-	No definition of 'literal-length'
-	No definition of 'numeric-literal-length'
-	No definition of 'assign-clause'
-	No definition of 'binary-size'
-	No definition of 'binary-byteorder'
-	No definition of 'standard-define'
-	No definition of 'filename-mapping'
-	No definition of 'pretty-display'
-	No definition of 'binary-truncate'
-	No definition of 'complex-odo'
-	No definition of 'indirect-redefines'
-	No definition of 'larger-redefines-ok'
-	No definition of 'relax-syntax-checks'
-	No definition of 'perform-osvs'
-	No definition of 'sticky-linkage'
-	No definition of 'relax-level-hierarchy'
-	No definition of 'hostsign'
-	No definition of 'accept-update'
-	No definition of 'accept-auto'
-	No definition of 'console-is-crt'
-	No definition of 'program-name-redefinition'
-	No definition of 'specify-all-reserved'
-	No definition of 'comment-paragraphs'
-	No definition of 'memory-size-clause'
-	No definition of 'multiple-file-tape-clause'
-	No definition of 'label-records-clause'
-	No definition of 'value-of-clause'
-	No definition of 'data-records-clause'
-	No definition of 'top-level-occurs-clause'
-	No definition of 'synchronized-clause'
-	No definition of 'goto-statement-without-name'
-	No definition of 'stop-literal-statement'
-	No definition of 'debugging-line'
-	No definition of 'padding-character-clause'
-	No definition of 'next-sentence-phrase'
-	No definition of 'eject-statement'
-	No definition of 'entry-statement'
-	No definition of 'move-noninteger-to-alphanumeric'
-	No definition of 'odo-without-to'
-	No definition of 'section-segments'
-	No definition of 'alter-statement'
-	No definition of 'call-overflow'
-	No definition of 'numeric-boolean'
-	No definition of 'acucobol-literals'
-	No definition of 'word-continuation'
-	No definition of 'not-exception-before-exception'
-	No definition of 'accept-display-extensions'
-	No definition of 'renames-uncommon-levels'
-	No definition of 'program-prototypes'
+	no definition of 'tab-width'
+	no definition of 'text-column'
+	no definition of 'pic-length'
+	no definition of 'word-length'
+	no definition of 'literal-length'
+	no definition of 'numeric-literal-length'
+	no definition of 'assign-clause'
+	no definition of 'binary-size'
+	no definition of 'binary-byteorder'
+	no definition of 'standard-define'
+	no definition of 'filename-mapping'
+	no definition of 'pretty-display'
+	no definition of 'binary-truncate'
+	no definition of 'complex-odo'
+	no definition of 'indirect-redefines'
+	no definition of 'larger-redefines-ok'
+	no definition of 'relax-syntax-checks'
+	no definition of 'perform-osvs'
+	no definition of 'sticky-linkage'
+	no definition of 'relax-level-hierarchy'
+	no definition of 'hostsign'
+	no definition of 'accept-update'
+	no definition of 'accept-auto'
+	no definition of 'console-is-crt'
+	no definition of 'program-name-redefinition'
+	no definition of 'no-echo-means-secure'
+	no definition of 'specify-all-reserved'
+	no definition of 'comment-paragraphs'
+	no definition of 'memory-size-clause'
+	no definition of 'multiple-file-tape-clause'
+	no definition of 'label-records-clause'
+	no definition of 'value-of-clause'
+	no definition of 'data-records-clause'
+	no definition of 'top-level-occurs-clause'
+	no definition of 'synchronized-clause'
+	no definition of 'goto-statement-without-name'
+	no definition of 'stop-literal-statement'
+	no definition of 'debugging-line'
+	no definition of 'padding-character-clause'
+	no definition of 'next-sentence-phrase'
+	no definition of 'eject-statement'
+	no definition of 'entry-statement'
+	no definition of 'move-noninteger-to-alphanumeric'
+	no definition of 'odo-without-to'
+	no definition of 'section-segments'
+	no definition of 'alter-statement'
+	no definition of 'call-overflow'
+	no definition of 'numeric-boolean'
+	no definition of 'hexadecimal-boolean'
+	no definition of 'national-literals'
+	no definition of 'hexadecimal-national-literals'
+	no definition of 'acucobol-literals'
+	no definition of 'word-continuation'
+	no definition of 'not-exception-before-exception'
+	no definition of 'accept-display-extensions'
+	no definition of 'renames-uncommon-levels'
+	no definition of 'program-prototypes'
+	no definition of 'reference-out-of-declaratives'
 ])
 
 AT_CLEANUP
@@ -538,6 +542,11 @@ AT_CLEANUP
 AT_SETUP([runtime configuration: entries])
 AT_KEYWORDS([configuration misc])
 
+AT_CHECK([echo "$PATHSEP"], [0], [;
+], [],
+
+# Previous test "failed" --> PATHSEP isn't ;
+
 AT_DATA([defunc.cfg], [
 novar
 physical_cancel notwithme
@@ -569,6 +578,44 @@ defunc.cfg: 9: WARNING - 'sort_chunk' without a value - ignored!
 defunc.cfg: 10: invalid value '/tmp:/temp' for configuration tag 'trace_file';
 	should not contain ':'
 ])
+
+,
+
+# Previous test "passed" --> PATHSEP is ;
+
+AT_DATA([defunc.cfg], [
+novar
+physical_cancel notwithme
+load_case  insensitive
+varseq_format big 
+sort_chunk 4K
+sort_memory 4G # too big by some byte
+setenv nothing
+sort_chunk
+trace_file C:\tmp;C:\temp
+])
+
+# conf entries must be clean
+AT_CHECK([$COBCRUN -c defunc.cfg --runtime-conf], [1], [],
+[configuration error:
+defunc.cfg: 2: unknown configuration tag 'novar'
+defunc.cfg: 3: invalid value 'notwithme' for configuration tag 'physical_cancel';
+	should be one of the following values: true, false
+defunc.cfg: 4: invalid value 'insensitive' for configuration tag 'load_case';
+	should be one of the following values: LOWER(1), UPPER(2), not set(0)
+defunc.cfg: 5: invalid value 'big' for configuration tag 'varseq_format';
+	should be one of the following values: 0, 1, 2, 3
+defunc.cfg: 6: invalid value '4K' for configuration tag 'sort_chunk';
+	minimum value: 131072
+defunc.cfg: 7: invalid value '4G' for configuration tag 'sort_memory';
+	maximum value: 4294967294
+defunc.cfg: 8: WARNING - 'setenv nothing' without a value - ignored!
+defunc.cfg: 9: WARNING - 'sort_chunk' without a value - ignored!
+defunc.cfg: 10: invalid value 'C:\tmp;C:\temp' for configuration tag 'trace_file';
+	should not contain ';'
+])
+
+)
 
 AT_CLEANUP
 
@@ -614,6 +661,7 @@ AT_CHECK([$COBCRUN -c defunc.cfg --runtime-conf], [0], ignore, [])
 
 AT_CLEANUP
 
+
 AT_SETUP([COB_CONFIG_DIR test])
 AT_KEYWORDS([environment variable])
 
@@ -624,10 +672,27 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([export COB_CONFIG_DIR=/temp:/tmp; \
+AT_CHECK([echo "$PATHSEP"], [0], [;
+], [],
+
+# Previous test "failed" --> PATHSEP isn't ;
+
+AT_CHECK([export COB_CONFIG_DIR="/temp:/tmp"; \
 $COMPILE prog.cob], [99], [],
 [cobc: environment variable 'COB_CONFIG_DIR' is '/temp:/tmp'; should not contain ':'
 cobc: aborting
 ])
+
+,
+
+# Previous test "passed" --> PATHSEP is ;
+
+AT_CHECK([export COB_CONFIG_DIR="C:\temp;C:\tmp"; \
+$COMPILE prog.cob], [99], [],
+[cobc: environment variable 'COB_CONFIG_DIR' is 'C:\temp;C:\tmp'; should not contain ';'
+cobc: aborting
+])
+
+)
 
 AT_CLEANUP

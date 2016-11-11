@@ -1484,7 +1484,10 @@ numval (cob_field *srcfield, cob_field *currency, const enum numval_type type)
 		}
 
 		if (currency_data) {
-			if (!in_last_n_chars (srcfield, currency->size, i)
+			/* FIXME: only do so if i has a reasonable size [or at least is < INT_MAX]
+			          otherwise an overflow may occur
+			*/
+			if (!(in_last_n_chars (srcfield, currency->size, i))
 			    && !memcmp (&srcfield->data[i], currency_data,
 					currency->size)) {
 				i += (currency->size - 1);
@@ -2003,6 +2006,7 @@ valid_day_and_format (const int day, const char *format)
 	return valid_integer_date (day) && cob_valid_date_format (format);
 }
 
+/* FIXME: unlikely but may return a size_t, leading to a possible overflow */
 static int
 num_leading_nonspace (const char *str)
 {
@@ -6153,9 +6157,7 @@ cob_intr_formatted_time (const int offset, const int length,
 
  invalid_args:
 	cob_set_exception (COB_EC_ARGUMENT_FUNCTION);
-	if (format_str != NULL) {
-		memset (curr_field->data, ' ', strlen (format_str));
-	}
+	memset (curr_field->data, ' ', strlen (format_str));
 
  end_of_func:
 	if (unlikely (offset > 0)) {
@@ -6257,9 +6259,7 @@ cob_intr_formatted_datetime (const int offset, const int length,
 
  invalid_args:
 	cob_set_exception (COB_EC_ARGUMENT_FUNCTION);
-	if (fmt_str != NULL) {
-		memset (curr_field->data, ' ', strlen (fmt_str));
-	}
+	memset (curr_field->data, ' ', strlen (fmt_str));
 
  end_of_func:
 	if (unlikely (offset > 0)) {
