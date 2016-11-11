@@ -1,5 +1,5 @@
       * breakpoints.cpy
-      * alle explizit zu Breakpoints gehörenden Codeteile
+      * all code parts that explicit belong to breakpoints
 
       ***************************************************************
       *** ----------------- read in breakpoints from list file
@@ -16,33 +16,27 @@
 
             open input bp-file.
             if bp-file-status not = 0
-                close bp-file
                 open output bp-file
                 close bp-file
             else
                 read bp-file end-read
                 perform varying bp-line-counter
-                     from 1 by 1 until bp-line-counter = 1000
+                     from 1 by 1 until bp-line-counter = MAX-BREAKPOINTS
                      or bp-file-status not = 0
 
-                    move 1 to tmp-line-position
                     unstring bp-line delimited by ';'
                         into tmp-bp-src-name
-      *                  into bp-src-name(bp-line-counter)
-                        with pointer tmp-line-position
-                    end-unstring
-                    unstring bp-line delimited by ';'
-                        into tmp-bp-src-line
-      *                  into bp-src-line(bp-line-counter)
-                        with pointer tmp-line-position
+                             tmp-bp-src-line
                     end-unstring
 
                     if tmp-bp-src-name not = spaces
                         add 1 to bp-amount end-add
                         move tmp-bp-src-name
                             to bp-src-name(bp-amount)
-                        move tmp-bp-src-line
+                        move function NUMVAL (tmp-bp-src-line)
                             to bp-src-line(bp-amount)
+                    else
+                        subtract 1 from bp-line-counter end-subtract
                     end-if
 
                     read bp-file end-read

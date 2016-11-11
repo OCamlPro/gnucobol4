@@ -1,15 +1,25 @@
       * view-variable.cpy
-      * Codebestandteile, die explizit für die Variablenanzeige (und Manipulation) bestimmt sind
+      * all code parts that explicit belong to view and manipulation
+      * of COBOL fields
 
       ***************************************************************
         view-variable section.
-            move 3 to tmp-unstring-ptr.
-            move spaces to tmp-unstring-buffer.
-            unstring tmp-command-input-buffer delimited by space
-                into tmp-unstring-buffer
-                with pointer tmp-unstring-ptr
-            end-unstring
+            if tmp-command-input-buffer (2:1) = space
+               unstring tmp-command-input-buffer delimited by space
+                   into dummy tmp-unstring-buffer
+               end-unstring
+            else
+               move 2 to tmp-unstring-ptr
+               unstring tmp-command-input-buffer delimited by space
+                   into tmp-unstring-buffer
+                   with pointer tmp-unstring-ptr
+               end-unstring
+            end-if
+            if tmp-unstring-buffer (1:1) = space
+               exit section
+            end-if
 
+      *>    CHECKME: does it work to replace the first space, too?
             move low-value to tmp-unstring-buffer(30:1).
       *>> IF ENABLE-LOGGING DEFINED
       *      if cob-ENABLE-LOGGING = 'Y'

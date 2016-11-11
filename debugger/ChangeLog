@@ -1,4 +1,11 @@
 
+2016-11-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testprog2.cob: added occurs / lvl88 to the sample
+	* breakpoints.cpy, gc-debugger.cob: multiple fixes
+	* view-variable.cpy: early exit if no parameter given;
+	  delimit varname by spaces (fixme [table, refmod])
+
 2016-11-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* Makefile.am: fixed to include copies as dependencies for gc-debugger.cob

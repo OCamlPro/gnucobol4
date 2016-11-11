@@ -33,8 +33,10 @@
       ***************************************************************
       ** Constants                                                 **
       ***************************************************************
-            78 MAX-ROWS value 19.
-            78 MAX-ROW-LENGTH value 84.
+            78 MAX-ROWS             value 19.
+            78 MAX-ROW-LENGTH       value 84.
+
+            78 MAX-BREAKPOINTS      value 250.
 
             77 GETLINE              pic x(128) value "get_aniline".
             77 GETLINECOUNT         pic x(128) value "get_linecount".
@@ -66,6 +68,8 @@
             01 step-over-module             pic x(30).
             01 f6-hit                       pic 9.
 
+            77 dummy                        pic x.
+
        >> IF ENABLE-LOGGING DEFINED
             77 cob-anim-logging             pic x(1).
             77 cob-logging-module           pic x(30).
@@ -87,7 +91,7 @@
             77 lines-set                pic 9(02) value 20.
             01 codelines-data.
                 04 codeline occurs 5 to 50 depending on lines-set.
-                    05 linenumber       pic 9(5).
+                    05 linenumber       pic 9(5) value zero.
                     05 sourceline       pic x(77).
 
        >> IF ENABLE-LOGGING DEFINED
@@ -183,9 +187,9 @@
             01  bp-line-counter                   pic 9(4).
             01  bp-amount                         pic 9(4) value 1000.
 
-      * breakpoint table with max. 1000 breakpoints
+      * breakpoint table with max. MAX-BREAKPOINTS breakpoints
             01 breakpoint-lst.
-                05  bp-line-struct occurs 0 TO 1000
+                05  bp-line-struct occurs 0 TO MAX-BREAKPOINTS
                               depending on bp-amount,
                               ascending key bp-src-name,
                                             bp-src-line,
@@ -200,7 +204,7 @@
             77 wp-count                             pic 9(02) value 0.
             78 wp-max                               value 10.
             01 watchpoint-lst.
-                05 watchpoint-struct occurs 0  to wp-max 
+                05 watchpoint-struct occurs 0  to wp-max
                                      depending on wp-count.
                     10 wp-var-name                  pic x(50).
                     10 wp-module                    pic x(30).
@@ -388,7 +392,7 @@
             move return-code to module-line-count.
 
       *      call "C$SLEEP" using 20 end-call
-            move spaces to codelines-data.
+            initialize  codelines-data.
 
             move spaces to headline.
             string "GnuCOBOL 2.0 Debugger  --  "
@@ -443,8 +447,12 @@
             move COB-CRT-STATUS to inp-crt-status.
 
             evaluate inp-crt-status
-                when 1001 perform goback-from-vv
-                when 2005 perform quit-debugger
+                when 2005
+                     perform quit-debugger
+      *         when 0
+      *         when 1001
+                when other
+                     perform goback-from-vv
             end-evaluate
 
             continue.
@@ -726,7 +734,7 @@
                 col tmp-line-position end-accept
 
                 if function
-                    upper-case(tmp-command-input-buffer(1:1)) 
+                    upper-case(tmp-command-input-buffer(1:1))
                     = 'J' or 'Y'
 
                     perform flush-breakpoints
