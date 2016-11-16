@@ -367,6 +367,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\libcob\debugger.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\libcob\fileio.c"
 				>
 			</File>
@@ -392,6 +396,10 @@
 			</File>
 			<File
 				RelativePath="..\..\libcob\termio.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\libcob\utils.c"
 				>
 			</File>
 		</Filter>
