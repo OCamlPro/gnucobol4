@@ -1807,9 +1807,13 @@ output_local_field_cache (void)
 {
 	struct field_list	*field;
 
+#if 0 /* BROKEN-ANIM */
+	/* variables for broken anim source, see below */
 	/* Animator/Debugger variables */
 	int parent_base_id;
+	int fo;
 	struct cb_field* redefined_parent = NULL;
+#endif
 
 	if (!local_field_cache) {
 		return;
@@ -1825,6 +1829,19 @@ output_local_field_cache (void)
 		output ("static cob_field %s%d\t= ", CB_PREFIX_FIELD,
 			field->f->id);
 
+#if 1 /* BROKEN-ANIM */
+		if (!field->f->flag_local) {
+			output_field (field->x);
+		} else {
+			output ("{");
+			output_size (field->x);
+			output (", NULL, ");
+			output_attr (field->x);
+			output ("}");
+		}
+#else  /* WARNING: animator changes had the following in which is broken
+		  (generate EXEC85.cob -C and check results when adding it!)
+		*/
 		if (!field->f->flag_local && field->f->flag_base) {
 			//if(CB_TREE_TAG(field->x) != CB_TAG_LITERAL && has_depending_size(field->f, 1)) {
 			if (field->f->storage == CB_STORAGE_LINKAGE) {
@@ -1838,35 +1855,46 @@ output_local_field_cache (void)
 				output_field (field->x);
 		} else {
 			output ("{");
-			//output_size (field->x);
 			output ("%d", field->f->size);
 
 			redefined_parent = has_redefined_parent (field->f);
-			if ((parent_base_id = has_parent_with_base_field (field->f)) != 0 && !field->f->flag_external && field->f->storage != CB_STORAGE_LINKAGE && !field->f->redefines && !redefined_parent) {
+			if ((parent_base_id = has_parent_with_base_field (field->f)) != 0 && 
+				!field->f->flag_external && field->f->storage != CB_STORAGE_LINKAGE &&
+				!field->f->redefines && !redefined_parent) {
 				output (", %s%d", CB_PREFIX_BASE, parent_base_id);
-				output (" + %d", calculate_field_offset (field->f));
-			} else if ((field->f->redefines || redefined_parent) && !field->f->flag_external && field->f->storage != CB_STORAGE_LINKAGE) {
-				if (!redefined_parent) redefined_parent = field->f;
-				if (!redefined_parent->redefines->flag_base || !get_field_list_from_local_base_cache (redefined_parent->redefines)) {
+				fo = calculate_field_offset (field->f);
+				if (fo) output (" + %d", fo);
+			} else if ((field->f->redefines || redefined_parent) && 
+						!field->f->flag_external && field->f->storage != CB_STORAGE_LINKAGE) {
+				if (!redefined_parent) {
+					redefined_parent = field->f;
+				}
+				if (!redefined_parent->redefines->flag_base || 
+					!get_field_list_from_local_base_cache (redefined_parent->redefines)) {
 					if ((parent_base_id = has_parent_with_base_field (redefined_parent->redefines)) != 0) {
 						output (", %s%d", CB_PREFIX_BASE, parent_base_id);
-						output (" + %d + %d", calculate_field_offset (redefined_parent->redefines), calculate_redefined_field_offset (field->f, redefined_parent));
+						fo = calculate_field_offset (redefined_parent->redefines);
+						if (fo) output (" + %d", fo);
+						fo = calculate_redefined_field_offset (field->f, redefined_parent);
+						if (fo) output (" + %d", fo);
 					} else {
 						output (", NULL");
 					}
 				} else {
 					output (", %s%d", CB_PREFIX_BASE, redefined_parent->redefines->id);
-					output (" + %d", calculate_redefined_field_offset (field->f, redefined_parent));
+					fo = calculate_redefined_field_offset (field->f, redefined_parent);
+					if (fo) output (" + %d", fo);
 				}
-
 				redefined_parent = NULL;
-			} else
+			} else {
 				output (", NULL");
+			}
 
 			output (", ");
 			output_attr (field->x);
 			output ("}");
 		}
+#endif
 
 		if (field->f->flag_filler) {
 			output (";\t/* Implicit FILLER */\n");
@@ -3164,7 +3192,9 @@ output_param (cb_tree x, int id)
 			output_attr (x);
 			output (")");
 
+#if 0 /* BROKEN-ANIM */
 			cache_local_field (f, x);
+#endif
 			//if (f->children) {
 			//	for(f2 = f->children; f2; f2 = f2->children) cache_local_field(f2, NULL);
 			//}
