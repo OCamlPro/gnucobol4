@@ -1097,6 +1097,38 @@ cb_build_registers (void)
 
 }
 
+/* check program-id literal and trim, if necessary */
+void
+cb_trim_program_id (cb_tree id_literal)
+{
+	char	*s;
+	int		len;
+
+	s = (char *)(CB_LITERAL (id_literal)->data);
+	if (!strchr(s, ' ')) {
+		return;
+	}
+	
+	len = strlen(s);
+	if (*s == ' ') {
+		/* same warning as in libcob/common.c */
+		cb_warning_x (id_literal,
+			_("'%s' literal includes leading spaces which are omitted"), s);
+	}
+	if (s[len-1] == ' ') {
+		cb_warning_x (id_literal,
+			_("'%s' literal includes trailing spaces which are omitted"), s);
+	}
+	while (*s == ' ') {
+		memmove(s, s+1, len--);
+	}
+	while (s[len-1] == ' ' && len > 0) {
+		len--;
+	}
+	s[len] = 0;
+	CB_LITERAL (id_literal)->size = len;
+}
+
 char *
 cb_encode_program_id (const char *name)
 {
@@ -7957,6 +7989,8 @@ cb_emit_read (cb_tree ref, cb_tree next, cb_tree into,
 		read_opts = COB_READ_IGNORE_LOCK;
 	} else if (lock_opts == cb_int4) {
 		read_opts = COB_READ_WAIT_LOCK;
+	} else if (lock_opts == cb_int5) {
+		read_opts = COB_READ_LOCK | COB_READ_KEPT_LOCK;
 	}
 	if (ref == cb_error_node) {
 		return;

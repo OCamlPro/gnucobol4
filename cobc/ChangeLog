@@ -1,4 +1,32 @@
 
+2016-11-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c (output_call_cache): fix bug #341 added generation of macro
+	  check in C function declarations for static CALLs
+
+2016-11-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c (cb_trim_program_id): change warning message for remove of
+	  spaces in program-id to be more specific and don't warn embedded spaces
+
+2016-11-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, typeck.c (cb_trim_program_id), tree.h: added code to warn
+	  if SPACES are used in a PROGRAM-ID or CALL 'literal' plus the SPACES
+	  are removed
+
+2016-11-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: fixed extended_with_lock by differentiating between WITH
+	  LOCK / NO LOCK / KEPT LOCK
+	* typeck.c (cb_emit_read): set read_opts COB_READ_LOCK and 
+	  COB_READ_KEPT_LOCK for I/O statements with KEPT LOCK
+
+2016-11-11  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c, cobc.h: Multiple changes to support 5 digit variable size and
+	  cross reference changes.
+
 2016-11-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* tree.h: added cb_field->validation (First level 88 field, if any)
@@ -11,6 +39,11 @@
 
 	* cobc.c, cobc.h, parser.y, tree.h, typeck.c: Added internal cross
 	  reference support.
+
+2016-11-07  Jim Rinn <jimrinn1@gmail.com>
+
+	* parser.y (lock_mode): OR-ing SELECT settings into file->lock_mode as they
+	  would override COB_LOCK_MULTIPLE (set in _lock_with) otherwise
 
 2016-11-07  Dave Pitts <dpitts@cozx.com>
 
@@ -60,14 +93,14 @@
 
 	* cobc.c (cobc_terminate): Added calls to print header/trailer.
 
-2015-10-31  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2016-10-31  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* parser.y: renamed COB_MAX_FIELD_PARAMS to MAX_CALL_FIELD_PARAMS
 	* parser.y: bug #110 fix LENGTH OF not working in some places
 	* codegen.c: bug #314 (output_search_all): SEARCH ALL with ODO zero
 	  didnot exit early
 
-2015-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2016-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.c: added cb_unix_lf to enable possible output of generated files
 	  with unix lf (especially for listing files and testsuite)
@@ -88,13 +121,13 @@
 	* cobc.c (print_fields): Added picture_len argument set to width of
 	  listing.
 
-2015-10-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2016-10-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.c (process_run): use COB_EXEEXT for systems that need it
 	* parser.y: added "local_" prefix for function parameters that used
 	  identical names as static vars
 
-2015-10-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2016-10-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* typeck.c: fixed checks of overlapping MOVE and don't raise warnings for
 	  items in occurs as the check for this was borked
@@ -104,7 +137,7 @@
 2016-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.c. cobc.h: moved multiple #undef of internal used macros to cobc.h
-	* config.def: added reference-out-of-declaratives config option
+	* config.def: feature-request #173 added reference-out-of-declaratives
 	* typeck.c (cb_validate_program_body): use cb_reference_out_of_declaratives
 	* cobc.c (process_command_line): make sure cb_reference_out_of_declaratives
 	  is not stricter than CB_WARNING when cb_relaxed_syntax_checks is active

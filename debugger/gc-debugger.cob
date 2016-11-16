@@ -459,14 +459,33 @@
 
       ***************************************************************
         process-input-buffer section.
-            call "C$TOUPPER" using tmp-command-input-buffer
-            by value 1 end-call
-
             evaluate tmp-command-input-buffer(1:1)
-                when 'B' perform set-unset-breakpoint
-                when 'G' perform goto-line
-                when 'V' perform view-variable
-                when 'W' perform watchpoint-action
+                when 's'
+                when 'S'
+                   if tmp-command-input-buffer(2:1) = 'o' or 'O'
+                      perform do-step-over
+                   else
+                      perform do-single-step
+                   end-if
+                when 'b'
+                when 'B'
+                   perform set-unset-breakpoint
+                when 'g'
+                when 'G'
+                   perform goto-line
+                when 'v'
+                when 'V'
+                   perform view-variable
+                when 'w'
+                when 'W'
+                   perform watchpoint-action
+                when 'f'
+                when 'F'
+                   if tmp-command-input-buffer(2:1) = 'a' or 'A'
+                      perform fulltext-search-continue
+                   else
+                      perform fulltext-search
+                   end-if
             end-evaluate
 
             move spaces to tmp-command-input-buffer.

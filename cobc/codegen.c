@@ -238,12 +238,12 @@ static void output_line (const char *, ...)	COB_A_FORMAT12;
 static void output_storage (const char *, ...)	COB_A_FORMAT12;
 static void output_local (const char *, ...)	COB_A_FORMAT12;
 
-static void output_stmt (cb_tree);
-static void output_integer (cb_tree);
-static void output_index (cb_tree);
-static void output_func_1 (const char *, cb_tree);
-static void output_param (cb_tree, int);
-static void output_funcall (cb_tree);
+static void output_stmt		(cb_tree);
+static void output_integer	(cb_tree);
+static void output_index	(cb_tree);
+static void output_func_1	(const char *, cb_tree);
+static void output_param	(cb_tree, int);
+static void output_funcall	(cb_tree);
 
 /* Local functions */
 
@@ -1535,6 +1535,7 @@ output_call_cache (void)
 			} else {
 				convention_modifier = "";
 			}
+			output_local ("#ifndef %s\n", static_call->call_name);
 			if (static_call->return_type == COB_RETURN_NULL) {
 				output_local ("extern void %s%s ();\n", convention_modifier,
 					static_call->call_name);
@@ -1545,6 +1546,7 @@ output_call_cache (void)
 				output_local ("extern int %s%s ();\n", convention_modifier,
 					static_call->call_name);
 			}
+			output_local ("#endif\n");
 		}
 	}
 	needs_unifunc = 0;

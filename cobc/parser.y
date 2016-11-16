@@ -2410,11 +2410,17 @@ program_id_name:
 	$$ = $1;
   }
 | LITERAL
+  {
+	cb_trim_program_id ($1);
+  }
 ;
 
 end_program_name:
   PROGRAM_NAME
 | LITERAL
+  {
+	cb_trim_program_id ($1);
+  }
 ;
 
 _as_literal:
@@ -3654,17 +3660,17 @@ lock_mode_clause:
 lock_mode:
   MANUAL _lock_with
   {
-	current_file->lock_mode = COB_LOCK_MANUAL;
+	current_file->lock_mode |= COB_LOCK_MANUAL;
 	cobc_cs_check = 0;
   }
 | AUTOMATIC _lock_with
   {
-	current_file->lock_mode = COB_LOCK_AUTOMATIC;
+	current_file->lock_mode |= COB_LOCK_AUTOMATIC;
 	cobc_cs_check = 0;
   }
 | EXCLUSIVE
   {
-	current_file->lock_mode = COB_LOCK_EXCLUSIVE;
+	current_file->lock_mode |= COB_LOCK_EXCLUSIVE;
 	cobc_cs_check = 0;
   }
 ;
@@ -7338,6 +7344,11 @@ mnemonic_conv:
 
 id_or_lit_or_func_or_program_name:
   id_or_lit_or_func
+  {
+	if (CB_LITERAL_P ($1)) {
+		cb_trim_program_id ($1);
+	}
+  }
 | PROGRAM_NAME
   {
 	cb_verify (cb_program_prototypes, _("CALL/CANCEL with program-prototype-name"));
@@ -9236,9 +9247,12 @@ _extended_with_lock:
 
 extended_with_lock:
   with_lock
+  {
+	$$ = $1;
+  }
 | _with KEPT LOCK
   {
-	$$ = cb_int1;
+   $$ = cb_int5;
   }
 | _with WAIT
   {
