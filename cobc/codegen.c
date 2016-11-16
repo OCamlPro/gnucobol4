@@ -8190,7 +8190,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 #endif
 
 	/* Dangling linkage section items */
-	output_local ("\n/* LINKAGE SECTION items */\n");
+	seen = 0;
 	for (f = prog->linkage_storage; f; f = f->sister) {
 		if (f->redefines) {
 			continue;
@@ -8201,6 +8201,10 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 			}
 		}
 		if (l == NULL) {
+			if (!seen) {
+				seen = 1;
+				output_local ("\n/* LINKAGE SECTION (Items not referenced by USING clause) */\n");
+			}
 			if (!f->flag_is_returning) {
 				output_local ("static ");
 			}
@@ -8213,8 +8217,9 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 #endif
 		}
 	}
-	output_local ("\n");
-
+	if (seen) {
+		output_local ("\n");
+	}
 
 	/* Screens */
 	if (prog->screen_storage) {
@@ -8269,7 +8274,9 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	/* Program local variables */
 	output_line ("/* Program local variables */");
 	output_line ("#include \"%s\"", prog->local_include->local_name);
-	output_line ("static int cob_anim_local = 0;"); /* EB */
+	if (cobc_wants_anim) {
+		output_line ("static int cob_anim_local = 0;"); /* EB */
+	}
 	output_newline ();
 
 #if 0 /* checkme: was in anim-branch before */
@@ -8944,15 +8951,13 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_newline ();
 	}
 
-	/* Set cob_glob_ptr->cob_orig_program_id */
-	//output_line ("orig_program_id = \"%s\";", cb_encode_program_id(prog->orig_program_id));
-	output_line ("orig_program_id = \"%s\";", prog->orig_program_id);
+	/* anim fields */
 	if (cobc_wants_anim) {
 		output_line ("last_anim_field = &d_end;");
 		output_line ("last_anim_field_local = &d_l_end;");
 		output_line ("last_anim_field_global = &dg_end;");
+		output_newline ();
 	}
-	output_newline ();
 
 	/* Setup up CANCEL callback */
 	if (!prog->nested_level && prog->prog_type == CB_PROGRAM_TYPE) {
@@ -9000,9 +9005,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	if (!prog->flag_initial) {
 		if (prog->working_storage) {
 			output_line ("/* Initialize WORKING-STORAGE */");
-			output_line ("if (initialized == 0) {");
 			output_initial_values (prog->working_storage);
-			output_line ("}");
 			output_newline ();
 		}
 		if (prog->file_list) {
@@ -9955,7 +9958,6 @@ codegen (struct cb_program *prog, const int subsequent_call)
 		output_newline ();
 		output ("/* Global variables */\n");
 		output ("#include \"%s\"\n\n", cb_storage_file_name);
-		output ("static char* orig_program_id;\n");
 
 		output_function_prototypes (prog);
 	}
@@ -10004,7 +10006,8 @@ codegen (struct cb_program *prog, const int subsequent_call)
 
 		// anidata function to get and put data of variables
 		output ("void anidata_%s(char* mode, char* cb, char* f_name) {\n", encoded_prog_name);
-		output ("\tanidata(last_anim_field, last_anim_field_local, last_anim_field_global, (struct interface_block*) cb, orig_program_id, mode, f_name);\n");
+		output ("\tanidata(last_anim_field, last_anim_field_local, last_anim_field_global, (struct interface_block*) cb, \"%s\", mode, f_name);\n",
+			prog->orig_program_id);
 		output ("}\n\n");
 	}
 

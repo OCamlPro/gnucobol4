@@ -3,6 +3,12 @@
 
 	* codegen.c (output_call_cache): fix bug #341 added generation of macro
 	  check in C function declarations for static CALLs
+	* codegen.c: removed additional output and generation of local-fields
+	  that break some COBOL redefines (and seem to be not necessary for the
+	  general COBOL source level debugging), generate `cob_anim_local` only
+	  if --anim is used, removed generation of orig_program_id, reverted
+	  duplicate initialize check and generation of dangling linkage section
+	  items to original version
 
 2016-11-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
