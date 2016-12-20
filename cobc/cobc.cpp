@@ -87,8 +87,11 @@ struct strcache {
 #define OC_C_VERSION_PRF	""
 #define OC_C_VERSION	CB_XSTRINGIFY(__VERSION__)
 #elif	defined(__xlC__)
-#define OC_C_VERSION_PRF	"(IBM) "
+#define OC_C_VERSION_PRF	"(IBM XL C/C++) "
 #define OC_C_VERSION	CB_XSTRINGIFY(__xlC__)
+#elif	defined(__SUNPRO_CC)
+#define OC_C_VERSION_PRF	"(Sun C++) "
+#define OC_C_VERSION	CB_XSTRINGIFY(__SUNPRO_CC)
 #elif	defined(_MSC_VER)
 #define OC_C_VERSION_PRF	"(Microsoft) "
 #define OC_C_VERSION	CB_XSTRINGIFY(_MSC_VER)
@@ -1381,7 +1384,7 @@ cobc_print_version(void)
 		   PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
 	puts("Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida");
 	puts("Copyright (C) 2006-2012 Roger While");
-	puts("Copyright (C) 2013 Sergey Kashyrin"); 
+	puts("Copyright (C) 2013-2016 Sergey Kashyrin"); 
 	puts(_("This is free software; see the source for copying conditions.  There is NO\n\
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
 	printf(_("Built     %s"), cb_oc_build_stamp);
