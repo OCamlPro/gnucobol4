@@ -1,4 +1,8 @@
 
+2016-12-20 Sergey Kashyrin <ska@kiska.net>
+
+	* codegen.cpp (output_long_integer): Bug fix. Use names for INDEXes
+
 2015-11-25 Sergey Kashyrin <ska@kiska.net>
 
 	* codegen.cpp (output_integer): cast program-pointer to unsigned char *,

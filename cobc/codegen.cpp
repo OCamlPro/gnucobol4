@@ -1650,7 +1650,12 @@ output_long_integer(cb_tree x)
 		case CB_USAGE_INDEX:
 			if(f->special_index) {
 				str += output_base(f, 1U);
-				str += output("(cob_s64_t)%s%d", CB_PREFIX_BASE, f->id);
+				if(f->bUseName) {
+					str += output("(cob_s64_t)");
+					str += f->sName;
+				} else {
+					str += output("(cob_s64_t)%s%d", CB_PREFIX_BASE, f->id);
+				}
 				return str;
 			}
 			/* Fall through */
