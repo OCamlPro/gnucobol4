@@ -1906,7 +1906,7 @@ cob_real_put_sign(cob_field * f, const int sign)
 }
 
 /* Registration of external handlers */
-void
+extern "C" void
 cob_reg_sighnd(void (*sighnd) (int))
 {
 	cob_ext_sighdl = sighnd;

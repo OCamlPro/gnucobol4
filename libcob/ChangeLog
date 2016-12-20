@@ -1,4 +1,8 @@
 
+2016-05-26  Sergey Kashyrin <ska@kiska.net>
+
+	* common.cpp : cob_reg_sighnd to extern "C" (handler, UNIX issue)
+
 2016-03-21  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
 	* common.c (cob_set_location, cob_trace_section, cob_exit_common): fix for
