@@ -45,18 +45,33 @@ data hierarchy.  By calling the function from gdb, we can easily
 access the COBOL data at debugging time.
 
 5.2 Animator:
+* cobc: imply (minimal) -t listfile (use cob_temp_name, if needed) and read
+  this file (skipping all non-source lines) instead of the original source
+  file in codegen:
+  * fixes (multiple) COPY (REPLACE) / REPLACING in the animator
+  * fixes compilation from stdin
+  if implied and save-temps is not used: unlink when finished
 * for allowing animation of executables and better performance: pass
-  the necessary function pointers to gc-debugger instead of exporting these
-  --> remove error in cobc.c: -anima and -x not allowed
-* check data display for multiple occurs and reference modification
-* check data display for LOCAL-STORAGE / BASED items
-* check data display for pointer, index, ...
+  the necessary function pointers libcob on module initialization
+  instead of exporting these, provide a function in libcob to get these
+  for a named program-id (=internal function lookup/module load without
+  actual execution) and call this from gc-debugger
+  --> remove error in cobc.c: -anim and -x not allowed
+* for better support of external debugging tools: move breakpoint handling
+  to libcob:
+  * move COB_BREAKPOINT_FILE etc from debugger/breakpoints.cpy to libcob
+  * provide a function in libcob to set / delete / pause a breakpoint
+  * provide a function to get all breakpoints / breakpoints for program-id
+* test/fix data display for multiple occurs and reference modification
+* test/fix data display for LOCAL-STORAGE / BASED items
+* test/fix data display for pointer, index, ...
+* fix multiple / nested programs in one source
 * (re-?)implement accept data
 * (re-?)implement "skip to cursor line" (internal go to) and
   "go to cursor line" (temporary breakpoint)
 * use computed-goto instead of a switch for 'reset cursor' when GCC is used
   (like we do in other places already)
-* code cleanup (and check if build_windows/debugger_sources should be removed)
+* code cleanup
 * gc-debugger.cob: needs a heavy performance optimization for the parts that
   are called even if no debugging is active (GO STATE)
 
