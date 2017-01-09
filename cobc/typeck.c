@@ -562,7 +562,6 @@ cb_validate_one (cb_tree x)
 		}
 		if (CB_FIELD_P (y)) {
 			f = CB_FIELD (y);
-			cobc_xref_link (&f->xref, current_statement->common.source_line);
 			if (f->level == 88) {
 				cb_error_x (x, _("invalid use of 88 level item"));
 				return 1;
@@ -570,11 +569,14 @@ cb_validate_one (cb_tree x)
 			if (f->flag_invalid) {
 				return 1;
 			}
+#if 0 /* Simon: deactivated completely, see FR #99 */
 			/* check for nested ODO */
 			if (f->odo_level > 1) {
+				/* to enable this take care of the FIXME entries in (output_size) */
 				cb_error_x (x, _("%s is not implemented"),
 					_("reference to item containing nested ODO"));
 			}
+#endif
 		}
 	}
 	return 0;
@@ -1019,14 +1021,9 @@ cb_check_field_debug (cb_tree fld)
 void
 cb_build_registers (void)
 {
-#if !defined(__linux__) && !defined(__CYGWIN__) && defined(HAVE_TIMEZONE)
-	long	contz;
-#endif
 	cb_tree         r;
 	cb_tree		x;
-	struct tm	*tlt;
-	time_t		t;
-	char		buff[48];
+	char		buff[22];
 
 	/* RETURN-CODE */
 	if (!current_program->nested_level) {
@@ -1063,36 +1060,33 @@ cb_build_registers (void)
 		CB_FIELD_ADD (current_program->working_storage, CB_FIELD_PTR (x));
 	}
 
-	t = time (NULL);
-	tlt = localtime (&t);
-	/* Leap seconds ? */
-	if (tlt->tm_sec >= 60) {
-		tlt->tm_sec = 59;
-	}
-
 	/* WHEN-COMPILED */
-	memset (buff, 0, sizeof (buff));
-	strftime (buff, (size_t)17, "%m/%d/%y%H.%M.%S", tlt);
+	snprintf (buff, (size_t)17, "%02d/%02d/%02d%02d%c%02d%c%02d",
+		current_compile_time.day_of_month,
+		current_compile_time.month,
+		current_compile_time.year % 100,
+		current_compile_time.hour, '.',
+		current_compile_time.minute, '.',
+		current_compile_time.second);
 	cb_build_constant (cb_build_reference ("WHEN-COMPILED"),
 			   cb_build_alphanumeric_literal (buff, (size_t)16));
 
 	/* FUNCTION WHEN-COMPILED */
-	memset (buff, 0, sizeof (buff));
-#if defined(__linux__) || defined(__CYGWIN__)
-	strftime (buff, (size_t)22, "%Y%m%d%H%M%S00%z", tlt);
-#elif defined(HAVE_TIMEZONE)
-	strftime (buff, (size_t)17, "%Y%m%d%H%M%S00", tlt);
-	if (timezone <= 0) {
-		contz = -timezone;
-		buff[16] = '+';
+	snprintf (buff, (size_t)17, "%d%02d%02d%02d%02d%02d%02d",
+		current_compile_time.year,
+		current_compile_time.month,
+		current_compile_time.day_of_month,
+		current_compile_time.hour,
+		current_compile_time.minute,
+		current_compile_time.second,
+		current_compile_time.nanosecond / 10000000);
+	if (current_compile_time.offset_known) {
+		snprintf (buff + 16, (size_t)6, "%+03d%02d",
+			current_compile_time.utc_offset / 60,
+			current_compile_time.utc_offset % 60);
 	} else {
-		contz = timezone;
-		buff[16] = '-';
+		snprintf (buff + 16, (size_t)6, "00000");
 	}
-	sprintf (&buff[17], "%2.2ld%2.2ld", contz / 3600, contz % 60);
-#else
-	strftime (buff, (size_t)22, "%Y%m%d%H%M%S0000000", tlt);
-#endif
 	cb_intr_whencomp = cb_build_alphanumeric_literal (buff, (size_t)21);
 
 }
@@ -1472,12 +1466,9 @@ cb_build_identifier (cb_tree x, const int subchk)
 		return x;
 	}
 	f = CB_FIELD (v);
-	if (current_statement) {
-		cobc_xref_link (&f->xref, current_statement->common.source_line);
-	}
 
 	/* BASED check and check for OPTIONAL LINKAGE items */
-	if (current_statement &&
+	if (current_statement && !suppress_data_exceptions &&
 	    (CB_EXCEPTION_ENABLE (COB_EC_DATA_PTR_NULL) ||
 	     CB_EXCEPTION_ENABLE (COB_EC_PROGRAM_ARG_OMITTED))) {
 		p = cb_field_founder (f);
@@ -1495,7 +1486,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 		    !current_statement->flag_no_based) {
 			if (p->flag_item_based ||
 			   (p->storage == CB_STORAGE_LINKAGE &&
-				  !p->flag_is_pdiv_parm)) {
+				  (!p->flag_is_pdiv_parm || p->flag_is_pdiv_opt))) {
 				current_statement->null_check = CB_BUILD_FUNCALL_2 (
 					"cob_check_based",
 					cb_build_address (cb_build_field_reference (p, NULL)),
@@ -1552,12 +1543,12 @@ cb_build_identifier (cb_tree x, const int subchk)
 		if (CB_EXCEPTION_ENABLE (COB_EC_BOUND_SUBSCRIPT) && f->odo_level != 0) {
 			for (p = f; p; p = p->children) {
 				if (p->depending) {
-					e1 = CB_BUILD_FUNCALL_4 ("cob_check_odo",
+					e1 = CB_BUILD_FUNCALL_5 ("cob_check_odo",
 						 cb_build_cast_int (p->depending),
 						 cb_int (p->occurs_min),
 						 cb_int (p->occurs_max),
-						 CB_BUILD_STRING0
-						 ((CB_FIELD_PTR (p->depending)->name)));
+						 CB_BUILD_STRING0 (p->name),
+						 CB_BUILD_STRING0 (CB_FIELD_PTR (p->depending)->name));
 					r->check = cb_list_add (r->check, e1);
 				}
 			}
@@ -1585,7 +1576,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 				/* Compile-time check for all literals */
 				if (CB_LITERAL_P (sub)) {
 					n = cb_get_int (sub);
-					if (n < 1 || n > p->occurs_max) {
+					if (n < 1 || (!p->flag_unbounded && n > p->occurs_max)) {
 						cb_error_x (x, _("subscript of '%s' out of bounds: %d"),
 								name, n);
 					}
@@ -1596,17 +1587,17 @@ cb_build_identifier (cb_tree x, const int subchk)
 					if (p->depending) {
 						e1 = CB_BUILD_FUNCALL_4 ("cob_check_subscript",
 							 cb_build_cast_int (sub),
-							 cb_int1,
 							 cb_build_cast_int (p->depending),
-							 CB_BUILD_STRING0 (name));
+							 CB_BUILD_STRING0 (name),
+							 cb_int1);
 						r->check = cb_list_add (r->check, e1);
 					} else {
 						if (!CB_LITERAL_P (sub)) {
 							e1 = CB_BUILD_FUNCALL_4 ("cob_check_subscript",
 								 cb_build_cast_int (sub),
-								 cb_int1,
 								 cb_int (p->occurs_max),
-								 CB_BUILD_STRING0 (name));
+								 CB_BUILD_STRING0 (name),
+								cb_int0);
 							r->check = cb_list_add (r->check, e1);
 						}
 					}
@@ -2571,8 +2562,18 @@ cb_validate_program_data (struct cb_program *prog)
 		/* The data item that contains a OCCURS DEPENDING clause must be
 		   the last data item in the group */
 		odo_level = 0;
+
 		for (p = q; ; p = p->parent) {
-			if (p->depending) odo_level++;
+			if (p->depending) {
+#if 1 /* Simon: nested ODO deactivated completely, see FR #99 */
+				if (odo_level) {
+					cb_error_x (x,
+						_ ("'%s' cannot have OCCURS DEPENDING"),
+						cb_name (x));
+				}
+#endif
+				odo_level++;
+			}
 			p->odo_level = odo_level;
 			if (!p->parent) {
 				break;
@@ -2586,8 +2587,8 @@ cb_validate_program_data (struct cb_program *prog)
 				if (!p->sister->redefines) {
 					if (!cb_complex_odo) {
 						cb_error_x (x,
-							    _("'%s' cannot have OCCURS DEPENDING"),
-							    cb_name (x));
+							_ ("'%s' cannot have OCCURS DEPENDING"),
+							cb_name (x));
 						break;
 					}
 					p->flag_odo_relative = 1;
@@ -2639,7 +2640,6 @@ cb_validate_program_body (struct cb_program *prog)
 		v = cb_ref (x);
 		/* Check refs in to / out of DECLARATIVES */
 		if (CB_LABEL_P (v)) {
-			cobc_xref_link (&CB_LABEL(v)->xref, CB_TREE(x)->source_line);
 			if (CB_REFERENCE (x)->flag_in_decl &&
 				!CB_LABEL (v)->flag_declaratives) {
 				/* verfify reference-out-of-declaratives  */
@@ -2702,6 +2702,7 @@ cb_validate_program_body (struct cb_program *prog)
 			CB_LABEL (v)->flag_debugging_mode = 1;
 			break;
 		case CB_TAG_FILE:
+		case CB_TAG_CD:
 			break;
 		case CB_TAG_FIELD:
 			if (CB_FIELD (v)->size > size) {
@@ -3662,7 +3663,9 @@ cb_build_optim_cond (struct cb_binary_op *p)
 	}
 
 	f = CB_FIELD_PTR (p->x);
+#if 0 /* CHECKME, if needed */
 	cobc_xref_link (&f->xref, current_statement->common.source_line);
+#endif
 #if	0	/* RXWRXW - SI */
 	if (f->special_index) {
 		return CB_BUILD_FUNCALL_2 ("cob_cmp_special",
@@ -4577,7 +4580,8 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 							      size_is, cb_flags_t (disp_attrs)));
 			}
 		}
-	} else if (pos || fgc || bgc || scroll || disp_attrs) {
+	} else if (pos || fgc || bgc || scroll || disp_attrs
+			|| timeout || prompt || size_is) {
 		/* Bump ref count to force CRT STATUS field generation */
 		if (current_program->crt_status) {
 			CB_FIELD_PTR (current_program->crt_status)->count++;
@@ -5582,25 +5586,6 @@ emit_field_display_for_last (cb_tree values, cb_tree line_column, cb_tree fgc,
 }
 
 void
-cb_emit_display_omitted (cb_tree pos, struct cb_attr_struct *attr_ptr)
-{
-	cb_tree		fgc;
-	cb_tree		bgc;
-	cb_tree		scroll;
-	cb_tree		size_is;	/* WITH SIZE IS */
-	cob_flags_t		disp_attrs;
-
-	initialize_attrs (attr_ptr, &fgc, &bgc, &scroll, &size_is, &disp_attrs);
-	if (validate_attrs (pos, fgc, bgc, scroll, size_is)) {
-		return;
-	}
-
-	/* TODO: Implement */
-	/* Should we create a distinct omitted_display function in screenio.c? */
-	/* emit_field_display (NULL, pos, fgc, bgc, scroll, size_is, disp_attrs); */
-}
-
-void
 cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv,
 		 cb_tree line_column, struct cb_attr_struct *attr_ptr,
 		 int is_first_display_list,
@@ -6437,11 +6422,25 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 	int		src_off;
 	int		dst_off;
 
-	sr = CB_REFERENCE (src);
-	dr = CB_REFERENCE (dst);
+	if (CB_REFERENCE_P(src)) {
+		sr = CB_REFERENCE (src);
+	} else {
+		sr = NULL;
+	}
+
+	if (CB_REFERENCE_P(dst)) {
+		dr = CB_REFERENCE (dst);
+	} else {
+		dr = NULL;
+	}
 
 	/* Check for identical field */
 	if (src_f == dst_f) {
+		if (!sr || !dr) {
+			/* same fields, no information about sub/refmod,
+			   overlapping possible */
+			return 1;
+		}
 		if (sr->subs) {
 			/* same fields with subs,
 			   overlapping possible, would need more checks
@@ -6484,7 +6483,12 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 			   of a different address we must return 1] */
 			return 0;
 		}
+	}
 
+	/* check if both fields are references, otherwise we can't check further */
+	if (!sr || !dr) {
+		/* overlapping possible as they have the same field founder */
+		return 1;
 	}
 
 	src_off = src_f->offset;
@@ -6525,6 +6529,7 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 		/* overlapping possible, would need more checks */
 		return 1;
 	}
+
 	if (src_off >= dst_off && src_off < (dst_off + dst_size)) {
 		goto overlap_ret;
 	}
@@ -7806,6 +7811,7 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 	cb_tree		x;
 	cb_tree		m;
 	unsigned int	tempval;
+	struct cb_reference	*r;
 
 	if (cb_validate_one (src)) {
 		return;
@@ -7818,8 +7824,12 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 
 	tempval = 0;
 	if (cb_list_length (dsts) > 1) {
-		if (CB_INTRINSIC_P (src) || (CB_REFERENCE_P (src) &&
-		    (CB_REFERENCE (src)->subs || CB_REFERENCE (src)->offset))) {
+		if (CB_REFERENCE_P (src)) {
+			r = CB_REFERENCE (src);
+		} else {
+			r = NULL;
+		}
+		if (CB_INTRINSIC_P (src) || (r && (r->subs || r->offset))) {
 			tempval = 1;
 			cb_emit (CB_BUILD_FUNCALL_1 ("cob_put_indirect_field",
 						     src));
@@ -7828,7 +7838,13 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 
 	for (l = dsts; l; l = CB_CHAIN (l)) {
 		x = CB_VALUE (l);
-		if (CB_LITERAL_P (x) || CB_CONST_P (x)) {
+		if (CB_REFERENCE_P (x)) {
+			r = CB_REFERENCE (x);
+		} else {
+			r = NULL;
+		}
+		if (CB_LITERAL_P (x) || CB_CONST_P (x) || 
+			(r && (CB_LABEL_P (r->value) || CB_PROTOTYPE_P (r->value)))) {
 			cb_error_x (CB_TREE (current_statement),
 				    _("invalid MOVE target: %s"), cb_name (x));
 			continue;
@@ -8107,20 +8123,35 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 	if (cb_validate_one (from)) {
 		return;
 	}
-	if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
-		cb_error_x (CB_TREE (current_statement),
-			_("%s requires a record name as subject"), "REWRITE");
-		return;
-	}
-	if (CB_FIELD_PTR (record)->storage != CB_STORAGE_FILE) {
-		cb_error_x (CB_TREE (current_statement),
-			_("%s subject does not refer to a record name"), "REWRITE");
-		return;
-	}
+	if (CB_FILE_P (cb_ref (record))) {
+		if (from == NULL) {
+			cb_error_x (CB_TREE (current_statement),
+				_("%s FILE requires a FROM clause"), "REWRITE");
+			return;
+		}
+		file = cb_ref(record);		/* FILE filename: was used */
+		f = CB_FILE (file);
+		if (f->record->sister) {
+			record = CB_TREE(f->record->sister);
+		} else {
+			record = CB_TREE(f->record);
+		}
+	} else {
+		if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
+			cb_error_x (CB_TREE (current_statement),
+				_("%s requires a record name as subject"), "REWRITE");
+			return;
+		}
+		if (CB_FIELD_PTR (record)->storage != CB_STORAGE_FILE) {
+			cb_error_x (CB_TREE (current_statement),
+				_("%s subject does not refer to a record name"), "REWRITE");
+			return;
+		}
 
-	file = CB_TREE (CB_FIELD (cb_ref (record))->file);
-	if (!file || file == cb_error_node) {
-		return;
+		file = CB_TREE (CB_FIELD (cb_ref (record))->file);
+		if (!file || file == cb_error_node) {
+			return;
+		}
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
@@ -8148,7 +8179,7 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 		opts = COB_WRITE_LOCK;
 	}
 
-	if (from) {
+	if (from && (!CB_FIELD_P(from) || (CB_FIELD_PTR (from) != CB_FIELD_PTR (record)))) {
 		cb_emit (cb_build_move (from, record));
 	}
 
@@ -9006,19 +9037,34 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 	if (cb_validate_one (from)) {
 		return;
 	}
-	if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
-		cb_error_x (CB_TREE (current_statement),
-			_("%s requires a record name as subject"), "WRITE");
-		return;
-	}
-	if (CB_FIELD_PTR (record)->storage != CB_STORAGE_FILE) {
-		cb_error_x (CB_TREE (current_statement),
-			_("%s subject does not refer to a record name"), "WRITE");
-		return;
-	}
-	file = CB_TREE (CB_FIELD (cb_ref (record))->file);
-	if (!file || file == cb_error_node) {
-		return;
+	if (CB_FILE_P (cb_ref (record))) {
+		if (from == NULL) {
+			cb_error_x (CB_TREE (current_statement),
+				_("%s FILE requires a FROM clause"), "WRITE");
+			return;
+		}
+		file = cb_ref(record);		/* FILE filename: was used */
+		f = CB_FILE (file);
+		if (f->record->sister) {
+			record = CB_TREE(f->record->sister);
+		} else {
+			record = CB_TREE(f->record);
+		}
+	} else {
+		if (!CB_REF_OR_FIELD_P (cb_ref (record))) {
+			cb_error_x (CB_TREE (current_statement),
+				_("%s requires a record name as subject"), "WRITE");
+			return;
+		}
+		if (CB_FIELD_PTR (record)->storage != CB_STORAGE_FILE) {
+			cb_error_x (CB_TREE (current_statement),
+				_("%s subject does not refer to a record name"), "WRITE");
+			return;
+		}
+		file = CB_TREE (CB_FIELD (cb_ref (record))->file);
+		if (!file || file == cb_error_node) {
+			return;
+		}
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
@@ -9044,7 +9090,7 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 		}
 	}
 
-	if (from) {
+	if (from && (!CB_FIELD_P(from) || (CB_FIELD_PTR (from) != CB_FIELD_PTR (record)))) {
 		cb_emit (cb_build_move (from, record));
 	}
 

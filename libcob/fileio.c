@@ -115,6 +115,12 @@
 #endif
 
 #ifdef	WITH_DISAM
+#ifndef DISAM_NO_ISCONFIG
+#include <isconfig.h>
+#ifndef ISCOBOL_STATS
+#undef	COB_WITH_STATUS_02
+#endif
+#endif
 #include <disam.h>
 #define	isfullclose(x)	isclose (x)
 #endif
@@ -2193,6 +2199,7 @@ lock_record (cob_file *f, const char *key, const unsigned int keylen)
 		(size_t)(p->filenamelen + 1));
 	memcpy ((char *)record_lock_object + p->filenamelen + 1, key,
 		(size_t)keylen);
+	memset (&dbt, 0, sizeof(dbt));
 	dbt.size = (cob_dbtsize_t) len;
 	dbt.data = record_lock_object;
 	ret = bdb_env->lock_get (bdb_env, p->bdb_lock_id, DB_LOCK_NOWAIT,
@@ -2223,6 +2230,7 @@ test_record_lock (cob_file *f, const char *key, const unsigned int keylen)
 		(size_t)(p->filenamelen + 1));
 	memcpy ((char *)record_lock_object + p->filenamelen + 1, key,
 		(size_t)keylen);
+	memset (&dbt, 0, sizeof(dbt));
 	dbt.size = (cob_dbtsize_t) len;
 	dbt.data = record_lock_object;
 	ret = bdb_env->lock_get (bdb_env, p->bdb_lock_id, DB_LOCK_NOWAIT,

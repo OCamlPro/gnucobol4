@@ -27,6 +27,17 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#ifndef LLONG_MAX
+#ifdef LONG_LONG_MAX
+#define LLONG_MAX LONG_LONG_MAX
+#define ULLONG_MAX ULONG_LONG_MAX
+#elif defined _I64_MAX
+#define LLONG_MAX _I64_MAX
+#define ULLONG_MAX _UI64_MAX
+#else
+#error compiler misses maximum for 64bit integer
+#endif
+#endif
 
 #include "cobc.h"
 #include "tree.h"
@@ -236,6 +247,7 @@ check_code_set_items_are_subitems_of_records (struct cb_file * const file)
 	  same record.
 	 */
 	for (l = file->code_set_items; l; l = CB_LIST (l->chain)) {
+
 		r = CB_VALUE (l);
 		f = CB_FIELD (cb_ref (r));
 
@@ -260,6 +272,10 @@ check_code_set_items_are_subitems_of_records (struct cb_file * const file)
 		if (current_record->file != file) {
 			cb_error_x (r, _("FOR item '%s' is not in a record associated with '%s'"),
 				    cb_name (r), cb_name (CB_TREE (file)));
+		}
+
+		if (!l->chain) {
+			break;
 		}
 	}
 }
@@ -777,9 +793,15 @@ char *
 cb_name (cb_tree x)
 {
 	char	*s;
+	char	tmp[COB_NORMAL_BUFF] = { 0 };
+	int		tlen;
 
-	s = cobc_parse_malloc ((size_t)COB_NORMAL_BUFF);
-	(void)cb_name_1 (s, x);
+	(void)cb_name_1 (tmp, x);
+
+	tlen = strlen (tmp);
+	s = cobc_parse_malloc (tlen + 1);
+	strncpy (s, tmp, tlen);
+
 	return s;
 }
 
@@ -2805,7 +2827,7 @@ cb_field_add (struct cb_field *f, struct cb_field *p)
 }
 
 struct cb_field *
-cb_field_founder (const struct cb_field *f)
+cb_field_founder (const struct cb_field * const f)
 {
 	const struct cb_field	*ff;
 
@@ -3174,6 +3196,40 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 	}
 }
 
+/* Communication description */
+
+struct cb_cd *
+cb_build_cd (cb_tree name)
+{
+	struct cb_cd	*p = make_tree (CB_TAG_CD, CB_CATEGORY_UNKNOWN,
+					sizeof (struct cb_cd));
+
+	p->name = cb_define (name, CB_TREE (p));
+
+	return p;
+}
+
+void
+cb_finalize_cd (struct cb_cd *cd, struct cb_field *records)
+{
+	struct cb_field	*p;
+	
+	if (cd->record) {
+		cd->record->sister = records;
+	} else {
+		cd->record = records;
+	}
+
+	for (p = records; p; p = p->sister) {
+		/* Check record size is exactly 87 chars */
+
+		p->cd = cd;
+		if (p != cd->record) {
+			p->redefines = cd->record;
+		}
+	}
+}
+
 /* Reference */
 
 cb_tree
@@ -3257,6 +3313,22 @@ cb_set_system_names (void)
 	cb_define_system_name ("FORMFEED");
 }
 
+static COB_INLINE COB_A_INLINE int
+field_is_in_file_record (const cb_tree file,
+			 const struct cb_field * const field)
+{
+	return CB_FILE_P (file)
+		&& CB_FILE (file) == cb_field_founder (field)->file;
+}
+
+static COB_INLINE COB_A_INLINE int
+field_is_in_cd_record (const cb_tree cd,
+		       const struct cb_field * const field)
+{
+	return CB_CD_P (cd)
+		&& CB_CD (cd) == cb_field_founder (field)->cd;
+}
+
 cb_tree
 cb_ref (cb_tree x)
 {
@@ -3309,11 +3381,11 @@ cb_ref (cb_tree x)
 				}
 			}
 
-			/* Resolve by file */
-			if (c && CB_REFERENCE (c)->chain == NULL) {
-				if (CB_WORD_COUNT (c) == 1 &&
-				    CB_FILE_P (cb_ref (c)) &&
-				    (CB_FILE (cb_ref (c)) == cb_field_founder (CB_FIELD (v))->file)) {
+			/* Resolve by file or CD */
+			if (c && CB_REFERENCE (c)->chain == NULL
+			    && CB_WORD_COUNT (c) == 1) {
+				if (field_is_in_file_record (cb_ref (c), CB_FIELD (v))
+				    || field_is_in_cd_record (cb_ref (c), CB_FIELD (v))) {
 					c = CB_REFERENCE (c)->chain;
 				}
 			}
@@ -3415,6 +3487,17 @@ end:
 		}
 	} else if (CB_LABEL_P (candidate) && r->flag_alter_code) {
 		CB_LABEL (candidate)->flag_alter = 1;
+	}
+
+	if (cb_listing_xref) {
+		if (CB_FIELD_P (candidate)) {
+			cobc_xref_link (&CB_FIELD (candidate)->xref, r->common.source_line);
+			cobc_xref_link_parent (CB_FIELD (candidate));
+		} else if (CB_LABEL_P (candidate)) {
+			cobc_xref_link (&CB_LABEL(candidate)->xref, r->common.source_line);
+		} else if (CB_FILE_P (candidate)) {
+			cobc_xref_link (&CB_FILE (candidate)->xref, r->common.source_line);
+		}
 	}
 
 	r->value = candidate;

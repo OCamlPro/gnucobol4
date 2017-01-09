@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2007-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2007-2012, 2014-2016 Free Software Foundation, Inc.
    Written by Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
@@ -221,9 +221,9 @@ typedef struct __cob_settings {
 	char		*cob_preload_str;
 	char		*cob_library_path;
 
-	size_t* resolve_size;	/* Array size of resolve_path*/
-	char* cob_preload_resolved;
-	char* cob_preload_env;
+	size_t		*resolve_size;	/* Array size of resolve_path*/
+	char		*cob_preload_resolved;
+	char		*cob_preload_env;
 
 	/* fileio.c */
 	unsigned int	cob_unix_lf;		/* Use POSIX LF */
@@ -246,8 +246,11 @@ typedef struct __cob_settings {
 	unsigned int	cob_beep_value;		/* Bell disposition */
 	unsigned int	cob_extended_status;	/* Extended status */
 	unsigned int	cob_use_esc;		/* Check ESC key */
-	int		cob_timeout_scale;	/* timeout scale */
-	int		cob_insert_mode;	/* insert toggle, 0=off, 1=on */
+	unsigned int	cob_timeout_scale;	/* timeout scale */
+	unsigned int	cob_insert_mode;	/* insert toggle, 0=off, 1=on */
+	unsigned int	cob_exit_wait;		/* wait on program exit if no ACCEPT came after last DISPLAY */
+	char			*cob_exit_msg;		/* message for cob_exit_wait */
+
 } cob_settings;
 
 
@@ -257,22 +260,6 @@ struct config_enum {
 };
 
 /* Format of table for capturing run-time config information */
-
-/* Datetime structure */
-struct cob_time
-{
-	int	year;
-	int	month; /* 1 = Jan ... 12 = Dec */
-	int	day_of_month; /* 1 ... 31 */
-	int	day_of_week; /* 1 = Monday ... 7 = Sunday */
-	int	hour;
-	int	minute;
-	int	second;
-	int	nanosecond;
-	int	offset_known;
-	int	utc_offset; /* in minutes */
-};
-
 struct config_tbl {
 	const char	*env_name;		/* Env Var name */
 	const char	*conf_name;		/* Name used in run-time config file */
@@ -362,13 +349,11 @@ COB_HIDDEN cob_settings *cob_get_settings_ptr	(void);
 
 COB_HIDDEN int		cob_ctoi		(const char);
 
-COB_HIDDEN struct cob_time cob_get_current_date_and_time	(void);
-
 #if 0 /* currently not used */
 COB_HIDDEN char		*cob_int_to_string		(int, char*);
 COB_HIDDEN char		*cob_int_to_formatted_bytestring	(int, char*);
 #endif
-COB_HIDDEN char		*cob_strcat		(char*, char*);
+COB_HIDDEN char		*cob_strcat		(char*, char*, int);
 COB_HIDDEN char		*cob_strjoin		(char**, int, char*);
 
 COB_HIDDEN int		cob_min_int		(const int, const int);

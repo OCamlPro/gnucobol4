@@ -23,10 +23,11 @@
 AC_PREREQ([2.64])
 
 AC_INIT([GnuCOBOL],
-	[2.0],
-	[open-cobol-list@lists.sourceforge.net],
-	[gnu-cobol],
-	[http://www.opencobol.org])
+	[2.0-rc3],
+	[bug-gnucobol@gnu.org],
+	[gnucobol],
+	[https://www.gnu.org/software/gnucobol/])
+AC_REVISION([GnuCOBOL snapshot $Revision: 1286 $])
 AC_CONFIG_SRCDIR([libcob.h])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_TESTDIR([tests])
@@ -73,11 +74,11 @@ AH_TEMPLATE([COB_STRIP_CMD], [Strip command])
 AH_TEMPLATE([USE_LIBDL], [Use system dynamic loader])
 AH_TEMPLATE([HAVE_DLADDR], [Has dladdr function])
 AH_TEMPLATE([WITH_VARSEQ], [Define variable sequential file format])
-AH_TEMPLATE([HAVE_PSIGN_OPT], [Has -Wno-pointer-sign])
 AH_TEMPLATE([HAVE_ATTRIBUTE_ALIGNED], [Has __attribute__((aligned))])
 AH_TEMPLATE([HAVE_TIMEZONE], [Has timezone variable])
-AH_TEMPLATE([COB_EXEEXT], [Executable extension])
-AH_TEMPLATE([COB_OBJEXT], [Object extension])
+AH_TEMPLATE([COB_OBJECT_EXT], [Object extension])
+AH_TEMPLATE([COB_MODULE_EXT], [Module extension])
+AH_TEMPLATE([COB_EXE_EXT], [Executable extension])
 AH_TEMPLATE([COB_KEYWORD_INLINE], [Keyword for inline])
 AH_TEMPLATE([COB_NO_SELFOPEN], [Can not dlopen self])
 AH_TEMPLATE([COB_STRFTIME], [Can use strftime for timezone])
@@ -201,7 +202,7 @@ AC_LIB_RPATH
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([stdint.h sys/types.h signal.h fcntl.h malloc.h locale.h \
-	stddef.h wchar.h dlfcn.h sys/time.h])
+	stddef.h wchar.h dlfcn.h sys/time.h sys/wait.h])
 
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -259,10 +260,13 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>]],
 	[AC_MSG_RESULT([no])])
 
 
-# Check gcc/icc
-COB_USES_GCC_ICC=no
-COB_USES_GCC_ONLY=no
+# Check gcc/icc/clang
+COB_USES_GCC=no
+COB_USES_GCC_NO_ICC=no
 COB_USES_ICC_ONLY=no
+COB_USES_CLANG_ONLY=no
+COB_USES_XLC_ONLY=no
+COB_USES_WATCOMC_ONLY=no
 
 AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	#ifdef __GNUC__
@@ -270,7 +274,7 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	#else
 	return 1;
 	#endif]])],
-	[COB_USES_GCC_ICC=yes],
+	[COB_USES_GCC=yes],
 	[],
 	[])
 
@@ -280,7 +284,7 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	#else
 	return 1;
 	#endif]])],
-	[COB_USES_GCC_ONLY=yes],
+	[COB_USES_GCC_NO_ICC=yes],
 	[],
 	[])
 
@@ -294,6 +298,36 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[],
 	[])
 
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+	#ifdef __clang__
+	return 0;
+	#else
+	return 1;
+	#endif]])],
+	[COB_USES_CLANG_ONLY=yes],
+	[],
+	[])
+
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+	#ifdef __xlc__
+	return 0;
+	#else
+	return 1;
+	#endif]])],
+	[COB_USES_XLC_ONLY=yes],
+	[],
+	[])
+
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+	#ifdef __WATCOMC__
+	return 0;
+	#else
+	return 1;
+	#endif]])],
+	[COB_USES_WATCOMC_ONLY=yes],
+	[],
+	[])
+                                      
 COB_CC="$CC"
 if test "$COB_USES_ICC_ONLY" = "yes"; then
 	LIBCOB_LIBS="-limf -lm"
@@ -347,10 +381,23 @@ if test "$with_cisam" != "yes"; then
   [ if test "$with_disam" = "yes"; then
 	AC_CHECK_HEADERS([disam.h], [],
 		AC_MSG_ERROR([disam.h is required for DISAM]))
-	AC_CHECK_LIB([disam], [isopen],
-		[AC_DEFINE([WITH_DISAM], [1])
-		LIBCOB_LIBS="$LIBCOB_LIBS -ldisam"],
-		AC_MSG_ERROR([libdisam is required for DISAM]), [])
+
+	for cobdisam in disam disam8 disam72 disam71 disam7
+	do
+		AC_CHECK_LIB([$cobdisam], [isopen],
+			[AC_DEFINE([WITH_DISAM], [1])
+			LIBCOB_LIBS="$LIBCOB_LIBS -l$cobdisam"]
+			cob_got_disam=yes
+			break,
+			[], [])
+	done
+	if test "$cob_got_disam" = "yes"; then
+		AC_MSG_NOTICE([DISAM library found as -l$cobdisam])
+	else
+		AC_MSG_ERROR([DISAM library not found])
+	fi
+	unset cobdisam
+	unset cob_got_disam
     fi ],
   [])
 fi
@@ -475,7 +522,7 @@ COB_GMP_LIB_MINOR=$(echo "$COB_GMP_LIB" | cut -d. -f2)
 if test "$COB_GMP_HEADER" == "$COB_GMP_LIB_MAJOR.$COB_GMP_LIB_MINOR"; then
 	AC_MSG_RESULT([yes ($COB_GMP_HEADER)])
 else
-	AC_MSG_RESULT([no ($COB_GMP_HEADER / $COB_GMP_LIB)])
+	AC_MSG_RESULT([no (header: $COB_GMP_HEADER / library: $COB_GMP_LIB)])
 	AC_MSG_ERROR([Unable to use GMP - Please check config.log])
 fi
 LIBS=$MYOLDLIBS
@@ -880,18 +927,7 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[AC_MSG_RESULT([no])],
 	[])
 
-# Check gcc 4 pointer sign option
-if test "$COB_USES_GCC_ONLY" = "yes"; then
-	MYOLDCFLAGS="$CFLAGS"
-	CFLAGS="$CFLAGS -Wno-pointer-sign"
-	AC_MSG_CHECKING([for gcc pointer sign option])
-	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
-		[AC_DEFINE([HAVE_PSIGN_OPT], [1]) AC_MSG_RESULT([yes])],
-		[AC_MSG_RESULT([no])])
-	CFLAGS="$MYOLDCFLAGS"
-fi
-
-#if test "$enable_debug" != "yes" -a "$COB_USES_GCC_ONLY" = "yes"; then
+#if test "$enable_debug" != "yes" -a "$COB_USES_GCC_NO_ICC" = "yes"; then
 #	MYOLDCFLAGS="$CFLAGS"
 #	CFLAGS="$CFLAGS -fno-asynchronous-unwind-tables"
 #	AC_MSG_CHECKING([for gcc unwind tables option])
@@ -902,8 +938,8 @@ fi
 #fi
 
 # Check gcc wrapv option
-# We MAY need this eventually for >= 4.4. 4.3 appears to be OK.
-#if test "$COB_USES_GCC_ONLY" = "yes"; then
+# We likely don't need this and remove it before 3.0 final release
+#if test "$COB_USES_GCC_NO_ICC" = "yes"; then
 #	MYOLDCFLAGS="$CFLAGS"
 #	CFLAGS="$CFLAGS -fwrapv"
 #	AC_MSG_CHECKING([for gcc -fwrapv option])
@@ -924,6 +960,60 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],
 
 # GnuCOBOL Configuration
 
+COB_LIBS="-L$libdir -lcob ${LIBCOB_LIBS}"
+COB_LDFLAGS=""
+if test "x$LDFLAGS" != "x"; then
+	COB_LIBS="$LDFLAGS $COB_LIBS"
+	COB_LDFLAGS="$LDFLAGS"
+fi
+
+COB_CONFIG_DIR="$datadir/$PACKAGE_TARNAME/config"
+COB_COPY_DIR="$datadir/$PACKAGE_TARNAME/copy"
+COB_LIBRARY_PATH="$libdir/$PACKAGE_TARNAME"
+COB_OBJECT_EXT="$OBJEXT"
+COB_MODULE_EXT=`echo "$acl_cv_shlibext" | sed -e 's/dll\.a/dll/'`
+COB_EXE_EXT="$EXEEXT"
+LIBS="$save_libs"
+COB_EXPORT_DYN="`eval echo $export_dynamic_flag_spec`"
+COB_PIC_FLAGS=`echo "$lt_prog_compiler_pic" | sed -e 's/^ //'`
+COB_SHARED_OPT="-shared"
+
+if test "$enable_cflags_setting" = yes; then
+	# Remove -O2 option added by AC_PROG_CC and add -O0
+	CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-O@<:@0-9a-zA-Z@:>@* */ /g' -e 's/ $//' -e 's/^ //'`
+	if test "$COB_USES_GCC" = "yes"; then
+		CFLAGS="$CFLAGS -O0"
+	fi
+
+	# Add -g3 if using GCC.
+	if test "$COB_USES_GCC" = "yes"; then
+		MYOLDCFLAGS="$CFLAGS"		     
+		CFLAGS="$CFLAGS -g3"
+		AC_MSG_CHECKING([for gcc -g3 option])
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
+			[AC_MSG_RESULT([yes])],
+			[CFLAGS="$MYOLDCFLAGS"; AC_MSG_RESULT([no])])
+		unset MYOLDCFLAGS
+	fi
+fi
+
+unset enable_cflags_setting
+
+if test "$enable_debug" != "yes" -a "x$CFLAGS" != "x"; then
+	CFLAGS=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/-g3//' -e 's/^ //' -e 's/ $//'`
+fi
+
+if test "$COB_USES_GCC" = "yes"; then
+	if test "x$CFLAGS" != "x"; then
+		CFLAGS="$CFLAGS -pipe"
+	else
+		CFLAGS="-pipe"
+	fi
+fi
+
+
+# include directory (install dir)
+
 if test "x$prefix" = "xNONE"; then
   if test "x$includedir" = "x\${prefix}/include"; then
     COB_CFLAGS="-I${ac_default_prefix}/include"
@@ -942,58 +1032,63 @@ else
   fi
 fi
 
-if test "x$CPPFLAGS" != "x"; then
-	COB_CFLAGS="$COB_CFLAGS $CPPFLAGS"
+
+# compiler specific general options for COB_CFLAGS, originating from cobc.c (main)
+
+if test "$COB_USES_ICC_ONLY" = "yes"; then
+	# these are deprecated...
+	COB_CFLAGS="$COB_CFLAGS -vec-report0 -opt-report 0"
+elif test "$COB_USES_WATCOMC_ONLY" = "yes"; then
+	# -s = no overflow checks, otherwise need to code/link a CHK routine
+	COB_CFLAGS="$COB_CFLAGS -s -wcd=118"
+elif test "$COB_USES_XLC_ONLY" = "yes"; then
+	# use read-only memory for string literals and constants
+	COB_CFLAGS="$COB_CFLAGS -qro -qroconst"
+	# allow nonstandard usage - CHECKME where do we need this ???
+	# do we need the additional check for __IBMC__ >= 700 we had in cobc?
+	COB_CFLAGS="$COB_CFLAGS -qlanglvl=extended"
 fi
 
-COB_LIBS="-L$libdir -lcob ${LIBCOB_LIBS}"
-COB_LDFLAGS=""
-if test "x$LDFLAGS" != "x"; then
-	COB_LIBS="$LDFLAGS $COB_LIBS"
-	COB_LDFLAGS="$LDFLAGS"
+if test "$COB_USES_GCC_NO_ICC" = "yes"; then
+	# comment from cobc.c:	--param max-goto-duplication-insns=100000
+	# /* RXWRXW - gcse */
+	# COB_CFLAGS="$COB_CFLAGS -Wno-unused -fsigned-char -fno-gcse"
+	COB_CFLAGS="$COB_CFLAGS -Wno-unused -fsigned-char"
 fi
 
-COB_CONFIG_DIR="$datadir/$PACKAGE_TARNAME/config"
-COB_COPY_DIR="$datadir/$PACKAGE_TARNAME/copy"
-COB_LIBRARY_PATH="$libdir/$PACKAGE_TARNAME"
-COB_MODULE_EXT=`echo "$acl_cv_shlibext" | sed -e 's/dll\.a/dll/'`
-COB_OBJECT_EXT="$OBJEXT"
-LIBS="$save_libs"
-COB_EXPORT_DYN="`eval echo $export_dynamic_flag_spec`"
-COB_PIC_FLAGS=`echo "$lt_prog_compiler_pic" | sed -e 's/^ //'`
-COB_SHARED_OPT="-shared"
-COB_EXEEXT="$EXEEXT"
+# Check gcc 4 pointer sign option (at least available with "recent" clang, too)
+#if test "$COB_USES_GCC_NO_ICC" = "yes"; then
+	MYOLDCFLAGS="$CFLAGS"
+	CFLAGS="$CFLAGS -Wno-pointer-sign"
+	AC_MSG_CHECKING([for gcc pointer sign option])
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
+		[COB_CFLAGS="$COB_CFLAGS -Wno-pointer-sign"; AC_MSG_RESULT([yes])],
+		[AC_MSG_RESULT([no])])
+	CFLAGS="$MYOLDCFLAGS"
+#fi
 
-if test "$enable_cflags_setting" = yes; then
-	# Remove -O2 option added by AC_PROG_CC and add -O0
-	CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-O@<:@0-9a-zA-Z@:>@* */ /g' -e 's/ $//' -e 's/^ //'`
-	if test "$COB_USES_GCC_ICC" = "yes"; then
-		CFLAGS="$CFLAGS -O0"
-	fi
-
-	# Add -g3 if using GCC.
-	if test "$COB_USES_GCC_ONLY" = "yes"; then
-		MYOLDCFLAGS="$CFLAGS"		     
-		CFLAGS="$CFLAGS -g3"
-		AC_MSG_CHECKING([for gcc -g3 option])
-		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
-			[AC_MSG_RESULT([yes])],
-			[CFLAGS="$MYOLDCFLAGS"; AC_MSG_RESULT([no])])
-		unset MYOLDCFLAGS
-	fi
+if test "$COB_USES_CLANG_ONLY" = "yes"; then
+	# don't warn if cobc uses arguments which aren't picked up (likely because of the translation phase)
+	COB_CFLAGS="$COB_CFLAGS -Qunused-arguments"
 fi
 
-unset enable_cflags_setting
 
-if test "$enable_debug" != "yes" -a "x$CFLAGS" != "x"; then
-	CFLAGS=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/-g3//' -e 's/^ //' -e 's/ $//'`
-fi
+# Include CFLAGS / CPPFLAGS in COB_CFLAGS without optimization/debug options.
 
-# Include CFLAGS in COB_CFLAGS without optimization/debug options
-
-cob_temp_flags=""
 if test "x$CFLAGS" != "x"; then
-	cob_temp_flags=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/-g3//' -e 's/ $//' -e 's/^ //'`
+	cob_temp_flags="$CFLAGS"
+else
+	cob_temp_flags=""
+fi
+if test "x$CPPFLAGS" != "x"; then
+	if test "x$cob_temp_flags" != "x"; then
+		cob_temp_flags="$CPPFLAGS $cob_temp_flags"
+	else
+		cob_temp_flags="$CPPFLAGS"
+	fi
+fi
+if test "x$cob_temp_flags" != "x"; then
+	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-g//' -e 's/-g3//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/@<:@+-@:>@O@<:@0-9s@:>@//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-O//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-fmessage-length=0//'`
@@ -1009,18 +1104,6 @@ if test "x$cob_temp_flags" != "x"; then
 fi
 unset cob_temp_flags
 
-if test "$COB_USES_GCC_ICC" = "yes"; then
-	if test "x$CFLAGS" != "x"; then
-		CFLAGS="$CFLAGS -pipe"
-	else
-		CFLAGS="-pipe"
-	fi
-	if test "x$COB_CFLAGS" != "x"; then
-		COB_CFLAGS="$COB_CFLAGS -pipe"
-	else
-		COB_CFLAGS="-pipe"
-	fi
-fi
 
 # Special stuff
 
@@ -1051,7 +1134,7 @@ case $host_os in
 	COB_SHARED_OPT="-bundle -flat_namespace -undefined suppress"
 	;;
   hpux*)
-	if test "$COB_USES_GCC_ICC" != "yes"; then
+	if test "$COB_USES_GCC" != "yes"; then
 		COB_SHARED_OPT="-b"
 		AC_DEFINE([_XOPEN_SOURCE_EXTENDED], [1])
 		rm -f hptest*
@@ -1076,7 +1159,7 @@ case $host_os in
 	;;
   aix*)
 	COB_EXPORT_DYN="-Wl,-bexpfull -Wl,-brtl"
-	if test "$COB_USES_GCC_ICC" != "yes"; then
+	if test "$COB_USES_GCC" != "yes"; then
 		CFLAGS="$CFLAGS -Q -qro -qroconst"
 		if test "$enable_debug" = "yes"; then
 			CFLAGS="$CFLAGS -qnoopt"
@@ -1093,7 +1176,7 @@ case $host_os in
 	fi
 	;;
   solaris*)
-	if test "$COB_USES_GCC_ICC" != "yes"; then
+	if test "$COB_USES_GCC" != "yes"; then
 		CFLAGS="$CFLAGS -xstrconst"
 		if test "$enable_debug" != "yes"; then
 			CFLAGS="$CFLAGS -xO2"
@@ -1104,7 +1187,12 @@ case $host_os in
 	;;
 esac
 
-if test "$COB_USES_GCC_ONLY" = "yes" && test "$with_gnu_ld" = "yes"; then
+if test "$COB_USES_ICC_ONLY" = "yes"; then
+	if test "$enable_debug" != "yes"; then
+		CFLAGS="$CFLAGS -finline-functions"
+	fi
+	CFLAGS="$CFLAGS -Wall -wd1419 -vec-report0 -opt-report 0"
+elif test "$COB_USES_GCC" = "yes" && test "$with_gnu_ld" = "yes"; then
 	MYOLDLDFLAGS="$LDFLAGS"
 	LDFLAGS="$LDFLAGS -Wl,-z,relro,-z,now,-O1"
 	AC_MSG_CHECKING([for ld bind now option])
@@ -1120,11 +1208,6 @@ if test "$COB_USES_GCC_ONLY" = "yes" && test "$with_gnu_ld" = "yes"; then
 	if test "$enable_debug" != "yes"; then
 		CFLAGS="$CFLAGS -U_FORTIFY_SOURCE"
 	fi
-elif test "$COB_USES_ICC_ONLY" = "yes"; then
-	if test "$enable_debug" != "yes"; then
-		CFLAGS="$CFLAGS -finline-functions"
-	fi
-	CFLAGS="$CFLAGS -Wall -wd1419 -vec-report0 -opt-report 0"
 fi
 
 if test "x$lt_cv_dlopen_self" != "xyes"; then
@@ -1143,9 +1226,12 @@ else
 	COB_HAS_CURSES=yes
 fi
 
-unset COB_USES_GCC_ICC
-unset COB_USES_GCC_ONLY
+unset COB_USES_GCC
+unset COB_USES_GCC_NO_ICC
 unset COB_USES_ICC_ONLY
+unset COB_USES_CLANG_ONLY
+unset COB_USES_XLC_ONLY
+unset COB_USES_WATCOM_ONLY
 unset MYOLDCFLAGS
 unset MYOLDLIBS
 unset MYOCLIBS
@@ -1157,7 +1243,9 @@ AM_CONDITIONAL([COB_MAKE_IX], [test "$COB_HAS_ISAM" = yes])
 AC_DEFINE_UNQUOTED([COB_EXPORT_DYN], ["$COB_EXPORT_DYN"])
 AC_DEFINE_UNQUOTED([COB_PIC_FLAGS], ["$COB_PIC_FLAGS"])
 AC_DEFINE_UNQUOTED([COB_SHARED_OPT], ["$COB_SHARED_OPT"])
-AC_DEFINE_UNQUOTED([COB_EXEEXT], ["$COB_EXEEXT"])
+AC_DEFINE_UNQUOTED([COB_OBJECT_EXT], ["$COB_OBJECT_EXT"])
+AC_DEFINE_UNQUOTED([COB_MODULE_EXT], ["$COB_MODULE_EXT"])
+AC_DEFINE_UNQUOTED([COB_EXE_EXT], ["$COB_EXE_EXT"])
 if test "x$striplib" != "x"; then
 	AC_DEFINE_UNQUOTED([COB_STRIP_CMD], ["$striplib"])
 fi
@@ -1168,8 +1256,9 @@ AC_SUBST([COB_LIBS])
 AC_SUBST([COB_CONFIG_DIR])
 AC_SUBST([COB_COPY_DIR])
 AC_SUBST([COB_LIBRARY_PATH])
-AC_SUBST([COB_MODULE_EXT])
 AC_SUBST([COB_OBJECT_EXT])
+AC_SUBST([COB_MODULE_EXT])
+AC_SUBST([COB_EXE_EXT])
 AC_SUBST([COBC_LIBS])
 AC_SUBST([LIBCOB_LIBS])
 AC_SUBST([COB_EXPORT_DYN])
@@ -1196,9 +1285,10 @@ AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
 	tests/atlocal tests/Makefile tests/cobol85/Makefile
 	extras/Makefile debugger/Makefile])
 
-AC_CONFIG_COMMANDS([chmod1], [chmod +x bin/cob-config])
-AC_CONFIG_COMMANDS([chmod2], [chmod +x tests/atconfig])
-AC_CONFIG_COMMANDS([chmod3], [chmod +x tests/atlocal])
+AC_CONFIG_COMMANDS([chmod],
+[chmod +x bin/cob-config;
+chmod +x tests/atconfig;
+chmod +x tests/atlocal])
 
 AC_OUTPUT
 
@@ -1215,8 +1305,9 @@ AC_MSG_NOTICE([ COB_LIBS          ${COB_LIBS}])
 AC_MSG_NOTICE([ COB_CONFIG_DIR    ${COB_CONFIG_DIR}])
 AC_MSG_NOTICE([ COB_COPY_DIR      ${COB_COPY_DIR}])
 AC_MSG_NOTICE([ COB_LIBRARY_PATH  ${COB_LIBRARY_PATH}])
-AC_MSG_NOTICE([ COB_MODULE_EXT    ${COB_MODULE_EXT}])
 AC_MSG_NOTICE([ COB_OBJECT_EXT    ${COB_OBJECT_EXT}])
+AC_MSG_NOTICE([ COB_MODULE_EXT    ${COB_MODULE_EXT}])
+AC_MSG_NOTICE([ COB_EXE_EXT       ${COB_EXE_EXT}])
 AC_MSG_NOTICE([ COB_SHARED_OPT    ${COB_SHARED_OPT}])
 AC_MSG_NOTICE([ COB_PIC_FLAGS     ${COB_PIC_FLAGS}])
 AC_MSG_NOTICE([ COB_EXPORT_DYN    ${COB_EXPORT_DYN}])

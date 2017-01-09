@@ -85,6 +85,16 @@
 
 #if defined(_MSC_VER)
 
+/*
+_MSC_VER == 1400 (Visual Studio 2005) since OS-Version 2000
+_MSC_VER == 1500 (Visual Studio 2008) since OS-Version XP / 2003
+_MSC_VER == 1600 (Visual Studio 2010) since OS-Version XP / 2003
+_MSC_VER == 1700 (Visual Studio 2012) since OS-Version 7  / 2008 R2
+_MSC_VER == 1800 (Visual Studio 2013) since OS-Version 7  / 2008 R2
+_MSC_VER == 1900 (Visual Studio 2015) since OS-Version 7  / 2008 R2
+_MSC_VER == 2000 (Visual Studio 2017) since OS-Version 7  / 2012 R2
+*/
+
 #if _MSC_VER >= 1500
 #define COB_USE_VC2008_OR_GREATER 1
 #else
@@ -92,6 +102,12 @@
 #if _MSC_VER < 1400
 #error Support for Visual Studio 2003 and earlier dropped with GnuCOBOL 2.0
 #endif
+#endif
+
+#if _MSC_VER >= 1700
+#define COB_USE_VC2012_OR_GREATER 1
+#else
+#define COB_USE_VC2012_OR_GREATER 0
 #endif
 
 #if _MSC_VER >= 1800
@@ -574,8 +590,13 @@
 /* Maximum digits in binary field */
 #define	COB_MAX_BINARY		39
 
-/* Maximum bytes in a single field (on 01/77 level) */
+/* Maximum bytes in a single/group field,
+  which doesn't contain UNBOUNDED items */
 #define	COB_MAX_FIELD_SIZE	268435456
+
+/* Maximum bytes in an unbounded table entry
+   (IBM: 999999998) */
+#define	COB_MAX_UNBOUNDED_SIZE	999999998
 
 /* Maximum number of cob_decimal structures */
 #define	COB_MAX_DEC_STRUCT	32
@@ -1407,6 +1428,8 @@ COB_EXPIMP int	cob_sys_oc_nanosleep	(const void *);
 COB_EXPIMP int	cob_sys_getpid		(void);
 COB_EXPIMP int	cob_sys_return_args	(void *);
 COB_EXPIMP int	cob_sys_parameter_size	(void *);
+COB_EXPIMP int	cob_sys_fork	(void);
+COB_EXPIMP int	cob_sys_waitpid	(const void *);
 
 /*
  * cob_sys_getopt_long_long
@@ -1438,9 +1461,30 @@ COB_EXPIMP void			*cob_get_prog_pointer	(const void *);
 COB_EXPIMP void			cob_ready_trace		(void);
 COB_EXPIMP void			cob_reset_trace		(void);
 
+/* Datetime structure */
+struct cob_time
+{
+	int	year;
+	int	month; /* 1 = Jan ... 12 = Dec */
+	int	day_of_month; /* 1 ... 31 */
+	int	day_of_week; /* 1 = Monday ... 7 = Sunday */
+	int day_of_year; /* -1 on _WIN32! */
+	int	hour;
+	int	minute;
+	int	second;
+	int	nanosecond;
+	int	offset_known;
+	int	utc_offset; /* in minutes */
+	int is_daylight_saving_time;
+};
+
+COB_EXPIMP struct cob_time cob_get_current_date_and_time	(void);
 
 /* Registration of external handlers */
 COB_EXPIMP void	cob_reg_sighnd	(void (*sighnd) (int));
+
+/* Raise signal (run both internal and external handlers) */
+COB_EXPIMP void	cob_raise		(int);
 
 /* Switch */
 
@@ -1474,10 +1518,10 @@ COB_EXPIMP void	cob_check_based		(const unsigned char *,
 					 const char *);
 COB_EXPIMP void	cob_check_linkage	(const unsigned char *,
 					 const char *, const int);
-COB_EXPIMP void	cob_check_odo		(const int, const int,
-					 const int, const char *);
+COB_EXPIMP void	cob_check_odo		(const int, const int, const int,
+					 const char *, const char *);
 COB_EXPIMP void	cob_check_subscript	(const int, const int,
-					 const int, const char *);
+					 const char *, const int);
 COB_EXPIMP void	cob_check_ref_mod	(const int, const int,
 					 const int, const char *);
 
@@ -1588,26 +1632,33 @@ COB_EXPIMP void		cob_longjmp		(struct cobjmp_buf *);
 /*******************************/
 /* Functions in screenio.c */
 
-COB_EXPIMP void cob_screen_line_col	(cob_field *, const int);
-COB_EXPIMP void cob_screen_display	(cob_screen *, cob_field *,
+COB_EXPIMP void		cob_screen_line_col	(cob_field *, const int);
+COB_EXPIMP void		cob_screen_display	(cob_screen *, cob_field *,
 					 cob_field *, const int);
-COB_EXPIMP void cob_screen_accept	(cob_screen *, cob_field *,
+COB_EXPIMP void		cob_screen_accept	(cob_screen *, cob_field *,
 					 cob_field *, cob_field *,
 					 const int);
-COB_EXPIMP void cob_field_display	(cob_field *, cob_field *, cob_field *,
+COB_EXPIMP void		cob_field_display	(cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
 					 cob_field *, const cob_flags_t);
 COB_EXPIMP void cob_field_accept	(cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
 					 cob_field *, cob_field *, cob_field *,
 					 const cob_flags_t);
-COB_EXPIMP void cob_accept_escape_key	(cob_field *);
-COB_EXPIMP int	cob_sys_clear_screen	(void);
-COB_EXPIMP int	cob_sys_sound_bell	(void);
-COB_EXPIMP int	cob_sys_get_csr_pos	(unsigned char *);
-COB_EXPIMP int	cob_sys_get_scr_size	(unsigned char *, unsigned char *);
-COB_EXPIMP int	cob_get_scr_cols	(void);
-COB_EXPIMP int	cob_get_scr_lines	(void);
+COB_EXPIMP int		cob_display_text (const char *);
+COB_EXPIMP int		cob_display_formatted_text (const char *, ...);
+COB_EXPIMP int		cob_get_char	(void);
+COB_EXPIMP void		cob_set_cursor_pos	(int, int);
+COB_EXPIMP void		cob_accept_escape_key	(cob_field *);
+COB_EXPIMP int		cob_sys_clear_screen	(void);
+COB_EXPIMP int		cob_sys_sound_bell	(void);
+COB_EXPIMP int		cob_sys_get_scr_pos	(unsigned char *);
+COB_EXPIMP int		cob_sys_get_scr_size	(unsigned char *, unsigned char *);
+COB_EXPIMP int		cob_sys_put_scr_pos	(unsigned char *);
+COB_EXPIMP int		cob_sys_get_char	(char);
+COB_EXPIMP int		cob_get_text 		(char *, int);
+COB_EXPIMP int		cob_get_scr_cols	(void);
+COB_EXPIMP int		cob_get_scr_lines	(void);
 
 /*******************************/
 /* Functions in termio.c */
@@ -1841,6 +1892,8 @@ COB_EXPIMP void		all_to_upper(char*);
 
 /*******************************/
 /* defines for MicroFocus C -> COBOL API */
+typedef	char *	cobchar_t;
+
 #define	cobsetjmp(x)	setjmp (cob_savenv (x))
 #define	coblongjmp(x)	cob_longjmp (x)
 #define	cobsavenv(x)	cob_savenv (x)
@@ -1851,14 +1904,19 @@ COB_EXPIMP void		all_to_upper(char*);
 
 #define	cobgetenv(x)			cob_getenv (x)
 #define	cobputenv(x)			cob_putenv (x)
-#define cobrescanenv()	/* not necessary as GnuCOBOL always reads the process environment */
+#define cobrescanenv()	0 /* not necessary as GnuCOBOL always reads the process environment */
 #define	cobtidy()			cob_tidy ()
 #define	cobinit()			cob_extern_init ()
 #define	cobexit(x)			cob_stop_run (x)
 #define	cobcommandline(v,w,x,y,z)	cob_command_line (v,w,x,y,z)
 
+#define cobclear()			(void) cob_sys_clear_screen ()
+#define cobmove(y,x)		cob_set_cursor_pos (y, x)
 #define	cobcols()			cob_get_scr_cols ()
 #define	coblines()			cob_get_scr_lines ()
+#define cobaddstrc(x)		cob_display_text (x) /* no limit [MF=255] */
+#define cobprintf			cob_display_formatted_text	/* limit of 2047 [MF=255] */
+#define cobgetch()			cob_get_char ()
 /*******************************/
 
 #endif	/* COB_COMMON_H */

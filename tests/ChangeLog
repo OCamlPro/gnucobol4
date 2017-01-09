@@ -1,15 +1,64 @@
 
+2017-01-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/report.pl: replaced fifo by sysin redirection and
+	  new kill sequence
+
+2016-12-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/report.pl: fixing running the suite from shared file systems by
+	  moving fifo to tempdir (where creation of fifo should always be possible)
+	* cobol85/report.pl, cobol85/NC.txt: automated "manual investigations"
+	* cobol85/report.pl: moved test specific compilation flags to $cobc_flags
+	  and show them on command line,
+	  create report.log directly with test specific name
+
+2016-12-14  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobol85/report.pl, cobol85/*.txt: compile only tests no longer
+	  increment the successful test counter, as this is for runtime tests
+	* cobol85/report.pl: allow passing input to programs (e.g. for those
+	  with STOP literal), implemented by mkfifo, asynchron run and kill
+
+2016-12-12  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobol85/report.pl: updated and annotated the list of compile-only
+	  tests
+
+2016-12-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.at: added cobcrun to tested programs
+	* atlocal_win: changes for allowing test of Windows binaries with
+	  WSL / Bash on Windows
+	* testsuite.src/listings.sed: adjustment for optional package suffixes
+
+2016-12-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal_valgrind: sample configuration for running testsuites
+	  with valgrind
+	* cobol85/report.pl: check environment for COBC/COBCRUN to override
+	  the called binaries (useful for testing with valgrind)
+
+2016-11-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_extensions.at: splitted tests for CBL_GC_FORK /
+	  CBL_GC_WAITPID, skip these tests if the functions return "not available"
+
+2016-11-17  Ron Norman <rjn@inglenet.com>
+
+	* testsuite.src/run_extensions.at: add CBL_GC_FORK & CBL_GC_WAITPID
+
 2016-11-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* atlocal.in, atlocal_win: added COB_IS_RUNNING_IN_TESTMODE
 
 2016-11-11  Dave Pitts <dpitts@cozx.com>
 
-	* testsuite.src/listings.at: Changed for new spacing.
+	* testsuite.src/listings.at: changed for new spacing
 
 2016-11-09  Dave Pitts <dpitts@cozx.com>
 
-	* testsuite.src/listings.at: Added cross reference tests.
+	* testsuite.src/listings.at: sdded cross reference tests
 
 2016-11-07  Dave Pitts <dpitts@cozx.com>
 

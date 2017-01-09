@@ -44,10 +44,14 @@
 #ifdef	HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
+#ifdef	HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#endif
 
 #ifdef	_WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#undef MOUSE_MOVED
 #include <process.h>
 #include <io.h>
 #include <fcntl.h>
@@ -60,6 +64,31 @@
 #ifdef	HAVE_LOCALE_H
 #include <locale.h>
 #endif
+
+/* library headers for version output */
+#ifdef _WIN32
+#define __GMP_LIBGMP_DLL 1
+#endif
+#include <gmp.h>
+
+#ifdef	WITH_DB
+#include <db.h>
+#endif
+
+#if defined(HAVE_NCURSESW_NCURSES_H)
+#include <ncursesw/ncurses.h>
+#elif defined(HAVE_NCURSESW_CURSES_H)
+#include <ncursesw/curses.h>
+#elif defined(HAVE_NCURSES_H)
+#include <ncurses.h>
+#elif defined(HAVE_NCURSES_NCURSES_H)
+#include <ncurses/ncurses.h>
+#elif defined(HAVE_PDCURSES_H)
+#include <pdcurses.h>
+#elif defined(HAVE_CURSES_H)
+#include <curses.h>
+#endif
+/* end of library headers */
 
 #include "lib/gettext.h"
 
@@ -83,8 +112,11 @@
 #define OC_C_VERSION_PRF	""
 #define OC_C_VERSION	CB_XSTRINGIFY(__VERSION__)
 #elif	defined(__xlc__)
-#define OC_C_VERSION_PRF	"(IBM) "
+#define OC_C_VERSION_PRF	"(IBM XL C/C++) "
 #define OC_C_VERSION	CB_XSTRINGIFY(__xlc__)
+#elif	defined(__SUNPRO_CC)
+#define OC_C_VERSION_PRF	"(Sun C++) "
+#define OC_C_VERSION	CB_XSTRINGIFY(__SUNPRO_CC)
 #elif	defined(_MSC_VER)
 #define OC_C_VERSION_PRF	"(Microsoft) "
 #define OC_C_VERSION	CB_XSTRINGIFY(_MSC_VER)
@@ -100,6 +132,12 @@
 #else
 #define OC_C_VERSION_PRF	""
 #define OC_C_VERSION	"unknown"
+#endif
+
+#if COB_MAX_UNBOUNDED_SIZE > COB_MAX_FIELD_SIZE
+#define COB_MAX_ALLOC_SIZE COB_MAX_UNBOUNDED_SIZE
+#else
+#define COB_MAX_ALLOC_SIZE COB_MAX_FIELD_SIZE
 #endif
 
 #ifdef HEAP_DEBUG
@@ -284,6 +322,8 @@ static struct config_tbl gc_conf[] = {
 #endif
 	{"COB_LEGACY","legacy",			NULL,	NULL,GRP_SCREEN,ENV_BOOL,SETPOS(cob_legacy)},
 	{"COB_ANIM","anim",	"0",	NULL,GRP_MISC,ENV_BOOL,SETPOS(cob_anim)},
+	{"COB_EXIT_WAIT","exit_wait",		"1",	NULL,GRP_SCREEN,ENV_BOOL,SETPOS(cob_exit_wait)},
+	{"COB_EXIT_MSG","exit_msg",		_("end of program, please press a key to exit"), NULL,GRP_SCREEN,ENV_STR,SETPOS(cob_exit_msg)},
 	{NULL,NULL,0,0}
 };
 #define NUM_CONFIG (sizeof(gc_conf)/sizeof(struct config_tbl)-1)
@@ -436,6 +476,20 @@ cob_terminate_routines (void)
 	cob_exit_common ();
 }
 
+/* reentrant version of strerror */
+static char *
+cob_get_strerror (void)
+{
+	char * msg;
+	msg = cob_cache_malloc ((size_t)COB_ERRBUF_SIZE);
+#ifdef HAVE_STRERROR
+	strncpy (msg, strerror (errno), COB_ERRBUF_SIZE - 1);
+#else
+	snprintf (msg, COB_ERRBUF_SIZE - 1, _("system error %d"), errno);
+#endif
+	return msg;
+}
+
 #ifdef	HAVE_SIGNAL_H
 DECLNORET static void COB_A_NORETURN
 cob_sig_handler_ex (int sig)
@@ -555,6 +609,28 @@ cob_sig_handler (int sig)
 	cob_sig_handler_ex(sig);
 }
 #endif /* HAVE_SIGNAL_H */
+
+/* Raise signal (run both internal and external handlers) 
+   may return, depending on the signal
+*/
+void
+cob_raise (int sig)
+{
+#ifdef	HAVE_SIGNAL_H
+	/* let the registered signal handlers do their work */
+#ifdef	HAVE_RAISE
+	raise (sig);
+#else
+	kill (cob_sys_getpid(), sig);
+#endif
+	/* else: at least call external signal handler if registered */
+#else
+	if (cob_ext_sighdl != NULL) {
+		(*cob_ext_sighdl) (sig);
+		cob_ext_sighdl = NULL;
+	}
+#endif
+}
 
 static void
 cob_set_signal (void)
@@ -1158,12 +1234,14 @@ one_indexed_day_of_week_from_monday(int zero_indexed_from_sunday)
 	return ((zero_indexed_from_sunday + 6) % 7) + 1;
 }
 
+#if !defined (_BSD_SOURCE)
 static void
 set_unknown_offset(struct cob_time *time)
 {
 	time->offset_known = 0;
 	time->utc_offset = 0;
 }
+#endif
 
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
 static void
@@ -1179,19 +1257,21 @@ set_cob_time_ns_from_filetime (const FILETIME filetime, struct cob_time *cb_time
 }
 #endif
 
-#if defined (_WIN32) && !defined (__CYGWIN__)
+#if defined (_WIN32) /* cygwin does not define _WIN32 */
 static void
 set_cob_time_offset (struct cob_time *cb_time)
 {
 	DWORD	time_zone_result;
-	TIME_ZONE_INFORMATION	time_zone_info;
+	TIME_ZONE_INFORMATION	time_zone_info = {0};
 
 	time_zone_result = GetTimeZoneInformation (&time_zone_info);
 	if (time_zone_result != TIME_ZONE_ID_INVALID) {
 		cb_time->offset_known = 1;
 		cb_time->utc_offset = time_zone_info.Bias;
+		cb_time->is_daylight_saving_time = time_zone_result - 1;
 	} else {
 		set_unknown_offset (cb_time);
+		cb_time->is_daylight_saving_time = -1;
 	}
 }
 #endif
@@ -2379,7 +2459,7 @@ cob_check_linkage (const unsigned char *x, const char *name, const int check_typ
 {
 	if (!x) {
 		/* name includes '' already and can be ... 'x' of 'y' */
-		switch(check_type) {
+		switch (check_type) {
 		case 0: /* check for passed items and size on module entry */
 			cob_runtime_error (_("LINKAGE item %s not passed by caller"), name);
 			break;
@@ -2419,24 +2499,39 @@ cob_check_numeric (const cob_field *f, const char *name)
 
 void
 cob_check_odo (const int i, const int min,
-	       const int max, const char *name)
+	       const int max, const char *name, const char *dep_name)
 {
 	/* Check OCCURS DEPENDING ON item */
-	if (i < min || max < i) {
+	if (i < min || i > max) {
 		cob_set_exception (COB_EC_BOUND_ODO);
-		cob_runtime_error (_("OCCURS DEPENDING ON '%s' out of bounds: %d"), name, i);
+		cob_runtime_error (_("OCCURS DEPENDING ON '%s' out of bounds: %d"),
+					dep_name, i);
+		if (i > max) {
+			cob_runtime_error (_("maximum subscript for '%s': %d"), name, max);
+		} else {
+			cob_runtime_error (_("minimum subscript for '%s': %d"), name, min);
+		}
 		cob_stop_run (1);
 	}
 }
 
 void
-cob_check_subscript (const int i, const int min,
-		     const int max, const char *name)
+cob_check_subscript (const int i, const int max,
+			const char *name, const int odo_item)
 {
 	/* Check subscript */
-	if (i < min || max < i) {
+	if (i < 1 || i > max) {
 		cob_set_exception (COB_EC_BOUND_SUBSCRIPT);
 		cob_runtime_error (_("subscript of '%s' out of bounds: %d"), name, i);
+		if (i >= 1) {
+		if (odo_item) {
+				cob_runtime_error (_("current maximum subscript for '%s': %d"),
+							name, max);
+			} else {
+				cob_runtime_error (_("maximum subscript for '%s': %d"),
+							name, max);
+			}
+		}
 		cob_stop_run (1);
 	}
 }
@@ -2497,7 +2592,29 @@ cob_ctoi (const char digit)
 	return (int) (digit - '0');
 }
 
-#if defined (_WIN32) && !defined (__CYGWIN__)
+#if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
+
+/* Get function pointer for most precise time function
+   GetSystemTimePreciseAsFileTime is available since OS-version Windows 2000
+   GetSystemTimeAsFileTime        is available since OS-version Windows 8 / Server 2012
+*/
+static void
+get_function_ptr_for_precise_time (void)
+{
+	HMODULE		kernel32_handle;
+
+	kernel32_handle = GetModuleHandle (TEXT ("kernel32.dll"));
+	if (kernel32_handle != NULL) {
+		time_as_filetime_func = (VOID (WINAPI *) (LPFILETIME))
+			GetProcAddress (kernel32_handle, "GetSystemTimePreciseAsFileTime");
+	}
+	if (time_as_filetime_func == NULL) {
+		time_as_filetime_func = GetSystemTimeAsFileTime;
+	}
+}
+#endif
+
+#if defined (_WIN32) /* cygwin does not define _WIN32 */
 struct cob_time
 cob_get_current_date_and_time (void)
 {
@@ -2509,6 +2626,9 @@ cob_get_current_date_and_time (void)
 	struct cob_time	cb_time;
 
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
+	if (!time_as_filetime_func) {
+		get_function_ptr_for_precise_time ();
+	}
 	(time_as_filetime_func) (&filetime);
 	/* use fallback to GetLocalTime if one of the following does not work */
 	if (!(FileTimeToSystemTime (&filetime, &utc_time) &&
@@ -2523,17 +2643,15 @@ cob_get_current_date_and_time (void)
 	cb_time.month = local_time.wMonth;
 	cb_time.day_of_month = local_time.wDay;
 	cb_time.day_of_week = one_indexed_day_of_week_from_monday (local_time.wDayOfWeek);
+	cb_time.day_of_year = -1 /* calculate similar to intrinsic.c if needed */;
 	cb_time.hour = local_time.wHour;
 	cb_time.minute = local_time.wMinute;
 	cb_time.second = local_time.wSecond;
 	cb_time.nanosecond = local_time.wMilliseconds * 1000000;
-	cb_time.offset_known = 0;
-	cb_time.utc_offset = 0;
-
+	cb_time.is_daylight_saving_time = -1;
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
 	set_cob_time_ns_from_filetime (filetime, &cb_time);
 #endif
-
 	set_cob_time_offset (&cb_time);
 
 	return cb_time;
@@ -2550,7 +2668,7 @@ cob_get_current_date_and_time (void)
 	time_t		curtime;
 	struct tm	*tmptr;
 	struct cob_time	cb_time;
-#if defined(COB_STRFTIME)
+#if !defined (_BSD_SOURCE) && defined(COB_STRFTIME)
 	char		iso_timezone[6] = { '\0' };
 #endif
 
@@ -2574,12 +2692,14 @@ cob_get_current_date_and_time (void)
 	cb_time.month = tmptr->tm_mon + 1;
 	cb_time.day_of_month = tmptr->tm_mday;
 	cb_time.day_of_week = one_indexed_day_of_week_from_monday (tmptr->tm_wday);
+	cb_time.day_of_year = tmptr->tm_yday;
 	cb_time.hour = tmptr->tm_hour;
 	cb_time.minute = tmptr->tm_min;
 	cb_time.second = tmptr->tm_sec;
 	cb_time.nanosecond = 0;
 	cb_time.offset_known = 0;
 	cb_time.utc_offset = 0;
+	cb_time.is_daylight_saving_time = tmptr->tm_isdst;
 
 	/* Get nanoseconds or microseconds, if possible */
 #if defined (HAVE_CLOCK_GETTIME)
@@ -2591,7 +2711,10 @@ cob_get_current_date_and_time (void)
 #endif
 
 	/* Get the offset from UTC */
-#if defined (COB_STRFTIME)
+#if defined (_BSD_SOURCE)
+	cb_time.offset_known = 1;
+	cb_time.utc_offset = tmptr->tm_gmtoff / 60;
+#elif defined (COB_STRFTIME)
 	strftime (iso_timezone, (size_t) 6, "%z", tmptr);
 
 	if (iso_timezone[0] == '0') {
@@ -2945,7 +3068,10 @@ cob_allocate (unsigned char **dataptr, cob_field *retptr,
 	cobglobptr->cob_exception_code = 0;
 	mptr = NULL;
 	fsize = cob_get_int (sizefld);
-	if (fsize > 0) {
+	/* FIXME: doesn't work correctly if fsize is > INT_MAX */
+	if (fsize > COB_MAX_ALLOC_SIZE) {
+		cob_set_exception (COB_EC_STORAGE_IMP);
+	} else if (fsize > 0) {
 		cache_ptr = cob_malloc (sizeof (struct cob_alloc_cache));
 		mptr = malloc ((size_t)fsize);
 		if (!mptr) {
@@ -3673,6 +3799,118 @@ cob_sys_getpid (void)
 }
 
 int
+cob_sys_fork (void)
+{
+#ifdef	_WIN32  /* cygwin does not define _WIN32, but implements fork() */
+	cob_runtime_warning (_("'%s' is not supported on this platform"), "CBL_GC_FORK");
+	return -1;
+#else
+	int	pid;
+	if ( (pid = fork()) == 0 ) {
+		return 0;		/* child process just returns */
+	}
+	if (pid < 0) {			/* Some error happened */
+		cob_runtime_warning (_("Error '%s' during CBL_GC_FORK"), cob_get_strerror());
+		return -2;
+	}
+	return pid;			/* parent gets process id of child */
+#endif
+}
+
+
+/* wait for a pid to end and return its exit code
+   error codes are returned as negative value
+*/
+int
+cob_sys_waitpid (const void *p_id)
+{
+#ifdef	HAVE_SYS_WAIT_H
+	int	pid, status, wait_sts;
+
+	COB_UNUSED (p_id);
+
+	if (COB_MODULE_PTR->cob_procedure_params[0]) {
+		pid = cob_get_int (COB_MODULE_PTR->cob_procedure_params[0]);
+		if (pid == cob_sys_getpid ()) {
+			status = 0 - EINVAL;
+			return status;
+		}
+		wait_sts = waitpid (pid, &status, 0);
+		if (wait_sts < 0) {			/* Some error happened */
+			status = 0 - errno;
+			cob_runtime_warning (_("error '%s' for P%d during CBL_GC_WAITPID"),
+				cob_get_strerror (), pid);
+			return status;
+		}
+		status = WEXITSTATUS (status);
+	} else {
+		status = 0 - EINVAL;
+	}
+	return status;
+#elif defined (_WIN32)
+	int	pid, status;
+	HANDLE process = NULL;
+	DWORD ret;
+
+	COB_UNUSED (p_id);
+
+	status = 0;
+	if (COB_MODULE_PTR->cob_procedure_params[0]) {
+		pid = cob_get_int (COB_MODULE_PTR->cob_procedure_params[0]);
+		if (pid == cob_sys_getpid ()) {
+			status = 0 - ERROR_INVALID_DATA;
+			return status;
+		}
+		/* get process handle with least necessary rights
+		   PROCESS_QUERY_LIMITED_INFORMATION is available since OS-version Vista / Server 2008
+		                                     and always leads to ERROR_ACCESS_DENIED on older systems
+		   PROCESS_QUERY_INFORMATION         needs more rights
+		   SYNCHRONIZE                       necessary for WaitForSingleObject
+		*/
+		process = OpenProcess (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+#if !defined(_MSC_VER) || !COB_USE_VC2012_OR_GREATER /* only try a higher level if we possibly compile on XP/2003 */
+		/* TODO: check what happens on WinXP / 2003 as PROCESS_QUERY_LIMITED_INFORMATION isn't available there */
+		if (!process && GetLastError () == ERROR_ACCESS_DENIED) {
+			process = OpenProcess (SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, pid);
+		}
+#endif
+		/* if we don't get access to query the process' exit status try to get at least
+			access to the process end (needed for WaitForSingleObject)
+		*/
+		if (!process && GetLastError () == ERROR_ACCESS_DENIED) {
+			process = OpenProcess (SYNCHRONIZE, FALSE, pid);
+			status = -2;
+		}
+		if (process) {
+			/* wait until process exit */
+			ret = WaitForSingleObject (process, INFINITE);
+			if (ret == WAIT_FAILED) {
+				status = 0 - GetLastError ();
+			/* get exit code, if possible */
+			} else if (status != -2) { 
+				if (!GetExitCodeProcess (process, &ret)) {
+					status = 0 - GetLastError ();
+				} else {
+					status = (int) ret;
+				}
+			}
+			CloseHandle (process);
+		} else {
+			status = 0 - GetLastError ();
+		}
+	} else {
+		status = 0 - ERROR_INVALID_DATA;
+	}
+	return status;
+#else
+	COB_UNUSED (p_id);
+
+	cob_runtime_warning (_("'%s' is not supported on this platform"), "CBL_GC_WAITPID");
+	return -1;
+#endif
+}
+
+int
 cob_sys_return_args (void *data)
 {
 	COB_UNUSED (data);
@@ -3789,12 +4027,12 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 		longoptions = (struct option*) cob_malloc(sizeof(struct option) * (lo_amount + 1U));
 	}
 	else {
-		cob_runtime_error (_("Call to CBL_OC_GETOPT with wrong longoption size."));
+		cob_runtime_error (_("Call to CBL_GC_GETOPT with wrong longoption size."));
 		cob_stop_run (1);
 	}
 
 	if (!COB_MODULE_PTR->cob_procedure_params[2]) {
-		cob_runtime_error (_("Call to CBL_OC_GETOPT with missing longind."));
+		cob_runtime_error (_("Call to CBL_GC_GETOPT with missing longind."));
 		cob_stop_run (1);
 	}
 	longind = cob_get_int (COB_MODULE_PTR->cob_procedure_params[2]);
@@ -4118,8 +4356,13 @@ cob_int_to_formatted_bytestring (int i, char* number)
 }
 #endif
 
+/* concatenate two strings allocating a new one
+   and optionally free one of the strings
+   set str_to_free if the result is assigned to
+   one of the two original strings
+*/
 char *
-cob_strcat (char* str1, char* str2)
+cob_strcat (char* str1, char* str2, int str_to_free)
 {
 	size_t		l;
 	char		*temp1, *temp2;
@@ -4147,6 +4390,13 @@ cob_strcat (char* str1, char* str2)
 	strbuff = (char*) cob_fast_malloc(l);
 
 	sprintf (strbuff, "%s%s", temp1, temp2);
+	switch (str_to_free) {
+		case 1: cob_free (temp1);
+		        break;
+		case 2: cob_free (temp2);
+		        break;
+		default: break;
+	}
 	return strbuff;
 }
 
@@ -4158,27 +4408,13 @@ cob_strjoin (char** strarray, int size, char* separator)
 
 	if(!strarray || size <= 0 || !separator) return NULL;
 
-	result = strarray[0];
+	result = cob_strdup (strarray[0]);
 	for (i = 1; i < size; i++) {
-		result = cob_strcat(result, separator);
-		result = cob_strcat(result, strarray[i]);
+		result = cob_strcat(result, separator, 1);
+		result = cob_strcat(result, strarray[i], 1);
 	}
 
 	return result;
-}
-
-/* reentrant version of strerror */
-static char *
-cob_get_strerror (void)
-{
-	char * msg;
-	msg = cob_cache_malloc ((size_t)COB_ERRBUF_SIZE);
-#ifdef HAVE_STRERROR
-	strncpy (msg, strerror (errno), COB_ERRBUF_SIZE - 1);
-#else
-	snprintf (msg, COB_ERRBUF_SIZE - 1, _("system error %d"), errno);
-#endif
-	return msg;
 }
 
 char *
@@ -4224,11 +4460,12 @@ var_print (const char *msg, const char *val, const char *default_val,
 		break;
 	}
 
-	if (!val && !default_val) {
+	if (!val && (!default_val || default_val[0] == 0)) {
 		putchar('\n');
 		return;
-	} else if (val && default_val && ((format != 2 && val[0] == 0x30) || strcmp(val, default_val) == 0)) {
-		val = cob_strcat((char*) default_val, (char*) _(" (default)"));
+	} else if (format != 0 && val && default_val &&
+		((format != 2 && val[0] == 0x30) || strcmp(val, default_val) == 0)) {
+		val = cob_strcat((char*) default_val, (char*) _(" (default)"), 0);
 	} else if (!val && default_val) {
 		val = default_val;
 	}
@@ -5354,19 +5591,23 @@ void
 print_info (void)
 {
 	char	buff[16];
+	char	versbuff[56];
 	char	*s;
+	int major, minor, patch;
+#if defined(mpir_version)
+	char	versbuff2[111];
+#endif
 
 	print_version ();
 	putchar ('\n');
 	puts (_("build information"));
 	var_print (_("build environment"),	COB_BLD_BUILD, "", 0);
-	var_print ("CC", COB_BLD_CC, "", 0);
+	snprintf (versbuff, 55, "%s\tC version %s%s", COB_BLD_CC, OC_C_VERSION_PRF, OC_C_VERSION);
+	var_print ("CC", versbuff, "", 0);
 	var_print ("CPPFLAGS", COB_BLD_CPPFLAGS, "", 0);
 	var_print ("CFLAGS", COB_BLD_CFLAGS, "", 0);
 	var_print ("LD", COB_BLD_LD, "", 0);
 	var_print ("LDFLAGS", COB_BLD_LDFLAGS, "", 0);
-	putchar ('\n');
-	printf (_("C version %s%s"), OC_C_VERSION_PRF, OC_C_VERSION);
 	putchar ('\n');
 
 	puts (_("GnuCOBOL information"));
@@ -5374,13 +5615,13 @@ print_info (void)
 	var_print ("COB_MODULE_EXT", COB_MODULE_EXT, "", 0);
 #if 0 /* only relevant for cobc */
 	var_print ("COB_OBJECT_EXT", COB_OBJECT_EXT, "", 0);
-	var_print ("COB_EXEEXT", COB_EXEEXT, "", 0);
+	var_print ("COB_EXE_EXT", COB_EXE_EXT, "", 0);
 #endif
 
 #if	defined(USE_LIBDL) || defined(_WIN32)
-	var_print (_("Dynamic loading"),	"system", "", 0);
+	var_print (_("dynamic loading"),	"system", "", 0);
 #else
-	var_print (_("Dynamic loading"),	"libtool", "", 0);
+	var_print (_("dynamic loading"),	"libtool", "", 0);
 #endif
 
 #if 0 /* Simon: only a marginal performance influence - removed from output */
@@ -5403,24 +5644,37 @@ print_info (void)
 	var_print ("BINARY-C-LONG", _("4 bytes"), "", 0);
 #endif
 
-	var_print (_("Extended screen I/O"),	WITH_CURSES, "", 0);
+#if defined (NCURSES_VERSION) || defined (__PDCURSES__)
+	snprintf (versbuff, 55, "%s: %s", WITH_CURSES, curses_version());
+	var_print (_("extended screen I/O"),	versbuff, "", 0);
+#else
+	var_print (_("extended screen I/O"),	WITH_CURSES, "", 0);
+#endif
 
 	snprintf (buff, sizeof(buff), "%d", WITH_VARSEQ);
-	var_print (_("Variable format"), buff, "", 0);
+	var_print (_("variable format"), buff, "", 0);
 	if ((s = getenv ("COB_VARSEQ_FORMAT")) != NULL) {
 		var_print ("COB_VARSEQ_FORMAT", s, "", 1);
 	}
 
 #ifdef	WITH_SEQRA_EXTFH
-	var_print (_("Sequential handler"),	_("EXTFH"), "", 0);
+	var_print (_("sequential handler"),	_("EXTFH"), "", 0);
 #else
-	var_print (_("Sequential handler"), _("built-in"), "", 0);
+	var_print (_("sequential handler"), _("built-in"), "", 0);
 #endif
 
 #if defined	(WITH_INDEX_EXTFH)
 	var_print (_("ISAM handler"),		_("EXTFH"), "", 0);
 #elif defined	(WITH_DB)
-	var_print (_("ISAM handler"),		"BDB", "", 0);
+	major = 0, minor = 0, patch = 0;
+	db_version (&major, &minor, &patch);
+	if (major == DB_VERSION_MAJOR && minor == DB_VERSION_MINOR) {
+		snprintf(versbuff, 55, "%s, version %d.%d%d", "BDB", major, minor, patch);
+	} else {
+		snprintf(versbuff, 55, "%s, version %d.%d%d (compiled with %d.%d)",
+			"BDB", major, minor, patch, DB_VERSION_MAJOR, DB_VERSION_MINOR);
+	}
+	var_print (_("ISAM handler"),		versbuff, "", 0);
 #elif defined	(WITH_CISAM)
 	var_print (_("ISAM handler"),		"C-ISAM" "", 0);
 #elif defined	(WITH_DISAM)
@@ -5429,6 +5683,30 @@ print_info (void)
 	var_print (_("ISAM handler"),		"VBISAM", "", 0);
 #else
 	var_print (_("ISAM handler"),		_("disabled"), "", 0);
+#endif
+
+	major = 0, minor = 0, patch = 0;
+	sscanf (gmp_version, "%d.%d.%d", &major, &minor, &patch);
+	if (major == __GNU_MP_VERSION && minor == __GNU_MP_VERSION_MINOR) {
+		snprintf (versbuff, 55, "%s, version %d.%d%d", "GMP", major, minor, patch);
+	} else {
+		snprintf (versbuff, 55, "%s, version %d.%d%d (compiled with %d.%d)",
+			"GMP", major, minor, patch, __GNU_MP_VERSION, __GNU_MP_VERSION_MINOR);
+}
+#if defined(mpir_version)
+	major = 0, minor = 0, patch = 0;
+	sscanf (mpir_version, "%d.%d.%d", &major, &minor, &patch);
+	if (major == __MPIR_VERSION && minor == __MPIR_VERSION_MINOR) {
+		snprintf (versbuff2, 52, "%s, version %d.%d%d", "MPIR", major, minor, patch);
+	} else {
+		snprintf (versbuff2, 52, "%s, version %d.%d%d (compiled with %d.%d)",
+			"MPIR", major, minor, patch, __MPIR_VERSION, __MPIR_VERSION_MINOR);
+	}
+	strncat (versbuff2, " - ", 3);
+	strncat (versbuff2, versbuff, 55);
+	var_print (_("mathematical library"),		versbuff2, "", 0);
+#else
+	var_print (_("mathematical library"),		versbuff, "", 0);
 #endif
 }
 
@@ -5599,9 +5877,6 @@ cob_init (const int argc, char **argv)
 #ifdef	ENABLE_NLS
 	const char* localedir;
 #endif
-#if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
-	HMODULE		kernel32_handle;
-#endif
 	int		i;
 
 #if 0	/* Simon: Should not happen - is it neccessary anywhere?
@@ -5765,7 +6040,7 @@ cob_init (const int argc, char **argv)
 
 	/* Get user name if not set via environment already */
 	if (cobsetptr->cob_user_name == NULL || !strcmp(cobsetptr->cob_user_name, "Unknown")) {
-#if defined	(_WIN32) && (!defined(_MSC_VER) || COB_USE_VC2008_OR_GREATER) /*  Needs SDK for earlier versions */
+#if defined	(_WIN32) && (COB_USE_VC2008_OR_GREATER /* Needs SDK for earlier versions */ || !defined(_MSC_VER)) 
 		unsigned long bsiz = COB_ERRBUF_SIZE;
 		if (GetUserName (runtime_err_str, &bsiz)) {
 			set_config_val_by_name(runtime_err_str, "username", "GetUserName()");
@@ -5779,15 +6054,7 @@ cob_init (const int argc, char **argv)
 	}
 
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
-   /* Get function pointer for most precise time function */
-   kernel32_handle = GetModuleHandle (TEXT ("kernel32.dll"));
-   if (kernel32_handle != NULL) {
-       time_as_filetime_func = (VOID (WINAPI *) (LPFILETIME))
-           GetProcAddress (kernel32_handle, "GetSystemTimePreciseAsFileTime");
-   }
-   if (time_as_filetime_func == NULL) {
-       time_as_filetime_func = GetSystemTimeAsFileTime;
-   }
+	get_function_ptr_for_precise_time ();
 #endif
 
 	/* This must be last in this function as we do early return */

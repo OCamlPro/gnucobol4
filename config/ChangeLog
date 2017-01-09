@@ -1,4 +1,18 @@
 
+2016-12-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* runtime.conf: FR #191 added COB_EXIT_WAIT and COB_EXIT_MSG
+
+2016-12-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* acu.conf, mf.conf: removed CONSOLE as it is internally used as
+	  mnemonic device and therefore should not be in reserved list
+	* mf.conf: added COMMAND-LINE as it is in parser
+
+2016-11-19  Edward Hart <edward.dan.hart@gmail.com>
+
+	* general: added use-for-debugging config option.
+
 2016-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* general: feature-request #179 added reference-out-of-declaratives option
@@ -16,6 +30,10 @@
 
 	* general: added national-literals, hexadecimal-national-literals and
 	  hexadecimal-boolean configuration options
+
+2016-08-13  Frank Swarbrick <infocat@@users.sf.net>
+
+	* ibm.conf, mf.conf: patch #50 added UNBOUNDED as context sensitive keyword
 
 2016-08-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -85,7 +103,7 @@
 	  marked as not verified yet)
 	* general: added literal-length, numeric-literal-length
 
-2015-03-14  Ron Norman <rjn@inglenet.com> 
+2015-03-14  Ron Norman <rjn@inglenet.com>
 
 	* runtime.cfg: added all configuration options with documentation
 
@@ -176,7 +194,7 @@
 	* default.conf, mvs.conf :
 	  New variable - not-reserved
 	  Document in default.conf
-	  CYCLE as not reserved in mvs.conf 
+	  CYCLE as not reserved in mvs.conf
 
 2003-08-30  Keisuke Nishida  <kxn30@yahoo.co.jp>
 

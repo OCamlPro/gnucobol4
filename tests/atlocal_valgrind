@@ -27,6 +27,23 @@ COB_HAS_UTC_OFFSET="@COB_HAS_UTC_OFFSET@"
 COBC="${abs_top_builddir}/cobc/cobc"
 COBCRUN="${abs_top_builddir}/bin/cobcrun"
 
+# To check with valgrind:
+# * create tests/valgrind
+# * diff these parts into your atlocal (preferably creating a temporary one)
+# * set switches you need to the following lines and set the tool accordingly (template has MEMCHECK)
+
+VALGRIND_COBC_LOG=${abs_srcdir}/valgrind/cobc_%p.log
+VALGRIND_COBCRUN_LOG=${abs_srcdir}/valgrind/cobcrun_%p.log
+VALGRIND_COBCRUN_DIRECT_LOG=${abs_srcdir}/valgrind/cobcrun_direct_%p.log
+
+MEMCHECK="valgrind --tool=memcheck --read-var-info=yes --track-origins=yes --leak-check=full --show-leak-kinds=all"
+SGCHECK="valgrind --tool=exp-sgcheck --read-var-info=yes"
+
+# cobol85 test use environment from a new perl process --> export needed
+export COBC="libtool --mode=execute $MEMCHECK --log-file=$VALGRIND_COBC_LOG ${COBC}"
+export COBCRUN="libtool --mode=execute $MEMCHECK --log-file=$VALGRIND_COBCRUN_LOG ${COBCRUN}"
+export COBCRUN_DIRECT="$MEMCHECK --log-file=$VALGRIND_COBCRUN_DIRECT_LOG"
+
 TEMPLATE="${abs_srcdir}/testsuite.src"
 
 FLAGS="-debug -Wall ${COBOL_FLAGS}"

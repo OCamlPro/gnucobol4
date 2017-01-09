@@ -90,7 +90,7 @@ static int ppwrap (void) {
 
 /* ignore unused functions here as flex generates unused ones */
 #ifdef	__GNUC__
-#if	__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+#if	defined (__clang__) || __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 #endif
@@ -829,7 +829,7 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 	}
 
 	/* save name for listing */
-	if (cb_current_file) {
+	if (cb_current_file && !cb_current_file->name) {
 		cb_current_file->name = cobc_strdup (name);
 	}
 
@@ -1061,13 +1061,15 @@ get_new_listing_file (void)
 {
 	struct list_files	*newfile = cobc_malloc (sizeof (struct list_files));
 
-	if (cb_current_file->copy_tail) {
-		cb_current_file->copy_tail->next = newfile;
-	}
 	if (!cb_current_file->copy_head) {
 		cb_current_file->copy_head = newfile;
 	}
+#if 0 /* lstings - doesn't seem to be used */
+	if (cb_current_file->copy_tail) {
+		cb_current_file->copy_tail->next = newfile;
+	}
 	cb_current_file->copy_tail = newfile;
+#endif
 
 	memset (newfile, 0, sizeof (struct list_files));
 	newfile->copy_line = cb_source_line;

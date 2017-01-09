@@ -1,4 +1,156 @@
 
+2017-01-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (print_program_header): print only one page header when -tlines=0
+	  is used and removed the " Page 0001" that would always be printed
+	* cobc.c: new function print_program_data for output of data to the list
+	  file - needed for suppressing empty lines after page header and for
+	  correct counting of lines per page
+	* cobc.h, cobc.c: moved all listing #define from cobc.h to cobc.c
+
+2017-01-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.h: added CB_CS_ALLOCATE
+	* reserved.c: set context sensitivity: CAPACITY -> OCCURS,
+	  INITIALIZED -> ALLOCATE, OCCURS
+
+2017-01-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c: always emit an internal move for WRITE/REWRITE if the FROM
+	  clause consist of a literal
+	* typeck.c (cb_check_overlapping): fixed handling when called with a field
+	  instead of with a reference (which is the case for level 88 validation)
+	* codegen.c (output_data): added resolve of CB_TAG_FIELD
+
+2017-01-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y (accept_body): check that PROMPT and SIZE clauses are not set
+	  for ACCEPT OMITTED (as these are ignored at run-time)
+	* typeck.c (cb_emit_accept): bugfix - extended ACCEPT wasn't used if the
+	  only attributes set were: timeout || prompt || size_is
+	* cobc.c (cobc_sig_handler): fixed TODO about unused var
+	* cobc.c (process)[WIFSIGNALED]: use cob_raise instead of cobc_sig_handler
+
+2017-01-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, cobc.h: new variable current_compile_time for resolving all
+	  compilation dates, set by call to libcob's cob_get_current_date_and_time
+	* typeck.c (cb_build_registers): use time from current_compile_time
+	  providing a higher precision and is identical to the listing which is
+	  requested by COBOL 2002+
+	* cobc.c, cobc.h, codegen.h: renamed cb_oc_build_stamp to
+	  cb_cobc_build_stamp
+	* cobc.c: if -t listing_file is passed multiple times use the last option
+	  value instead of the first one
+	* cobc.c, cobc.h, tree.c, tree.h, parser.y: numerous changes for generation
+	  of internal symbol-table and cross-reference listing - nearly all
+	  references are now stored in tree.c (cb_ref), ANY LENGTH/NUMERIC, OCCURS
+	  with PICTURE or UNBOUNDED are shown correctly now,
+	  references by parent/child only are shown, too
+
+2017-01-02 Brian Tiffin <btiffin@gnu.org>
+
+	* cobc.h: test cb_warn_unfinished in CB_UNFINISHED message macro.
+
+2017-01-02  Ron Norman <rjn@inglenet.com>
+
+	* cobc.c, warning.def:
+	  renamed cb_warn_external_val to cb_warn_ignored_initial_val
+
+2016-12-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: changes for -verbose, optional argument for verbose level,
+	  -vv output shows information from the compiler, -vvv from linker,
+	  -v -help shows help from compiler/linker,
+	  -### shows external commands but doesn't execute them
+	* cobc.c (cobc_sig_handler): only ask for bug report if the signal isn't
+	  a user-requested one
+	* codegen.c (codegen): reset pic_cache pointer
+	* cobc.c (xref_print): corrected size of numbuf
+
+2016-12-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c: disabled nested ODO as the current implementation
+	  has too many flaws (see re-opened FR #99)
+
+2016-12-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	integrating patch #30 by Frank Swarbrick and make sure it works
+	* parser.y: finished OCCURS ... TO UNBOUNDED
+	* reserved.c: new token LENGTH_FUNC for BYTE-LENGTH, LENGTH, LENGTH-AN
+	* parser.y, tree.h, typeck.c: new var suppress_data_exceptions used with
+	  LENGTH_FUNC for suppressing checks for fields are allocation
+	* typeck.c: passing additional parameters for table name / flag for ODO
+	  in generation of cob_check_odo and cob_check_subscript
+
+2016-12-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (main): bugs #346 moved compiler specific COB_CFLAGS from
+	  to configure to provide transparency and full control to the user
+
+2016-12-22  Edward Hart <edward.dan.hart@gmail.com>
+
+	* scanner.l, pplex.l: suppress unused function warning in clang.
+
+2016-12-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c: use global current_program instead of local current_prog
+	* cobc.c (cobc_abort_msg): part of fixing bug #344
+	  distinguish between compilation and final code generation
+	* cobc.c: added message for internal compiler errors to report them
+	* codegen.c (output_param): part of fixing bug #344
+	  check for field reference to prevent SIGSEGV
+	* typeck.c (cb_emit_move): fixing bug #344 check that MOVE target is
+	  no label or program prototypes
+	* tree.c (cb_name): only use as much parsing memory for names as necessary
+
+2016-12-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, typeck.c: stricter syntax checking for WRITE|REWRITE FILE
+
+2016-12-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* scanner.l: limit for ACUCOBOL literals: UINT_MAX
+	* tree.c: check for LLONG_MAX and define it if it is defined as
+	  LONG_LONG_MAX / _I64_MAX
+	* parser.y, reserved.c: added ACUCOBOL line sequential
+	  device names for ASSIGN
+
+2016-12-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (cobc_print_info): output exact C compiler which was used
+	  to build cobc and if GMP/MPIR header was used
+
+2016-12-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (process_filename) [_WIN32]: check extension .asm along to .s
+	* cobc.c (process_compile) [!_MSC_VER]: use COB_PIC_FLAGS when compiling
+	  to a module, surround the translation name by quotes
+
+2016-11-30  Ron Norman <rjn@inglenet.com>
+
+	* parser.y, typeck.c: FR #170 implement WRITE|REWRITE FILE filename
+
+2016-11-22  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c (print_program_code): Free replace text. Realloc replace text
+	  instead of memcpy of source.
+	* pplex.l (ppopen): Only strdup filename if NULL.
+
+2016-11-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c, parser.y: fixing tree cast errors (found by COB_TREE_DEBUG)
+	* cobc.c (print_88_values, get_next_listing_line): fix SIGSEGV for uncommon
+	  long names / lines
+	* cobc.c: fix minor memory leaks in listing code
+	* pplex.l, cobc.h: commented copy_tail as it doesn't seem to be used
+
+2016-11-19 Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, reserved.c, etc.: added complete recognition of all
+	  COMMUNICATION SECTION syntax.
+	* config.def: added use-for-debugging config option.
+
 2016-11-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* codegen.c (output_call_cache): fix bug #341 added generation of macro
@@ -25,7 +177,7 @@
 
 	* parser.y: fixed extended_with_lock by differentiating between WITH
 	  LOCK / NO LOCK / KEPT LOCK
-	* typeck.c (cb_emit_read): set read_opts COB_READ_LOCK and 
+	* typeck.c (cb_emit_read): set read_opts COB_READ_LOCK and
 	  COB_READ_KEPT_LOCK for I/O statements with KEPT LOCK
 
 2016-11-11  Dave Pitts <dpitts@cozx.com>
@@ -104,7 +256,7 @@
 	* parser.y: renamed COB_MAX_FIELD_PARAMS to MAX_CALL_FIELD_PARAMS
 	* parser.y: bug #110 fix LENGTH OF not working in some places
 	* codegen.c: bug #314 (output_search_all): SEARCH ALL with ODO zero
-	  didnot exit early
+	  did not exit early
 
 2016-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -117,7 +269,7 @@
 
 2016-10-29  Dave Pitts <dpitts@cozx.com>
 
-	* cobc.c (print_program_header): Changed to allow for 9 character 
+	* cobc.c (print_program_header): Changed to allow for 9 character
 	  version field (eg. VV.RR.PPP).
 
 2016-10-28  Dave Pitts <dpitts@cozx.com>
@@ -410,6 +562,15 @@
 
 	* parser.y, typeck.c: fixed bug #299 (cannot have multiple screens in
 	  one DISPLAY).
+
+2016-08-13  Frank Swarbrick <infocat@@users.sf.net>
+
+	patch #30 adding IBM extension OCCURS ... TO UNBOUNDED
+	* tree.h:  new field flag_unbounded for OCCURS ... TO UNBOUNDED
+	* cobc.h: added CB_CS_OCCURS
+	* reserved.c: added UNBOUNDED as context sensitive reserved word for OCCURS
+	* parser.y: added token UNBOUNDED and first attemt for adding
+	  OCCURS ... TO UNBOUNDED in the parser
 
 2016-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -1272,6 +1433,14 @@
 	  the cursor position as a single field so that the position is an
 	  integer with 6 digits or less than 4 digits.
 	* parser.y: improved error messages of integer and report_integer.
+
+2015-08-19  Ron Norman <rjn@inglenet.com>
+
+	* cobc.c: swapped order of parameters for C compiler and linking so that
+	  -L options come before -l 
+	  Otherwise the linker does not find things correctly on Linux
+	* field.c (validate_field_1): warning instead of an error for VALUEs in
+	  REDEFINES with -frelax-syntax as some legacy COBOL code does this
 
 2015-08-03  Brian Tiffin <btiffin@gnu.org>
 

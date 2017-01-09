@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Edwart Hart
 
    This file is part of GnuCOBOL.
@@ -222,7 +222,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "ALLOCATE",			0, 0, ALLOCATE,			/* 2002 */
-				0, 0
+				CB_CS_ALLOCATE, 0
   },
   { "ALPHABET",			0, 0, ALPHABET,			/* 2002 */
 				CB_CS_ALPHABET, 0
@@ -299,7 +299,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "AUTO",			0, 0, AUTO,			/* 2002 (C/S) */
 				0, 0
   },
-  { "AUTOMATIC",		0, 0, AUTOMATIC,		/* 2002 (C/S) */
+  { "AUTOMATIC",		0, 0, AUTOMATIC,		/* 2002 */
 				0, 0
   },
   { "AWAY-FROM-ZERO",		0, 1, AWAY_FROM_ZERO,		/* 2014 (C/S) */
@@ -377,9 +377,17 @@ static struct cobc_reserved default_reserved_words[] = {
   { "CANCEL",			0, 0, CANCEL,			/* 2002 */
 				0, 0
   },
-  { "CAPACITY",			0, 1, CAPACITY,			/* 2014 (C/S) */
-				0, 0
-	/* FIXME: 2014 Context-sensitive to OCCURS clause */
+  { "CAPACITY",			0, 1, CAPACITY,			/* 2014 */
+				0, CB_CS_OCCURS
+  },
+  { "CARD-PUNCH",			0, 1, CARD_PUNCH,			/* Extension */
+				0, CB_CS_ASSIGN
+  },
+  { "CARD-READER",			0, 1, CARD_READER,			/* Extension */
+				0, CB_CS_ASSIGN
+  },
+  { "CASSETTE",			0, 1, CASSETTE,			/* Extension */
+				0, CB_CS_ASSIGN
   },
   { "CD",			0, 0, CD,			/* Communication Section */
 				0, 0
@@ -454,8 +462,8 @@ static struct cobc_reserved default_reserved_words[] = {
   { "COMMON",			0, 0, COMMON,			/* 2002 */
 				0, 0
   },
-  { "COMMUNICATION",			0, 0, COMMUNICATION,			/* Communication Section */
-	  0, 0
+  { "COMMUNICATION",		0, 0, COMMUNICATION,		/* Communication Section */
+	  			0, 0
   },
   { "COMP",			0, 0, COMP,			/* 2002 */
 				0, 0
@@ -625,14 +633,14 @@ static struct cobc_reserved default_reserved_words[] = {
   { "DESCENDING",		0, 0, DESCENDING,		/* 2002 */
 				0, 0
   },
-  { "DESTINATION",		0, 0, -1,			/* 2002 */
+  { "DESTINATION",		0, 0, DESTINATION,		/* 2002 */
 				0, 0
   },
   { "DETAIL",			0, 0, DETAIL,			/* 2002 */
 				0, 0
   },
-  { "DISABLE",			0, 0, -1,			/* Communication Section */
-					0, 0
+  { "DISABLE",			0, 0, DISABLE,			/* Communication Section */
+				0, 0
   },
   { "DISC",			0, 1, DISC,			/* Extension */
 				0, CB_CS_ASSIGN
@@ -665,13 +673,19 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "ECHO",			0, 0, ECHO,			/* Extension */
-    				0, 0
+				0, 0
+  },
+  { "EGI",			0, 0, EGI,			/* Communication Section */
+				0, 0
   },
   { "ELSE",			0, 0, ELSE,			/* 2002 */
 				0, 0
   },
-  { "ENABLE",			0, 0, -1,			/* Communication Section */
-					0, 0
+  { "EMI",			0, 0, EMI,			/* Communication Section */
+				0, 0
+  },
+  { "ENABLE",			0, 0, ENABLE,			/* Communication Section */
+				0, 0
   },
   { "END",			0, 0, END,			/* 2002 */
 				0, 0
@@ -716,6 +730,9 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "END-READ",			0, 0, END_READ,			/* 2002 */
+				0, 0
+  },
+  { "END-RECEIVE",		0, 0, END_RECEIVE,		/* Communication Section */
 				0, 0
   },
   { "END-RETURN",		0, 0, END_RETURN,		/* 2002 */
@@ -781,6 +798,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "ESCAPE",			0, 0, ESCAPE,			/* Extension */
 				0, 0
   },
+  { "ESI",			0, 0, ESI,			/* Communication Section */
+				0, 0
+  },
   { "EVALUATE",			1, 0, EVALUATE,			/* 2002 */
 				0, 0
   },
@@ -790,7 +810,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "EXCEPTION-OBJECT",		0, 0, -1,			/* 2002 */
 				0, 0
   },
-  { "EXCLUSIVE",		0, 0, EXCLUSIVE,		/* Extension */
+  { "EXCLUSIVE",		0, 0, EXCLUSIVE,		/* 2002 */
 				0, 0
   },
   { "EXIT",			0, 0, EXIT,			/* 2002 */
@@ -806,7 +826,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "F",			0, 0, F,			/* Extension */
-    				0, CB_CS_RECORDING
+				0, CB_CS_RECORDING
   },
   { "FACTORY",			0, 0, -1,			/* 2002 */
 				0, 0
@@ -836,7 +856,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "FIXED",			0, 0, FIXED,			/* Extension */
-    				0, CB_CS_RECORDING
+				0, CB_CS_RECORDING
   },
   { "FLOAT-BINARY-128",		0, 0, -1,			/* 2011 */
 				0, 0
@@ -928,7 +948,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "GRID",			0, 0, GRID,			/* Extension */
-    				0, 0
+				0, 0
   },
   { "GROUP",			0, 0, GROUP,			/* 2002 */
 				0, 0
@@ -994,8 +1014,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "INITIALIZED",		0, 0, INITIALIZED,		/* 2002 */
-				0, 0
-	/* FIXME: 2014 Context-sensitive to ALLOCATE statement and OCCURS clause */
+				0, CB_CS_ALLOCATE | CB_CS_OCCURS
   },
   { "INITIATE",			0, 0, INITIATE,			/* 2002 */
 				0, 0
@@ -1139,13 +1158,19 @@ static struct cobc_reserved default_reserved_words[] = {
   { "LOWLIGHT",			0, 0, LOWLIGHT,			/* 2002 (C/S) */
 				0, 0
   },
-  { "MANUAL",			0, 0, MANUAL,			/* 2002 (C/S) */
+  { "MAGNETIC-TAPE",			0, 1, MAGNETIC_TAPE,			/* Extension */
+				0, CB_CS_ASSIGN
+  },
+  { "MANUAL",			0, 0, MANUAL,			/* 2002 */
 				0, 0
   },
   { "MEMORY",			0, 0, MEMORY,			/* 85 */
 				0, 0
   },
   { "MERGE",			0, 0, MERGE,			/* 2002 */
+				0, 0
+  },
+  { "MESSAGE",			0, 0, MESSAGE,			/* Communication Section */
 				0, 0
   },
   { "METHOD",			0, 0, -1,			/* 2002 */
@@ -1245,7 +1270,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "OCCURS",			0, 0, OCCURS,			/* 2002 */
-				0, 0
+				CB_CS_OCCURS, 0
   },
   { "OF",			0, 0, OF,			/* 2002 */
 				0, 0
@@ -1395,6 +1420,12 @@ static struct cobc_reserved default_reserved_words[] = {
   { "PROTOTYPE",		0, 0, -1,			/* 2002 */
 				0, 0
   },
+  { "PURGE",			0, 0, PURGE,			/* Communication Section */
+				0, 0
+  },
+  { "QUEUE",			0, 0, QUEUE,			/* Communication Section */
+				0, 0
+  },
   { "QUOTE",			0, 0, QUOTE,			/* 2002 */
 				0, 0
   },
@@ -1415,6 +1446,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "READ",			1, 0, READ,			/* 2002 */
 				CB_CS_READ, 0
+  },
+  { "RECEIVE",			1, 0, RECEIVE,			/* Communication Section */
+				0, 0
   },
   { "RECORD",			0, 0, RECORD,			/* 2002 */
 				0, 0
@@ -1538,7 +1572,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "S",			0, 0, S,			/* Extension */
-    				0, CB_CS_RECORDING
+				0, CB_CS_RECORDING
   },
   { "SAME",			0, 0, SAME,			/* 2002 */
 				0, 0
@@ -1564,6 +1598,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "SECURE",			0, 0, SECURE,			/* 2002 (C/S) */
 				0, 0
   },
+  { "SEGMENT",			0, 0, SEGMENT,			/* Communication Section */
+				0, 0
+  },
   { "SEGMENT-LIMIT",		0, 0, SEGMENT_LIMIT,		/* 85 */
 				0, 0
   },
@@ -1573,6 +1610,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "SELF",			0, 0, -1,			/* 2002 */
 				0, 0
   },
+  { "SEND",			0, 0, SEND,			/* Communication Section */
+				0, 0
+  },  
   { "SENTENCE",			0, 0, SENTENCE,			/* 2002 */
 				0, 0
   },
@@ -1698,6 +1738,15 @@ static struct cobc_reserved default_reserved_words[] = {
   { "STRONG",			0, 1, -1,			/* 2002 (C/S) */
 				0, 0
   },
+  { "SUB-QUEUE-1",		0, 0, SUB_QUEUE_1,		/* Communication Section */
+				0, 0
+  },
+  { "SUB-QUEUE-2",		0, 0, SUB_QUEUE_2,		/* Communication Section */
+				0, 0
+  },
+  { "SUB-QUEUE-3",		0, 0, SUB_QUEUE_3,		/* Communication Section */
+				0, 0
+  },
   { "SUBTRACT",			1, 0, SUBTRACT,			/* 2002 */
 				0, 0
   },
@@ -1731,7 +1780,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "TAB",			0, 1, TAB,			/* Extension */
 				0, CB_CS_ACCEPT
   },
-  { "TABLE",			0, 0, -1,			/* 2002 */
+  { "TABLE",			0, 0, TABLE,			/* Communication Section */
 				0, 0
   },
   { "TALLYING",			0, 0, TALLYING,			/* 2002 */
@@ -1740,13 +1789,16 @@ static struct cobc_reserved default_reserved_words[] = {
   { "TAPE",			0, 1, TAPE,			/* 85 */
 				0, CB_CS_ASSIGN
   },
-  { "TERMINAL",			0, 0, -1,			/* Communication Section */
-	  0, 0
+  { "TERMINAL",			0, 0, TERMINAL,			/* Communication Section */
+				0, 0
   },
   { "TERMINATE",		0, 0, TERMINATE,		/* 2002 */
 				0, 0
   },
   { "TEST",			0, 0, TEST,			/* 2002 */
+				0, 0
+  },
+  { "TEXT",			0, 0, TEXT,			/* Communication Section */
 				0, 0
   },
   { "THAN",			0, 0, THAN,			/* 2002 */
@@ -1804,10 +1856,13 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "U",			0, 0, U,			/* Extension */
-    				0, CB_CS_RECORDING
+				0, CB_CS_RECORDING
   },
   { "UCS-4",			0, 1, -1,			/* 2002 (C/S) */
 				0, 0
+  },
+  { "UNBOUNDED",		0, 1, UNBOUNDED,			/* IBM V5 */
+				0, CB_CS_OCCURS
   },
   { "UNDERLINE",		0, 0, UNDERLINE,		/* 2002 (C/S) */
 				0, 0
@@ -1873,7 +1928,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "V",			0, 0, V,			/* Extension */
-    				0, CB_CS_RECORDING
+				0, CB_CS_RECORDING
   },
   { "VAL-STATUS",		0, 0, -1,			/* 2002 */
 				0, 0
@@ -1894,7 +1949,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "VARIABLE",			0, 0, VARIABLE,			/* Extension */
-    				0, CB_CS_RECORDING
+				0, CB_CS_RECORDING
   },
   { "VARYING",			0, 0, VARYING,			/* 2002 */
 				0, 0
@@ -1994,7 +2049,7 @@ static const struct cb_intrinsic_table function_list[] = {
 					CB_CATEGORY_NUMERIC, 0
   },
   { "BYTE-LENGTH",			"cob_intr_byte_length",
-					CB_INTR_BYTE_LENGTH, FUNCTION_NAME, 1,
+					CB_INTR_BYTE_LENGTH, LENGTH_FUNC, 1,
 					1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
@@ -2171,12 +2226,12 @@ static const struct cb_intrinsic_table function_list[] = {
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LENGTH",				"cob_intr_length",
-					CB_INTR_LENGTH, FUNCTION_NAME, 1,
+					CB_INTR_LENGTH, LENGTH_FUNC, 1,
 					1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LENGTH-AN",			"cob_intr_byte_length",
-					CB_INTR_BYTE_LENGTH, FUNCTION_NAME, 1,
+					CB_INTR_BYTE_LENGTH, LENGTH_FUNC, 1,
 					1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },

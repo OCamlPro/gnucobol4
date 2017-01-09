@@ -10,7 +10,7 @@
 #undef COB_64_BIT_POINTER
 
 /* Executable extension */
-#undef COB_EXEEXT
+#undef COB_EXE_EXT
 
 /* Enable experimental code (Developers only!) */
 #undef COB_EXPERIMENTAL
@@ -24,11 +24,14 @@
 /* long int is long long */
 #undef COB_LI_IS_LL
 
+/* Module extension */
+#undef COB_MODULE_EXT
+
 /* Can not dlopen self */
 #undef COB_NO_SELFOPEN
 
 /* Object extension */
-#undef COB_OBJEXT
+#undef COB_OBJECT_EXT
 
 /* Enable minimum parameter check for system libraries */
 #undef COB_PARAM_CHECK
@@ -193,9 +196,6 @@
 /* Define to 1 if you have the <pdcurses.h> header file. */
 #undef HAVE_PDCURSES_H
 
-/* Has -Wno-pointer-sign */
-#undef HAVE_PSIGN_OPT
-
 /* Define to 1 if you have the `raise' function. */
 #undef HAVE_RAISE
 
@@ -271,6 +271,9 @@
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
+/* Define to 1 if you have the <sys/wait.h> header file. */
+#undef HAVE_SYS_WAIT_H
+
 /* Has timezone variable */
 #undef HAVE_TIMEZONE
 
@@ -294,6 +297,9 @@
 
 /* Define maximum parameters for CALL */
 #undef MAX_CALL_FIELD_PARAMS
+
+/* Define to 1 if your C compiler doesn't accept -c and -o together. */
+#undef NO_MINUS_C_MINUS_O
 
 /* Name of package */
 #undef PACKAGE

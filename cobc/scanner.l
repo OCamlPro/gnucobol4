@@ -81,6 +81,7 @@ static int yywrap (void) {
 #include "config.h"
 
 #include <ctype.h>
+#include <limits.h>
 
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>
@@ -94,7 +95,7 @@ static int yywrap (void) {
 
 /* ignore unused functions here as flex generates unused ones */
 #ifdef	__GNUC__
-#if	__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+#if	defined (__clang__) || __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 #endif
@@ -636,6 +637,16 @@ H#[0-9A-Za-z]* {
 	RETURN_TOK (INVALID_KEY);
 }
 
+"NO"[ ,;\n]+"DATA"[ ,;\n] {
+	count_lines (yytext);
+	RETURN_TOK (NO_DATA);
+}
+
+"WITH"[ ,;\n]+"DATA"[ ,;\n] {
+	count_lines (yytext);
+	RETURN_TOK (DATA);
+}
+
 "UPON"[ ,;\n]+"ENVIRONMENT-NAME" {
 	count_lines (yytext);
 	RETURN_TOK (UPON_ENVIRONMENT_NAME);
@@ -1115,7 +1126,7 @@ read_literal (const char mark, const char *type)
 			error_literal ("", plexbuff);
 		}
 	}
-	/* fixme: cobol 2014 allows this (and needs it for DYNAMIC LENGTH items),
+	/* FIXME: COBOL 2014 allows this (and needs it for DYNAMIC LENGTH items),
 	   while other versions do not allow this at all
 	   --> add a compiler support configuration for "OK" => zero length,
 	   "warning" => current implementation, "error" (for example in cobol2002),
@@ -1342,7 +1353,6 @@ scan_h (const char *text, const char *type)
 		goto error; /* early exit possible as complete literal is consumed */
 	}
 
-
 	/* currlen can include the terminating quote */
 	currlen = strlen (text);
 	memcpy (plexbuff, text, currlen + 1);
@@ -1379,6 +1389,15 @@ scan_h (const char *text, const char *type)
 		val = (val << 4) + c;
 	}
 
+	if (type[1] == '#') {
+		/* limit for ACUCOBOL literals: UINT_MAX */
+		if (val > UINT_MAX) {
+			snprintf (err_msg, COB_MINI_MAX,
+				_("literal exceeds limit %u"), UINT_MAX);
+			error_literal (type, plexbuff);
+		}
+	}
+
 	if (literal_error) {
 		goto error;
 	}
@@ -1397,9 +1416,12 @@ error:
 static int
 scan_b (const char *text, const char *type)
 {
-	/* Fixme: the standard allows up to 8,192 boolean characters
-	   GnuCOBOL currently only support 64 bit booleans, check if it work to
-	   add concatenation after 64 bit, similar to read_literal() */
+	/* FIXME: COBOL 2014 allows up to 8,192 boolean characters
+	          COBOL 2002 allows up to   160 boolean characters
+	          --> both identical to "literal-length" maximum
+	          GnuCOBOL currently only supports 64 boolean characters,
+	   check if it works to concatenate after 64 characters, similar to read_literal()
+	*/
 
 	size_t		currlen;
 	char		*p;
@@ -1450,6 +1472,14 @@ scan_b (const char *text, const char *type)
 		}
 
 		val = (val << 1) + c;
+	}
+	if (type[1] == '#') {
+		/* limit for ACUCOBOL literals: UINT_MAX */
+		if (val > UINT_MAX) {
+			snprintf (err_msg, COB_MINI_MAX,
+				_("literal exceeds limit %u"), UINT_MAX);
+			error_literal (type, plexbuff);
+		}
 	}
 
 	if (literal_error) {
@@ -1502,6 +1532,12 @@ scan_o (const char *text, const char *type)
 
 		c = c - '0';
 		val = (val << 3) + c;
+	}
+	/* limit for ACUCOBOL literals: UINT_MAX */
+	if (val > UINT_MAX) {
+		snprintf (err_msg, COB_MINI_MAX,
+			_("literal exceeds limit %u"), UINT_MAX);
+		error_literal (type, plexbuff);
 	}
 
 	if (literal_error) {

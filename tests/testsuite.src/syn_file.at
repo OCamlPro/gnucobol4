@@ -20,7 +20,7 @@
 
 
 AT_SETUP([ASSIGN to device-name])
-AT_KEYWORDS([file DISK])
+AT_KEYWORDS([file DISK device])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -87,7 +87,7 @@ AT_CLEANUP
 
 
 AT_SETUP([ASSIGN to printer-name])
-AT_KEYWORDS([file PRINTER PRINT])
+AT_KEYWORDS([file PRINTER PRINT device])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -149,6 +149,61 @@ AT_DATA([prog3.cob], [
 AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [], [])
 AT_CHECK([$COMPILE_ONLY -std=acu prog2.cob], [0], [], [])
 AT_CHECK([$COMPILE_ONLY -std=acu prog3.cob], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([ASSIGN to lsq-device-name])
+AT_KEYWORDS([file PRINTER device])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT      DIVISION.
+       INPUT-OUTPUT     SECTION.
+       FILE-CONTROL.
+       SELECT TST-FILE1 ASSIGN       TO CARD-PUNCH  "F1".
+       SELECT TST-FILE2 ASSIGN       TO CARD-READER "F2".
+       SELECT TST-FILE3 ASSIGN       TO CASSETTE    "F3".
+       SELECT TST-FILE4 ASSIGN       TO INPUT       "F4".
+       SELECT TST-FILE5 ASSIGN       TO INPUT-OUTPUT.
+       SELECT TST-FILE6 ASSIGN       TO MAGNETIC-TAPE.
+       SELECT TST-FILE7 ASSIGN       TO OUTPUT      "F7".
+       DATA             DIVISION.
+       FILE             SECTION.
+       FD TST-FILE1.
+       01 TST1-REC      PIC X(4).
+       FD TST-FILE2.
+       01 TST2-REC      PIC X(4).
+       FD TST-FILE3.
+       01 TST3-REC      PIC X(4).
+       FD TST-FILE4.
+       01 TST4-REC      PIC X(4).
+       FD TST-FILE5.
+       01 TST5-REC      PIC X(4).
+       FD TST-FILE6.
+       01 TST6-REC      PIC X(4).
+       FD TST-FILE7.
+       01 TST7-REC      PIC X(4).
+       PROCEDURE        DIVISION.
+           OPEN  INPUT TST-FILE1.
+           CLOSE TST-FILE1.
+           OPEN  INPUT TST-FILE2.
+           CLOSE TST-FILE2.
+           OPEN  INPUT TST-FILE3.
+           CLOSE TST-FILE3.
+           OPEN  INPUT TST-FILE4.
+           CLOSE TST-FILE4.
+           OPEN  INPUT TST-FILE5.
+           CLOSE TST-FILE5.
+           OPEN  INPUT TST-FILE6.
+           CLOSE TST-FILE6.
+           OPEN  INPUT TST-FILE7.
+           CLOSE TST-FILE7.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [], [])
 
 AT_CLEANUP
 
@@ -369,14 +424,6 @@ AT_CLEANUP
 
 AT_SETUP([variable record length DEPENDING item])
 AT_KEYWORDS([file])
-
-
-
-
-
-
-
-
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -673,5 +720,66 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 prog.cob: 16: warning: CODE-SET is not implemented
 prog.cob: 16: error: FOR item 'x' is a record
 prog.cob: 16: error: FOR item 'z' is in different record to 'x'
+])
+AT_CLEANUP
+
+
+AT_SETUP([WRITE / REWRITE FROM clause and FILE])
+AT_KEYWORDS([file record 88])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+       ENVIRONMENT    DIVISION.
+       INPUT-OUTPUT   SECTION.
+       FILE-CONTROL.
+       SELECT TEST-FILE ASSIGN TO 'FILE-TEST'
+                        ORGANIZATION IS INDEXED
+                        ACCESS MODE  IS DYNAMIC
+                        RECORD KEY   IS TEST-P1.
+       DATA             DIVISION.
+       FILE             SECTION.
+       FD TEST-FILE.
+       01  TEST-REC.
+           05 TEST-P1   PIC X(4).
+           05 TEST-P2   PIC S9(4) COMP.
+       WORKING-STORAGE  SECTION.
+       01  SOME-REC     PIC X(04).
+           88  SOME-VAL VALUE 'ABCD'.
+       PROCEDURE        DIVISION.
+           OPEN  I-O TEST-FILE.
+           WRITE   SOME-VAL.
+           WRITE   SOME-REC.
+           WRITE   TEST-REC.
+           WRITE   TEST-REC FROM SOME-REC.
+           WRITE   TEST-FILE.
+           WRITE   FILE TEST-REC.
+           WRITE   FILE TEST-FILE.
+           WRITE   FILE TEST-FILE FROM TEST-REC.
+           WRITE   FILE TEST-FILE FROM SOME-REC.
+           REWRITE SOME-VAL.
+           REWRITE SOME-REC.
+           REWRITE TEST-REC.
+           REWRITE TEST-REC FROM SOME-REC.
+           REWRITE TEST-FILE.
+           REWRITE FILE TEST-REC.
+           REWRITE FILE TEST-FILE.
+           REWRITE FILE TEST-FILE FROM TEST-REC.
+           REWRITE FILE TEST-FILE FROM SOME-REC.
+           CLOSE TEST-FILE.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 22: error: invalid use of 88 level item
+prog.cob: 23: error: WRITE subject does not refer to a record name
+prog.cob: 26: error: WRITE requires a record name as subject
+prog.cob: 27: error: 'TEST-REC' is not a file name
+prog.cob: 28: error: WRITE FILE requires a FROM clause
+prog.cob: 31: error: invalid use of 88 level item
+prog.cob: 32: error: REWRITE subject does not refer to a record name
+prog.cob: 35: error: REWRITE requires a record name as subject
+prog.cob: 36: error: 'TEST-REC' is not a file name
+prog.cob: 37: error: REWRITE FILE requires a FROM clause
 ])
 AT_CLEANUP
