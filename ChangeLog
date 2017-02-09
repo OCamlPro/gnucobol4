@@ -1,4 +1,9 @@
 
+2017-02-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* HACKING, README: moved instructions for development/svn-builds
+	  from README to new file HACKING and added missing information
+
 2016-12-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* configure.ac: #bugs 346 moved compiler specific COB_CFLAGS from

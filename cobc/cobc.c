@@ -6856,7 +6856,7 @@ main (int argc, char **argv)
 		}
 		if (!cb_src_list_file) {
 			cobc_terminate (cb_listing_outputfile);
-	}
+		}
 		cb_listing_file_struct = cobc_malloc (sizeof (struct list_files));
 		memset (cb_listing_file_struct, 0, sizeof (struct list_files));
 	}
@@ -6942,7 +6942,6 @@ main (int argc, char **argv)
 		if (cobc_list_file) {
 			putc ('\n', cb_listing_file);
 		}
-
 
 		if (cb_src_list_file) {
 			cb_listing_page = 0;
