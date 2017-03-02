@@ -125,12 +125,6 @@ Installation
 ============
 
 ** NOTE **
-   Due to deficiencies in the tools used to prepare GNU Cobol C++
-   (autoconf/automake/libtool), it is NOT generally possible
-   to use path names with spaces embedded within them
-   (Mainly Cygwin/MingW/Windows ports).
- 
-** NOTE **
 	The default installation path for GNU Cobol C++ is /usr/local.
 	The installation path may be changed by specifying --prefix=<dir>
 	as a parameter to the configure.
@@ -150,10 +144,21 @@ To generate/install GNU Cobol C++ :
  to run a series of GNU Cobol C++ test programs (must do!)
  This MUST succeed - If not, please report.
 
+ You may optionally perform a series of COBOL85 tests.
+ See tests/cobol85/README
+ It is recommended that you perform this test.
+
+** NOTE **
+   The language interpreter "perl" is required to run COBOL85 tests.
+   If you build in Cygwin/MSYS you must use a Cygwin/MSYS version of perl.
+
+ Install
     make install
 
 ** NOTE **
-   You generally need super-user privileges to execute "make install".
+   You generally need super-user privileges to execute "make install"
+   unless you changed the installation directory with
+   "./configure --prefix=<dir>" and have full access to <dir>.
 
 ** NOTE **
    On Linux systems, if you are installing for the
@@ -168,9 +173,6 @@ To generate/install GNU Cobol C++ :
    /usr/local/lib to the file.
    Rerun "ldconfig".
 
-You may optionally perform a series of COBOL85 tests.
-See tests/cobol85/README
-It is recommended that you perform this test.
 
 **************************************
 
@@ -193,13 +195,16 @@ The following is only interesting for advanced use.
 A normal user should not have recourse to use these
 options.
 
-There are the following configure options:
+There are many configure options (see configure --help for a full list),
+these are the most important ones:
 
   --with-db			Use Berkeley DB >= 4.1 (libdb) (ISAM handler)
 				This is the default
 
   --without-db			Do not use Berkeley DB / any other ISAM handler
 				You will not be able to use indexed I/O
+
+  --with-vbisam			Use VBISAM (libvbisam) (ISAM handler)
 
   --with-dl			Use the system dynamic linker
 				This is the default
@@ -247,26 +252,4 @@ There are the following configure options:
 Development
 ============
 
-If you wish to hack the GNU Cobol C++ source code, proceed
-as follows.
-
-Before changing/building GNU Cobol C++, you need to install the
-following extra packages with versions equal or greater :
-
-For compiling (when changing flex/bison sources) :
-  o Bison 2.3
-  o Flex 2.5.35
-
-If you reconfigure and/or prepare a distribution
-  o autoconf 2.64
-  o automake 1.10.1
-  o libtool 2.2.6
-  o m4 1.4.12
-  o gettext 0.17
-  o texinfo 4.12
-  o texlive (latest)
-
-If you modify top-level configure.ac, Makefile.am in any directory,
-or any of the standard OC tests then you will need to
-run "autoreconf -I m4" to regenerate the necessary files.
-
+If you wish to hack the GnuCOBOL source or build from svn, see HACKING.

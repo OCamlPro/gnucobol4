@@ -1,8 +1,8 @@
 #
 # Makefile gnu-cobol-cpp/doc
 #
-# Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-# Copyright (C) 2008-2012 Roger While
+# Copyright (C) 2003-2012, 2015-2017 Free Software Foundation, Inc.
+# Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GNU Cobol.
 #
@@ -19,12 +19,28 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Cobol.  If not, see <http://www.gnu.org/licenses/>.
 
+COBCINFOSH = . $(top_builddir)/tests/atconfig && . $(top_builddir)/tests/atlocal && \
+	$(top_srcdir)/doc/cobcinfo.sh
 info_TEXINFOS = gnucobolcpp.texi
-gnucobol_TEXINFOS = cbhelp.tex cbinfo.tex cbrese.tex \
-	cbintr.tex cbsyst.tex cbmnem.tex cbconf.tex
-EXTRA_DIST = gnucobolcpp.pdf cobcinfo.sh cbhelp.tex cbinfo.tex cbrese.tex \
-	cbintr.tex cbsyst.tex cbmnem.tex cbconf.tex
-TEXINFO_TEX = ../texinfo.tex
+gnucobolcpp_TEXINFOS = cbhelp.tex cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex cbconf.tex
+
+cbhelp.tex: $(top_srcdir)/cobc/cobc.cpp $(top_srcdir)/configure.ac \
+	$(top_srcdir)/cobc/flag.def $(top_srcdir)/cobc/warning.def \
+	$(top_srcdir)/doc/cobcinfo.sh
+	$(COBCINFOSH) $@
+
+cbconf.tex: $(top_srcdir)/config/default.conf \
+	$(top_srcdir)/doc/cobcinfo.sh
+	$(COBCINFOSH) $@
+
+cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex: \
+	$(top_srcdir)/cobc/cobc.cpp $(top_srcdir)/cobc/reserved.cpp \
+	$(top_srcdir)/doc/cobcinfo.sh
+	$(COBCINFOSH) $@
+
+EXTRA_DIST = gnucobolcpp.pdf cobcinfo.sh
+
+TEXINFO_TEX = texinfo.texi
 AM_MAKEINFOHTMLFLAGS = --no-headers --no-split
 CLEANFILES = *.aux  *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.vrs
 TEXI2DVI = texi2dvi -I $(srcdir)

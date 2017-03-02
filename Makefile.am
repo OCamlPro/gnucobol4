@@ -1,9 +1,8 @@
 #
 # Makefile gnu-cobol-cpp
 #
-# Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-# Copyright (C) 2008-2012 Roger While
-# Copyright (C) 2013 Sergey Kashyrin
+# Copyright (C) 2003-2017 Free Software Foundation, Inc.
+# Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
 #
 # This file is part of GNU Cobol C++.
 #
@@ -29,8 +28,7 @@ BUILT_SOURCES = defaults.h libcob.h
 DISTCLEANFILES = $(BUILT_SOURCES)
 # CLEANFILES = $(bin_SCRIPTS)
 
-EXTRA_DIST = gnu-cobol-cpp.spec libcob.h.in po/en.translate \
-	lib/Makefile.am lib/ChangeLog lib/dummymac.cpp lib/gettext.h
+EXTRA_DIST = gnu-cobol-cpp.spec libcob.h.in
 pkgincludedir = $(includedir)
 pkginclude_HEADERS = libcob.h
 
@@ -38,35 +36,22 @@ dist-hook:
 	echo "#define COB_TAR_DATE \"`date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h
 	echo "#define COB_NUM_TAR_DATE `date -u +'%Y%m%d'`" >> $(distdir)/tarstamp.h
 	echo "#define COB_NUM_TAR_TIME `date -u +'%H%M%S'`" >> $(distdir)/tarstamp.h
-	find $(distdir) -type d -print | xargs chmod 777
-	chmod 644 $(distdir)/bin/cob-config.in
-	chmod 644 $(distdir)/ABOUT-NLS
-	chmod 644 $(distdir)/AUTHORS
-	chmod 644 $(distdir)/COPYING
-	chmod 644 $(distdir)/COPYING.DOC
-	chmod 644 $(distdir)/COPYING.LESSER
-	chmod 644 $(distdir)/INSTALL
-	chmod 644 $(distdir)/NEWS
-	chmod 644 $(distdir)/README
-	chmod 644 $(distdir)/THANKS
-	chmod 644 $(distdir)/TODO
-	chmod 644 $(distdir)/gnu-cobol-cpp.spec
-	chmod 755 $(distdir)/ltmain.sh
-	chmod 755 $(distdir)/missing
-	chmod 755 $(distdir)/install-sh
-	chmod 755 $(distdir)/config.guess
-	chmod 755 $(distdir)/config.sub
-	chmod 755 $(distdir)/config.rpath
-	chmod 755 $(distdir)/depcomp
-	chmod 755 $(distdir)/mkinstalldirs
+	find $(distdir) -type d -print | xargs chmod 755
+	find $(distdir) -type f -print | xargs chmod 644
+	chmod 755 $(distdir)/configure
 	chmod 755 $(distdir)/doc/cobcinfo.sh
-	touch $(distdir)/cobc/ppparse.cpp
-	touch $(distdir)/cobc/parser.cpp
-	touch $(distdir)/cobc/pplex.cpp
-	touch $(distdir)/cobc/scanner.cpp
-	touch $(distdir)/tests/testsuite
-	touch $(distdir)/doc/gnucobol-cpp.info
-	touch $(distdir)/doc/gnucobol-cpp.pdf
+	chmod 755 $(distdir)/tests/testsuite
+#	touch $(distdir)/cobc/ppparse.cpp
+#	touch $(distdir)/cobc/parser.cpp
+#	touch $(distdir)/cobc/pplex.cpp
+#	touch $(distdir)/cobc/scanner.cpp
+#	touch $(distdir)/doc/gnucobol-cpp.info
+#	touch $(distdir)/doc/gnucobol-cpp.pdf
+#	touch $(distdir)/libcob/libcob.3
+#	touch $(distdir)/bin/cobcrun.1
+#	touch $(distdir)/cobc/cobc.1
+#	touch $(distdir)/tests/testsuite
+
 
 defaults.h: Makefile.am $(top_builddir)/config.status
 	@echo "Creating defaults.h..."
