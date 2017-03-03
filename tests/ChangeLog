@@ -1,6 +1,344 @@
+
+2017-02-21  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Fixed to pass internal cross reference.
+
+2017-02-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_file.at: fixed generation with old autoconf
+	  that trips on the string AT_DATA in AT_DATA definitions
+
+2017-01-20  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_misc.at: add PROCEDURE DIVISION EXTERN test
+
+2017-01-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.at: minimized the output of testsuite --version while adding
+	  core authors to it
+
+2017-01-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/report.pl: replaced fifo by sysin redirection and
+	  new kill sequence
+
+2016-12-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/report.pl: fixing running the suite from shared file systems by
+	  moving fifo to tempdir (where creation of fifo should always be possible)
+	* cobol85/report.pl, cobol85/NC.txt: automated "manual investigations"
+	* cobol85/report.pl: moved test specific compilation flags to $cobc_flags
+	  and show them on command line,
+	  create report.log directly with test specific name
+
+2016-12-14  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobol85/report.pl, cobol85/*.txt: compile only tests no longer
+	  increment the successful test counter, as this is for runtime tests
+	* cobol85/report.pl: allow passing input to programs (e.g. for those
+	  with STOP literal), implemented by mkfifo, asynchron run and kill
+
+2016-12-12  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobol85/report.pl: updated and annotated the list of compile-only
+	  tests
+
+2016-12-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.at: added cobcrun to tested programs
+	* atlocal_win: changes for allowing test of Windows binaries with
+	  WSL / Bash on Windows
+	* testsuite.src/listings.sed: adjustment for optional package suffixes
+
+2016-12-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal_valgrind: sample configuration for running testsuites
+	  with valgrind
+	* cobol85/report.pl: check environment for COBC/COBCRUN to override
+	  the called binaries (useful for testing with valgrind)
+
+2016-11-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_extensions.at: splitted tests for CBL_GC_FORK /
+	  CBL_GC_WAITPID, skip these tests if the functions return "not available"
+
+2016-11-17  Ron Norman <rjn@inglenet.com>
+
+	* testsuite.src/run_extensions.at: add CBL_GC_FORK & CBL_GC_WAITPID
+
+2016-11-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_win: added COB_IS_RUNNING_IN_TESTMODE
+
+2016-11-11  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: changed for new spacing
+
+2016-11-09  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: sdded cross reference tests
+
+2016-11-07  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added 88 values to printed symbol listing.
+
+2016-11-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* listings-sed.sh, testsuite.src/listing.at: adjustment for new maximum
+	  of 14 digits in version string
+	* testsuite.src/listing.at: capture original listing, instead of unified one
+
+2016-11-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* listings-sed.sh: moved from testsuite.src/listings-sed.sh
+	* listings-sed.sh: adjustment for exotic shells
+	* atlocal.in, atlocal_win: adjusted listings-sed.sh path in UNIFY_LISTING
+	* Makefile.am: added listings-sed.sh to EXTRA_DIST
+
+2016-11-01  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Changed preprocessed compile for new line
+	  number processing and added an error preprocessed test case.
+
+2016-10-31  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added header/trailer to file not found 
+	  test case.
+
+2016-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/Makefile.am, cobol85/report.pl: added support for make with
+	  multiple jobs (only done when building the test directories)
+
+2016-10-29  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings-sed.sh: Fixed for generic 9 character version.
+	* testsuite.src/listings.at: Fixed for generic 9 character version.
+
+2016-10-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in: pass COB_HAS_UTC_OFFSET, set PATHSEP and COB_HAS_CURSES
+	  for MinGW
+	* testsuite.src/listings-sed.sh: fix for patchlevel up to 999  
+	* testsuite.src/configuration.at, testsuite.src/used_binaries.at:
+	  used `cobc -q` (instead of sed script) to simplify "unrecognized option"
+	* testsuite.src/run_misc.at: define NULL if needed
+	* testsuite.src/run_accept.at: evaluate COB_HAS_CURSES
+	* testsuite.src/run_functions.at: evaluate COB_HAS_UTC_OFFSET
+	* testsuite.src/configuration.at: evaluate PATHSEP
+
+2016-10-22  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added --no_symbols test.
+
+2016-10-18  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added some sequence numbers to a couple of
+	  examples. Would have caught the SOURCEFORMAT VARIABLE bug.
+
+2016-10-17  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_win: added UNIFY_LISTING
+	* testsuite.src/listings.at: moved simplified sed commands used to a single
+	  script listings-sed.sh and use this via UNIFY_LISTING
+	* testsuite.src/listings.at: split symbols test, added test for -tlines,
+	  use -tlines=0 to remove unforced page breaks
+	* atlocal_win: added missing COB_HAS_UTC_OFFSET
+
+2016-10-16  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: changed hardcoded listing version to a
+	  template
+
+2016-10-11  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: added Symbols test with OCCURS
+
+2016-09-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/syn_file.at: added tests for variable record size,
+	  depending on item and and key fields
+
+2016-09-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_win : fix unset of environment variables
+	  that are used in libcob for runtime configuration; bug #319
+
+2016-08-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: checking `diff` on start of target "check" and
+	  `perl` before running target "test" in cobol85
+
+2016-08-02  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Added tests for non-existant file and
+	  copybook messages in the listing file.
+
+2016-07-24  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Fixed test for 32/64 bit pointers and 
+	  additional picture information.
+
+2016-07-18  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Added SCREEN and LINKAGE section tests.
+
+2016-07-17  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_misc.at: Added tests for C calling COBOL
+	  with and without setting cob_call_params.
+	  Added tests for ENTRY lookup within main module.
+
+2016-07-17  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_extensions.at: Moved stdout stderr fprintf test
+	  in CBL_OC_HOSTED to external C subprogram.
+	  And then a correction to account for linkage exports.
+
+2016-07-04  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_extensions.at: Removed a "feof" call in
+	  CBL_OC_HOSTED testing to help with Cygwin
+
+2016-06-28  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Added Files with FILLER.
+
+2016-06-26  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Added LISTING ON/OFF test.
+
+2016-06-20  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at - Added new tests for compiler listings.
+	* Makefile.in, Makefile.am - Added testsuite/listings.at.
+	* testsuite.at - Added testsuite/listings.at
+
+2016-06-15  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/used_binaries.at: added tests for -j"args"
+
+2016-05-31  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_fundamental.at: Added ADD/SUBTRACT CORRESPONDING test
+
+2016-05-22  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_extensions.at: changed CBL_OC_HOSTED errno test
+
+2016-05-15  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/used_binaries.at: added tests for cobcrun -M <module>
+
+2016-04-23  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/data_binary.at: added test for binary-double unsigned
+	  compare when high bit set.
+
+2016-02-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.at, tests/syn_reportwriter.at: RW checks earlier skipped are
+	  now only comments - will be added back in 2.1 with more and better checks
+
+2016-01-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added targets "test" (running ANSI testsuite) and
+	  "checkall" (running both GnuCOBOL and ANSI testsuite)
+
+2015-12-23  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: remove -std=cobol2002 for compiling (effectively using default),
+	  checked with cobol2014 where checking for standard behaviour,
+	  used -cb_conf when checking single compiler configurations instead
+	  of creating+using a test.conf or loading a completely different -std,
+	  check stdout+stderr where missing, removed the ifdef for __INTEL_COMPILER
+	  as this is included via libcob.h now
+	* configuration.at: check for all standard configurations -std to
+	  be usable
+
+2015-12-15  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_misc.at: command line option -a replaced with -R
+	  as short form for -debug
+
+2015-12-14  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/data_display.at: add unsigned numeric display tests
+
+2015-11-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: skip tests that need a curses build if not available
+	* general: use new internal shell function _return_path for resolving paths
+	  (necessary for use of paths in testsuite when testing non-cygwin builds
+	  with cygwin)
+	* atlocal_win: set tests to skip (via COB_HAS_ISAM / COB_HAS_CURSES)
+	  depending on available features (parsing cobc --info)
+
+2015-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/configuration.at: mayor update including runtime
+	  configuration
+
+2015-08-03  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_misc.at: compile from stdin, run after compile
+
+2015-05-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_functions.at : revised all tests from ACOS to LENGTH
+
+2015-04-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_file.at : (new) moved testsuite entries for
+	  file handling to their own test definition (origin: run_misc.at)
+
+2015-03-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/syn_functions.at : (new) moved testsuite entries for
+	  FUNCTIONs to their own test definition (origin: syn_misc.at)
+
+2015-03-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_win: Added setting of COB_RUNTIME_CONFIG
+	* moved tests for checking used binaries (cobc, cobcrun, extras) from
+	  testsuite.src/run_misc.at to testsuite.src/used_binaries.at
+	* moved tests for checking compiler configuration from
+	  testsuite.src/syn_misc.at to testsuite.src/configuration.at, updated
+	  tests and added new ones
+
+2015-02-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/Makefile.am: added target for decompressing newcob.val.Z and
+	  download it
+
+2014-12-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/syn_screen.at : (new) Added first testsuite entries for
+	  SCREEN section
+
+2014-09-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* support spaces in testsuite
+	* changed atlocal_win, removing the need for a configured source
+	  (works with build_windows out of the box)
+
+2014-08-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in : unset all environmental vars that are used by libcob
+
+2014-04-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/*.at: Added check for cobc's exit code and stderr
+		where missing
+
 2014-14-04  Philipp Böhme <phi.boehme@googlemail.com>
 
-	* testsuite.src/run_extensions.at : Added tests for getopt.
+	* testsuite.src/run_extensions.at: Added tests for getopt.
+
+2014-01-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_reportwriter.at, testsuite.src/syn_reportwriter.at:
+	  Added first testsuite entries for REPORT WRITER
 
 2010-06-28  Roger While <simrw@sim-basis.de>
 
