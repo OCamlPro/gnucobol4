@@ -1,39 +1,30 @@
-## Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-## Copyright (C) 2007-2012 Roger While
+## Copyright (C) 2003-2012, 2014-2015 Free Software Foundation, Inc.
+## Written by Keisuke Nishida, Roger While, Simon Sobisch
 ## 
-## This file is part of GNU Cobol C++.
+## This file is part of GnuCOBOL.
 ## 
-## The GNU Cobol C++ compiler is free software: you can redistribute it
+## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
 ## 
-## GNU Cobol C++ is distributed in the hope that it will be useful,
+## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
 ## 
 ## You should have received a copy of the GNU General Public License
-## along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
-### GNU Cobol C++ Test Suite
+### GnuCOBOL Test Suite
 
 # 2-4-8 big-endian
 
 AT_SETUP([BINARY: 2-4-8 big-endian])
 AT_KEYWORDS([binary])
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-binary-size: 2-4-8
-binary-byteorder: big-endian
-])
-
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -47,10 +38,11 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-size=2-4-8 \
+                   -fbinary-byteorder=big-endian prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0001202020202020
 000c202020202020
@@ -162,9 +154,10 @@ fe4964b459cf0cb2
 0000000000000000
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=2-4-8 \
+                   -fbinary-byteorder=big-endian prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1
 12
@@ -216,17 +209,9 @@ if test "x$COB_BIGENDIAN" = "xyes"; then
 AT_CHECK([true])
 else
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-binary-size: 2-4-8
-binary-byteorder: native
-])
 
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -240,10 +225,11 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-size=2-4-8 \
+                   -fbinary-byteorder=native  prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0100202020202020
 0c00202020202020
@@ -355,9 +341,10 @@ b20ccf59b46449fe
 0000000000000000
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=2-4-8 \
+                   -fbinary-byteorder=native prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1
 12
@@ -406,20 +393,8 @@ AT_CLEANUP
 AT_SETUP([BINARY: 1-2-4-8 big-endian])
 AT_KEYWORDS([binary])
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
-binary-size: 1-2-4-8
-binary-byteorder: big-endian
-])
-
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -433,10 +408,11 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-size=1-2-4-8 \
+                   -fbinary-byteorder=big-endian prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0120202020202020
 0c20202020202020
@@ -548,9 +524,10 @@ fe4964b459cf0cb2
 0000000000000000
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=1-2-4-8 \
+                   -fbinary-byteorder=big-endian prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1
 12
@@ -602,17 +579,8 @@ if test "x$COB_BIGENDIAN" = "xyes"; then
 AT_CHECK([true])
 else
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-binary-size: 1-2-4-8
-binary-byteorder: native
-])
-
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -626,10 +594,11 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-size=1-2-4-8 \
+                   -fbinary-byteorder=native prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0120202020202020
 0c20202020202020
@@ -741,9 +710,10 @@ b20ccf59b46449fe
 0000000000000000
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=1-2-4-8 \
+                   -fbinary-byteorder=native prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1
 12
@@ -793,17 +763,8 @@ AT_CLEANUP
 AT_SETUP([BINARY: 1--8 big-endian])
 AT_KEYWORDS([binary])
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-binary-size: 1--8
-binary-byteorder: big-endian
-])
-
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -817,10 +778,11 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-size=1--8 \
+                   -fbinary-byteorder=big-endian prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0120202020202020
 0c20202020202020
@@ -932,9 +894,10 @@ fe4964b459cf0cb2
 0000000000000000
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=1--8 \
+                   -fbinary-byteorder=big-endian prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1
 12
@@ -986,17 +949,8 @@ if test "x$COB_BIGENDIAN" = "xyes"; then
 AT_CHECK([true])
 else
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-binary-size: 1--8
-binary-byteorder: native
-])
-
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -1010,10 +964,11 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE -fbinary-size=1--8 \
+                   -fbinary-byteorder=native prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0120202020202020
 0c20202020202020
@@ -1125,9 +1080,10 @@ b20ccf59b46449fe
 0000000000000000
 ])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=1--8 \
+                   -fbinary-byteorder=native prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1
 12
@@ -1177,15 +1133,11 @@ AT_CLEANUP
 AT_SETUP([BINARY: full-print])
 AT_KEYWORDS([binary])
 
-AT_DATA([test.conf], [
-include "cobol2002.conf"
-binary-size: 1--8
-pretty-display: no
-])
 
-sed -e 's/@USAGE@/BINARY/' ${TEMPLATE}/numeric-display.cob > prog.cob
+sed -e 's/@USAGE@/BINARY/' "${TEMPLATE}/numeric-display.cob" > prog.cob
 
-AT_CHECK([$COMPILE -conf=test.conf -o prog prog.cob])
+AT_CHECK([$COMPILE -fbinary-size=1--8 \
+                   -fno-pretty-display prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [001
 012
@@ -1224,5 +1176,82 @@ AT_CHECK([./prog], [0],
 -00012345678901234567
 -00123456789012345678
 ])
+
+AT_CLEANUP
+
+
+# 64bit unsigned
+
+AT_SETUP([BINARY: 64bit unsigned compare])
+AT_KEYWORDS([binary])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 BDU-1         USAGE BINARY-DOUBLE UNSIGNED.
+       01 BDU-2         USAGE BINARY-DOUBLE UNSIGNED.
+       PROCEDURE        DIVISION.
+           MOVE 18446744073709551615 TO BDU-1 BDU-2
+           IF BDU-1 NOT EQUAL BDU-2 THEN
+           DISPLAY "FAIL"
+           END-DISPLAY.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [])
+
+AT_CLEANUP
+
+
+# bug #173 unsigned values being treated as signed
+AT_SETUP([BINARY: 64bit unsigned arthimetic notrunc])
+AT_KEYWORDS([binary])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WORK-UDWORD-1 PIC 9(18) COMP.
+       PROCEDURE        DIVISION.
+           MOVE 18446744073709551615 TO WORK-UDWORD-1.
+           DISPLAY WORK-UDWORD-1
+           END-DISPLAY.
+           COMPUTE  WORK-UDWORD-1 = WORK-UDWORD-1 / 2
+           END-COMPUTE.
+           DISPLAY WORK-UDWORD-1
+           END-DISPLAY.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -fnotrunc prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [18446744073709551615
+09223372036854775807
+], [])
+
+AT_CLEANUP
+
+
+# bug #197 64bit signed values not accepting min value constant
+AT_SETUP([BINARY: 64bit signed negative constant range])
+AT_KEYWORDS([binary])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WORK-DWORD-1  PIC S9(18) COMP-5 VALUE -9223372036854775808.
+       PROCEDURE        DIVISION.
+           DISPLAY WORK-DWORD-1 WITH NO ADVANCING
+           END-DISPLAY.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -fnotrunc prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [-09223372036854775808], [])
 
 AT_CLEANUP

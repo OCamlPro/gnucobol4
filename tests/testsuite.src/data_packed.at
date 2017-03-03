@@ -1,22 +1,22 @@
-## Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-## Copyright (C) 2007-2012 Roger While
+## Copyright (C) 2003-2012, 2014-2015 Free Software Foundation, Inc.
+## Written by Keisuke Nishida, Roger While, Simon Sobisch
 ## 
-## This file is part of GNU Cobol C++.
+## This file is part of GnuCOBOL.
 ## 
-## The GNU Cobol C++ compiler is free software: you can redistribute it
+## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
 ## 
-## GNU Cobol C++ is distributed in the hope that it will be useful,
+## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
 ## 
 ## You should have received a copy of the GNU General Public License
-## along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
-### GNU Cobol C++ Test Suite
+### GnuCOBOL Test Suite
 
 ### PACKED-DECIMAL
 
@@ -27,9 +27,6 @@ AT_KEYWORDS([packed])
 
 AT_DATA([dump.cpp], [
 #include <stdio.h>
-#ifdef	__INTEL_COMPILER
-#pragma warning ( disable : 1419 )
-#endif
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 COB_EXPIMP int dump (unsigned char *);
@@ -43,10 +40,10 @@ int dump (unsigned char *data)
 }
 ])
 
-sed -e 's/@USAGE@/PACKED-DECIMAL/' ${TEMPLATE}/numeric-dump.cob > prog.cob
+sed -e 's/@USAGE@/PACKED-DECIMAL/' "${TEMPLATE}/numeric-dump.cob" > prog.cob
 
-AT_CHECK([$COMPILE_MODULE dump.cpp])
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [1f202020202020202020
 012f2020202020202020
@@ -202,7 +199,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [00
 99
@@ -260,7 +257,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [34
 +34
@@ -304,7 +301,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [00
 +00
@@ -342,7 +339,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [01
 09
@@ -474,7 +471,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [OK
 OK
@@ -510,112 +507,84 @@ AT_DATA([prog.cob], [
            MOVE X"0000" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            MOVE X"000c" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "OK"
-            END-DISPLAY
            ELSE
             DISPLAY "NG"
-            END-DISPLAY
            END-IF.
            MOVE X"000d" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "OK"
-            END-DISPLAY
            ELSE
             DISPLAY "NG"
-            END-DISPLAY
            END-IF.
            MOVE X"000f" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "OK"
-            END-DISPLAY
            ELSE
             DISPLAY "NG"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "OK"
-            END-DISPLAY
            ELSE
             DISPLAY "NG"
-            END-DISPLAY
            END-IF.
            MOVE X"1234" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            MOVE X"999f" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "OK"
-            END-DISPLAY
            ELSE
             DISPLAY "NG"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "OK"
-            END-DISPLAY
            ELSE
             DISPLAY "NG"
-            END-DISPLAY
            END-IF.
            MOVE X"ffff" TO X-2.
            IF N-2  IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            IF N-S2 IS NUMERIC
             DISPLAY "NG"
-            END-DISPLAY
            ELSE
             DISPLAY "OK"
-            END-DISPLAY
            END-IF.
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=ibm prog.cob])
+AT_CHECK([$COMPILE -std=ibm prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [OK
 OK
@@ -661,7 +630,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [00
 99
@@ -706,7 +675,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [00
 99
@@ -741,7 +710,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0000000222
 ])
@@ -824,7 +793,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [OK
 OK
