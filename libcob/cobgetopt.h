@@ -18,8 +18,8 @@
    Boston, MA 02110-1301 USA */
 
 /*
-   Copyright (C) 2010,2012 Roger While
-   Modified for use in GNU Cobol C++
+   Copyright (C) 2010,2012 Free Software Foundation, Inc.
+   Modified for use in GnuCOBOL by Roger While
 */
 
 #ifndef COB_GETOPT_H
@@ -77,8 +77,7 @@ COB_EXPIMP int cob_optopt;
    one).  For long options that have a zero `flag' field, `getopt'
    returns the contents of the `val' field.  */
 
-struct option
-{
+struct option {
 	const char * name;
 	/* has_arg can't be an enum because some compilers complain about
 	type mismatches in all the code that assumes it is an int.  */
@@ -117,6 +116,6 @@ struct option
    arguments to the option '\0'.  This behavior is specific to the GNU
    `getopt'.  */
 
-COB_EXPIMP int cob_getopt_long_long (const int, char *const *, const char *,
-				 const struct option *, int *, const int);
+COB_EXPIMP int cob_getopt_long_long(const int, char * const *, const char *,
+									const struct option *, int *, const int);
 #endif

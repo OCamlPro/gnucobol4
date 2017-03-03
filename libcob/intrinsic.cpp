@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2005-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2005-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Roger While, Simon Sobisch, Edward Hart, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ runtime library is free software: you can redistribute it
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -30,26 +30,29 @@
 #include <errno.h>
 #include <time.h>
 #ifdef	HAVE_SYS_TIME_H
-#include <sys/time.h>
+	#include <sys/time.h>
 #endif
 #include <math.h>
 
 /* Note we include the Cygwin version of windows.h here */
-#if defined(_WIN32) || defined(__CYGWIN__)
-#undef	HAVE_LANGINFO_CODESET
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#ifdef	_WIN32
-#include <sys/timeb.h>
-#endif
-#endif
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(HAVE_LANGINFO_CODESET)
+	#define LOCTIME_BUFSIZE 128
+	#if defined(_WIN32) || defined(__CYGWIN__)
+		#undef	HAVE_LANGINFO_CODESET
+		#define WIN32_LEAN_AND_MEAN
+		#include <windows.h>
+		#ifdef	_WIN32
+			#include <sys/timeb.h>
+		#endif
+	#endif
 
-#ifdef	HAVE_LANGINFO_CODESET
-#include <langinfo.h>
+	#ifdef	HAVE_LANGINFO_CODESET
+		#include <langinfo.h>
+	#endif
 #endif
 
 #ifdef	HAVE_LOCALE_H
-#include <locale.h>
+	#include <locale.h>
 #endif
 
 /* Force symbol exports */
@@ -57,6 +60,10 @@
 
 #include "libcob.h"
 #include "coblocal.h"
+
+/* Function prototypes */
+static cob_u32_t	integer_of_date(const int, const int, const int);
+static void		get_iso_week(const int, int *, int *);
 
 /* Local variables */
 
@@ -94,7 +101,7 @@ struct calc_struct {
 };
 
 static calc_struct *	calc_base;
-static cob_field *		curr_field;
+static cob_field 	*	curr_field;
 static cob_u32_t		curr_entry;
 
 /* Constants for date/day calculations */
@@ -106,6 +113,18 @@ static const int normal_month_days[] =
 {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 static const int leap_month_days[] =
 {0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+
+#define COB_DATESTR_LEN		11
+#define	COB_DATESTR_MAX		(COB_DATESTR_LEN - 1)
+
+#define	COB_TIMEDEC_MAX		9
+
+#define COB_TIMESTR_LEN		26 /* including max decimal places */
+#define	COB_TIMESTR_MAX		(COB_TIMESTR_LEN - 1)
+
+#define COB_DATETIMESTR_LEN		36
+#define	COB_DATETIMESTR_MAX		(COB_DATETIMESTR_LEN - 1)
 
 /* Locale name to Locale ID table */
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -304,7 +323,7 @@ static const struct winlocale	wintable[] = {
 	{ "tg_Cyrl_TJ",	0x0428 },
 	{ "th_TH",		0x041e },
 	{ "tk_TM",		0x0442 },
-	{ "tmz_Latn_DZ",0x085f },
+	{ "tmz_Latn_DZ", 0x085f },
 	{ "tn_ZA",		0x0432 },
 	{ "tr_IN",		0x0820 },
 	{ "tr_TR",		0x041f },
@@ -336,74 +355,82 @@ static const struct winlocale	wintable[] = {
 
 /* Pi - Next 3 digits 000 */
 static const char	cob_pi_str[] =
-	"3.141592653589793238462643383279502884197169399375"
-	"10582097494459230781640628620899862803482534211706"
-	"79821480865132823066470938446095505822317253594081"
-	"28481117450284102701938521105559644622948954930381"
-	"96442881097566593344612847564823378678316527120190"
-	"91456485669234603486104543266482133936072602491412"
-	"73724587006606315588174881520920962829254091715364"
-	"36789259036001133053054882046652138414695194151160"
-	"94330572703657595919530921861173819326117931051185"
-	"48074462379962749567351885752724891227938183011949"
-	"12983367336244065664308602139494639522473719070217"
-	"98609437027705392171762931767523846748184676694051"
-	"32000568127145263560827785771342757789609173637178"
-	"72146844090122495343014654958537105079227968925892"
-	"35420199561121290219608640344181598136297747713099"
-	"60518707211349999998372978049951059731732816096318"
-	"59502445945534690830264252230825334468503526193118"
-	"817101";
+"3.141592653589793238462643383279502884197169399375"
+"10582097494459230781640628620899862803482534211706"
+"79821480865132823066470938446095505822317253594081"
+"28481117450284102701938521105559644622948954930381"
+"96442881097566593344612847564823378678316527120190"
+"91456485669234603486104543266482133936072602491412"
+"73724587006606315588174881520920962829254091715364"
+"36789259036001133053054882046652138414695194151160"
+"94330572703657595919530921861173819326117931051185"
+"48074462379962749567351885752724891227938183011949"
+"12983367336244065664308602139494639522473719070217"
+"98609437027705392171762931767523846748184676694051"
+"32000568127145263560827785771342757789609173637178"
+"72146844090122495343014654958537105079227968925892"
+"35420199561121290219608640344181598136297747713099"
+"60518707211349999998372978049951059731732816096318"
+"59502445945534690830264252230825334468503526193118"
+"817101";
 /* Sqrt 2 - Next 3 digits 001 */
 static const char	cob_sqrt_two_str[] =
-	"1.414213562373095048801688724209698078569671875376"
-	"94807317667973799073247846210703885038753432764157"
-	"27350138462309122970249248360558507372126441214970"
-	"99935831413222665927505592755799950501152782060571"
-	"47010955997160597027453459686201472851741864088919"
-	"86095523292304843087143214508397626036279952514079"
-	"89687253396546331808829640620615258352395054745750"
-	"28775996172983557522033753185701135437460340849884"
-	"71603868999706990048150305440277903164542478230684"
-	"92936918621580578463111596668713013015618568987237"
-	"23528850926486124949771542183342042856860601468247"
-	"20771435854874155657069677653720226485447015858801"
-	"62075847492265722600208558446652145839889394437092"
-	"65918003113882464681570826301005948587040031864803"
-	"42194897278290641045072636881313739855256117322040"
-	"24509122770022694112757362728049573810896750401836"
-	"98683684507257993647290607629969413804756548237289"
-	"97180326802474420629269124859052181004459842150591"
-	"12024944134172853147810580360337107730918286931471"
-	"01711116839165817268894197587165821521282295184884"
-	"72089694633862891562882765952635140542267653239694"
-	"61751129160240871551013515045538128756005263146801"
-	"71274026539694702403005174953188629256313851881634"
-	"78";
+"1.414213562373095048801688724209698078569671875376"
+"94807317667973799073247846210703885038753432764157"
+"27350138462309122970249248360558507372126441214970"
+"99935831413222665927505592755799950501152782060571"
+"47010955997160597027453459686201472851741864088919"
+"86095523292304843087143214508397626036279952514079"
+"89687253396546331808829640620615258352395054745750"
+"28775996172983557522033753185701135437460340849884"
+"71603868999706990048150305440277903164542478230684"
+"92936918621580578463111596668713013015618568987237"
+"23528850926486124949771542183342042856860601468247"
+"20771435854874155657069677653720226485447015858801"
+"62075847492265722600208558446652145839889394437092"
+"65918003113882464681570826301005948587040031864803"
+"42194897278290641045072636881313739855256117322040"
+"24509122770022694112757362728049573810896750401836"
+"98683684507257993647290607629969413804756548237289"
+"97180326802474420629269124859052181004459842150591"
+"12024944134172853147810580360337107730918286931471"
+"01711116839165817268894197587165821521282295184884"
+"72089694633862891562882765952635140542267653239694"
+"61751129160240871551013515045538128756005263146801"
+"71274026539694702403005174953188629256313851881634"
+"78";
 /* Log 0.5 - Next 3 digits 000 */
 static const char	cob_log_half_str[] =
-	"-0.69314718055994530941723212145817656807550013436"
-	"02552541206800094933936219696947156058633269964186"
-	"87542001481020570685733685520235758130557032670751"
-	"63507596193072757082837143519030703862389167347112"
-	"33501153644979552391204751726815749320651555247341"
-	"39525882950453007095326366642654104239157814952043"
-	"74043038550080194417064167151864471283996817178454"
-	"69570262716310645461502572074024816377733896385506"
-	"95260668341137273873722928956493547025762652098859"
-	"69320196505855476470330679365443254763274495125040"
-	"60694381471046899465062201677204245245296126879465"
-	"46193165174681392672504103802546259656869144192871"
-	"60829380317271436778265487756648508567407764845146"
-	"44399404614226031930967354025744460703080960850474"
-	"86638523138181676751438667476647890881437141985494"
-	"23151997354880375165861275352916610007105355824987"
-	"94147295092931138971559982056543928717";
+"-0.69314718055994530941723212145817656807550013436"
+"02552541206800094933936219696947156058633269964186"
+"87542001481020570685733685520235758130557032670751"
+"63507596193072757082837143519030703862389167347112"
+"33501153644979552391204751726815749320651555247341"
+"39525882950453007095326366642654104239157814952043"
+"74043038550080194417064167151864471283996817178454"
+"69570262716310645461502572074024816377733896385506"
+"95260668341137273873722928956493547025762652098859"
+"69320196505855476470330679365443254763274495125040"
+"60694381471046899465062201677204245245296126879465"
+"46193165174681392672504103802546259656869144192871"
+"60829380317271436778265487756648508567407764845146"
+"44399404614226031930967354025744460703080960850474"
+"86638523138181676751438667476647890881437141985494"
+"23151997354880375165861275352916610007105355824987"
+"94147295092931138971559982056543928717";
 
 /* mpf_init2 length = ceil(log2(10) * strlen(x)) */
 #define	COB_PI_LEN			2820UL
 #define	COB_SQRT_TWO_LEN	3827UL
 #define	COB_LOG_HALF_LEN	2784UL
+
+#define RETURN_IF_NOT_ZERO(expr)		\
+	do {					\
+		int error_pos = (expr);		\
+		if (error_pos != 0) {		\
+			return error_pos;	\
+		}				\
+	} ONCE_COB
 
 /* Local functions */
 
@@ -419,6 +446,7 @@ make_field_entry(cob_field * f)
 		}
 		calc_temp->calc_size = f->size + 1;
 		s = new unsigned char[f->size + 1];
+		s[f->size] = 0;
 	} else {
 		s = curr_field->data;
 	}
@@ -438,7 +466,7 @@ make_field_entry(cob_field * f)
 static int
 leap_year(const int year)
 {
-	return((year % 4 == 0 && year % 100 != 0) ||(year % 400 == 0)) ? 1 : 0;
+	return((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) ? 1 : 0;
 }
 
 static int
@@ -456,7 +484,7 @@ calc_ref_mod(cob_field * f, const int offset, const int length)
 	if((size_t)offset <= f->size) {
 		size_t calcoff = (size_t)offset - 1;
 		size_t size = f->size - calcoff;
-		if(length > 0 &&(size_t)length < size) {
+		if(length > 0 && (size_t)length < size) {
 			size = (size_t)length;
 		}
 		f->size = size;
@@ -570,7 +598,7 @@ cob_mod_or_rem(cob_field * f1, cob_field * f2, const int func_is_rem)
 
 	/* Caclulate integer / integer-part */
 	if(d2.scale < 0) {
-		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t)-d2.scale);
+		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t) - d2.scale);
 		mpz_mul(d2.value.get_mpz_t(), d2.value.get_mpz_t(), cob_mexp);
 	} else if(d2.scale > 0) {
 		int sign = sgn(d2.value);
@@ -597,217 +625,6 @@ cob_mod_or_rem(cob_field * f1, cob_field * f2, const int func_is_rem)
 	cob_alloc_field(&d1);
 	(void)cob_decimal_get_field(&d1, curr_field, 0);
 	return curr_field;
-}
-
-/* Validate NUMVAL / NUMVAL-C item */
-/* [spaces][+|-][spaces]{digits[.[digits]]|.digits}[spaces] */
-/* [spaces]{digits[.[digits]]|.digits}[spaces][+|-|CR|DB][spaces] */
-
-static int
-cob_check_numval(const cob_field * srcfield, const cob_field * currency,
-				 const int chkcurr, const int anycase)
-{
-	unsigned char cur_symb;
-	unsigned char * begp = NULL;
-	size_t currcy_size = 0;
-	if(currency) {
-		unsigned char * endp = NULL;
-		unsigned char * p = currency->data;
-		for(size_t pos = 0; pos < currency->size; pos++, p++) {
-			switch(*p) {
-			case '0':
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-			case '+':
-			case '-':
-			case '.':
-			case ',':
-			case '*':
-				return 1;
-			case ' ':
-				break;
-			default:
-				if(pos < currency->size - 1) {
-					if(!memcmp(p, "CR", (size_t)2)) {
-						return 1;
-					}
-					if(!memcmp(p, "DB", (size_t)2)) {
-						return 1;
-					}
-				}
-				if(!begp) {
-					begp = p;
-				}
-				endp = p;
-				break;
-			}
-		}
-		if(!begp) {
-			return 1;
-		}
-		currcy_size = endp - begp;
-		currcy_size++;
-		if(currcy_size >= srcfield->size) {
-			begp = NULL;
-			currcy_size = 0;
-		}
-	} else if(chkcurr) {
-		cur_symb = COB_MODULE_PTR->currency_symbol;
-		begp = &cur_symb;
-		currcy_size = 1;
-	}
-
-	if(!srcfield->size) {
-		return 1;
-	}
-
-	unsigned char * p = srcfield->data;
-	bool plus_minus = false;
-	size_t digits = 0;
-	bool dec_seen = false;
-	bool space_seen = false;
-	bool break_needed = false;
-	unsigned char dec_pt = COB_MODULE_PTR->decimal_point;
-
-	/* Check leading positions */
-	int n;
-	for(n = 0; n < (int)srcfield->size; ++n, ++p) {
-		switch(*p) {
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			break_needed = true;
-			break;
-		case ' ':
-			continue;
-		case '+':
-		case '-':
-			if(plus_minus) {
-				return n + 1;
-			}
-			plus_minus = true;
-			continue;
-		case ',':
-		case '.':
-			if(*p != dec_pt) {
-				return n + 1;
-			}
-			break_needed = true;
-			break;
-		default:
-			if(begp && n < (int)(srcfield->size - currcy_size)) {
-				if(!memcmp(p, begp, currcy_size)) {
-					break;
-				}
-			}
-			return n + 1;
-		}
-		if(break_needed) {
-			break;
-		}
-	}
-
-	if(n == (int)srcfield->size) {
-		return n + 1;
-	}
-
-	for(; n < (int)srcfield->size; ++n, ++p) {
-		switch(*p) {
-		case '0':
-		case '1':
-		case '2':
-		case '3':
-		case '4':
-		case '5':
-		case '6':
-		case '7':
-		case '8':
-		case '9':
-			if(++digits > COB_MAX_DIGITS || space_seen) {
-				return n + 1;
-			}
-			continue;
-		case ',':
-		case '.':
-			if(dec_seen || space_seen) {
-				return n + 1;
-			}
-			if(*p == dec_pt) {
-				dec_seen = true;
-			} else if(!chkcurr) {
-				return n + 1;
-			}
-			continue;
-		case ' ':
-			space_seen = true;
-			continue;
-		case '+':
-		case '-':
-			if(plus_minus) {
-				return n + 1;
-			}
-			plus_minus = true;
-			continue;
-		case 'c':
-			if(!anycase) {
-				return n + 1;
-			}
-			/* Fall through */
-		case 'C':
-			if(plus_minus) {
-				return n + 1;
-			}
-			if(n < (int)srcfield->size - 1) {
-				if(*(p + 1) == 'R' || (anycase && *(p + 1) == 'r')) {
-					plus_minus = true;
-					p++;
-					n++;
-					continue;
-				}
-			}
-			return n + 2;
-		case 'd':
-			if(!anycase) {
-				return n + 1;
-			}
-			/* Fall through */
-		case 'D':
-			if(plus_minus) {
-				return n + 1;
-			}
-			if(n < (int)srcfield->size - 1) {
-				if(*(p + 1) == 'B' || (anycase && *(p + 1) == 'b')) {
-					plus_minus = true;
-					p++;
-					n++;
-					continue;
-				}
-			}
-			return n + 2;
-		default:
-			return n + 1;
-		}
-	}
-
-	if(!digits) {
-		return n + 1;
-	}
-
-	return 0;
 }
 
 /* Validate NUMVAL-F item */
@@ -933,7 +750,7 @@ cob_check_numval_f(const cob_field * srcfield)
 		}
 	}
 
-	if(!digits ||(e_seen && !exponent)) {
+	if(!digits || (e_seen && !exponent)) {
 		return n + 1;
 	}
 
@@ -961,7 +778,7 @@ cob_decimal_set_mpf(cob_decimal * d, const mpf_t src)
 	if(len >= 0) {
 		d->scale = len;
 	} else {
-		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t)-len);
+		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t) - len);
 		mpz_mul(d->value.get_mpz_t(), d->value.get_mpz_t(), cob_mexp);
 		d->scale = 0;
 	}
@@ -973,7 +790,7 @@ cob_decimal_get_mpf(mpf_t dst, const cob_decimal * d)
 	mpf_set_z(dst, d->value.get_mpz_t());
 	cob_sli_t scale = d->scale;
 	if(scale < 0) {
-		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t)-scale);
+		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t) - scale);
 		mpf_set_z(cob_mpft_get, cob_mexp);
 		mpf_mul(dst, dst, cob_mpft_get);
 	} else if(scale > 0) {
@@ -1083,8 +900,8 @@ cob_mpf_log(mpf_t dst_val, const mpf_t src_val)
 			mpf_neg(dst_temp, dst_temp);
 			mpf_div_2exp(vf1, vf1, (cob_uli_t)expon);
 		} else {
-			mpf_mul_ui(dst_temp, dst_temp, (cob_uli_t)-expon);
-			mpf_mul_2exp(vf1, vf1, (cob_uli_t)-expon);
+			mpf_mul_ui(dst_temp, dst_temp, (cob_uli_t) - expon);
+			mpf_mul_2exp(vf1, vf1, (cob_uli_t) - expon);
 		}
 	}
 	mpf_ui_sub(vf1, 1UL, vf1);
@@ -1397,6 +1214,1619 @@ cob_mpf_acos(mpf_t dst_val, const mpf_t src_val)
 }
 
 
+/* SUBSTITUTE(-CASE) functions */
+
+static size_t
+get_substituted_size(cob_field * original, cob_field ** matches, cob_field ** reps,
+					 const int numreps,
+					 int (*cmp_func)(const void *, const void *, size_t))
+{
+	unsigned char * match_begin = original->data;
+	size_t orig_size = original->size;
+	size_t calcsize = 0;
+	bool found = false;
+
+	for(size_t cur_idx = 0; cur_idx < orig_size;) {
+		/* Try to find a match at this point */
+		for(int i = 0; i < numreps; ++i) {
+			/* If we overflow the string */
+			if(cur_idx + matches[i]->size > orig_size) {
+				continue;
+			}
+
+			/* If we find a match */
+			if(!(*cmp_func)(match_begin, matches[i]->data, matches[i]->size)) {
+				/* Go past it */
+				match_begin += matches[i]->size;
+				cur_idx += matches[i]->size;
+				/* Keep track how long new string will be */
+				calcsize += reps[i]->size;
+
+				found = true;
+				break;
+			}
+		}
+
+		if(found) {
+			found = false;
+		} else {
+			/* Move forward one char */
+			++cur_idx;
+			++match_begin;
+			++calcsize;
+		}
+	}
+
+	return calcsize;
+}
+
+static void
+substitute_matches(cob_field * original, cob_field ** matches, cob_field ** reps,
+				   const int numreps,
+				   int (*cmp_func)(const void *, const void *, size_t),
+				   unsigned char * replaced_begin)
+{
+	unsigned char * match_begin = original->data;
+	size_t orig_size = original->size;
+	bool found = false;
+
+	for(size_t cur_idx = 0; cur_idx < orig_size;) {
+		/* Try to find a match at this point. */
+		for(int i = 0; i < numreps; ++i) {
+			/* If we overrucur_idx */
+			if(cur_idx + matches[i]->size > orig_size) {
+				continue;
+			}
+
+			/* If we find a match */
+			if(!(*cmp_func)(match_begin, matches[i]->data, matches[i]->size)) {
+				/* Write the replacement */
+				memcpy(replaced_begin, reps[i]->data, reps[i]->size);
+				/* Move past the match/replacement */
+				match_begin += matches[i]->size;
+				replaced_begin += reps[i]->size;
+				cur_idx += matches[i]->size;
+
+				found = true;
+				break;
+			}
+		}
+
+		if(found) {
+			found = false;
+		} else {
+			/* Add unmatched char to final string and move on one */
+			++cur_idx;
+			*replaced_begin++ = *match_begin++;
+		}
+	}
+}
+
+static cob_field *
+substitute(const int offset, const int length, const int params,
+		   int (*cmp_func)(const void *, const void *, size_t),
+		   va_list args)
+{
+	int numreps = params / 2;
+	cob_field ** matches = new cob_field *[numreps];
+	cob_field ** reps = new cob_field *[numreps];
+
+
+	/* Extract args */
+	cob_field * original = va_arg(args, cob_field *);
+	for(int i = 0; i < params - 1; ++i) {
+		if((i % 2) == 0) {
+			matches[i / 2] = va_arg(args, cob_field *);
+		} else {
+			reps[i / 2] = va_arg(args, cob_field *);
+		}
+	}
+	va_end(args);
+
+	/* Perform substitution */
+
+	size_t calcsize = get_substituted_size(original, matches, reps, numreps, cmp_func);
+
+	cob_field field(calcsize, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+
+	substitute_matches(original, matches, reps, numreps, cmp_func, curr_field->data);
+
+	/* Output placed in curr_field */
+
+	delete [] matches;
+	delete [] reps;
+
+	if(unlikely(offset > 0)) {
+		calc_ref_mod(curr_field, offset, length);
+	}
+	return curr_field;
+}
+
+static int
+int_strncasecmp(const void * s1, const void * s2, size_t n)
+{
+	return (int) strncasecmp((const char *)s1, (const char *)s2, n);
+}
+
+/* NUMVAL */
+
+static int
+in_last_n_chars(const cob_field * field, const size_t n, const unsigned int i)
+{
+	return i >= (field->size - n);
+}
+
+static int
+at_cr_or_db(const cob_field * srcfield, const int pos)
+{
+	return memcmp(&srcfield->data[pos], "CR", (size_t)2) == 0
+		   || memcmp(&srcfield->data[pos], "DB", (size_t)2) == 0;
+}
+
+enum numval_type {
+	NUMVAL,
+	NUMVAL_C
+};
+
+static cob_field *
+numval(cob_field * srcfield, cob_field * currency, const enum numval_type type)
+{
+	unsigned char * final_buff = new unsigned char[srcfield->size + 1];
+	unsigned char * currency_data = NULL;
+	int		final_digits = 0;
+	int		decimal_digits = 0;
+	int		sign = 0;
+	int		decimal_seen = 0;
+	unsigned char dec_pt = COB_MODULE_PTR->decimal_point;
+	unsigned char cur_symb = COB_MODULE_PTR->currency_symbol;
+
+	/* Validate source field */
+	if(cob_check_numval(srcfield, currency, type == NUMVAL_C, 0)) {
+		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+		cob_alloc_set_field_uint(0);
+		return curr_field;
+	}
+
+	if(currency && currency->size < srcfield->size) {
+		currency_data = currency->data;
+	}
+
+	for(size_t i = 0; i < srcfield->size; ++i) {
+		if(!in_last_n_chars(srcfield, 2, (unsigned int) i)
+				&& at_cr_or_db(srcfield, (unsigned int) i)) {
+			sign = 1;
+			break;
+		}
+
+		if(currency_data) {
+			/* FIXME: only do so if i has a reasonable size [or at least is < INT_MAX]
+			          otherwise an overflow may occur
+			*/
+			if(!(in_last_n_chars(srcfield, currency->size, (unsigned int) i))
+					&& !memcmp(&srcfield->data[i], currency_data,
+							   currency->size)) {
+				i += (currency->size - 1);
+				continue;
+			}
+		} else if(type == NUMVAL_C && srcfield->data[i] == cur_symb) {
+			continue;
+		}
+
+		if(srcfield->data[i] == ' ') {
+			continue;
+		}
+		if(srcfield->data[i] == '+') {
+			continue;
+		}
+		if(srcfield->data[i] == '-') {
+			sign = 1;
+			continue;
+		}
+		if(srcfield->data[i] == dec_pt) {
+			decimal_seen = 1;
+			continue;
+		}
+		if(srcfield->data[i] >= (unsigned char)'0' &&
+				srcfield->data[i] <= (unsigned char)'9') {
+			if(decimal_seen) {
+				decimal_digits++;
+			}
+			final_buff[final_digits++] = srcfield->data[i];
+		}
+		if(final_digits > COB_MAX_DIGITS) {
+			break;
+		}
+	}
+
+	/* If srcfield is an empty string */
+	if(!final_digits) {
+		final_buff[0] = '0';
+	}
+
+	final_buff[final_digits] = 0;
+	d1.value.set_str((char *)final_buff, 10);
+	delete [] final_buff;
+	if(sign && sgn(d1.value)) {
+		mpz_neg(d1.value.get_mpz_t(), d1.value.get_mpz_t());
+	}
+	d1.scale = decimal_digits;
+	cob_alloc_field(&d1);
+	(void)cob_decimal_get_field(&d1, curr_field, 0);
+
+	return curr_field;
+}
+
+/* Numeric functions */
+
+static void
+get_min_and_max_of_args(const int num_args, va_list args, cob_field ** min, cob_field ** max)
+{
+	*min = va_arg(args, cob_field *);
+	*max = *min;
+
+	for(int i = 1; i < num_args; ++i) {
+		cob_field * f = va_arg(args, cob_field *);
+		if(cob_cmp(f, *min) < 0) {
+			*min = f;
+		}
+		if(cob_cmp(f, *max) > 0) {
+			*max = f;
+		}
+	}
+}
+
+/* Uses d1 and d2. Return value in d1. */
+static void
+calc_mean_of_args(const int num_args, va_list args)
+{
+	d1 = 0;
+	for(int i = 0; i < num_args; ++i) {
+		cob_field * f = va_arg(args, cob_field *);
+		cob_decimal_set_field(&d2, f);
+		cob_decimal_add(&d1, &d2);
+	}
+
+	d2 = num_args;
+	cob_decimal_div(&d1, &d2);
+}
+
+/* Return variance in d1. Uses d2, d3 and d4. */
+static void
+calc_variance_of_args(const int n, va_list numbers, cob_decimal * mean)
+{
+	cob_decimal	* difference = &d2;
+	cob_decimal	* sum = &d3;
+	cob_decimal	* num_numbers = &d4;
+
+	if(n == 1) {
+		d1 = 0;
+		return;
+	}
+
+	*sum = 0;
+
+	/* Get the sum of the squares of the differences from the mean */
+	/* i.e., Sum ((arg - mean)^2) */
+	for(int i = 0; i < n; ++i) {
+		cob_field * f = va_arg(numbers, cob_field *);
+		cob_decimal_set_field(difference, f);
+		cob_decimal_sub(difference, mean);
+		cob_decimal_mul(difference, difference);
+		cob_decimal_add(sum, difference);
+	}
+
+	/* Divide sum by n */
+	*num_numbers = n;
+	cob_decimal_div(sum, num_numbers);
+	d1 = *sum;
+}
+
+/* Date/time functions */
+
+static void
+get_interval_and_current_year_from_args(const int num_args, va_list args,
+										int * const interval, int * const current_year)
+{
+	time_t		t;
+	struct tm	* timeptr;
+
+	if(num_args > 1) {
+		cob_field * f = va_arg(args, cob_field *);
+		*interval = cob_get_int(f);
+	} else {
+		*interval = 50;
+	}
+
+	if(num_args > 2) {
+		cob_field * f = va_arg(args, cob_field *);
+		*current_year = cob_get_int(f);
+	} else {
+		t = time(NULL);
+		timeptr = localtime(&t);
+		*current_year = 1900 + timeptr->tm_year;
+	}
+}
+
+/* Locale time */
+
+#if defined(_WIN32) || defined(__CYGWIN__) || defined (HAVE_LANGINFO_CODESET)
+#ifdef HAVE_LANGINFO_CODESET
+static int
+locale_time(const int hours, const int minutes, const int seconds,
+			cob_field * locale_field, char * buff)
+{
+	char * deflocale = NULL;
+	struct tm tstruct;
+	char buff2[LOCTIME_BUFSIZE] =  { '\0' };
+	char locale_buff[COB_SMALL_BUFF] =  { '\0' };
+
+	/* Initialize tstruct to given time */
+	memset((void *)&tstruct, 0, sizeof(struct tm));
+	tstruct.tm_hour = hours;
+	tstruct.tm_min = minutes;
+	tstruct.tm_sec = seconds;
+
+	if(locale_field) {
+		if(locale_field->size >= COB_SMALL_BUFF) {
+			return 1;
+		}
+		cob_field_to_string(locale_field, locale_buff, (size_t)COB_SMALL_MAX);
+		deflocale = locale_buff;
+		(void) setlocale(LC_TIME, deflocale);
+	}
+
+	/* Get strftime format string for locale */
+	memset(buff2, 0, LOCTIME_BUFSIZE);
+	snprintf(buff2, LOCTIME_BUFSIZE - 1, "%s", nl_langinfo(T_FMT));
+
+	/* Set locale if not done yet */
+	if(deflocale) {
+		(void) setlocale(LC_ALL, cobglobptr->cob_locale);
+	}
+
+	strftime(buff, LOCTIME_BUFSIZE, buff2, &tstruct);
+
+	return 0;
+}
+#else
+static int
+locale_time(const int hours, const int minutes, const int seconds,
+			cob_field * locale_field, char * buff)
+{
+	LCID		localeid = LOCALE_USER_DEFAULT;
+	char		locale_buff[COB_SMALL_BUFF] = { '\0' };
+
+	/* Initialize syst with given time */
+	SYSTEMTIME	syst;
+	memset((void *)&syst, 0, sizeof(syst));
+	syst.wHour = (WORD)hours;
+	syst.wMinute = (WORD)minutes;
+	syst.wSecond = (WORD)seconds;
+
+	/* Get specified locale */
+	if(locale_field) {
+		if(locale_field->size >= COB_SMALL_BUFF) {
+			return 1;
+		}
+		cob_field_to_string(locale_field, locale_buff, COB_SMALL_MAX);
+
+		/* Null-terminate last char of the locale string */
+		unsigned char * p;
+		for(p = (unsigned char *)locale_buff; *p; ++p) {
+			if(isalnum((int)*p) || *p == '_') {
+				continue;
+			}
+			break;
+		}
+		*p = 0;
+
+		/* Find locale ID */
+		size_t len;
+		for(len = 0; len < WINLOCSIZE; ++len) {
+			if(!strcmp(locale_buff, wintable[len].winlocalename)) {
+				localeid = wintable[len].winlocaleid;
+				break;
+			}
+		}
+		if(len == WINLOCSIZE) {
+			return 1;
+		}
+	}
+
+	/* Get locale time */
+	if(!GetTimeFormat(localeid, LOCALE_NOUSEROVERRIDE, &syst, NULL, buff, LOCTIME_BUFSIZE)) {
+		return 1;
+	}
+
+	return 0;
+}
+#endif
+#endif
+
+/* offset and length are for reference modification */
+static void
+cob_alloc_set_field_str(char * str, const int offset, const int length)
+{
+	const size_t str_len = strlen(str);
+	cob_field field(str_len, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+	memcpy(curr_field->data, str, str_len);
+
+	if(unlikely(offset > 0)) {
+		calc_ref_mod(curr_field, offset, length);
+	}
+}
+
+static void
+cob_alloc_set_field_spaces(const int n)
+{
+	cob_field field(n, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+	memset(curr_field->data, ' ', (size_t)n);
+}
+
+/* Date/time functions */
+
+static int
+days_in_year(const int year)
+{
+	return 365 + leap_year(year);
+}
+
+static COB_INLINE COB_A_INLINE int
+in_range(const int min, const int max, const int val)
+{
+	return min <= val && val <= max;
+}
+
+static int
+valid_integer_date(const int days)
+{
+	return in_range(1, 3067671, days);
+}
+
+static int
+valid_year(const int year)
+{
+	return in_range(1601, 9999, year);
+}
+
+static int
+valid_month(const int month)
+{
+	return in_range(1, 12, month);
+}
+
+static int
+valid_day_of_year(const int year, const int day)
+{
+	return in_range(1, days_in_year(year), day);
+}
+
+static int
+valid_day_of_month(const int year, const int month, const int day)
+{
+	if(leap_year(year)) {
+		return in_range(1, leap_month_days[month], day);
+	} else {
+		return in_range(1, normal_month_days[month], day);
+	}
+}
+
+static int
+max_week(int year)
+{
+	int	first_day = integer_of_date(year, 1, 1);
+	int	last_day = first_day + days_in_year(year) - 1;
+	int	week;
+
+	get_iso_week(last_day, &year, &week);
+	return week;
+}
+
+/* 86400 = 60 * 60 * 24. We'll ignore leap seconds for now. */
+#define SECONDS_IN_DAY 86400
+
+static int
+valid_time(const int seconds_from_midnight)
+{
+	return in_range(0, SECONDS_IN_DAY, seconds_from_midnight);
+}
+
+/* Uses d5. */
+static int
+valid_decimal_time(cob_decimal * seconds_from_midnight)
+{
+	cob_decimal	* seconds_in_day = &d5;
+	*seconds_in_day = SECONDS_IN_DAY;
+
+	return cob_decimal_cmp(seconds_from_midnight, seconds_in_day) <= 0;
+}
+
+#undef SECONDS_IN_DAY
+
+static int
+valid_offset_time(const int offset)
+{
+	const int minutes_in_day = 1440; /* 60 * 24 */
+	return abs(offset) < minutes_in_day;
+}
+
+/* calculate date from days since 1601 */
+static void
+date_of_integer(const int day_num, int * year, int * month, int * day)
+{
+	int days = day_num;
+	int baseyear = 1601;
+	int leapyear = 365;
+
+	while(days > leapyear) {
+		days -= leapyear;
+		++baseyear;
+		leapyear = days_in_year(baseyear);
+	}
+	int i;
+	for(i = 0; i < 13; ++i) {
+		if(leap_year(baseyear)) {
+			if(i && days <= leap_days[i]) {
+				days -= leap_days[i - 1];
+				break;
+			}
+		} else {
+			if(i && days <= normal_days[i]) {
+				days -= normal_days[i - 1];
+				break;
+			}
+		}
+	}
+
+	*year = baseyear;
+	*month = i;
+	*day = days;
+}
+
+/* set year and day-of-year from integer */
+static void
+day_of_integer(const int day_num, int * year, int * day)
+{
+	int leapyear = 365;
+	int days = day_num;
+
+	*year = 1601;
+
+	while(days > leapyear) {
+		days -= leapyear;
+		++*year;
+		leapyear = days_in_year(*year);
+	}
+
+	*day = days;
+}
+
+/* calculate number of days between 1601 and given year */
+static cob_u32_t
+days_up_to_year(const int year)
+{
+	cob_u32_t totaldays = 0;
+	int baseyear = 1601;
+
+	while(baseyear != year) {
+		totaldays += days_in_year(baseyear);
+		++baseyear;
+	}
+	return totaldays;
+}
+
+/* calculate number of days between 1601/01/01 and given date */
+static cob_u32_t
+integer_of_date(const int year, const int month, const int days)
+{
+	cob_u32_t totaldays = days_up_to_year(year);
+
+	if(leap_year(year)) {
+		totaldays += leap_days[month - 1];
+	} else {
+		totaldays += normal_days[month - 1];
+	}
+	totaldays += days;
+
+	return totaldays;
+}
+
+/* calculate number of days between 1601/01/01 and given year + day-of-year */
+static cob_u32_t
+integer_of_day(const int year, const int days)
+{
+	cob_u32_t totaldays = days_up_to_year(year);
+	totaldays += days;
+
+	return totaldays;
+}
+
+enum formatted_time_extra {
+	EXTRA_NONE = 0,
+	EXTRA_Z,
+	EXTRA_OFFSET_TIME
+};
+
+struct time_format {
+	int with_colons;
+	int decimal_places;
+	enum formatted_time_extra extra;
+};
+
+/* Uses d2 */
+static void
+seconds_from_formatted_time(const struct time_format format, const char * str,
+							cob_decimal * seconds_decimal)
+{
+	const char	* scanf_str = format.with_colons ? "%2d:%2d:%2d" : "%2d%2d%2d";
+	int		hours;
+	int		minutes;
+	int		seconds;
+	int		total_seconds;
+	int		offset;
+	int		end_of_decimal;
+	int		unscaled_fraction = 0;
+	cob_decimal	* fractional_seconds = &d2;
+
+	if(unlikely(!sscanf(str, scanf_str, &hours, &minutes, &seconds))) {
+		cob_fatal_error(COB_FERROR_CODEGEN);
+	}
+
+	total_seconds = (hours * 60 * 60) + (minutes * 60) + seconds;
+
+	if(format.decimal_places != 0) {
+		offset = format.with_colons ? 9 : 7;
+		end_of_decimal = offset + format.decimal_places;
+		for(; offset != end_of_decimal; ++offset) {
+			unscaled_fraction = unscaled_fraction * 10 + cob_ctoi(str[offset]);
+		}
+
+		fractional_seconds->value = unscaled_fraction;
+		fractional_seconds->scale = format.decimal_places;
+
+		seconds_decimal->value = total_seconds;
+		cob_decimal_add(seconds_decimal, fractional_seconds);
+	} else {
+		*seconds_decimal = total_seconds;
+	}
+}
+
+static int
+valid_day_and_format(const int day, const char * format)
+{
+	return valid_integer_date(day) && cob_valid_date_format(format);
+}
+
+/* FIXME: unlikely but may return a size_t, leading to a possible overflow */
+static int
+num_leading_nonspace(const char * str)
+{
+	size_t str_len = strlen(str);
+
+	int i;
+	for(i = 0; i < str_len && !isspace((int) str[i]); ++i);
+	return i;
+}
+
+static void
+format_as_yyyymmdd(const int day_num, const int with_hyphen, char * buff)
+{
+	int		day_of_month;
+	int		month;
+	int		year;
+	const char	* format_str;
+
+	date_of_integer(day_num, &year, &month, &day_of_month);
+
+	format_str = with_hyphen ? "%4.4d-%2.2d-%2.2d" : "%4.4d%2.2d%2.2d";
+	sprintf(buff, format_str, year, month, day_of_month);
+}
+
+static void
+format_as_yyyyddd(const int day_num, const int with_hyphen, char * buff)
+{
+	int		day_of_year;
+	int		year;
+	const char	* format_str;
+
+	day_of_integer(day_num, &year, &day_of_year);
+
+	format_str = with_hyphen ? "%4.4d-%3.3d" : "%4.4d%3.3d";
+	sprintf(buff, format_str, year, day_of_year);
+}
+
+/* 0 = Monday, ..., 6 = Sunday */
+static int
+get_day_of_week(const int day_num)
+{
+	return (day_num - 1) % 7;
+}
+
+static int
+get_iso_week_one(const int day_num, const int day_of_year)
+{
+	int jan_4 = day_num - day_of_year + 4;
+	int day_of_week = get_day_of_week(jan_4);
+	int first_monday = jan_4 - day_of_week;
+	return first_monday;
+}
+
+/*
+ * Derived from "Calculating the ISO week number for a date" by Julian M.
+ * Bucknall (http://www.boyet.com/articles/publishedarticles/calculatingtheisoweeknumb.html).
+ */
+static void
+get_iso_week(const int day_num, int * year, int * week)
+{
+	int day_of_year;
+	int days_to_dec_29;
+	int dec_29;
+	int week_one;
+
+	day_of_integer(day_num, year, &day_of_year);
+
+	days_to_dec_29 = days_in_year(*year) - 2;
+	dec_29 = day_num - day_of_year + days_to_dec_29;
+
+	if(day_num >= dec_29) {
+		/* If the day is (after) December 29, it may be in the first
+		    week of the following year
+		*/
+		week_one = get_iso_week_one(day_num + days_in_year(*year), day_of_year);
+		if(day_num < week_one) {
+			week_one = get_iso_week_one(day_num, day_of_year);
+		} else {
+			++*year;
+		}
+	} else {
+		week_one = get_iso_week_one(day_num, day_of_year);
+
+		/* If the day is before December 29, it may be in the last week
+		   of the previous year
+		*/
+		if(day_num < week_one) {
+			--*year;
+			week_one = get_iso_week_one(day_num - day_of_year,
+										days_in_year(*year));
+		}
+	}
+
+	*week = (day_num - week_one) / 7 + 1;
+}
+
+static void
+format_as_yyyywwwd(const int day_num, const int with_hyphen, char * buff)
+{
+	int		ignored_day_of_year;
+	int		week;
+	int		year;
+	int		day_of_week;
+	const char	* format_str;
+
+	day_of_integer(day_num, &year, &ignored_day_of_year);
+	get_iso_week(day_num, &year, &week);
+	day_of_week = get_day_of_week(day_num);
+
+	format_str = with_hyphen ? "%4.4d-W%2.2d-%1.1d" : "%4.4dW%2.2d%1.1d";
+	sprintf(buff, format_str, year, week, day_of_week + 1);
+}
+
+enum days_format {
+	DAYS_MMDD,
+	DAYS_DDD,
+	DAYS_WWWD
+};
+
+struct date_format {
+	enum days_format days;
+	int with_hyphens;
+};
+
+static struct date_format
+parse_date_format_string(const char * format_str)
+{
+	struct date_format format;
+
+	if(!strcmp(format_str, "YYYYMMDD") || !strcmp(format_str, "YYYY-MM-DD")) {
+		format.days = DAYS_MMDD;
+	} else if(!strcmp(format_str, "YYYYDDD") || !strcmp(format_str, "YYYY-DDD")) {
+		format.days = DAYS_DDD;
+	} else { /* YYYYWwwD or YYYY-Www-D */
+		format.days = DAYS_WWWD;
+	}
+
+	format.with_hyphens = format_str[4] == '-';
+
+	return format;
+}
+
+static void
+format_date(const struct date_format format, const int days, char * buff)
+{
+	void (*formatting_func)(int, int, char *);
+
+	if(format.days == DAYS_MMDD) {
+		formatting_func = &format_as_yyyymmdd;
+	} else if(format.days == DAYS_DDD) {
+		formatting_func = &format_as_yyyyddd;
+	} else { /* DAYS_WWWD */
+		formatting_func = &format_as_yyyywwwd;
+	}
+	(*formatting_func)(days, format.with_hyphens, buff);
+}
+
+/* Uses d5. */
+static void
+get_fractional_seconds(cob_field * time, cob_decimal * fraction)
+{
+	int seconds = cob_get_int(time);
+	cob_decimal * whole_seconds = &d5;
+	*whole_seconds = seconds;
+
+	cob_decimal_set_field(fraction, time);
+	cob_decimal_sub(fraction, whole_seconds);
+}
+
+static int
+decimal_places_for_seconds(const char * str, const ptrdiff_t point_pos)
+{
+	ptrdiff_t offset = point_pos;
+	int decimal_places = 0;
+
+	while(str[++offset] == 's') {
+		++decimal_places;
+	}
+
+	return decimal_places;
+}
+
+static int
+rest_is_z(const char * str)
+{
+	return !strcmp(str, "Z");
+}
+
+static int
+rest_is_offset_format(const char * str, const int with_colon)
+{
+	if(with_colon) {
+		return !strcmp(str, "+hh:mm");
+	} else {
+		return !strcmp(str, "+hhmm");
+	}
+}
+
+/*
+  This function is needed because, on MinGW, (int) pow (10, 8) == 9999999, not
+  10^8. This also occurs with other powers. See http://stackoverflow.com/q/9704195.
+*/
+static unsigned int
+int_pow(const unsigned int base, unsigned int power)
+{
+	unsigned int ret = 1;
+
+	while(power > 0) {
+		ret *= base;
+		--power;
+	}
+
+	return ret;
+}
+
+static void
+add_decimal_digits(int decimal_places, cob_decimal * second_fraction,
+				   char * buff, ptrdiff_t * buff_pos)
+{
+	unsigned int	scale = second_fraction->scale;
+	unsigned int	power_of_ten;
+	unsigned int	fraction = (unsigned int) second_fraction->value.get_ui();
+
+	/* Add decimal point */
+	buff[*buff_pos] = COB_MODULE_PTR->decimal_point;
+	++*buff_pos;
+
+	/* Append decimal digits from second_fraction from left to right */
+	while(scale != 0 && decimal_places != 0) {
+		--scale;
+		power_of_ten = int_pow(10, scale);
+		buff[*buff_pos] = (char)('0' + (fraction / power_of_ten));
+
+		fraction %= power_of_ten;
+		++*buff_pos;
+		--decimal_places;
+	}
+
+	/* Set remaining digits to zero */
+	if(decimal_places != 0) {
+		memset(buff + *buff_pos, '0', decimal_places);
+		*buff_pos += decimal_places;
+	}
+}
+
+static void
+add_z(const ptrdiff_t buff_pos, char * buff)
+{
+	buff[buff_pos] = 'Z';
+}
+
+static void
+add_offset_time(const int with_colon, int const * offset_time,
+				const ptrdiff_t buff_pos, char * buff)
+{
+	if(offset_time) {
+		int hours = *offset_time / 60;
+		int minutes = abs(*offset_time) % 60;
+
+		const char * format_str = with_colon ? "%+2.2d:%2.2d" : "%+2.2d%2.2d";
+		sprintf(buff + buff_pos, format_str, hours, minutes);
+	} else {
+		sprintf(buff + buff_pos, "00000");
+	}
+}
+
+static struct time_format
+parse_time_format_string(const char * str)
+{
+	struct time_format format;
+	ptrdiff_t offset;
+
+	if(!strncmp(str, "hhmmss", 6)) {
+		format.with_colons = 0;
+		offset = 6;
+	} else { /* "hh:mm:ss" */
+		format.with_colons = 1;
+		offset = 8;
+	}
+
+	if(str[offset] == '.' || str[offset] == ',') {
+		format.decimal_places = decimal_places_for_seconds(str, offset);
+		offset += format.decimal_places + 1;
+	} else {
+		format.decimal_places = 0;
+	}
+
+	if(strlen(str) > (size_t) offset) {
+		if(rest_is_z(str + offset)) {
+			format.extra = EXTRA_Z;
+		} else { /* the rest is the offset time */
+			format.extra = EXTRA_OFFSET_TIME;
+		}
+	} else {
+		format.extra = EXTRA_NONE;
+	}
+
+	return format;
+}
+
+static int
+format_time(const struct time_format format, int time,
+			cob_decimal * second_fraction, int * offset_time, char * buff)
+{
+	int date_overflow = 0;
+	ptrdiff_t buff_pos;
+	const char * format_str;
+
+	if(format.with_colons) {
+		format_str = "%2.2d:%2.2d:%2.2d";
+		buff_pos = 8;
+	} else {
+		format_str = "%2.2d%2.2d%2.2d";
+		buff_pos = 6;
+	}
+
+	/* Duplication! */
+	int hours = time / 3600;
+	time %= 3600;
+	int minutes = time / 60;
+	int seconds = time % 60;
+
+	if(format.extra == EXTRA_Z) {
+		if(offset_time == NULL) {
+			cob_set_exception(COB_EC_IMP_UTC_UNKNOWN);
+			return 0;
+		}
+
+		hours -= *offset_time / 60;
+		minutes -= *offset_time % 60;
+
+		/* Handle minute and hour overflow */
+		if(minutes >= 60) {
+			minutes -= 60;
+			++hours;
+		} else if(minutes < 0) {
+			minutes += 60;
+			--hours;
+		}
+
+		if(hours >= 24) {
+			hours -= 24;
+			date_overflow = 1;
+		} else if(hours < 0) {
+			hours += 24;
+			date_overflow = -1;
+		}
+	}
+
+	sprintf(buff, format_str, hours, minutes, seconds);
+
+	if(format.decimal_places != 0) {
+		add_decimal_digits(format.decimal_places, second_fraction,
+						   buff, &buff_pos);
+	}
+
+	if(format.extra == EXTRA_Z) {
+		add_z(buff_pos, buff);
+	} else if(format.extra == EXTRA_OFFSET_TIME) {
+		add_offset_time(format.with_colons, offset_time, buff_pos, buff);
+	}
+
+	return date_overflow;
+}
+
+static void
+split_around_t(const char * str, char * first, char * second)
+{
+	int i;
+	size_t first_length;
+	size_t second_length;
+
+	/* Find 'T' */
+	for(i = 0; str[i] != '\0' && str[i] != 'T'; ++i);
+
+	/* Copy everything before 'T' into first (if present) */
+	first_length = i;
+	if(first_length > COB_DATESTR_MAX) {
+		first_length = COB_DATESTR_MAX;
+	}
+	if(first != NULL) {
+		strncpy(first, str, first_length);
+		first[first_length] = '\0';
+	}
+
+	/* If there is anything after 'T', copy it into second (if present) */
+	if(second != NULL) {
+		if(strlen(str) - i == 0) {
+			second[0] = '\0';
+		} else {
+			second_length = strlen(str) - i - 1U;
+			if(second_length > COB_TIMESTR_MAX) {
+				second_length = COB_TIMESTR_MAX;;
+			}
+			strncpy(second, str + i + 1U, second_length);
+			second[second_length] = '\0';
+		}
+	}
+}
+
+static int
+try_get_valid_offset_time(cob_field * offset_time_field, int * offset_time)
+{
+	if(offset_time_field != NULL) {
+		*offset_time = cob_get_int(offset_time_field);
+		if(valid_offset_time(*offset_time)) {
+			return 0;
+		}
+	} else {
+		*offset_time = 0;
+		return 0;
+	}
+
+	return 1;
+}
+
+static int *
+get_system_offset_time_ptr(int * const offset_time)
+{
+	struct cob_time	current_time = cob_get_current_date_and_time();
+	if(current_time.offset_known) {
+		*offset_time = current_time.utc_offset;
+		return offset_time;
+	} else {
+		return NULL;
+	}
+}
+
+static int
+test_char_cond(const int cond, int * offset)
+{
+	if(cond) {
+		++(*offset);
+		return 0;
+	} else {
+		return *offset + 1;
+	}
+}
+
+static COB_INLINE COB_A_INLINE int
+test_char(const char wanted, const char * str, int * offset)
+{
+	return test_char_cond(wanted == str[*offset], offset);
+}
+
+static COB_INLINE COB_A_INLINE int
+test_digit(const unsigned char ch, int * offset)
+{
+	return test_char_cond(isdigit(ch), offset);
+}
+
+static COB_INLINE COB_A_INLINE int
+test_char_in_range(const char min, const char max, const char ch, int * offset)
+{
+	return test_char_cond(min <= ch && ch <= max, offset);
+}
+
+static int test_millenium(const char * date, int * offset, int * millenium)
+{
+	RETURN_IF_NOT_ZERO(test_char_in_range('1', '9', date[*offset], offset));
+
+	*millenium = cob_ctoi(date[*offset - 1]);
+	return 0;
+}
+
+static int
+test_century(const char * date, int * offset, int * state)
+{
+	if(*state != 1) {
+		RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	} else {
+		RETURN_IF_NOT_ZERO(test_char_in_range('6', '9', date[*offset],
+											  offset));
+	}
+
+	*state = *state * 10 + cob_ctoi(date[*offset - 1]);
+	return 0;
+}
+
+static int
+test_decade(const char * date, int * offset, int * state)
+{
+	RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	*state = *state * 10 + cob_ctoi(date[*offset - 1]);
+	return 0;
+}
+
+static int
+test_unit_year(const char * date, int * offset, int * state)
+{
+	if(*state != 160) {
+		RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	} else {
+		RETURN_IF_NOT_ZERO(test_char_in_range('1', '9', date[*offset],
+											  offset));
+	}
+
+	*state = *state * 10 + cob_ctoi(date[*offset - 1]);
+	return 0;
+}
+
+static int
+test_year(const char * date, int * offset, int * state)
+{
+	RETURN_IF_NOT_ZERO(test_millenium(date, offset, state));
+	RETURN_IF_NOT_ZERO(test_century(date, offset, state));
+	RETURN_IF_NOT_ZERO(test_decade(date, offset, state));
+	RETURN_IF_NOT_ZERO(test_unit_year(date, offset, state));
+
+	return 0;
+}
+
+static int
+test_hyphen_presence(const int with_hyphens, const char * date, int * offset)
+{
+	return with_hyphens ? test_char('-', date, offset) : 0;
+}
+
+static int
+test_month(const char * date, int * offset, int * month)
+{
+	int	first_digit;
+
+	/* Validate first digit */
+	RETURN_IF_NOT_ZERO(test_char_cond(date[*offset] == '0' || date[*offset] == '1', offset));
+	first_digit = cob_ctoi(date[*offset - 1]);
+
+	/* Validate second digit */
+	if(first_digit == 0) {
+		RETURN_IF_NOT_ZERO(test_char_in_range('1', '9', date[*offset], offset));
+	} else { /* first digit == 1 */
+		RETURN_IF_NOT_ZERO(test_char_in_range('0', '2', date[*offset], offset));
+	}
+
+	*month = first_digit * 10 + cob_ctoi(date[*offset - 1]);
+	return 0;
+}
+
+static int
+test_day_of_month(const char * date, const int year, const int month, int * offset)
+{
+	int days_in_month;
+
+	if(leap_year(year)) {
+		days_in_month = leap_month_days[month];
+	} else {
+		days_in_month = normal_month_days[month];
+	}
+	char max_first_digit = '0' + (char)(days_in_month / 10);
+	char max_second_digit = '0' + (char)(days_in_month % 10);
+
+	/* Validate first digit */
+	RETURN_IF_NOT_ZERO(test_char_in_range('0', max_first_digit, date[*offset], offset));
+	int first_digit = date[*offset - 1];
+
+	/* Validate second digit */
+	if(first_digit == '0') {
+		RETURN_IF_NOT_ZERO(test_char_in_range('1', '9', date[*offset], offset));
+	} else if(first_digit != max_first_digit) {
+		RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	} else {
+		RETURN_IF_NOT_ZERO(test_char_in_range('0', max_second_digit, date[*offset], offset));
+	}
+
+	return 0;
+}
+
+static int
+test_day_of_year(const char * date, const int year, int * offset)
+{
+	/* Validate first digit */
+	/* Check day is not greater than 399 */
+	RETURN_IF_NOT_ZERO(test_char_in_range('0', '3', date[*offset], offset));
+	int state = cob_ctoi(date[*offset - 1]);
+
+	/* Validate second digit */
+	if(state != 3) {
+		RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	} else {
+		/* Check day is not greater than 369 */
+		RETURN_IF_NOT_ZERO(test_char_in_range('0', '6', date[*offset], offset));
+	}
+	state = state * 10 + cob_ctoi(date[*offset - 1]);
+
+	/* Validate third digit */
+	if(state == 0) {
+		RETURN_IF_NOT_ZERO(test_char_in_range('1', '9', date[*offset], offset));
+	} else if(state != 36) {
+		RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	} else {
+		/* Check day is not greater than 366/365 */
+		char max_last_digit = leap_year(year) ? '6' : '5';
+		RETURN_IF_NOT_ZERO(test_char_in_range('0', max_last_digit, date[*offset], offset));
+	}
+
+	return 0;
+}
+
+static int
+test_w_presence(const char * date, int * offset)
+{
+	return test_char('W', date, offset);
+}
+
+static int
+test_week(const char * date, const int year, int * offset)
+{
+	/* Validate first digit */
+	RETURN_IF_NOT_ZERO(test_char_in_range('0', '5', date[*offset], offset));
+	int first_digit = cob_ctoi(date[*offset - 1]);
+
+	/* Validate second digit */
+	if(first_digit == 0) {
+		RETURN_IF_NOT_ZERO(test_char_in_range('1', '9', date[*offset],
+											  offset));
+	} else if(first_digit != 5) {
+		RETURN_IF_NOT_ZERO(test_digit(date[*offset], offset));
+	} else {
+		char max_last_digit = max_week(year) == 53 ? '3' : '2';
+		RETURN_IF_NOT_ZERO(test_char_in_range('0', max_last_digit,
+											  date[*offset], offset));
+	}
+
+	return 0;
+}
+
+static int
+test_day_of_week(const char * date, int * offset)
+{
+	RETURN_IF_NOT_ZERO(test_char_in_range('1', '7', date[*offset], offset));
+	return 0;
+}
+
+static int
+test_date_end(const struct date_format format, const char * date, const int year, int * offset)
+{
+	int	month;
+
+	if(format.days == DAYS_MMDD) {
+		RETURN_IF_NOT_ZERO(test_month(date, offset, &month));
+		RETURN_IF_NOT_ZERO(test_hyphen_presence(format.with_hyphens, date, offset));
+		RETURN_IF_NOT_ZERO(test_day_of_month(date, year, month, offset));
+	} else if(format.days == DAYS_DDD) {
+		RETURN_IF_NOT_ZERO(test_day_of_year(date, year, offset));
+	} else { /* DAYS_WWWD */
+		RETURN_IF_NOT_ZERO(test_w_presence(date, offset));
+		RETURN_IF_NOT_ZERO(test_week(date, year, offset));
+		RETURN_IF_NOT_ZERO(test_hyphen_presence(format.with_hyphens, date, offset));
+		RETURN_IF_NOT_ZERO(test_day_of_week(date, offset));
+	}
+
+	return 0;
+}
+
+static int
+test_no_trailing_junk(const char * str, int offset, int end_of_string)
+{
+	if(end_of_string) {
+		/* Allow trailing spaces at the end of strings */
+		while(str[offset] != '\0') {
+			if(str[offset] != ' ') {
+				return offset + 1;
+			}
+			++offset;
+		}
+		return 0;
+	} else {
+		return str[offset] == '\0' ? 0 : offset + 1;
+	}
+
+}
+
+static int
+test_formatted_date(const struct date_format format, const char * date,
+					const int end_of_string)
+{
+	int	offset = 0;
+	int	year;
+
+	RETURN_IF_NOT_ZERO(test_year(date, &offset, &year));
+	RETURN_IF_NOT_ZERO(test_hyphen_presence(format.with_hyphens, date, &offset));
+	RETURN_IF_NOT_ZERO(test_date_end(format, date, year, &offset));
+	RETURN_IF_NOT_ZERO(test_no_trailing_junk(date, offset, end_of_string));
+	return 0;
+}
+
+static int
+test_less_than_60(const char * time, int * offset)
+{
+	RETURN_IF_NOT_ZERO(test_char_in_range('0', '5', time[*offset], offset));
+	RETURN_IF_NOT_ZERO(test_digit(time[*offset], offset));
+	return 0;
+}
+
+static int
+test_hour(const char * time, int * offset)
+{
+	int	first_digit;
+
+	RETURN_IF_NOT_ZERO(test_char_in_range('0', '2', time[*offset], offset));
+	first_digit = cob_ctoi(time[*offset - 1]);
+
+	if(first_digit != 2) {
+		RETURN_IF_NOT_ZERO(test_digit(time[*offset], offset));
+	} else {
+		RETURN_IF_NOT_ZERO(test_char_in_range('0', '3', time[*offset], offset));
+	}
+
+	return 0;
+}
+
+static int
+test_minute(const char * time, int * offset)
+{
+	RETURN_IF_NOT_ZERO(test_less_than_60(time, offset));
+	return 0;
+}
+
+static int
+test_second(const char * time, int * offset)
+{
+	RETURN_IF_NOT_ZERO(test_less_than_60(time, offset));
+	return 0;
+}
+
+static int
+test_colon_presence(const int with_colons, const char * time, int * offset)
+{
+	if(with_colons) {
+		RETURN_IF_NOT_ZERO(test_char(':', time, offset));
+	}
+
+	return 0;
+}
+
+static int
+test_decimal_places(const int num_decimal_places, const char decimal_point,
+					const char * time, int * offset)
+{
+	if(num_decimal_places != 0) {
+		RETURN_IF_NOT_ZERO(test_char(decimal_point, time, offset));
+		for(int i = 0; i < num_decimal_places; ++i) {
+			RETURN_IF_NOT_ZERO(test_digit(time[*offset], offset));
+		}
+	}
+
+	return 0;
+}
+
+static int
+test_z_presence(const char * time, int * offset)
+{
+	return test_char('Z', time, offset);
+}
+
+static int
+test_two_zeroes(const char * str, int * offset)
+{
+	RETURN_IF_NOT_ZERO(test_char('0', str, offset));
+	RETURN_IF_NOT_ZERO(test_char('0', str, offset));
+	return 0;
+}
+
+static int
+test_offset_time(const struct time_format format, const char * time, int * offset)
+{
+	if(time[*offset] == '+' || time[*offset] == '-') {
+		++*offset;
+		RETURN_IF_NOT_ZERO(test_hour(time, offset));
+		RETURN_IF_NOT_ZERO(test_colon_presence(format.with_colons,
+											   time, offset));
+		RETURN_IF_NOT_ZERO(test_minute(time, offset));
+	} else if(time[*offset] == '0') {
+		++*offset;
+		RETURN_IF_NOT_ZERO(test_two_zeroes(time, offset));
+		RETURN_IF_NOT_ZERO(test_colon_presence(format.with_colons,
+											   time, offset));
+		RETURN_IF_NOT_ZERO(test_two_zeroes(time, offset));
+	} else {
+		return *offset + 1;
+	}
+
+	return 0;
+}
+
+static int
+test_time_end(const struct time_format format, const char * time, int * offset)
+{
+	if(format.extra == EXTRA_Z) {
+		RETURN_IF_NOT_ZERO(test_z_presence(time, offset));
+	} else if(format.extra == EXTRA_OFFSET_TIME) {
+		RETURN_IF_NOT_ZERO(test_offset_time(format, time, offset));
+	}
+
+	return 0;
+}
+
+static int
+test_formatted_time(const struct time_format format, const char * time,
+					const char decimal_point)
+{
+	int	offset = 0;
+
+	RETURN_IF_NOT_ZERO(test_hour(time, &offset));
+	RETURN_IF_NOT_ZERO(test_colon_presence(format.with_colons, time, &offset));
+	RETURN_IF_NOT_ZERO(test_minute(time, &offset));
+	RETURN_IF_NOT_ZERO(test_colon_presence(format.with_colons, time, &offset));
+	RETURN_IF_NOT_ZERO(test_second(time, &offset));
+	RETURN_IF_NOT_ZERO(test_decimal_places(format.decimal_places,
+										   decimal_point, time, &offset));
+	RETURN_IF_NOT_ZERO(test_time_end(format, time, &offset));
+	RETURN_IF_NOT_ZERO(test_no_trailing_junk(time, offset, 1));
+
+	return 0;
+}
+
+#undef RETURN_IF_NOT_ZERO
+
+static cob_u32_t
+integer_of_mmdd(const struct date_format format, const int year, const char * final_part)
+{
+	const char * scanf_str = format.with_hyphens ? "%2d-%2d" : "%2d%2d";
+	int		month;
+	int		day;
+
+	if(unlikely(!sscanf(final_part, scanf_str, &month, &day))) {
+		cob_fatal_error(COB_FERROR_CODEGEN);
+	}
+	return integer_of_date(year, month, day);
+
+}
+
+static cob_u32_t
+integer_of_ddd(const int year, const char * final_part)
+{
+	int	day;
+
+	if(unlikely(!sscanf(final_part, "%3d", &day))) {
+		cob_fatal_error(COB_FERROR_CODEGEN);
+	}
+	return integer_of_day(year, day);
+}
+
+static cob_u32_t
+integer_of_wwwd(const struct date_format format, const int year,
+				const char * final_part)
+{
+	const char * scanf_str = format.with_hyphens ? "W%2d-%1d" : "W%2d%1d";
+	int		week;
+	int		day_of_week;
+
+	int first_week_monday = get_iso_week_one(days_up_to_year(year) + 1, 1);
+	if(unlikely(!sscanf(final_part, scanf_str, &week, &day_of_week))) {
+		cob_fatal_error(COB_FERROR_CODEGEN);
+	}
+	cob_u32_t total_days = first_week_monday + ((week - 1) * 7) + day_of_week - 1;
+
+	return total_days;
+}
+
+static cob_u32_t
+integer_of_formatted_date(const struct date_format format,
+						  const char * formatted_date)
+{
+	int		year;
+	int		final_part_start = 4 + format.with_hyphens;
+
+	if(unlikely(!sscanf(formatted_date, "%4d", &year))) {
+		cob_fatal_error(COB_FERROR_CODEGEN);
+	}
+
+	if(format.days == DAYS_MMDD) {
+		return integer_of_mmdd(format, year, formatted_date + final_part_start);
+	} else if(format.days == DAYS_DDD) {
+		return integer_of_ddd(year, formatted_date + final_part_start);
+	} else { /* DAYS_WWWD */
+		return integer_of_wwwd(format, year, formatted_date + final_part_start);
+	}
+
+}
+
+static void
+format_datetime(const struct date_format date_fmt,
+				const struct time_format time_fmt,
+				const int days,
+				const int whole_seconds,
+				cob_decimal * fractional_seconds,
+				int * offset_time,
+				char * buff)
+{
+	int	overflow;
+	char	formatted_time[COB_TIMESTR_LEN] = { '\0' };
+	char	formatted_date[COB_DATESTR_LEN] = { '\0' };
+
+	overflow = format_time(time_fmt, whole_seconds, fractional_seconds,
+						   offset_time, formatted_time);
+	format_date(date_fmt, days + overflow, formatted_date);
+
+	sprintf(buff, "%sT%s", formatted_date, formatted_time);
+}
+
+/* Uses d1 */
+static void
+format_current_date(const struct date_format date_fmt,
+					const struct time_format time_fmt,
+					char * formatted_datetime)
+{
+	struct cob_time	time = cob_get_current_date_and_time();
+	int days = integer_of_date(time.year, time.month, time.day_of_month);
+	int seconds_from_midnight = time.hour * 60 * 60 + time.minute * 60 + time.second;
+	cob_decimal	* fractional_second = &d1;
+	int * offset_time;
+
+	fractional_second->value = (unsigned long) time.nanosecond;
+	fractional_second->scale = 9;
+
+	if(time.offset_known) {
+		offset_time = &time.utc_offset;
+	} else {
+		offset_time = NULL;
+	}
+
+	format_datetime(date_fmt, time_fmt, days, seconds_from_midnight,
+					fractional_second, offset_time, formatted_datetime);
+}
+
 /* Global functions */
 
 /* Return switch value as field */
@@ -1538,6 +2968,291 @@ cob_decimal_move_temp(cob_field * src, cob_field * dst)
 	cob_move(curr_field, dst);
 }
 
+/* Validate NUMVAL / NUMVAL-C item */
+/* [spaces][+|-][spaces]{digits[.[digits]]|.digits}[spaces] */
+/* [spaces]{digits[.[digits]]|.digits}[spaces][+|-|CR|DB][spaces] */
+
+int
+cob_check_numval(const cob_field * srcfield, const cob_field * currency,
+				 const int chkcurr, const int anycase)
+{
+	unsigned char cur_symb;
+	unsigned char * begp = NULL;
+	size_t currcy_size = 0;
+	if(currency) {
+		unsigned char * endp = NULL;
+		unsigned char * p = currency->data;
+		for(size_t pos = 0; pos < currency->size; pos++, p++) {
+			switch(*p) {
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+			case '8':
+			case '9':
+			case '+':
+			case '-':
+			case '.':
+			case ',':
+			case '*':
+				return 1;
+			case ' ':
+				break;
+			default:
+				if(pos < currency->size - 1) {
+					if(!memcmp(p, "CR", (size_t)2)) {
+						return 1;
+					}
+					if(!memcmp(p, "DB", (size_t)2)) {
+						return 1;
+					}
+				}
+				if(!begp) {
+					begp = p;
+				}
+				endp = p;
+				break;
+			}
+		}
+		if(!begp) {
+			return 1;
+		}
+		currcy_size = endp - begp;
+		currcy_size++;
+		if(currcy_size >= srcfield->size) {
+			begp = NULL;
+			currcy_size = 0;
+		}
+	} else if(chkcurr) {
+		cur_symb = COB_MODULE_PTR->currency_symbol;
+		begp = &cur_symb;
+		currcy_size = 1;
+	}
+
+	if(!srcfield->size) {
+		return 1;
+	}
+
+	unsigned char * p = srcfield->data;
+	bool plus_minus = false;
+	size_t digits = 0;
+	bool dec_seen = false;
+	bool space_seen = false;
+	bool break_needed = false;
+	unsigned char dec_pt = COB_MODULE_PTR->decimal_point;
+
+	/* Check leading positions */
+	int n;
+	for(n = 0; n < (int)srcfield->size; ++n, ++p) {
+		switch(*p) {
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			break_needed = true;
+			break;
+		case ' ':
+			continue;
+		case '+':
+		case '-':
+			if(plus_minus) {
+				return n + 1;
+			}
+			plus_minus = true;
+			continue;
+		case ',':
+		case '.':
+			if(*p != dec_pt) {
+				return n + 1;
+			}
+			break_needed = true;
+			break;
+		default:
+			if(begp && n < (int)(srcfield->size - currcy_size)) {
+				if(!memcmp(p, begp, currcy_size)) {
+					break;
+				}
+			}
+			return n + 1;
+		}
+		if(break_needed) {
+			break;
+		}
+	}
+
+	if(n == (int)srcfield->size) {
+		return n + 1;
+	}
+
+	for(; n < (int)srcfield->size; ++n, ++p) {
+		switch(*p) {
+		case '0':
+		case '1':
+		case '2':
+		case '3':
+		case '4':
+		case '5':
+		case '6':
+		case '7':
+		case '8':
+		case '9':
+			if(++digits > COB_MAX_DIGITS || space_seen) {
+				return n + 1;
+			}
+			continue;
+		case ',':
+		case '.':
+			if(dec_seen || space_seen) {
+				return n + 1;
+			}
+			if(*p == dec_pt) {
+				dec_seen = true;
+			} else if(!chkcurr) {
+				return n + 1;
+			}
+			continue;
+		case ' ':
+			space_seen = true;
+			continue;
+		case '+':
+		case '-':
+			if(plus_minus) {
+				return n + 1;
+			}
+			plus_minus = true;
+			continue;
+		case 'c':
+			if(!anycase) {
+				return n + 1;
+			}
+		/* Fall through */
+		case 'C':
+			if(plus_minus) {
+				return n + 1;
+			}
+			if(n < (int)srcfield->size - 1) {
+				if(*(p + 1) == 'R' || (anycase && *(p + 1) == 'r')) {
+					plus_minus = true;
+					p++;
+					n++;
+					continue;
+				}
+			}
+			return n + 2;
+		case 'd':
+			if(!anycase) {
+				return n + 1;
+			}
+		/* Fall through */
+		case 'D':
+			if(plus_minus) {
+				return n + 1;
+			}
+			if(n < (int)srcfield->size - 1) {
+				if(*(p + 1) == 'B' || (anycase && *(p + 1) == 'b')) {
+					plus_minus = true;
+					p++;
+					n++;
+					continue;
+				}
+			}
+			return n + 2;
+		default:
+			return n + 1;
+		}
+	}
+
+	if(!digits) {
+		return n + 1;
+	}
+
+	return 0;
+}
+
+/* Date/time format validation */
+
+int
+cob_valid_date_format(const char * format)
+{
+	return !strcmp(format, "YYYYMMDD")
+		   || !strcmp(format, "YYYY-MM-DD")
+		   || !strcmp(format, "YYYYDDD")
+		   || !strcmp(format, "YYYY-DDD")
+		   || !strcmp(format, "YYYYWwwD")
+		   || !strcmp(format, "YYYY-Www-D");
+}
+
+int
+cob_valid_time_format(const char * format, const char decimal_point)
+{
+	int with_colons;
+	ptrdiff_t format_offset;
+	unsigned int decimal_places = 0;
+
+	if(!strncmp(format, "hhmmss", 6)) {
+		with_colons = 0;
+		format_offset = 6;
+	} else if(!strncmp(format, "hh:mm:ss", 8)) {
+		with_colons = 1;
+		format_offset = 8;
+	} else {
+		return 0;
+	}
+
+	/* Validate number of decimal places */
+	if(format[format_offset] == decimal_point) {
+		decimal_places = decimal_places_for_seconds(format, format_offset);
+		format_offset += decimal_places + 1;
+		if(!(1 <= decimal_places && decimal_places <= COB_TIMEDEC_MAX)) {
+			return 0;
+		}
+	}
+
+	/* Check for trailing garbage */
+	if(strlen(format) > (size_t) format_offset
+			&& !rest_is_z(format + format_offset)
+			&& !rest_is_offset_format(format + format_offset, with_colons)) {
+		return 0;
+	}
+
+	return 1;
+}
+
+int
+cob_valid_datetime_format(const char * format, const char decimal_point)
+{
+	char	date_format_str[COB_DATETIMESTR_LEN] = { '\0' };
+	char	time_format_str[COB_DATETIMESTR_LEN] = { '\0' };
+	struct date_format	date_format;
+	struct time_format	time_format;
+
+	split_around_t (format, date_format_str, time_format_str);
+
+	if(!cob_valid_date_format(date_format_str)
+			|| !cob_valid_time_format(time_format_str, decimal_point)) {
+		return 0;
+	}
+
+	/* Check time and date formats match */
+	date_format = parse_date_format_string(date_format_str);
+	time_format = parse_time_format_string(time_format_str);
+	if(date_format.with_hyphens != time_format.with_colons) {
+		return 0;
+	}
+
+	return 1;
+}
+
 /* Numeric expressions */
 
 cob_field *
@@ -1603,7 +3318,7 @@ cob_intr_integer(cob_field * srcfield)
 	cob_decimal_set_field(&d1, srcfield);
 	/* Check scale */
 	if(d1.scale < 0) {
-		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t)-d1.scale);
+		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t) - d1.scale);
 		mpz_mul(d1.value.get_mpz_t(), d1.value.get_mpz_t(), cob_mexp);
 	} else if(d1.scale > 0) {
 		int sign = sgn(d1.value);
@@ -1627,7 +3342,7 @@ cob_intr_integer_part(cob_field * srcfield)
 	cob_decimal_set_field(&d1, srcfield);
 	/* Check scale */
 	if(d1.scale < 0) {
-		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t)-d1.scale);
+		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t) - d1.scale);
 		mpz_mul(d1.value.get_mpz_t(), d1.value.get_mpz_t(), cob_mexp);
 	} else if(d1.scale > 0) {
 		mpz_ui_pow_ui(cob_mexp, 10UL, (cob_uli_t)d1.scale);
@@ -1840,172 +3555,26 @@ cob_field *
 cob_intr_substitute(const int offset, const int length,
 					const int params, ...)
 {
-	va_list		args;
-
-	int numreps = params / 2;
-	cob_field ** f1 = new cob_field *[numreps];
-	cob_field ** f2 = new cob_field *[numreps];
+	va_list args;
 
 	va_start(args, params);
-
-	cob_field * var = va_arg(args, cob_field *);
-	size_t varsize = var->size;
-
-	/* Extract args */
-	for(int i = 0; i < params - 1; ++i) {
-		if((i % 2) == 0) {
-			f1[i / 2] = va_arg(args, cob_field *);
-		} else {
-			f2[i / 2] = va_arg(args, cob_field *);
-		}
-	}
+	cob_field * ret = substitute(offset, length, params, &memcmp, args);
 	va_end(args);
 
-	/* Calculate required size */
-	size_t calcsize = 0;
-	bool found = false;
-	unsigned char * p1 = var->data;
-	for(size_t n = 0; n < varsize;) {
-		for(int i = 0; i < numreps; ++i) {
-			if(n + f1[i]->size <= varsize) {
-				if(!memcmp(p1, f1[i]->data, f1[i]->size)) {
-					p1 += f1[i]->size;
-					n += f1[i]->size;
-					calcsize += f2[i]->size;
-					found = true;
-					break;
-				}
-			}
-		}
-		if(found) {
-			found = false;
-			continue;
-		}
-		++n;
-		++p1;
-		++calcsize;
-	}
-
-	cob_field field(calcsize, NULL, &const_alpha_attr);
-	make_field_entry(&field);
-
-	found = false;
-	p1 = var->data;
-	unsigned char * p2 = curr_field->data;
-	for(size_t n = 0; n < varsize;) {
-		for(int i = 0; i < numreps; ++i) {
-			if(n + f1[i]->size <= varsize) {
-				if(!memcmp(p1, f1[i]->data, f1[i]->size)) {
-					memcpy(p2, f2[i]->data, f2[i]->size);
-					p1 += f1[i]->size;
-					p2 += f2[i]->size;
-					n += f1[i]->size;
-					found = true;
-					break;
-				}
-			}
-		}
-		if(found) {
-			found = false;
-			continue;
-		}
-		++n;
-		*p2++ = *p1++;
-	}
-	if(unlikely(offset > 0)) {
-		calc_ref_mod(curr_field, offset, length);
-	}
-	delete [] f1;
-	delete [] f2;
-	return curr_field;
+	return ret;
 }
 
 cob_field *
 cob_intr_substitute_case(const int offset, const int length,
 						 const int params, ...)
 {
-	va_list		args;
-
-	int numreps = params / 2;
-	cob_field ** f1 = new cob_field *[numreps];
-	cob_field ** f2 = new cob_field *[numreps];
+	va_list args;
 
 	va_start(args, params);
-
-	cob_field * var = va_arg(args, cob_field *);
-	size_t varsize = var->size;
-
-	/* Extract args */
-	for(int i = 0; i < params - 1; ++i) {
-		if((i % 2) == 0) {
-			f1[i / 2] = va_arg(args, cob_field *);
-		} else {
-			f2[i / 2] = va_arg(args, cob_field *);
-		}
-	}
+	cob_field * ret = substitute(offset, length, params, &int_strncasecmp, args);
 	va_end(args);
 
-	/* Calculate required size */
-	size_t calcsize = 0;
-	bool found = false;
-	unsigned char * p1 = var->data;
-	for(size_t n = 0; n < varsize;) {
-		for(int i = 0; i < numreps; ++i) {
-			if(n + f1[i]->size <= varsize) {
-				if(!strncasecmp((const char *)p1,
-								(const char *)(f1[i]->data),
-								f1[i]->size)) {
-					p1 += f1[i]->size;
-					n += f1[i]->size;
-					calcsize += f2[i]->size;
-					found = true;
-					break;
-				}
-			}
-		}
-		if(found) {
-			found = false;
-			continue;
-		}
-		++n;
-		++p1;
-		++calcsize;
-	}
-
-	cob_field field(calcsize, NULL, &const_alpha_attr);
-	make_field_entry(&field);
-
-	found = 0;
-	p1 = var->data;
-	unsigned char * p2 = curr_field->data;
-	for(size_t n = 0; n < varsize;) {
-		for(int i = 0; i < numreps; ++i) {
-			if(n + f1[i]->size <= varsize) {
-				if(!strncasecmp((const char *)p1,
-								(const char *)(f1[i]->data),
-								f1[i]->size)) {
-					memcpy(p2, f2[i]->data, f2[i]->size);
-					p1 += f1[i]->size;
-					p2 += f2[i]->size;
-					n += f1[i]->size;
-					found = true;
-					break;
-				}
-			}
-		}
-		if(found) {
-			found = false;
-			continue;
-		}
-		++n;
-		*p2++ = *p1++;
-	}
-	if(unlikely(offset > 0)) {
-		calc_ref_mod(curr_field, offset, length);
-	}
-	delete [] f1;
-	delete [] f2;
-	return curr_field;
+	return ret;
 }
 
 cob_field *
@@ -2052,8 +3621,7 @@ cob_intr_exception_file(void)
 {
 	cob_field field(0, NULL, &const_alpha_attr);
 	if(cobglobptr->cob_exception_code == 0 || !cobglobptr->cob_error_file ||
-			(cobglobptr->cob_exception_code & 0x0500) != 0x0500)
-	{
+			(cobglobptr->cob_exception_code & 0x0500) != 0x0500) {
 		field.size = 2;
 		make_field_entry(&field);
 		memcpy(curr_field->data, "00", (size_t)2);
@@ -2101,6 +3669,7 @@ cob_intr_exception_location(void)
 				 cobglobptr->cob_orig_program_id,
 				 cobglobptr->cob_orig_line);
 	}
+	buff[COB_SMALL_MAX] = 0; /* silence warnings */
 	field.size = strlen(buff);
 	make_field_entry(&field);
 	memcpy(curr_field->data, buff, field.size);
@@ -2135,12 +3704,9 @@ cob_intr_exception_statement(void)
 	if(cobglobptr->cob_exception_code && cobglobptr->cob_orig_statement) {
 		size_t flen = strlen(cobglobptr->cob_orig_statement);
 		if(flen > 31) {
-			memcpy(curr_field->data,
-				   cobglobptr->cob_orig_statement, (size_t)31);
-		} else {
-			memcpy(curr_field->data,
-				   cobglobptr->cob_orig_statement, flen);
+			flen = 31;
 		}
+		memcpy(curr_field->data, cobglobptr->cob_orig_statement, flen);
 	}
 	return curr_field;
 }
@@ -2165,69 +3731,13 @@ cob_intr_current_date(const int offset, const int length)
 	char buff[24];
 	memset(buff, 0, sizeof(buff));
 
-#if	defined(_WIN32) && !defined(__CYGWIN__)
-	struct _timeb tmb;
-	_ftime(&tmb);
-	struct tm * tmptr = localtime(&(tmb.time));
-	/* Leap seconds ? */
-	if(tmptr->tm_sec >= 60) {
-		tmptr->tm_sec = 59;
-	}
-	if(tmb.timezone <= 0) {
-		long contz = -tmb.timezone;
-		snprintf(buff, (size_t)23,
-				 "%4.4d%2.2d%2.2d%2.2d%2.2d%2.2d%2.2d+%2.2ld%2.2ld",
-				 tmptr->tm_year + 1900, tmptr->tm_mon + 1, tmptr->tm_mday,
-				 tmptr->tm_hour, tmptr->tm_min, tmptr->tm_sec,
-				 tmb.millitm / 10, contz / 60, contz % 60);
-	} else {
-		long contz = tmb.timezone;
-		snprintf(buff, (size_t)23,
-				 "%4.4d%2.2d%2.2d%2.2d%2.2d%2.2d%2.2d-%2.2ld%2.2ld",
-				 tmptr->tm_year + 1900, tmptr->tm_mon + 1, tmptr->tm_mday,
-				 tmptr->tm_hour, tmptr->tm_min, tmptr->tm_sec,
-				 tmb.millitm / 10, contz / 60, contz % 60);
-	}
-#else	/* defined(_WIN32) && !defined(__CYGWIN__) */
+	cob_time time = cob_get_current_date_and_time();
 
-#if defined(HAVE_SYS_TIME_H) && defined(HAVE_GETTIMEOFDAY)
-	struct timeval tmv;
-	gettimeofday(&tmv, NULL);
-	time_t curtime = tmv.tv_sec;
-#else
-	time_t curtime = time(NULL);
-#endif
-	struct tm * tmptr = localtime(&curtime);
-	/* Leap seconds ? */
-	if(tmptr->tm_sec >= 60) {
-		tmptr->tm_sec = 59;
-	}
+	sprintf(buff, "%4.4d%2.2d%2.2d%2.2d%2.2d%2.2d%2.2d",
+			time.year, time.month, time.day_of_month, time.hour,
+			time.minute, time.second, (int) time.nanosecond / 10000000);
 
-#if defined(__linux__) || defined(__CYGWIN__) || defined(COB_STRFTIME)
-	strftime(buff, (size_t)22, "%Y%m%d%H%M%S00%z", tmptr);
-#elif defined(HAVE_TIMEZONE)
-	strftime(buff, (size_t)17, "%Y%m%d%H%M%S00", tmptr);
-	long contz = timezone;
-	if(tmptr->tm_isdst > 0) {
-		contz -= 3600;
-	}
-	if(contz <= 0) {
-		contz = -contz;
-		buff[16] = '+';
-	} else {
-		buff[16] = '-';
-	}
-	sprintf(&buff[17], "%2.2ld%2.2ld", contz / 3600, (contz % 3600) / 60);
-#else
-	strftime(buff, (size_t)22, "%Y%m%d%H%M%S0000000", tmptr);
-#endif
-
-#if defined(HAVE_SYS_TIME_H) && defined(HAVE_GETTIMEOFDAY)
-	char buff2[8];
-	snprintf(buff2, (size_t)7, "%2.2ld", tmv.tv_usec / 10000);
-	memcpy(&buff[14], buff2, (size_t)2);
-#endif
-#endif
+	add_offset_time(0, &time.utc_offset, 16, buff);
 
 	memcpy(curr_field->data, buff, (size_t)21);
 	if(unlikely(offset > 0)) {
@@ -2276,26 +3786,40 @@ cob_intr_stored_char_length(cob_field * srcfield)
 cob_field *
 cob_intr_combined_datetime(cob_field * srcdays, cob_field * srctime)
 {
-	cob_field_attr attr(COB_TYPE_NUMERIC_DISPLAY, 12, 5, 0, NULL);
-	cob_field field(12, NULL, &attr);
-	make_field_entry(&field);
-
+	cob_decimal * combined_datetime = &d1;
+	cob_decimal * srtime = &d2;
+	cob_decimal * hundred_thousand = &d3;
 	cob_set_exception(0);
+
+	/* Validate and extract the value of srcdays */
 	int srdays = cob_get_int(srcdays);
-	if(srdays < 1 || srdays > 3067671) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		memset(curr_field->data, '0', (size_t)12);
-		return curr_field;
+	if(!valid_integer_date(srdays)) {
+		goto invalid_args;
 	}
-	int srtime = cob_get_int(srctime);
-	if(srtime < 1 || srtime > 86400) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		memset(curr_field->data, '0', (size_t)12);
-		return curr_field;
+	*combined_datetime = srdays;
+
+	/* Extract and validate the value of srctime */
+	cob_decimal_set_field(srtime, srctime);
+	if(!valid_decimal_time(srtime)) {
+		goto invalid_args;
 	}
-	char buff[16];
-	snprintf(buff, (size_t)15, "%7.7d%5.5d", srdays, srtime);
-	memcpy(curr_field->data, buff, (size_t)12);
+
+	/* Set a decimal to 100 000. */
+	*hundred_thousand = 100000;
+
+	/* Combined datetime = date + (time / 100 000) */
+	cob_decimal_div(srtime,  hundred_thousand);
+	cob_decimal_add(combined_datetime, srtime);
+
+	cob_alloc_field(combined_datetime);
+	(void) cob_decimal_get_field(combined_datetime, curr_field, 0);
+	goto end_of_func;
+
+invalid_args:
+	cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+	cob_alloc_set_field_uint(0);
+
+end_of_func:
 	return curr_field;
 }
 
@@ -2309,38 +3833,18 @@ cob_intr_date_of_integer(cob_field * srcdays)
 	cob_set_exception(0);
 	/* Base 1601-01-01 */
 	int days = cob_get_int(srcdays);
-	if(days < 1 || days > 3067671) {
+	if(!valid_integer_date(days)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		memset(curr_field->data, '0', (size_t)8);
 		return curr_field;
 	}
-	int baseyear = 1601;
-	int leapyear = 365;
-	while(days > leapyear) {
-		days -= leapyear;
-		++baseyear;
-		if(leap_year(baseyear)) {
-			leapyear = 366;
-		} else {
-			leapyear = 365;
-		}
-	}
-	int i;
-	for(i = 0; i < 13; ++i) {
-		if(leap_year(baseyear)) {
-			if(days <= leap_days[i]) {
-				days -= leap_days[i-1];
-				break;
-			}
-		} else {
-			if(days <= normal_days[i]) {
-				days -= normal_days[i-1];
-				break;
-			}
-		}
-	}
+
+	int month;
+	int year;
+	date_of_integer(days, &year, &month, &days);
+
 	char buff[16];
-	snprintf(buff, (size_t)15, "%4.4d%2.2d%2.2d", baseyear, i, days);
+	snprintf(buff, (size_t)15, "%4.4d%2.2d%2.2d", year, month, days);
 	memcpy(curr_field->data, buff, (size_t)8);
 	return curr_field;
 }
@@ -2355,24 +3859,17 @@ cob_intr_day_of_integer(cob_field * srcdays)
 	cob_set_exception(0);
 	/* Base 1601-01-01 */
 	int days = cob_get_int(srcdays);
-	if(days < 1 || days > 3067671) {
+	if(!valid_integer_date(days)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		memset(curr_field->data, '0', (size_t)7);
 		return curr_field;
 	}
-	int baseyear = 1601;
-	int leapyear = 365;
-	while(days > leapyear) {
-		days -= leapyear;
-		++baseyear;
-		if(leap_year(baseyear)) {
-			leapyear = 366;
-		} else {
-			leapyear = 365;
-		}
-	}
+
+	int baseyear;
+	day_of_integer(days, &baseyear, &days);
 	char buff[16];
 	snprintf(buff, (size_t)15, "%4.4d%3.3d", baseyear, days);
+
 	memcpy(curr_field->data, buff, (size_t)7);
 	return curr_field;
 }
@@ -2384,54 +3881,26 @@ cob_intr_integer_of_date(cob_field * srcfield)
 	/* Base 1601-01-01 */
 	int indate = cob_get_int(srcfield);
 	int year = indate / 10000;
-	if(year < 1601 || year > 9999) {
+	if(!valid_year(year)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
 	indate %= 10000;
 	int month = indate / 100;
-	if(month < 1 || month > 12) {
+	if(!valid_month(month)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
 	int days = indate % 100;
-	if(days < 1 || days > 31) {
+	if(!valid_day_of_month(year, month, days)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	if(leap_year(year)) {
-		if(days > leap_month_days[month]) {
-			cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-			cob_alloc_set_field_uint(0);
-			return curr_field;
-		}
-	} else {
-		if(days > normal_month_days[month]) {
-			cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-			cob_alloc_set_field_uint(0);
-			return curr_field;
-		}
-	}
-	int totaldays = 0;
-	int baseyear = 1601;
-	while(baseyear != year) {
-		if(leap_year(baseyear)) {
-			totaldays += 366;
-		} else {
-			totaldays += 365;
-		}
-		++baseyear;
-	}
-	if(leap_year(baseyear)) {
-		totaldays += leap_days[month - 1];
-	} else {
-		totaldays += normal_days[month - 1];
-	}
-	totaldays += days;
-	cob_alloc_set_field_int(totaldays);
+
+	cob_alloc_set_field_uint(integer_of_date(year, month, days));
 	return curr_field;
 }
 
@@ -2442,29 +3911,19 @@ cob_intr_integer_of_day(cob_field * srcfield)
 	/* Base 1601-01-01 */
 	int indate = cob_get_int(srcfield);
 	int year = indate / 1000;
-	if(year < 1601 || year > 9999) {
+	if(!valid_year(year)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
 	int days = indate % 1000;
-	if(days < 1 || days > 365 + leap_year(year)) {
+	if(!valid_day_of_year(year, days)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	int totaldays = 0;
-	int baseyear = 1601;
-	while(baseyear != year) {
-		if(leap_year(baseyear)) {
-			totaldays += 366;
-		} else {
-			totaldays += 365;
-		}
-		++baseyear;
-	}
-	totaldays += days;
-	cob_alloc_set_field_int(totaldays);
+
+	cob_alloc_set_field_uint(integer_of_day(year, days));
 	return curr_field;
 }
 
@@ -2474,31 +3933,20 @@ cob_intr_test_date_yyyymmdd(cob_field * srcfield)
 	/* Base 1601-01-01 */
 	int indate = cob_get_int(srcfield);
 	int year = indate / 10000;
-	if(year < 1601 || year > 9999) {
+	if(!valid_year(year)) {
 		cob_alloc_set_field_uint(1);
 		return curr_field;
 	}
 	indate %= 10000;
 	int month = indate / 100;
-	if(month < 1 || month > 12) {
+	if(!valid_month(month)) {
 		cob_alloc_set_field_uint(2);
 		return curr_field;
 	}
 	int days = indate % 100;
-	if(days < 1 || days > 31) {
+	if(!valid_day_of_month(year, month, days)) {
 		cob_alloc_set_field_uint(3);
 		return curr_field;
-	}
-	if(leap_year(year)) {
-		if(days > leap_month_days[month]) {
-			cob_alloc_set_field_uint(3);
-			return curr_field;
-		}
-	} else {
-		if(days > normal_month_days[month]) {
-			cob_alloc_set_field_uint(3);
-			return curr_field;
-		}
 	}
 	cob_alloc_set_field_uint(0);
 	return curr_field;
@@ -2510,12 +3958,12 @@ cob_intr_test_day_yyyyddd(cob_field * srcfield)
 	/* Base 1601-01-01 */
 	int indate = cob_get_int(srcfield);
 	int year = indate / 1000;
-	if(year < 1601 || year > 9999) {
+	if(!valid_year(year)) {
 		cob_alloc_set_field_uint(1);
 		return curr_field;
 	}
 	int days = indate % 1000;
-	if(days < 1 || days > 365 + leap_year(year)) {
+	if(!valid_day_of_year(year, days)) {
 		cob_alloc_set_field_uint(2);
 		return curr_field;
 	}
@@ -2856,157 +4304,13 @@ cob_intr_sqrt(cob_field * srcfield)
 cob_field *
 cob_intr_numval(cob_field * srcfield)
 {
-	/* Validate source field */
-	if(cob_check_numval(srcfield, NULL, 0, 0)) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
-	}
-
-	int final_digits = 0;
-	int decimal_digits = 0;
-	bool sign = false;
-	bool decimal_seen = false;
-	unsigned char dec_pt = COB_MODULE_PTR->decimal_point;
-	unsigned char * final_buff = new unsigned char[srcfield->size + 1];
-
-	for(size_t i = 0; i < srcfield->size; ++i) {
-		if(i < (srcfield->size - 1)) {
-			if(memcmp(&srcfield->data[i], "CR", (size_t)2) == 0 ||
-					memcmp(&srcfield->data[i], "DB", (size_t)2) == 0)
-			{
-				sign = true;
-				break;
-			}
-		}
-		if(srcfield->data[i] == ' ') {
-			continue;
-		}
-		if(srcfield->data[i] == '+') {
-			continue;
-		}
-		if(srcfield->data[i] == '-') {
-			sign = true;
-			continue;
-		}
-		if(srcfield->data[i] == dec_pt) {
-			decimal_seen = true;
-			continue;
-		}
-		if(srcfield->data[i] >= (unsigned char)'0' &&
-				srcfield->data[i] <= (unsigned char)'9') {
-			if(decimal_seen) {
-				decimal_digits++;
-			}
-			final_buff[final_digits++] = srcfield->data[i];
-		}
-		if(final_digits > COB_MAX_DIGITS) {
-			break;
-		}
-	}
-
-	if(!final_digits) {
-		final_buff[0] = '0';
-		final_digits = 1;
-	}
-	final_buff[final_digits] = 0;
-	d1.value.set_str((char *)final_buff, 10);
-	delete [] final_buff;
-	if(sign && sgn(d1.value)) {
-		mpz_neg(d1.value.get_mpz_t(), d1.value.get_mpz_t());
-	}
-	d1.scale = decimal_digits;
-	cob_alloc_field(&d1);
-	(void)cob_decimal_get_field(&d1, curr_field, 0);
-
-	return curr_field;
+	return numval(srcfield, NULL, NUMVAL);
 }
 
 cob_field *
 cob_intr_numval_c(cob_field * srcfield, cob_field * currency)
 {
-	/* Validate source field */
-	if(cob_check_numval(srcfield, currency, 1, 0)) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
-	}
-
-	int decimal_digits = 0;
-	int final_digits = 0;
-	bool sign = false;
-	bool decimal_seen = false;
-	unsigned char dec_pt = COB_MODULE_PTR->decimal_point;
-	unsigned char cur_symb = COB_MODULE_PTR->currency_symbol;
-	unsigned char * final_buff = new unsigned char[srcfield->size + 1];
-
-	unsigned char * currency_data = NULL;
-	if(currency) {
-		if(currency->size < srcfield->size) {
-			currency_data = currency->data;
-		}
-	}
-	for(size_t i = 0; i < srcfield->size; ++i) {
-		if(i < (srcfield->size - 1)) {
-			if(memcmp(&srcfield->data[i], "CR", (size_t)2) == 0 ||
-					memcmp(&srcfield->data[i], "DB", (size_t)2) == 0)
-			{
-				sign = true;
-				break;
-			}
-		}
-		if(currency_data) {
-			if(i < (srcfield->size - currency->size)) {
-				if(!memcmp(&srcfield->data[i],
-						   currency_data, currency->size)) {
-					i += (currency->size - 1);
-					continue;
-				}
-			}
-		} else if(srcfield->data[i] == cur_symb) {
-			continue;
-		}
-		if(srcfield->data[i] == ' ') {
-			continue;
-		}
-		if(srcfield->data[i] == '+') {
-			continue;
-		}
-		if(srcfield->data[i] == '-') {
-			sign = true;
-			continue;
-		}
-		if(srcfield->data[i] == dec_pt) {
-			decimal_seen = true;
-			continue;
-		}
-		if(srcfield->data[i] >= (unsigned char)'0' &&
-				srcfield->data[i] <= (unsigned char)'9') {
-			if(decimal_seen) {
-				decimal_digits++;
-			}
-			final_buff[final_digits++] = srcfield->data[i];
-		}
-		if(final_digits > COB_MAX_DIGITS) {
-			break;
-		}
-	}
-
-	if(!final_digits) {
-		final_buff[0] = '0';
-		final_digits = 1;
-	}
-	final_buff[final_digits] = 0;
-	d1.value.set_str((char *)final_buff, 10);
-	delete [] final_buff;
-	if(sign && sgn(d1.value)) {
-		mpz_neg(d1.value.get_mpz_t(), d1.value.get_mpz_t());
-	}
-	d1.scale = decimal_digits;
-	cob_alloc_field(&d1);
-	(void)cob_decimal_get_field(&d1, curr_field, 0);
-
-	return curr_field;
+	return numval(srcfield, currency, NUMVAL_C);
 }
 
 cob_field *
@@ -3266,23 +4570,15 @@ cob_intr_max(const int params, ...)
 cob_field *
 cob_intr_midrange(const int params, ...)
 {
+	cob_field * basemin;
+	cob_field * basemax;
 	va_list		args;
 
 	va_start(args, params);
-
-	cob_field * basemin = va_arg(args, cob_field *);
-	cob_field * basemax = basemin;
-	for(int i = 1; i < params; ++i) {
-		cob_field * f = va_arg(args, cob_field *);
-		if(cob_cmp(f, basemin) < 0) {
-			basemin = f;
-		}
-		if(cob_cmp(f, basemax) > 0) {
-			basemax = f;
-		}
-	}
+	get_min_and_max_of_args(params, args, &basemin, &basemax);
 	va_end(args);
 
+	/* Return (max + min) / 2 */
 	cob_decimal_set_field(&d1, basemin);
 	cob_decimal_set_field(&d2, basemax);
 	cob_decimal_add(&d1, &d2);
@@ -3325,7 +4621,7 @@ cob_intr_median(const int params, ...)
 		make_field_entry(f);
 		memcpy(curr_field->data, f->data, f->size);
 	} else {
-		cob_decimal_set_field(&d1, field_alloc[i-1]);
+		cob_decimal_set_field(&d1, field_alloc[i - 1]);
 		cob_decimal_set_field(&d2, field_alloc[i]);
 		cob_decimal_add(&d1, &d2);
 		d2 = 2;
@@ -3379,21 +4675,12 @@ cob_intr_mod(cob_field * srcfield1, cob_field * srcfield2)
 cob_field *
 cob_intr_range(const int params, ...)
 {
-	va_list		args;
+	cob_field * basemin;
+	cob_field * basemax;
+	va_list args;
 
 	va_start(args, params);
-
-	cob_field * basemin = va_arg(args, cob_field *);
-	cob_field * basemax = basemin;
-	for(int i = 1; i < params; ++i) {
-		cob_field * f = va_arg(args, cob_field *);
-		if(cob_cmp(f, basemin) < 0) {
-			basemin = f;
-		}
-		if(cob_cmp(f, basemax) > 0) {
-			basemax = f;
-		}
-	}
+	get_min_and_max_of_args(params, args, &basemin, &basemax);
 	va_end(args);
 
 	cob_decimal_set_field(&d1, basemax);
@@ -3445,116 +4732,55 @@ cob_intr_random(const int params, ...)
 	return curr_field;
 }
 
+#define GET_VARIANCE(num_args, args)		\
+	do {									\
+		/* Get mean in d1 */				\
+		va_start(args, num_args);			\
+		calc_mean_of_args(num_args, args);	\
+		va_end(args);						\
+		\
+		d5 = d1;							\
+		\
+		/* Get variance in d1 */			\
+		va_start(args, num_args);			\
+		calc_variance_of_args(num_args, args, &d5);	\
+		va_end (args);						\
+	} ONCE_COB
+
 cob_field *
-cob_intr_variance(const int params, ...)
+cob_intr_variance(const int num_args, ...)
 {
-	va_list		args;
+	va_list args;
 
-	va_start(args, params);
+	GET_VARIANCE(num_args, args);
 
-	if(params == 1) {
-		va_end(args);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
-	}
-
-	/* MEAN for all params */
-	d1 = 0;
-
-	for(int i = 0; i < params; ++i) {
-		cob_field * f = va_arg(args, cob_field *);
-		cob_decimal_set_field(&d2, f);
-		cob_decimal_add(&d1, &d2);
-	}
-	va_end(args);
-
-	d2 = params;
-	cob_decimal_div(&d1, &d2);
-
-	/* Got the MEAN in d1, iterate again */
-
-	d4 = 0;
-
-	va_start(args, params);
-
-	for(int i = 0; i < params; ++i) {
-		cob_field * f = va_arg(args, cob_field *);
-		cob_decimal_set_field(&d2, f);
-		cob_decimal_sub(&d2, &d1);
-		cob_decimal_mul(&d2, &d2);
-		cob_decimal_add(&d4, &d2);
-	}
-	va_end(args);
-
-	d3 = params;
-	cob_decimal_div(&d4, &d3);
-
-	cob_alloc_field(&d4);
-	(void)cob_decimal_get_field(&d4, curr_field, 0);
+	cob_alloc_field(&d1);
+	(void)cob_decimal_get_field(&d1, curr_field, 0);
 	return curr_field;
 }
 
 cob_field *
-cob_intr_standard_deviation(const int params, ...)
+cob_intr_standard_deviation(const int num_args, ...)
 {
 	va_list		args;
 
-	va_start(args, params);
-
-	if(params == 1) {
-		va_end(args);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
-	}
-
-	/* MEAN for all params */
-	d1 = 0;
-
-	for(int i = 0; i < params; ++i) {
-		cob_field * f = va_arg(args, cob_field *);
-		cob_decimal_set_field(&d2, f);
-		cob_decimal_add(&d1, &d2);
-	}
-	va_end(args);
-
-	d2 = params;
-	cob_decimal_div(&d1, &d2);
-
-	/* Got the MEAN in d1, iterate again */
-
-	d4 = 0;
-
-	va_start(args, params);
-
-	for(int i = 0; i < params; ++i) {
-		cob_field * f = va_arg(args, cob_field *);
-		cob_decimal_set_field(&d2, f);
-		cob_decimal_sub(&d2, &d1);
-		cob_decimal_mul(&d2, &d2);
-		cob_decimal_add(&d4, &d2);
-	}
-	va_end(args);
-
-	d3 = params;
-	cob_decimal_div(&d4, &d3);
-
-	/* We have the VARIANCE in d4, sqrt = STANDARD-DEVIATION */
-
-	cob_trim_decimal(&d4);
+	GET_VARIANCE(num_args, args);
+	cob_trim_decimal(&d1);
 
 	cob_set_exception(0);
 
+	/* Take square root of variance */
 	d3.value = 5;
 	d3.scale = 1;
 
-	cob_trim_decimal(&d4);
-	cob_decimal_pow(&d4, &d3);
+	cob_decimal_pow(&d1, &d3);
 
-	cob_alloc_field(&d4);
-	(void)cob_decimal_get_field(&d4, curr_field, 0);
-
+	cob_alloc_field(&d1);
+	(void)cob_decimal_get_field(&d1, curr_field, 0);
 	return curr_field;
 }
+
+#undef GET_VARIANCE
 
 cob_field *
 cob_intr_present_value(const int params, ...)
@@ -3605,14 +4831,14 @@ cob_intr_year_to_yyyy(const int params, ...)
 	} else {
 		interval = 50;
 	}
-	int xqtyear;
+	int current_year;
 	if(params > 2) {
 		f = va_arg(args, cob_field *);
-		xqtyear = cob_get_int(f);
+		current_year = cob_get_int(f);
 	} else {
 		time_t t = time(NULL);
 		struct tm * timeptr = localtime(&t);
-		xqtyear = 1900 + timeptr->tm_year;
+		current_year = 1900 + timeptr->tm_year;
 	}
 	va_end(args);
 
@@ -3621,21 +4847,21 @@ cob_intr_year_to_yyyy(const int params, ...)
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	if(xqtyear < 1601 || xqtyear > 9999) {
+	if(!valid_year(current_year)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	int maxyear = xqtyear + interval;
+	int maxyear = current_year + interval;
 	if(maxyear < 1700 || maxyear > 9999) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
 	if(maxyear % 100 >= year) {
-		year += 100 *(maxyear / 100);
+		year += 100 * (maxyear / 100);
 	} else {
-		year += 100 *((maxyear / 100) - 1);
+		year += 100 * ((maxyear / 100) - 1);
 	}
 	cob_alloc_set_field_int(year);
 	return curr_field;
@@ -3652,44 +4878,26 @@ cob_intr_date_to_yyyymmdd(const int params, ...)
 	int year = cob_get_int(f);
 	int mmdd = year % 10000;
 	year /= 10000;
+
 	int interval;
-	if(params > 1) {
-		f = va_arg(args, cob_field *);
-		interval = cob_get_int(f);
-	} else {
-		interval = 50;
-	}
-	int xqtyear;
-	if(params > 2) {
-		f = va_arg(args, cob_field *);
-		xqtyear = cob_get_int(f);
-	} else {
-		time_t t = time(NULL);
-		struct tm * timeptr = localtime(&t);
-		xqtyear = 1900 + timeptr->tm_year;
-	}
+	int current_year;
+	get_interval_and_current_year_from_args(params, args, &interval, &current_year);
 	va_end(args);
 
-	if(year < 0 || year > 999999) {
+	int maxyear = current_year + interval;
+	/* The unusual year checks are as specified in the standard */
+	if(year < 0 || year > 999999
+			|| !valid_year(current_year)
+			|| (maxyear < 1700 || maxyear > 9999)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	if(xqtyear < 1601 || xqtyear > 9999) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
-	}
-	int maxyear = xqtyear + interval;
-	if(maxyear < 1700 || maxyear > 9999) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
-	}
+
 	if(maxyear % 100 >= year) {
-		year += 100 *(maxyear / 100);
+		year += 100 * (maxyear / 100);
 	} else {
-		year += 100 *((maxyear / 100) - 1);
+		year += 100 * ((maxyear / 100) - 1);
 	}
 	year *= 10000;
 	year += mmdd;
@@ -3709,21 +4917,9 @@ cob_intr_day_to_yyyyddd(const int params, ...)
 	int days = year % 1000;
 	year /= 1000;
 	int interval;
-	if(params > 1) {
-		f = va_arg(args, cob_field *);
-		interval = cob_get_int(f);
-	} else {
-		interval = 50;
-	}
-	int xqtyear;
-	if(params > 2) {
-		f = va_arg(args, cob_field *);
-		xqtyear = cob_get_int(f);
-	} else {
-		time_t t = time(NULL);
-		struct tm * timeptr = localtime(&t);
-		xqtyear = 1900 + timeptr->tm_year;
-	}
+	int current_year;
+	get_interval_and_current_year_from_args(params, args, &interval, &current_year);
+
 	va_end(args);
 
 	if(year < 0 || year > 999999) {
@@ -3731,21 +4927,21 @@ cob_intr_day_to_yyyyddd(const int params, ...)
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	if(xqtyear < 1601 || xqtyear > 9999) {
+	if(!valid_year(current_year)) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
-	int maxyear = xqtyear + interval;
+	int maxyear = current_year + interval;
 	if(maxyear < 1700 || maxyear > 9999) {
 		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 		cob_alloc_set_field_uint(0);
 		return curr_field;
 	}
 	if(maxyear % 100 >= year) {
-		year += 100 *(maxyear / 100);
+		year += 100 * (maxyear / 100);
 	} else {
-		year += 100 *((maxyear / 100) - 1);
+		year += 100 * ((maxyear / 100) - 1);
 	}
 	year *= 1000;
 	year += days;
@@ -3762,78 +4958,63 @@ cob_intr_seconds_past_midnight(void)
 	if(timeptr->tm_sec >= 60) {
 		timeptr->tm_sec = 59;
 	}
-	int seconds = (timeptr->tm_hour * 3600) +(timeptr->tm_min * 60) + timeptr->tm_sec;
+	int seconds = (timeptr->tm_hour * 3600) + (timeptr->tm_min * 60) + timeptr->tm_sec;
 	cob_alloc_set_field_int(seconds);
 	return curr_field;
 }
 
 cob_field *
-cob_intr_seconds_from_formatted_time(cob_field * format, cob_field * value)
+cob_intr_seconds_from_formatted_time(cob_field * format_field, cob_field * time_field)
 {
+	char format_str[COB_DATETIMESTR_LEN] = { '\0' };
+	const char decimal_point = COB_MODULE_PTR->decimal_point;
+	bool is_datetime = false;
+	char time_str[COB_DATETIMESTR_LEN] = { '\0' };
+	cob_decimal	* seconds = &d1;
+	time_format time_fmt;
+
+	size_t str_length = num_leading_nonspace((char *) format_field->data);
+	memcpy(format_str, format_field->data, str_length);
+
 	cob_set_exception(0);
-	if(value->size < format->size) {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		cob_alloc_set_field_uint(0);
-		return curr_field;
+
+	/* Validate the format string */
+	if(cob_valid_datetime_format(format_str, decimal_point)) {
+		is_datetime = true;
+	} else if(!cob_valid_time_format(format_str, decimal_point)) {
+		goto invalid_args;
 	}
-	unsigned char * p1 = format->data;
-	unsigned char * p2 = value->data;
-	bool seconds_seen = false;
-	bool minutes_seen = false;
-	bool hours_seen = false;
-	cob_u32_t seconds = 0;
-	cob_u32_t minutes = 0;
-	cob_u32_t hours = 0;
-	for(size_t n = 0; n < format->size - 1; ++n, ++p1, ++p2) {
-		if(!memcmp(p1, "hh", (size_t)2) && !hours_seen) {
-			if(*p2 >= (unsigned char)'0' &&
-					*p2 <= (unsigned char)'9' &&
-					*(p2 + 1) >= (unsigned char)'0' &&
-					*(p2 + 1) <= (unsigned char)'9')
-			{
-				hours = ((*p2 - '0') * 10) +(*(p2 + 1) - '0');
-				hours_seen = true;
-				continue;
-			}
-		}
-		if(!memcmp(p1, "mm", (size_t)2) && !minutes_seen) {
-			if(*p2 >= (unsigned char)'0' &&
-					*p2 <= (unsigned char)'9' &&
-					*(p2 + 1) >= (unsigned char)'0' &&
-					*(p2 + 1) <= (unsigned char)'9')
-			{
-				minutes = ((*p2 - '0') * 10) +(*(p2 + 1) - '0');
-				minutes_seen = true;
-				continue;
-			}
-		}
-		if(!memcmp(p1, "ss", (size_t)2) && !seconds_seen) {
-			if(*p2 >= (unsigned char)'0' &&
-					*p2 <= (unsigned char)'9' &&
-					*(p2 + 1) >= (unsigned char)'0' &&
-					*(p2 + 1) <= (unsigned char)'9')
-			{
-				seconds = ((*p2 - '0') * 10) +(*(p2 + 1) - '0');
-				seconds_seen = true;
-				continue;
-			}
-		}
-	}
-	if(hours_seen && minutes_seen && seconds_seen) {
-		seconds += (hours * 3600) +(minutes * 60);
+
+	/* Extract the time part of the strings */
+	if(is_datetime) {
+		split_around_t(format_str, NULL, format_str);
+		split_around_t((char *) time_field->data, NULL, time_str);
 	} else {
-		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
-		seconds = 0;
+		memcpy(time_str, time_field->data, str_length);
 	}
-	cob_alloc_set_field_uint(seconds);
+
+	/* Validate the formatted time */
+	time_fmt = parse_time_format_string(format_str);
+	if(test_formatted_time(time_fmt, time_str, decimal_point) != 0) {
+		goto invalid_args;
+	}
+
+	seconds_from_formatted_time(time_fmt, time_str, seconds);
+
+	cob_alloc_field(seconds);
+	(void) cob_decimal_get_field(seconds, curr_field, 0);
+
+	return curr_field;
+
+invalid_args:
+	cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+	cob_alloc_set_field_uint(0);
 	return curr_field;
 }
 
-inline static cob_field * derror(size_t ct = 10)
+inline static cob_field * derror()
 {
-	cob_field field(ct, NULL, &const_alpha_attr);
-	make_field_entry(&field);
-	memset(curr_field->data, ' ', ct);
+	cob_alloc_set_field_spaces(10);
 	cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
 	return curr_field;
 }
@@ -3842,7 +5023,6 @@ cob_field *
 cob_intr_locale_date(const int offset, const int length,
 					 cob_field * srcfield, cob_field * locale_field)
 {
-	cob_field field(0, NULL, &const_alpha_attr);
 	cob_set_exception(0);
 
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(HAVE_LANGINFO_CODESET)
@@ -3867,26 +5047,17 @@ cob_intr_locale_date(const int offset, const int length,
 		}
 	}
 	int year = indate / 10000;
-	if(year < 1601 || year > 9999) {
+	if(!valid_year(year)) {
 		return derror();
 	}
 	indate %= 10000;
 	int month = indate / 100;
-	if(month < 1 || month > 12) {
+	if(!valid_month(month)) {
 		return derror();
 	}
 	int days = indate % 100;
-	if(days < 1 || days > 31) {
+	if(!valid_day_of_month(year, month, days)) {
 		return derror();
-	}
-	if(leap_year(year)) {
-		if(days > leap_month_days[month]) {
-			return derror();
-		}
-	} else {
-		if(days > normal_month_days[month]) {
-			return derror();
-		}
 	}
 #ifdef	HAVE_LANGINFO_CODESET
 	month--;
@@ -3947,13 +5118,7 @@ cob_intr_locale_date(const int offset, const int length,
 		return derror();
 	}
 #endif
-	size_t len = strlen(buff);
-	field.size = len;
-	make_field_entry(&field);
-	memcpy(curr_field->data, buff, len);
-	if(unlikely(offset > 0)) {
-		calc_ref_mod(curr_field, offset, length);
-	}
+	cob_alloc_set_field_str(buff, offset, length);
 	return curr_field;
 #else
 	return derror();
@@ -3964,12 +5129,10 @@ cob_field *
 cob_intr_locale_time(const int offset, const int length,
 					 cob_field * srcfield, cob_field * locale_field)
 {
-	cob_field field(0, NULL, &const_alpha_attr);
 	cob_set_exception(0);
 
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(HAVE_LANGINFO_CODESET)
 	char buff[128];
-	char locale_buff[COB_SMALL_BUFF];
 	int indate;
 	if(COB_FIELD_IS_NUMERIC(srcfield)) {
 		indate = cob_get_int(srcfield);
@@ -4002,71 +5165,11 @@ cob_intr_locale_time(const int offset, const int length,
 		return derror();
 	}
 
-#ifdef	HAVE_LANGINFO_CODESET
-	struct tm tstruct;
-	memset((void *)&tstruct, 0, sizeof(struct tm));
-	tstruct.tm_hour = hours;
-	tstruct.tm_min = minutes;
-	tstruct.tm_sec = seconds;
-	char * deflocale = NULL;
-	if(locale_field) {
-		if(locale_field->size >= COB_SMALL_BUFF) {
-			return derror();
-		}
-		cob_field_to_string(locale_field, locale_buff,
-							(size_t)COB_SMALL_MAX);
-		deflocale = locale_buff;
-		(void) setlocale(LC_TIME, deflocale);
-	}
-	char buff2[128];
-	memset(buff2, 0, sizeof(buff2));
-	snprintf(buff2, sizeof(buff2) - 1, "%s", nl_langinfo(T_FMT));
-	if(deflocale) {
-		(void) setlocale(LC_ALL, cobglobptr->cob_locale);
-	}
-	strftime(buff, sizeof(buff), buff2, &tstruct);
-#else
-	LCID localeid = LOCALE_USER_DEFAULT;
-	SYSTEMTIME syst;
-	memset((void *)&syst, 0, sizeof(syst));
-	syst.wHour = hours;
-	syst.wMinute = minutes;
-	syst.wSecond = seconds;
-	if(locale_field) {
-		if(locale_field->size >= COB_SMALL_BUFF) {
-			return derror();
-		}
-		cob_field_to_string(locale_field, locale_buff, COB_SMALL_MAX);
-		unsigned char * p;
-		for(p = (unsigned char *)locale_buff; *p; ++p) {
-			if(isalnum((int)*p) || *p == '_') {
-				continue;
-			}
-			break;
-		}
-		*p = 0;
-		size_t len;
-		for(len = 0; len < WINLOCSIZE; ++len) {
-			if(!strcmp(locale_buff, wintable[len].winlocalename)) {
-				localeid = wintable[len].winlocaleid;
-				break;
-			}
-		}
-		if(len == WINLOCSIZE) {
-			return derror();
-		}
-	}
-	if(!GetTimeFormat(localeid, LOCALE_NOUSEROVERRIDE, &syst, NULL, buff, sizeof(buff))) {
+	if(locale_time(hours, minutes, seconds, locale_field, buff)) {
 		return derror();
 	}
-#endif
-	size_t len = strlen(buff);
-	field.size = len;
-	make_field_entry(&field);
-	memcpy(curr_field->data, buff, len);
-	if(unlikely(offset > 0)) {
-		calc_ref_mod(curr_field, offset, length);
-	}
+
+	cob_alloc_set_field_str(buff, offset, length);
 	return curr_field;
 #else
 	return derror();
@@ -4077,19 +5180,17 @@ cob_field *
 cob_intr_lcl_time_from_secs(const int offset, const int length,
 							cob_field * srcfield, cob_field * locale_field)
 {
-	cob_field field(0, NULL, &const_alpha_attr);
 	cob_set_exception(0);
 
 #if defined(_WIN32) || defined(__CYGWIN__) || defined(HAVE_LANGINFO_CODESET)
 	char buff[128];
-	char locale_buff[COB_SMALL_BUFF];
 	int indate;
 	if(COB_FIELD_IS_NUMERIC(srcfield)) {
 		indate = cob_get_int(srcfield);
 	} else {
 		return derror();
 	}
-	if(indate > 86400) {
+	if(!valid_time(indate)) {
 		return derror();
 	}
 	int hours = indate / 3600;
@@ -4097,71 +5198,11 @@ cob_intr_lcl_time_from_secs(const int offset, const int length,
 	int minutes = indate / 60;
 	int seconds = indate % 60;
 
-#ifdef	HAVE_LANGINFO_CODESET
-	struct tm tstruct;
-	memset((void *)&tstruct, 0, sizeof(struct tm));
-	tstruct.tm_hour = hours;
-	tstruct.tm_min = minutes;
-	tstruct.tm_sec = seconds;
-	char * deflocale = NULL;
-	if(locale_field) {
-		if(locale_field->size >= COB_SMALL_BUFF) {
-			return derror();
-		}
-		cob_field_to_string(locale_field, locale_buff,
-							(size_t)COB_SMALL_MAX);
-		deflocale = locale_buff;
-		(void) setlocale(LC_TIME, deflocale);
-	}
-	char buff2[128];
-	memset(buff2, 0, sizeof(buff2));
-	snprintf(buff2, sizeof(buff2) - 1, "%s", nl_langinfo(T_FMT));
-	if(deflocale) {
-		(void) setlocale(LC_ALL, cobglobptr->cob_locale);
-	}
-	strftime(buff, sizeof(buff), buff2, &tstruct);
-#else
-	LCID localeid = LOCALE_USER_DEFAULT;
-	SYSTEMTIME syst;
-	memset((void *)&syst, 0, sizeof(syst));
-	syst.wHour = hours;
-	syst.wMinute = minutes;
-	syst.wSecond = seconds;
-	if(locale_field) {
-		if(locale_field->size >= COB_SMALL_BUFF) {
-			return derror();
-		}
-		cob_field_to_string(locale_field, locale_buff, COB_SMALL_MAX);
-		unsigned char * p;
-		for(p = (unsigned char *)locale_buff; *p; ++p) {
-			if(isalnum(*p) || *p == '_') {
-				continue;
-			}
-			break;
-		}
-		*p = 0;
-		size_t len;
-		for(len = 0; len < WINLOCSIZE; ++len) {
-			if(!strcmp(locale_buff, wintable[len].winlocalename)) {
-				localeid = wintable[len].winlocaleid;
-				break;
-			}
-		}
-		if(len == WINLOCSIZE) {
-			return derror();
-		}
-	}
-	if(!GetTimeFormat(localeid, LOCALE_NOUSEROVERRIDE, &syst, NULL, buff, sizeof(buff))) {
+	if(locale_time(hours, minutes, seconds, locale_field, buff)) {
 		return derror();
 	}
-#endif
-	size_t len = strlen(buff);
-	field.size = len;
-	make_field_entry(&field);
-	memcpy(curr_field->data, buff, len);
-	if(unlikely(offset > 0)) {
-		calc_ref_mod(curr_field, offset, length);
-	}
+
+	cob_alloc_set_field_str(buff, offset, length);
 	return curr_field;
 #else
 	return derror();
@@ -4341,27 +5382,24 @@ cob_intr_lowest_algebraic(cob_field * srcfield)
 
 	switch(COB_FIELD_TYPE(srcfield)) {
 	case COB_TYPE_ALPHANUMERIC:
-	case COB_TYPE_NATIONAL:
-		{
-			cob_field field(COB_FIELD_SIZE(srcfield), NULL, &const_alpha_attr);
-			make_field_entry(&field);
-			break;
-		}
+	case COB_TYPE_NATIONAL: {
+		cob_field field(COB_FIELD_SIZE(srcfield), NULL, &const_alpha_attr);
+		make_field_entry(&field);
+		break;
+	}
 	case COB_TYPE_ALPHANUMERIC_EDITED:
-	case COB_TYPE_NATIONAL_EDITED:
-		{
-			cob_field field(COB_FIELD_DIGITS(srcfield), NULL, &const_alpha_attr);
-			make_field_entry(&field);
-			break;
-		}
+	case COB_TYPE_NATIONAL_EDITED: {
+		cob_field field(COB_FIELD_DIGITS(srcfield), NULL, &const_alpha_attr);
+		make_field_entry(&field);
+		break;
+	}
 	case COB_TYPE_NUMERIC_BINARY:
 		if(!COB_FIELD_HAVE_SIGN(srcfield)) {
 			cob_alloc_set_field_uint(0);
 			break;
 		}
 		if(COB_FIELD_REAL_BINARY(srcfield) ||
-				!COB_FIELD_BINARY_TRUNC(srcfield))
-		{
+				!COB_FIELD_BINARY_TRUNC(srcfield)) {
 			expo = (cob_uli_t)((COB_FIELD_SIZE(srcfield) * 8U) - 1U);
 			mpz_ui_pow_ui(d1.value.get_mpz_t(), 2UL, expo);
 			mpz_neg(d1.value.get_mpz_t(), d1.value.get_mpz_t());
@@ -4415,27 +5453,24 @@ cob_intr_highest_algebraic(cob_field * srcfield)
 
 	switch(COB_FIELD_TYPE(srcfield)) {
 	case COB_TYPE_ALPHANUMERIC:
-	case COB_TYPE_NATIONAL:
-		{
-			size_t size = COB_FIELD_SIZE(srcfield);
-			cob_field field(size, NULL, &const_alpha_attr);
-			make_field_entry(&field);
-			memset(curr_field->data, 255, size);
-			break;
-		}
+	case COB_TYPE_NATIONAL: {
+		size_t size = COB_FIELD_SIZE(srcfield);
+		cob_field field(size, NULL, &const_alpha_attr);
+		make_field_entry(&field);
+		memset(curr_field->data, 255, size);
+		break;
+	}
 	case COB_TYPE_ALPHANUMERIC_EDITED:
-	case COB_TYPE_NATIONAL_EDITED:
-		{
-			size_t size = COB_FIELD_DIGITS(srcfield);
-			cob_field field(size, NULL, &const_alpha_attr);
-			make_field_entry(&field);
-			memset(curr_field->data, 255, size);
-			break;
-		}
+	case COB_TYPE_NATIONAL_EDITED: {
+		size_t size = COB_FIELD_DIGITS(srcfield);
+		cob_field field(size, NULL, &const_alpha_attr);
+		make_field_entry(&field);
+		memset(curr_field->data, 255, size);
+		break;
+	}
 	case COB_TYPE_NUMERIC_BINARY:
 		if(COB_FIELD_REAL_BINARY(srcfield) ||
-				!COB_FIELD_BINARY_TRUNC(srcfield))
-		{
+				!COB_FIELD_BINARY_TRUNC(srcfield)) {
 			if(!COB_FIELD_HAVE_SIGN(srcfield)) {
 				expo = (unsigned int)(COB_FIELD_SIZE(srcfield) * 8U);
 			} else {
@@ -4558,8 +5593,380 @@ cob_intr_locale_compare(const int params, ...)
 
 	return curr_field;
 #else
-	return derror(1);
+	return derror();
 #endif
+}
+
+cob_field *
+cob_intr_formatted_date(const int offset, const int length,
+						cob_field * format_field, cob_field * days_field)
+{
+	size_t field_length = num_leading_nonspace((char *) format_field->data);
+	char format_str[COB_DATESTR_LEN] = { '\0' };
+	date_format format;
+	char buff[COB_DATESTR_LEN] = { '\0' };
+
+	memcpy(format_str, format_field->data, field_length);
+
+	cob_field field(field_length, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+
+	cob_set_exception(0);
+	int days = cob_get_int(days_field);
+
+	if(!valid_day_and_format(days, format_str)) {
+		goto invalid_args;
+	}
+
+	format = parse_date_format_string(format_str);
+	format_date(format, days, buff);
+
+	memcpy(curr_field->data, buff, field_length);
+	goto end_of_func;
+
+invalid_args:
+	cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+	memset(curr_field->data, ' ', strlen(format_str));
+
+end_of_func:
+	if(unlikely(offset > 0)) {
+		calc_ref_mod(curr_field, offset, length);
+	}
+	return curr_field;
+}
+
+cob_field *
+cob_intr_formatted_time(const int offset, const int length,
+						const int params, ...)
+{
+	va_list		args;
+	char		buff[COB_TIMESTR_LEN] = { '\0' };
+	char		format_str[COB_TIMESTR_LEN] = { '\0' };
+
+	if(!(params == 3 || params == 4)) {
+		cob_field field(0, NULL, &const_alpha_attr);
+		make_field_entry(&field);
+		return derror();
+	}
+
+	/* Get args */
+	va_start(args, params);
+
+	cob_field * format_field = va_arg(args, cob_field *);
+	cob_field * time_field = va_arg(args, cob_field *);
+	cob_field * offset_time_field;
+	if(params == 4) {
+		offset_time_field = va_arg(args, cob_field *);
+	} else {
+		offset_time_field = NULL;
+	}
+	int use_system_offset = va_arg(args, int);
+
+	va_end(args);
+
+	/* Initialise buffers */
+	size_t field_length = num_leading_nonspace((char *) format_field->data);
+	memcpy(format_str, format_field->data, field_length);
+
+	cob_field field(field_length, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+
+	int offset_time;
+	int * offset_time_ptr;
+	time_format format;
+	cob_decimal * fractional_seconds = &d2;
+
+	cob_set_exception(0);
+
+	/* Extract and validate the times and time format */
+
+	int whole_seconds = cob_get_int(time_field);
+	if(!valid_time(whole_seconds)) {
+		return derror();
+	}
+
+	get_fractional_seconds(time_field, fractional_seconds);
+
+	if(!cob_valid_time_format(format_str, COB_MODULE_PTR->decimal_point)) {
+		return derror();
+	}
+	format = parse_time_format_string(format_str);
+
+	if(use_system_offset) {
+		offset_time_ptr = get_system_offset_time_ptr(&offset_time);
+	} else {
+		if(try_get_valid_offset_time(offset_time_field, &offset_time)) {
+			return derror();
+		}
+		offset_time_ptr = &offset_time;
+	}
+
+	format_time(format, whole_seconds, fractional_seconds, offset_time_ptr, buff);
+
+	memcpy(curr_field->data, buff, field_length);
+	if(unlikely(offset > 0)) {
+		calc_ref_mod(curr_field, offset, length);
+	}
+	return curr_field;
+}
+
+cob_field *
+cob_intr_formatted_datetime(const int offset, const int length,
+							const int params, ...)
+{
+	va_list		args;
+	char		fmt_str[COB_DATETIMESTR_LEN] = { '\0' };
+	char		date_fmt_str[COB_DATESTR_LEN] = { '\0' };
+	char		time_fmt_str[COB_TIMESTR_LEN] = { '\0' };
+	char		buff[COB_DATETIMESTR_LEN] = { '\0' };
+
+	if(!(params == 4 || params == 5)) {
+		cob_field field(0, NULL, &const_alpha_attr);
+		make_field_entry(&field);
+		return derror();
+	}
+
+	/* Get arguments */
+	va_start(args, params);
+
+	cob_field * fmt_field = va_arg(args, cob_field *);
+	cob_field * days_field = va_arg(args, cob_field *);
+	cob_field * time_field = va_arg(args, cob_field *);
+	cob_field * offset_time_field;
+	if(params == 5) {
+		offset_time_field = va_arg(args, cob_field *);
+	} else {
+		offset_time_field = NULL;
+	}
+	int use_system_offset = va_arg(args, int);
+
+	va_end(args);
+
+	size_t field_length = num_leading_nonspace((char *) fmt_field->data);
+	memcpy(fmt_str, fmt_field->data, field_length);
+
+	cob_field field(field_length, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+
+	cob_set_exception(0);
+
+	/* Validate the formats, dates and times */
+	if(!cob_valid_datetime_format(fmt_str, COB_MODULE_PTR->decimal_point)) {
+		return derror();
+	}
+
+	int days = cob_get_int(days_field);
+	int whole_seconds = cob_get_int(time_field);
+
+	if(!valid_integer_date(days) || !valid_time(whole_seconds)) {
+		return derror();
+	}
+
+	split_around_t (fmt_str, date_fmt_str, time_fmt_str);
+
+	time_format time_fmt = parse_time_format_string(time_fmt_str);
+	int offset_time;
+	int * offset_time_ptr;
+	if(use_system_offset) {
+		offset_time_ptr = get_system_offset_time_ptr(&offset_time);
+	} else {
+		if(try_get_valid_offset_time(offset_time_field, &offset_time)) {
+			return derror();
+		}
+		offset_time_ptr = &offset_time;
+	}
+	date_format date_fmt = parse_date_format_string(date_fmt_str);
+
+	/* Format */
+
+	cob_decimal * fractional_seconds = &d1;
+	get_fractional_seconds(time_field, fractional_seconds);
+
+	format_datetime(date_fmt, time_fmt, days, whole_seconds,
+					fractional_seconds, offset_time_ptr, buff);
+
+	memcpy(curr_field->data, buff, (size_t) field_length);
+	if(unlikely(offset > 0)) {
+		calc_ref_mod(curr_field, offset, length);
+	}
+	return curr_field;
+}
+
+cob_field *
+cob_intr_test_formatted_datetime(cob_field * format_field,
+								 cob_field * datetime_field)
+{
+	char	* datetime_format_str = (char *)format_field->data;
+	char	date_format_str[COB_DATESTR_LEN] = { '\0' };
+	char	time_format_str[COB_TIMESTR_LEN] = { '\0' };
+	int	date_present;
+	int	time_present;
+	char	* formatted_datetime = (char *)datetime_field->data;
+	char	formatted_date[COB_DATESTR_LEN] = { '\0' };
+	char	formatted_time[COB_TIMESTR_LEN] = { '\0' };
+	int	time_part_offset;
+	int	error_pos;
+
+	cob_set_exception(0);
+
+	/* Check whether date or time is present. */
+	if(cob_valid_date_format(datetime_format_str)) {
+		date_present = 1;
+		time_present = 0;
+	} else if(cob_valid_time_format(datetime_format_str,
+									COB_MODULE_PTR->decimal_point)) {
+		date_present = 0;
+		time_present = 1;
+	} else if(cob_valid_datetime_format(datetime_format_str,
+										COB_MODULE_PTR->decimal_point)) {
+		date_present = 1;
+		time_present = 1;
+	} else {
+		goto invalid_args;
+	}
+
+	/* Move date/time to respective variables */
+	if(date_present && time_present) {
+		split_around_t (datetime_format_str, date_format_str, time_format_str);
+	} else if(date_present) {
+		strncpy(date_format_str, datetime_format_str, COB_DATESTR_MAX);
+	} else { /* time_present */
+		strncpy(time_format_str, datetime_format_str, COB_TIMESTR_MAX);
+	}
+
+	if(date_present && time_present) {
+		split_around_t (formatted_datetime, formatted_date, formatted_time);
+	} else if(date_present) {
+		strncpy(formatted_date, formatted_datetime, COB_DATESTR_MAX);
+	} else { /* time_present */
+		strncpy(formatted_time, formatted_datetime, COB_TIMESTR_MAX);
+	}
+	/* silence warnings */
+	formatted_date[COB_DATESTR_MAX] = formatted_time[COB_TIMESTR_MAX] = 0;
+
+	/* Set time offset */
+	if(date_present) {
+		time_part_offset = (int) strlen(formatted_date) + 1;
+	} else {
+		time_part_offset = 0;
+	}
+
+	/* Parse and validate the formatted date/time */
+	if(date_present) {
+		error_pos = test_formatted_date(parse_date_format_string(date_format_str),
+										formatted_date, !time_present);
+		if(error_pos != 0) {
+			cob_alloc_set_field_uint(error_pos);
+			goto end_of_func;
+		}
+	}
+	if(time_present) {
+		error_pos = test_formatted_time(parse_time_format_string(time_format_str),
+										formatted_time, COB_MODULE_PTR->decimal_point);
+		if(error_pos != 0) {
+			cob_alloc_set_field_uint(time_part_offset + error_pos);
+			goto end_of_func;
+		}
+	}
+
+	cob_alloc_set_field_uint(0);
+	goto end_of_func;
+
+invalid_args:
+	cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+	cob_alloc_set_field_uint(0);
+
+end_of_func:
+	return curr_field;
+}
+
+cob_field *
+cob_intr_integer_of_formatted_date(cob_field * format_field,
+								   cob_field * date_field)
+{
+	char	* format_field_data = (char *) format_field->data;
+	char	format_str[COB_DATESTR_LEN] = { '\0' };
+	char	* date_field_data = (char *) date_field->data;
+	char	date_str[COB_DATESTR_LEN] = { '\0' };
+	int	is_date;
+	struct date_format date_fmt;
+
+	cob_set_exception(0);
+
+	/* Get date format string and parse it */
+	is_date = cob_valid_date_format(format_field_data);
+	if(is_date) {
+		strncpy(format_str, format_field_data, COB_DATESTR_MAX);
+	} else if(cob_valid_datetime_format(format_field_data,
+										COB_MODULE_PTR->decimal_point)) { /* Datetime */
+		split_around_t (format_field_data, format_str, NULL);
+	} else { /* Invalid format string */
+		goto invalid_args;
+	}
+	date_fmt = parse_date_format_string(format_str);
+
+	/* Get formatted date and validate it */
+	if(is_date) {
+		strncpy(date_str, date_field_data, COB_DATESTR_MAX);
+	} else { /* Datetime */
+		split_around_t (date_field_data, date_str, NULL);
+	}
+	if(test_formatted_date(date_fmt, date_str, 1) != 0) {
+		goto invalid_args;
+	}
+
+	cob_alloc_set_field_uint(integer_of_formatted_date(date_fmt, date_str));
+	goto end_of_func;
+
+invalid_args:
+	cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+	cob_alloc_set_field_uint(0);
+
+end_of_func:
+	return curr_field;
+}
+
+cob_field *
+cob_intr_formatted_current_date(const int offset, const int length,
+								cob_field * format_field)
+{
+	size_t		field_length =
+	num_leading_nonspace((char *) format_field->data);
+	char		format_str[COB_DATETIMESTR_LEN] = { '\0' };
+	char		date_format_str[COB_DATESTR_LEN] = { '\0' };
+	char		time_format_str[COB_TIMESTR_LEN] = { '\0' };
+	struct date_format	date_fmt;
+	struct time_format	time_fmt;
+	char		formatted_date[COB_DATETIMESTR_LEN] = { '\0' };
+
+	strncpy(format_str, (char *) format_field->data, field_length);
+
+	cob_field field(field_length, NULL, &const_alpha_attr);
+	make_field_entry(&field);
+
+	cob_set_exception(0);
+
+	/* Validate format */
+	if(!cob_valid_datetime_format(format_str, COB_MODULE_PTR->decimal_point)) {
+		cob_set_exception(COB_EC_ARGUMENT_FUNCTION);
+		memset(curr_field->data, ' ', field_length);
+		goto end_of_func;
+	}
+
+	/* Parse format */
+	split_around_t (format_str, date_format_str, time_format_str);
+	date_fmt = parse_date_format_string(date_format_str);
+	time_fmt = parse_time_format_string(time_format_str);
+
+	/* Format current date */
+	format_current_date(date_fmt, time_fmt, formatted_date);
+	memcpy(curr_field->data, formatted_date, field_length);
+
+end_of_func:
+	if(unlikely(offset > 0)) {
+		calc_ref_mod(curr_field, offset, length);
+	}
+	return curr_field;
 }
 
 /* RXWRXW - To be implemented */
@@ -4610,68 +6017,9 @@ cob_intr_exception_location_n(void)
 }
 
 cob_field *
-cob_intr_formatted_current_date(const int offset, const int length,
-								cob_field * srcfield)
-{
-	COB_UNUSED(offset);
-	COB_UNUSED(length);
-	COB_UNUSED(srcfield);
-
-	cob_fatal_error(COB_FERROR_FUNCTION);
-	return 0;
-}
-
-cob_field *
-cob_intr_formatted_date(const int offset, const int length,
-						cob_field * f1, cob_field * f2)
-{
-	COB_UNUSED(offset);
-	COB_UNUSED(length);
-	COB_UNUSED(f1);
-	COB_UNUSED(f2);
-
-	cob_fatal_error(COB_FERROR_FUNCTION);
-	return 0;
-}
-
-cob_field *
-cob_intr_formatted_datetime(const int offset, const int length,
-							const int params, ...)
-{
-	COB_UNUSED(offset);
-	COB_UNUSED(length);
-	COB_UNUSED(params);
-
-	cob_fatal_error(COB_FERROR_FUNCTION);
-	return 0;
-}
-
-cob_field *
-cob_intr_formatted_time(const int offset, const int length,
-						const int params, ...)
-{
-	COB_UNUSED(offset);
-	COB_UNUSED(length);
-	COB_UNUSED(params);
-
-	cob_fatal_error(COB_FERROR_FUNCTION);
-	return 0;
-}
-
-cob_field *
 cob_intr_integer_of_boolean(cob_field * srcfield)
 {
 	COB_UNUSED(srcfield);
-
-	cob_fatal_error(COB_FERROR_FUNCTION);
-	return 0;
-}
-
-cob_field *
-cob_intr_integer_of_formatted_date(cob_field * f1, cob_field * f2)
-{
-	COB_UNUSED(f1);
-	COB_UNUSED(f2);
 
 	cob_fatal_error(COB_FERROR_FUNCTION);
 	return 0;
@@ -4697,17 +6045,6 @@ cob_intr_standard_compare(const int params, ...)
 	return 0;
 }
 
-cob_field *
-cob_intr_test_formatted_datetime(cob_field * f1, cob_field * f2)
-{
-	COB_UNUSED(f1);
-	COB_UNUSED(f2);
-
-	cob_fatal_error(COB_FERROR_FUNCTION);
-	return 0;
-}
-
-
 /* Initialization/exit routines */
 
 void
@@ -4724,13 +6061,15 @@ cob_exit_intrinsic(void)
 	mpz_clear(cob_mpzt);
 	mpz_clear(cob_mexp);
 
-	calc_struct * calc_temp = calc_base;
-	for(int i = 0; i < COB_DEPTH_LEVEL; ++i, ++calc_temp) {
-		if(calc_temp->calc_field.data) {
-			delete [] calc_temp->calc_field.data;
+	if(calc_base) {
+		calc_struct * calc_temp = calc_base;
+		for(int i = 0; i < COB_DEPTH_LEVEL; ++i, ++calc_temp) {
+			if(calc_temp->calc_field.data) {
+				delete [] calc_temp->calc_field.data;
+			}
 		}
+		delete [] calc_base;
 	}
-	delete [] calc_base;
 }
 
 void

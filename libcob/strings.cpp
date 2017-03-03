@@ -1,22 +1,22 @@
 /*
-   Copyright (C) 2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2005-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ runtime library is free software: you can redistribute it
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
+
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -54,28 +54,28 @@ struct dlm_struct {
 static const cob_field_attr	const_alpha_attr(COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL);
 static const cob_field_attr	const_strall_attr(COB_TYPE_ALPHANUMERIC_ALL, 0, 0, 0, NULL);
 
-static cob_field *			inspect_var;
-static unsigned char *		inspect_data;
-static unsigned char *		inspect_start;
-static unsigned char *		inspect_end;
-static int *				inspect_mark;
+static cob_field 	*		inspect_var;
+static unsigned char 	*	inspect_data;
+static unsigned char 	*	inspect_start;
+static unsigned char 	*	inspect_end;
+static int 		*		inspect_mark;
 static int					inspect_mark_size;
 static int					inspect_size;
 static cob_u32_t			inspect_replacing;
 static int					inspect_sign;
 static cob_field			inspect_var_copy(0, 0, 0);
 
-static cob_field *			string_dst;
-static cob_field *			string_ptr;
-static cob_field *			string_dlm;
+static cob_field 	*		string_dst;
+static cob_field 	*		string_ptr;
+static cob_field 	*		string_dlm;
 static cob_field			string_dst_copy(0, 0, 0);
 static cob_field			string_ptr_copy(0, 0, 0);
 static cob_field			string_dlm_copy(0, 0, 0);
 static int					string_offset;
 
-static dlm_struct *			dlm_list;
-static cob_field *			unstring_src;
-static cob_field *			unstring_ptr;
+static dlm_struct 	*		dlm_list;
+static cob_field 	*		unstring_src;
+static cob_field 	*		unstring_ptr;
 static size_t				dlm_list_size;
 static cob_field			unstring_src_copy(0, 0, 0);
 static cob_field			unstring_ptr_copy(0, 0, 0);
@@ -83,22 +83,13 @@ static int					unstring_offset;
 static int					unstring_count;
 static int					unstring_ndlms;
 
-static unsigned char *		figurative_ptr;
+static unsigned char 	*	figurative_ptr;
 static size_t				figurative_size;
 
 static cob_field			alpha_fld(0, 0, &const_alpha_attr);
 static cob_field			str_cob_low(1, (cob_u8_ptr)"\0", &const_strall_attr);
 
 /* Local functions */
-
-static COB_INLINE int
-cob_min_int(const int x, const int y)
-{
-	if(x < y) {
-		return x;
-	}
-	return y;
-}
 
 static void
 cob_str_memcpy(cob_field * dst, unsigned char * src, const int size)
@@ -156,7 +147,7 @@ inspect_common(cob_field * f1, cob_field * f2, const int type)
 	int * mark = &inspect_mark[inspect_start - inspect_data];
 	int len = (int)(inspect_end - inspect_start);
 	if(type == INSPECT_TRAILING) {
-		for(int i = len -(int)f2->size; i >= 0; --i) {
+		for(int i = len - (int)f2->size; i >= 0; --i) {
 			/* Find matching substring */
 			if(memcmp(inspect_start + i, f2->data, f2->size) == 0) {
 				/* Check if it is already marked */
@@ -179,7 +170,7 @@ inspect_common(cob_field * f1, cob_field * f2, const int type)
 			}
 		}
 	} else {
-		for(int i = 0; i <(int)(len - f2->size + 1); ++i) {
+		for(int i = 0; i < (int)(len - f2->size + 1); ++i) {
 			/* Find matching substring */
 			if(memcmp(inspect_start + i, f2->data, f2->size) == 0) {
 				/* Check if it is already marked */
@@ -207,7 +198,7 @@ inspect_common(cob_field * f1, cob_field * f2, const int type)
 	}
 
 	if(n > 0 && !inspect_replacing) {
-		cob_add_int(f1,(int) n, 0);
+		cob_add_int(f1, (int) n, 0);
 	}
 }
 
@@ -430,7 +421,7 @@ cob_string_append(cob_field * src)
 		string_offset += (int) src_size;
 	} else {
 		int size = (int)(string_dst->size - string_offset);
-		memcpy(string_dst->data + string_offset, src->data,(size_t)size);
+		memcpy(string_dst->data + string_offset, src->data, (size_t)size);
 		string_offset += size;
 		cob_set_exception(COB_EC_OVERFLOW_STRING);
 	}
@@ -515,7 +506,7 @@ cob_unstring_into(cob_field * dst, cob_field * dlm, cob_field * cnt)
 				if(p + dlsize > s) {
 					continue;
 				}
-				if(!memcmp(p, dp,(size_t)dlsize)) {			// delimiter equal
+				if(!memcmp(p, dp, (size_t)dlsize)) {			// delimiter equal
 					match_size = (int)(p - start);			// count in
 					cob_str_memcpy(dst, start, match_size);	// into
 					unstring_offset += match_size + dlsize;	// with pointer
@@ -526,7 +517,7 @@ cob_unstring_into(cob_field * dst, cob_field * dlm, cob_field * cnt)
 							if(p + dlsize > s) {
 								break;
 							}
-							if(memcmp(p, dp,(size_t)dlsize)) {
+							if(memcmp(p, dp, (size_t)dlsize)) {
 								break;
 							}
 							unstring_offset += dlsize;
@@ -552,7 +543,7 @@ cob_unstring_into(cob_field * dst, cob_field * dlm, cob_field * cnt)
 
 	if(dlm) {
 		if(dlm_data) {
-			cob_str_memcpy(dlm, dlm_data,(int) dlm_size);
+			cob_str_memcpy(dlm, dlm_data, (int) dlm_size);
 		} else if(COB_FIELD_IS_NUMERIC(dlm)) {
 			cob_set_int(dlm, 0);
 		} else {
@@ -574,7 +565,7 @@ cob_unstring_tallying(cob_field * f)
 void
 cob_unstring_finish(void)
 {
-	if(unstring_offset <(int)unstring_src->size) {
+	if(unstring_offset < (int)unstring_src->size) {
 		cob_set_exception(COB_EC_OVERFLOW_UNSTRING);
 	}
 

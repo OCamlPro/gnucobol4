@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ compiler is free software: you can redistribute it
+   The GnuCOBOL C++ compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -27,14 +26,24 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 #include <stdarg.h>
 
 #include "cobc.h"
 #include "tree.h"
 
-static char *		errnamebuff = NULL;
+static char 	*	errnamebuff = NULL;
 static cb_label *	last_section = NULL;
 static cb_label *	last_paragraph = NULL;
+
+static int			conf_error_displayed = 0;
+static int			last_error_line = 0;
+static const char *	last_error_file = "Unknown";
+static FILE 	*	sav_lst_file = NULL;
+
+#define COBC_ERRBUF_SIZE		1024
+
+size_t				cb_msg_style;
 
 static void
 print_error(const char * file, int line, const char * prefix,
@@ -50,8 +59,10 @@ print_error(const char * file, int line, const char * prefix,
 	/* Print section and/or paragraph name */
 	if(current_section != last_section) {
 		if(current_section && !current_section->flag_dummy_section) {
-			fprintf(stderr, "%s: ", file);
-			fputs(_("In section"), stderr);
+			if(file) {
+				fprintf(stderr, "%s: ", file);
+			}
+			fputs(_("in section"), stderr);
 			fprintf(stderr, " '%s':\n",
 					(char *)current_section->name);
 		}
@@ -59,8 +70,10 @@ print_error(const char * file, int line, const char * prefix,
 	}
 	if(current_paragraph != last_paragraph) {
 		if(current_paragraph && !current_paragraph->flag_dummy_paragraph) {
-			fprintf(stderr, "%s: ", file);
-			fputs(_("In paragraph"), stderr);
+			if(file) {
+				fprintf(stderr, "%s: ", file);
+			}
+			fputs(_("in paragraph"), stderr);
 			fprintf(stderr, " '%s':\n",
 					(char *)current_paragraph->name);
 		}
@@ -68,9 +81,85 @@ print_error(const char * file, int line, const char * prefix,
 	}
 
 	/* Print the error */
-	fprintf(stderr, "%s: %d: %s", file, line, prefix);
-	vfprintf(stderr, fmt, ap);
+	if(file) {
+		if(cb_msg_style == CB_MSG_STYLE_MSC) {
+			fprintf(stderr, "%s (%d): ", file, line);
+		} else {
+			fprintf(stderr, "%s: %d: ", file, line);
+		}
+	}
+
+	if(prefix) {
+		fprintf(stderr, "%s", prefix);
+	}
+
+	char errmsg[BUFSIZ];
+	vsprintf(errmsg, fmt, ap);
+	fprintf(stderr, "%s\n", errmsg);
+
+	if(cb_src_list_file) {
+		list_error * err = new list_error;
+		memset(err, 0, sizeof(struct list_error));
+		err->line = line;
+		if(prefix) {
+			err->prefix = cobc_strdup(prefix);
+		} else {
+			err->prefix = NULL;
+		}
+		err->msg = cobc_strdup(errmsg);
+
+		/* If we have a file, queue message for listing processing */
+		if(cb_current_file) {
+
+			/* set correct listing entry for this file */
+			list_files * cfile = cb_current_file;
+			if(!cfile->name || strcmp(cfile->name, file)) {
+				cfile = cfile->copy_head;
+				while(cfile) {
+					if(cfile->name && !strcmp(cfile->name, file)) {
+						break;
+					}
+					cfile = cfile->next;
+				}
+			}
+			/* if file doesn't exist in the list then add to current file */
+			if(!cfile) {
+				cfile = cb_current_file;
+			}
+			/* add error to listing entry */
+			err->next = cfile->err_head;
+			cfile->err_head = err;
+
+			/* Otherwise, just write error to the listing file */
+		} else {
+			fprintf(cb_src_list_file, "%s\n", errmsg);
+		}
+	}
+}
+
+static void
+configuration_error_head(void)
+{
+	if(conf_error_displayed) {
+		return;
+	}
+	conf_error_displayed = 1;
+	fputs(_("configuration error:"), stderr);
 	putc('\n', stderr);
+}
+
+/* reentrant version of strerror */
+char *
+cb_get_strerror(void)
+{
+#ifdef HAVE_STRERROR
+	return (char *)cobc_main_strdup(strerror(errno));
+#else
+	char * msg;
+	msg = cobc_main_malloc((size_t)COBC_ERRBUF_SIZE);
+	snprintf(msg, COBC_ERRBUF_SIZE - 1, _("system error %d"), errno);
+	return msg;
+#endif
 }
 
 void
@@ -79,8 +168,12 @@ cb_warning(const char * fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	print_error(NULL, 0, _("Warning: "), fmt, ap);
+	print_error(NULL, 0, _("warning: "), fmt, ap);
 	va_end(ap);
+
+	if(sav_lst_file) {
+		return;
+	}
 	warningcount++;
 }
 
@@ -94,11 +187,31 @@ cb_error(const char * fmt, ...)
 	cobc_cs_check = 0;
 #endif
 	va_start(ap, fmt);
-	print_error(NULL, 0, _("Error: "), fmt, ap);
+	print_error(NULL, 0, _("error: "), fmt, ap);
 	va_end(ap);
+
+	if(sav_lst_file) {
+		return;
+	}
 	if(++errorcount > 100) {
 		cobc_too_many_errors();
 	}
+}
+
+void
+cb_perror(const int config_error, const char * fmt, ...)
+{
+	va_list ap;
+
+	if(config_error) {
+		configuration_error_head();
+	}
+
+	va_start(ap, fmt);
+	print_error(NULL, 0, "", fmt, ap);
+	va_end(ap);
+
+	++errorcount;
 }
 
 /* Warning/error for pplex.l input routine */
@@ -111,8 +224,12 @@ cb_plex_warning(const size_t sline, const char * fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	print_error(NULL, (int)(cb_source_line + sline), _("Warning: "), fmt, ap);
+	print_error(NULL, (int)(cb_source_line + sline), _("warning: "), fmt, ap);
 	va_end(ap);
+
+	if(sav_lst_file) {
+		return;
+	}
 	warningcount++;
 }
 
@@ -122,66 +239,49 @@ cb_plex_error(const size_t sline, const char * fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	print_error(NULL, (int)(cb_source_line + sline), _("Error: "), fmt, ap);
+	print_error(NULL, (int)(cb_source_line + sline), _("error: "), fmt, ap);
 	va_end(ap);
-	if(++errorcount > 100) {
-		cobc_too_many_errors();
+
+	if(sav_lst_file) {
+		return;
 	}
-}
-
-void
-cb_warning_x(cb_tree x, const char * fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	print_error(x->source_file, x->source_line, _("Warning: "), fmt, ap);
-	va_end(ap);
-	warningcount++;
-}
-
-void
-cb_error_x(cb_tree x, const char * fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	print_error(x->source_file, x->source_line, _("Error: "), fmt, ap);
-	va_end(ap);
 	if(++errorcount > 100) {
 		cobc_too_many_errors();
 	}
 }
 
 unsigned int
-cb_verify(const enum cb_support tag, const char * feature)
+cb_plex_verify(const size_t sline, const enum cb_support tag,
+			   const char * feature)
 {
 	switch(tag) {
 	case CB_OK:
-			return 1;
+		return 1;
 	case CB_WARNING:
+		cb_plex_warning(sline, _("%s used"), feature);
 		return 1;
 	case CB_ARCHAIC:
 		if(cb_warn_archaic) {
-			cb_warning(_("%s is archaic in %s"), feature, cb_config_name);
+			cb_plex_warning(sline, _("%s is archaic in %s"), feature, cb_config_name);
 		}
 		return 1;
 	case CB_OBSOLETE:
 		if(cb_warn_obsolete) {
-			cb_warning(_("%s is obsolete in %s"), feature, cb_config_name);
+			cb_plex_warning(sline, _("%s is obsolete in %s"), feature, cb_config_name);
 		}
 		return 1;
 	case CB_SKIP:
 		return 0;
 	case CB_IGNORE:
 		if(warningopt) {
-			cb_warning(_("%s ignored"), feature);
+			cb_plex_warning(sline, _("%s ignored"), feature);
 		}
 		return 0;
 	case CB_ERROR:
+		cb_plex_error(sline, _("%s used"), feature);
 		return 0;
 	case CB_UNCONFORMABLE:
-		cb_error(_("%s does not conform to %s"), feature, cb_config_name);
+		cb_plex_error(sline, _("%s does not conform to %s"), feature, cb_config_name);
 		return 0;
 	default:
 		break;
@@ -189,14 +289,176 @@ cb_verify(const enum cb_support tag, const char * feature)
 	return 0;
 }
 
+/* Warning/Error for config.c */
+void
+configuration_warning(const char * fname, const int line, const char * fmt, ...)
+{
+	va_list args;
+
+	conf_error_displayed = 0;
+	fputs(_("configuration warning:"), stderr);
+	fputc(' ', stderr);
+
+	/* Prefix */
+	if(fname != last_error_file
+			|| line != last_error_line) {
+		last_error_file = fname;
+		last_error_line = line;
+		if(fname) {
+			fprintf(stderr, "%s: ", fname);
+		}
+		if(line) {
+			fprintf(stderr, "%d: ", line);
+		}
+	}
+
+	/* Body */
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+
+	/* Postfix */
+	putc('\n', stderr);
+	fflush(stderr);
+
+	if(sav_lst_file) {
+		return;
+	}
+	warningcount++;
+}
+void
+configuration_error(const char * fname, const int line,
+					const int finish_error, const char * fmt, ...)
+{
+	va_list args;
+
+	configuration_error_head();
+
+	/* Prefix */
+	if(fname != last_error_file
+			|| line != last_error_line) {
+		last_error_file = fname;
+		last_error_line = line;
+		if(fname) {
+			fprintf(stderr, "%s: ", fname);
+		}
+		if(line) {
+			fprintf(stderr, "%d: ", line);
+		}
+	}
+
+	/* Body */
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+
+	/* Postfix */
+	if(!finish_error) {
+		putc(';', stderr);
+		putc('\n', stderr);
+		putc('\t', stderr);
+	} else {
+		putc('\n', stderr);
+		fflush(stderr);
+	}
+
+	if(sav_lst_file) {
+		return;
+	}
+	errorcount++;
+}
+
+/* Generic warning/error routines */
+void
+cb_warning_x(const cb_tree x, const char * fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	print_error(x->source_file, x->source_line, _("warning: "), fmt, ap);
+	va_end(ap);
+
+	if(sav_lst_file) {
+		return;
+	}
+	warningcount++;
+}
+
+void
+cb_error_x(const cb_tree x, const char * fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	print_error(x->source_file, x->source_line, _("error: "), fmt, ap);
+	va_end(ap);
+
+	if(sav_lst_file) {
+		return;
+	}
+	if(++errorcount > 100) {
+		cobc_too_many_errors();
+	}
+}
+
+unsigned int
+cb_verify_x(cb_tree x, const enum cb_support tag, const char * feature)
+{
+	if(!x) {
+		x = (cb_tree) cobc_parse_malloc(sizeof(cb_tree_common));
+	}
+
+	switch(tag) {
+	case CB_OK:
+		return 1;
+	case CB_WARNING:
+		cb_warning_x(x, _("%s used"), feature);
+		return 1;
+	case CB_ARCHAIC:
+		if(cb_warn_archaic) {
+			cb_warning_x(x, _("%s is archaic in %s"), feature, cb_config_name);
+		}
+		return 1;
+	case CB_OBSOLETE:
+		if(cb_warn_obsolete) {
+			cb_warning_x(x, _("%s is obsolete in %s"), feature, cb_config_name);
+		}
+		return 1;
+	case CB_SKIP:
+		return 0;
+	case CB_IGNORE:
+		if(warningopt) {
+			cb_warning_x(x, _("%s ignored"), feature);
+		}
+		return 0;
+	case CB_ERROR:
+		cb_error_x(x, _("%s used"), feature);
+		return 0;
+	case CB_UNCONFORMABLE:
+		cb_error_x(x, _("%s does not conform to %s"), feature, cb_config_name);
+		return 0;
+	default:
+		break;
+	}
+	return 0;
+}
+
+unsigned int
+cb_verify(const enum cb_support tag, const char * feature)
+{
+	return cb_verify_x(NULL, tag, feature);
+}
+
 void
 redefinition_error(cb_tree x)
 {
 	cb_word * w = CB_REFERENCE(x)->word;
-	cb_error_x(x, _("Redefinition of '%s'"), w->name);
+	cb_error_x(x, _("redefinition of '%s'"), w->name);
 	if(w->items) {
+		listprint_suppress();
 		cb_error_x(CB_VALUE(w->items),
 				   _("'%s' previously defined here"), w->name);
+		listprint_restore();
 	}
 }
 
@@ -204,7 +466,7 @@ void
 redefinition_warning(cb_tree x, cb_tree y)
 {
 	cb_word * w = CB_REFERENCE(x)->word;
-	cb_warning_x(x, _("Redefinition of '%s'"), w->name);
+	cb_warning_x(x, _("redefinition of '%s'"), w->name);
 	cb_tree z = NULL;
 	if(y) {
 		z = y;
@@ -213,7 +475,9 @@ redefinition_warning(cb_tree x, cb_tree y)
 	}
 
 	if(z) {
+		listprint_suppress();
 		cb_warning_x(z, _("'%s' previously defined here"), w->name);
+		listprint_restore();
 	}
 }
 
@@ -223,18 +487,25 @@ undefined_error(cb_tree x)
 	if(!errnamebuff) {
 		errnamebuff = (char *) cobc_main_malloc((size_t)COB_NORMAL_BUFF);
 	}
+	/* Get complete variable name */
 	cb_reference * r = CB_REFERENCE(x);
-	snprintf(errnamebuff, (size_t)COB_NORMAL_MAX, "'%s'", CB_NAME(x));
+	snprintf(errnamebuff, (size_t)COB_NORMAL_MAX, "%s", CB_NAME(x));
+	errnamebuff[COB_NORMAL_MAX] = 0;
 	for(cb_tree c = r->chain; c; c = CB_REFERENCE(c)->chain) {
-		strcat(errnamebuff, " in '");
+		strcat(errnamebuff, " IN ");
 		strcat(errnamebuff, CB_NAME(c));
-		strcat(errnamebuff, "'");
 	}
-	if(r->flag_optional) {
-		cb_warning_x(x, _("%s is not defined"), errnamebuff);
+	const char * error_message;
+	if(is_reserved_word(CB_NAME(x))) {
+		error_message = _("'%s' cannot be used here");
+	} else if(is_default_reserved_word(CB_NAME(x))) {
+		error_message = _("'%s' is not defined, but is a reserved word in another dialect");
 	} else {
-		cb_error_x(x, _("%s is not defined"), errnamebuff);
+		error_message = _("'%s' is not defined");
 	}
+	void (* const emit_error_func)(cb_tree, const char *, ...)
+		= r->flag_optional ? &cb_warning_x : &cb_error_x;
+	(*emit_error_func)(x, error_message, errnamebuff);
 }
 
 void
@@ -246,51 +517,57 @@ ambiguous_error(cb_tree x)
 			errnamebuff = (char *) cobc_main_malloc((size_t)COB_NORMAL_BUFF);
 		}
 		/* Display error the first time */
-		snprintf(errnamebuff, (size_t)COB_NORMAL_MAX, "'%s'", CB_NAME(x));
+		snprintf(errnamebuff, (size_t)COB_NORMAL_MAX, "%s", CB_NAME(x));
+		errnamebuff[COB_NORMAL_MAX] = 0;
 		for(cb_tree l = CB_REFERENCE(x)->chain; l; l = CB_REFERENCE(l)->chain) {
-			strcat(errnamebuff, " in '");
+			strcat(errnamebuff, " IN ");
 			strcat(errnamebuff, CB_NAME(l));
-			strcat(errnamebuff, "'");
 		}
-		cb_error_x(x, _("%s ambiguous; need qualification"), errnamebuff);
+		cb_error_x(x, _("'%s' is ambiguous; needs qualification"), errnamebuff);
 		w->error = 1;
 
 		/* Display all fields with the same name */
 		for(cb_tree l = w->items; l; l = CB_CHAIN(l)) {
 			cb_tree y = CB_VALUE(l);
-			snprintf(errnamebuff, (size_t)COB_NORMAL_MAX, "'%s' ", w->name);
+			strcpy(errnamebuff, w->name);
 			switch(CB_TREE_TAG(y)) {
 			case CB_TAG_FIELD:
 				for(cb_field * p = CB_FIELD(y)->parent; p; p = p->parent) {
-					strcat(errnamebuff, "in '");
+					strcat(errnamebuff, " IN ");
 					strcat(errnamebuff, cb_name(p));
-					strcat(errnamebuff, "' ");
 				}
 				break;
-			case CB_TAG_LABEL:
-				{
-					cb_label * l2 = CB_LABEL(y);
-					if(l2->section) {
-						strcat(errnamebuff, "in '");
-						strcat(errnamebuff,
-							   (const char *)(l2->section->name));
-						strcat(errnamebuff, "' ");
-					}
+			case CB_TAG_LABEL: {
+				cb_label * l2 = CB_LABEL(y);
+				if(l2->section) {
+					strcat(errnamebuff, " IN ");
+					strcat(errnamebuff,
+						   (const char *)(l2->section->name));
 				}
-				break;
+			}
+			break;
 			default:
 				break;
 			}
-			strcat(errnamebuff, _("defined here"));
-			cb_error_x(y, errnamebuff);
+			listprint_suppress();
+			cb_error_x(y, _("'%s' defined here"), errnamebuff);
+			listprint_restore();
 		}
 	}
+}
+
+/* error routine for flex */
+void
+flex_fatal_error(const char * msg, const char * filename, const int line_num)
+{
+	cobc_err_msg(_("fatal error: %s"), msg);
+	cobc_abort(filename, line_num);
 }
 
 void
 group_error(cb_tree x, const char * clause)
 {
-	cb_error_x(x, _("Group item '%s' cannot have %s clause"),
+	cb_error_x(x, _("group item '%s' cannot have %s clause"),
 			   cb_name(x), clause);
 }
 
@@ -300,9 +577,9 @@ level_redundant_error(cb_tree x, const char * clause)
 	const char * s = cb_name(x);
 	const cb_field * f = CB_FIELD_PTR(x);
 	if(f->flag_item_78) {
-		cb_error_x(x, _("Constant item '%s' cannot have a %s clause"), s, clause);
+		cb_error_x(x, _("constant item '%s' cannot have a %s clause"), s, clause);
 	} else {
-		cb_error_x(x, _("Level %02d item '%s' cannot have a %s clause"), f->level, s, clause);
+		cb_error_x(x, _("level %02d item '%s' cannot have a %s clause"), f->level, s, clause);
 	}
 }
 
@@ -312,9 +589,9 @@ level_require_error(cb_tree x, const char * clause)
 	const char * s = cb_name(x);
 	const cb_field * f = CB_FIELD_PTR(x);
 	if(f->flag_item_78) {
-		cb_error_x(x, _("Constant item '%s' requires a %s clause"), s, clause);
+		cb_error_x(x, _("constant item '%s' requires a %s clause"), s, clause);
 	} else {
-		cb_error_x(x, _("Level %02d item '%s' requires a %s clause"), f->level, s, clause);
+		cb_error_x(x, _("level %02d item '%s' requires a %s clause"), f->level, s, clause);
 	}
 }
 
@@ -324,8 +601,27 @@ level_except_error(cb_tree x, const char * clause)
 	const char * s = cb_name(x);
 	const cb_field * f = CB_FIELD_PTR(x);
 	if(f->flag_item_78) {
-		cb_error_x(x, _("Constant item '%s' can only have a %s clause"), s, clause);
+		cb_error_x(x, _("constant item '%s' can only have a %s clause"), s, clause);
 	} else {
-		cb_error_x(x, _("Level %02d item '%s' can only have a %s clause"), f->level, s, clause);
+		cb_error_x(x, _("level %02d item '%s' can only have a %s clause"), f->level, s, clause);
+	}
+}
+
+/* routines for temporary disable listing output of warnings/errors */
+void
+listprint_suppress(void)
+{
+	if(cb_src_list_file) {
+		sav_lst_file = cb_src_list_file;
+		cb_src_list_file = NULL;
+	}
+}
+
+void
+listprint_restore(void)
+{
+	if(sav_lst_file) {
+		cb_src_list_file = sav_lst_file;
+		sav_lst_file = NULL;
 	}
 }

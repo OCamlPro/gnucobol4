@@ -1,27 +1,28 @@
 /*
-   Copyright (C) 2006-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2006-2012, 2014, 2016 Free Software Foundation, Inc.
+   Written by Roger While, Simon Sobisch, Ron Norman, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ runtime library is free software: you can redistribute it
+   The GnuCOBOL runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
 /* COB_SYSTEM_GEN(external name, number of parameters, internal name) */
 
 COB_SYSTEM_GEN("SYSTEM",				1, cob_sys_system)
+
 
 COB_SYSTEM_GEN("CBL_AND",				3, cob_sys_and)
 COB_SYSTEM_GEN("CBL_CHANGE_DIR",		1, cob_sys_change_dir)
@@ -43,16 +44,25 @@ COB_SYSTEM_GEN("CBL_IMP",				3, cob_sys_imp)
 COB_SYSTEM_GEN("CBL_NIMP",				3, cob_sys_nimp)
 COB_SYSTEM_GEN("CBL_NOR",				3, cob_sys_nor)
 COB_SYSTEM_GEN("CBL_NOT",				2, cob_sys_not)
-COB_SYSTEM_GEN("CBL_OC_NANOSLEEP",		1, cob_sys_oc_nanosleep)
-COB_SYSTEM_GEN("CBL_OC_GETOPT",			6, cob_sys_getopt_long_long)
 COB_SYSTEM_GEN("CBL_OPEN_FILE",			5, cob_sys_open_file)
 COB_SYSTEM_GEN("CBL_OR",				3, cob_sys_or)
 COB_SYSTEM_GEN("CBL_READ_FILE",			5, cob_sys_read_file)
+COB_SYSTEM_GEN("CBL_READ_KBD_CHAR",		1, cob_sys_get_char)
 COB_SYSTEM_GEN("CBL_RENAME_FILE",		2, cob_sys_rename_file)
+COB_SYSTEM_GEN("CBL_SET_CSR_POS",		1, cob_sys_set_csr_pos)
 COB_SYSTEM_GEN("CBL_TOLOWER",			2, cob_sys_tolower)
 COB_SYSTEM_GEN("CBL_TOUPPER",			2, cob_sys_toupper)
 COB_SYSTEM_GEN("CBL_WRITE_FILE",		5, cob_sys_write_file)
 COB_SYSTEM_GEN("CBL_XOR",				3, cob_sys_xor)
+
+COB_SYSTEM_GEN("CBL_GC_FORK",			0, cob_sys_fork)
+COB_SYSTEM_GEN("CBL_GC_GETOPT",			6, cob_sys_getopt_long_long)
+COB_SYSTEM_GEN("CBL_GC_HOSTED",			2, cob_sys_hosted)
+COB_SYSTEM_GEN("CBL_GC_NANOSLEEP",		1, cob_sys_oc_nanosleep)
+COB_SYSTEM_GEN("CBL_GC_WAITPID",		1, cob_sys_waitpid)
+COB_SYSTEM_GEN("CBL_OC_GETOPT",			6, cob_sys_getopt_long_long)
+COB_SYSTEM_GEN("CBL_OC_HOSTED",			2, cob_sys_hosted)
+COB_SYSTEM_GEN("CBL_OC_NANOSLEEP",		1, cob_sys_oc_nanosleep)
 
 COB_SYSTEM_GEN("C$CALLEDBY",			1, cob_sys_calledby)
 COB_SYSTEM_GEN("C$CHDIR",				2, cob_sys_chdir)
@@ -69,8 +79,8 @@ COB_SYSTEM_GEN("C$SLEEP",				1, cob_sys_sleep)
 COB_SYSTEM_GEN("C$TOLOWER",				2, cob_sys_tolower)
 COB_SYSTEM_GEN("C$TOUPPER",				2, cob_sys_toupper)
 
-COB_SYSTEM_GEN("\221",					2, cob_sys_x91)
-COB_SYSTEM_GEN("\344",					0, cob_sys_clear_screen)
-COB_SYSTEM_GEN("\345",					0, cob_sys_sound_bell)
-COB_SYSTEM_GEN("\364",					2, cob_sys_xf4)
-COB_SYSTEM_GEN("\365",					2, cob_sys_xf5)
+COB_SYSTEM_GEN ("\x91",					2, cob_sys_x91)
+COB_SYSTEM_GEN ("\xE4",					0, cob_sys_clear_screen)
+COB_SYSTEM_GEN ("\xE5",					0, cob_sys_sound_bell)
+COB_SYSTEM_GEN ("\xF4",					2, cob_sys_xf4)
+COB_SYSTEM_GEN ("\xF5",					2, cob_sys_xf5)

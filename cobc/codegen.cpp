@@ -1,22 +1,22 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2003-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch,
+   Edward Hart, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ compiler is free software: you can redistribute it
+   The GnuCOBOL C++ compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -41,12 +41,12 @@
 using namespace std;
 
 #ifdef	HAVE_ATTRIBUTE_ALIGNED
-#define COB_ALIGN " __attribute__((aligned))"
+	#define COB_ALIGN " __attribute__((aligned))"
 #else
-#define COB_ALIGN ""
+	#define COB_ALIGN ""
 #endif
 
-static char buf[1024*1024];
+static char buf[1024 * 1024];
 
 #define COB_MAX_SUBSCRIPTS	16
 
@@ -66,7 +66,7 @@ static char buf[1024*1024];
 #define CB_NEED_ZERO		(1U << 4)
 
 struct sort_list {
-	sort_list *		next;
+	sort_list 	*	next;
 };
 
 struct system_table {
@@ -82,19 +82,25 @@ struct label_list {
 
 struct string_list {
 	string_list *	next;
-	char *			text;
+	char 	*		text;
 	int				id;
 };
 
+struct pic_list {
+	pic_list 		*		next;
+	const cob_pic_symbol *	str;
+	int						length;
+	int						id;
+};
+
 struct attr_list {
-	attr_list *		next;
-	unsigned char *	pic;
+	attr_list 	*	next;
+	int				pic_id;
 	int				id;
 	int				type;
 	cob_u32_t		digits;
 	int				scale;
 	cob_u32_t		flags;
-	int				lenstr;
 };
 
 struct literal_list {
@@ -106,47 +112,51 @@ struct literal_list {
 
 struct field_list {
 	field_list *	next;
-	cb_field *		f;
+	cb_field 	*	f;
 	cb_tree			x;
 	const char *	curr_prog;
 };
 
 struct call_list {
-	call_list *		next;
+	call_list 	*	next;
 	const char *	callname;
 };
 
+#define COB_RETURN_INT		0
+#define COB_RETURN_ADDRESS_OF	1
+#define COB_RETURN_NULL		2
+
 struct base_list {
-	base_list *		next;
-	cb_field *		f;
+	base_list 	*	next;
+	cb_field 	*	f;
 	const char *	curr_prog;
 };
 
 
 /* Local variables */
 
-static attr_list *		attr_cache = NULL;
+static pic_list 	*	pic_cache = NULL;
+static attr_list 	*	attr_cache = NULL;
 static literal_list *	literal_cache = NULL;
-static field_list *		field_cache = NULL;
-static field_list *		local_field_cache = NULL;
-static call_list *		call_cache = NULL;
-static call_list *		func_call_cache = NULL;
-static base_list *		base_cache = NULL;
-static base_list *		globext_cache = NULL;
-static base_list *		local_base_cache = NULL;
+static field_list 	*	field_cache = NULL;
+static field_list 	*	local_field_cache = NULL;
+static call_list 	*	call_cache = NULL;
+static call_list 	*	func_call_cache = NULL;
+static base_list 	*	base_cache = NULL;
+static base_list 	*	globext_cache = NULL;
+static base_list 	*	local_base_cache = NULL;
 static string_list *	string_cache = NULL;
-static char *			string_buffer = NULL;
-static label_list *		label_cache = NULL;
+static char 	*		string_buffer = NULL;
+static label_list 	*	label_cache = NULL;
 
 
-static FILE *			output_target = NULL;
-static FILE *			cb_local_file = NULL;
-static const char *		excp_current_program_id = NULL;
-static const char *		excp_current_section = NULL;
-static const char *		excp_current_paragraph = NULL;
-static cb_program *		current_prog = NULL;
+static FILE 	*		output_target = NULL;
+static FILE 	*		cb_local_file = NULL;
+static const char 	*	excp_current_program_id = NULL;
+static const char 	*	excp_current_section = NULL;
+static const char 	*	excp_current_paragraph = NULL;
 
-static cb_label *		last_section = NULL;
+static cb_label 	*	last_section = NULL;
 static unsigned char *	litbuff = NULL;
 static int				litsize = 0;
 
@@ -269,44 +279,18 @@ lookup_func_call(const char * p)
 	func_call_cache = clp;
 }
 
-static attr_list *
-attr_list_reverse(attr_list * p)
+template <class T>
+static T * list_reverse(T * p)
 {
-	attr_list * last = NULL;
-	attr_list * next;
-	for(; p; p = next) {
-		next = p->next;
+	T * last = NULL;
+	while(p != NULL) {
+		T * next = p->next;
 		p->next = last;
 		last = p;
+		p = next;
 	}
 	return last;
-}
-
-static string_list *
-string_list_reverse(string_list * p)
-{
-	string_list * last = NULL;
-	string_list * next;
-	for(; p; p = next) {
-		next = p->next;
-		p->next = last;
-		last = p;
-	}
-	return last;
-}
-
-static literal_list *
-literal_list_reverse(literal_list * p)
-{
-	literal_list * last = NULL;
-	literal_list * next;
-	for(; p; p = next) {
-		next = p->next;
-		p->next = last;
-		last = p;
-	}
-	return last;
-}
+};
 
 static int field_cache_cmp(const void * mp1, const void * mp2)
 {
@@ -321,8 +305,8 @@ static int field_cache_cmp(const void * mp1, const void * mp2)
 
 static int base_cache_cmp(const void * mp1, const void * mp2)
 {
-	const base_list *fl1 = (const base_list *)mp1;
-	const base_list *fl2 = (const base_list *)mp2;
+	const base_list * fl1 = (const base_list *)mp1;
+	const base_list * fl2 = (const base_list *)mp2;
 	return fl1->f->id - fl2->f->id;
 }
 
@@ -354,7 +338,7 @@ list_cache_sort(void * inlist, int(*cmpfunc)(const void * mp1, const void * mp2)
 				}
 			}
 			size_t qsize = insize;
-			while(psize > 0 ||(qsize > 0 && q)) {
+			while(psize > 0 || (qsize > 0 && q)) {
 				sort_list * e;
 				if(psize == 0) {
 					e = q;
@@ -608,8 +592,8 @@ output_base(cb_field * f, const cob_u32_t no_output)
 {
 	string str("");
 
-	if(f->flag_item_78) {
-		cobc_abort_pr(_("Unexpected CONSTANT item"));
+	if(unlikely(f->flag_item_78)) {
+		cobc_err_msg(_("unexpected CONSTANT item"));
 		COBC_ABORT();
 	}
 
@@ -633,15 +617,12 @@ output_base(cb_field * f, const cob_u32_t no_output)
 			bl->next = local_base_cache;
 			local_base_cache = bl;
 		} else if(!f01->flag_external && !f01->flag_local_storage) {
-			/* RXWRXW
-					if(!f01->flag_external && !f01->flag_local_storage) {
-			*/
 			if(!f01->flag_local || f01->flag_is_global) {
 				base_list * bl = (base_list *) cobc_parse_malloc(sizeof(base_list));
 				bl->f = f01;
 				bl->curr_prog = excp_current_program_id;
 				if(f01->flag_is_global ||
-						current_prog->flag_file_global) {
+						current_program->flag_file_global) {
 					bl->next = base_cache;
 					base_cache = bl;
 				} else {
@@ -649,7 +630,7 @@ output_base(cb_field * f, const cob_u32_t no_output)
 					local_base_cache = bl;
 				}
 			} else {
-				if(current_prog->flag_global_use) {
+				if(current_program->flag_global_use) {
 					output_local("unsigned char\t\t*%s%d = NULL;",
 								 CB_PREFIX_BASE, f01->id);
 					output_local("\t/* %s */\n", f01->name);
@@ -717,126 +698,145 @@ output_data(cb_tree x)
 	string str("");
 
 	switch(CB_TREE_TAG(x)) {
-	case CB_TAG_LITERAL:
-		{
-			cb_literal * l = CB_LITERAL(x);
-			if(CB_TREE_CLASS(x) == CB_CLASS_NUMERIC) {
-				str += output("(cob_u8_ptr)\"%s%s\"", (char *)l->data,
-							  (l->sign < 0) ? "-" :(l->sign > 0) ? "+" : "");
-			} else {
-				str += output("(cob_u8_ptr)");
-				str += output_string(l->data, (int) l->size, l->llit);
-			}
+	case CB_TAG_LITERAL: {
+		cb_literal * l = CB_LITERAL(x);
+		if(CB_TREE_CLASS(x) == CB_CLASS_NUMERIC) {
+			str += output("(cob_u8_ptr)\"%s%s\"", (char *)l->data,
+						  (l->sign < 0) ? "-" : (l->sign > 0) ? "+" : "");
+		} else {
+			str += output("(cob_u8_ptr)");
+			str += output_string(l->data, (int) l->size, l->llit);
 		}
+	}
+	break;
+	case CB_TAG_FIELD:
+		str += output_base(CB_FIELD(x), 0);
 		break;
-	case CB_TAG_REFERENCE:
-		{
-			cb_reference * r = CB_REFERENCE(x);
-			cb_field * f = CB_FIELD(r->value);
+	case CB_TAG_REFERENCE: {
+		cb_reference * r = CB_REFERENCE(x);
+		cb_field * f = CB_FIELD(r->value);
 
-			if(f->bUseName) {
-				// We can use name !!!
-				output_base(f, 1);	// Don't output anything
-				string name = "";
-				bool bIndex = f->special_index != 0 || f->children;
-				bool bPtr = f->bPointer && !f->flag_occurs;
-				bool bNoAdrOp = false;
-				// possible subscripts
-				cb_tree lsub = r->subs;
-				for(; f; f = f->parent) {
-					if(name.length() != 0) {
-						if(f->bPointer) {
-							name = "->" + name;
-						} else {
-							name = "." + name;
-						}
-					}
-					if(f->flag_occurs) {
-						if(lsub) {
-							name = "]" + name;
-							name = output_index(CB_VALUE(lsub)) + name;
-							name = "[" + name;
-							lsub = CB_CHAIN(lsub);
-						} else {
-							name = "[0]" + name;
-						}
-					}
-					if(f->flag_local_storage && !f->parent) {
-						bNoAdrOp = true;
-						string st = "(";
-						st += "(";
-						st += f->sType;
-						st += " *)";
-						st += "(cob_local_ptr";
-						if(f->mem_offset) {
-							sprintf(buf, " + %d", f->mem_offset);
-							st += buf;
-						}
-						st += ")";
-						st += ")";
-						name = st + name;
+		if(f->bUseName) {
+			// We can use name !!!
+			output_base(f, 1);	// Don't output anything
+			string name = "";
+			bool bIndex = f->special_index != 0 || f->children;
+			bool bPtr = f->bPointer && !f->flag_occurs;
+			bool bNoAdrOp = false;
+			// possible subscripts
+			cb_tree lsub = r->subs;
+			for(; f; f = f->parent) {
+				if(name.length() != 0) {
+					if(f->bPointer) {
+						name = "->" + name;
 					} else {
-						name = f->sName + name;
+						name = "." + name;
 					}
 				}
-				if(bIndex) {
-					if(bPtr) {
-						if(bNoAdrOp) {
-							name = "(cob_u8_t *)" + name;
-						} else {
-							name = "*(cob_u8_t **)&" + name;
-						}
-					} else {
-						name = "(cob_u8_t *)&" + name;
-					}
-				}
-				str = output("%s", name.c_str());
-				/* Offset */
-				if(r->offset) {
-					str += output(" + ");
-					str += output_index(r->offset);
-				}
-				return str;
-			}
-			/* Base address */
-			str += output_base(f, 0);
-
-			/* Subscripts */
-			if(r->subs) {
-				cb_tree lsub = r->subs;
-				for(; f && lsub; f = f->parent) {
-					if(f->flag_occurs) {
-						str += output(" + ");
-						if(f->size != 1) {
-							str += output("%d * ", f->size);
-						}
-						str += output_index(CB_VALUE(lsub));
+				if(f->flag_occurs) {
+					if(lsub) {
+						name = "]" + name;
+						name = output_index(CB_VALUE(lsub)) + name;
+						name = "[" + name;
 						lsub = CB_CHAIN(lsub);
+					} else {
+						name = "[0]" + name;
 					}
 				}
+				if(f->flag_local_storage && !f->parent) {
+					bNoAdrOp = true;
+					string st = "(";
+					st += "(";
+					st += f->sType;
+					st += " *)";
+					st += "(cob_local_ptr";
+					if(f->mem_offset) {
+						sprintf(buf, " + %d", f->mem_offset);
+						st += buf;
+					}
+					st += ")";
+					st += ")";
+					name = st + name;
+				} else {
+					name = f->sName + name;
+				}
 			}
-
+			if(bIndex) {
+				if(bPtr) {
+					if(bNoAdrOp) {
+						name = "(cob_u8_t *)" + name;
+					} else {
+						name = "*(cob_u8_t **)&" + name;
+					}
+				} else {
+					name = "(cob_u8_t *)&" + name;
+				}
+			}
+			str = output("%s", name.c_str());
 			/* Offset */
 			if(r->offset) {
 				str += output(" + ");
 				str += output_index(r->offset);
 			}
+			return str;
 		}
-		break;
-	case CB_TAG_CAST:
-		{
-			string nm = output_param(x, 0);
-			char c = (nm.length() == 0) ? 0 : nm.at(0);
-			if(c != '(') {
-				str += output("&");
-				str += nm;
-			} else {
-				size_t ix = nm.find(')');
-				str += nm.substr(0, ix);
-				str += "*)&";
-				str += nm.substr(ix + 1);
+		/* Base address */
+		str += output_base(f, 0);
+
+		/* Subscripts */
+		if(r->subs) {
+			cb_tree lsub = r->subs;
+			cb_field * o_slide = NULL;
+			for(; f && lsub; f = f->parent) {
+				/* add current field size for OCCURS */
+				if(f->flag_occurs) {
+					/* recalculate size for nested ODO ... */
+					if(unlikely(o_slide)) {
+						for(cb_field * o = o_slide; o; o = o->children) {
+							if(o->depending) {
+								str += output(" + (%d * ", o->size);
+								str += output_integer(o->depending);
+								str += output(")");
+							}
+						}
+						str += output(" * ");
+					} else {
+						/* ... use field size otherwise */
+						str += output(" + ");
+						if(f->size != 1) {
+							str += output("%d * ", f->size);
+						}
+					}
+					if(cb_flag_odoslide && f->depending) {
+						o_slide = f;
+					}
+
+					str += output_index(CB_VALUE(lsub));
+					lsub = CB_CHAIN(lsub);
+				}
 			}
 		}
+
+		/* Offset */
+		if(r->offset) {
+			str += output(" + ");
+			str += output_index(r->offset);
+		}
+	}
+	break;
+	case CB_TAG_CAST: {
+		string nm = output_param(x, 0);
+		char c = (nm.length() == 0) ? 0 : nm.at(0);
+		if(c != '(') {
+			str += output("&");
+			str += nm;
+		} else {
+			size_t ix = nm.find(')');
+			str += nm.substr(0, ix);
+			str += "*)&";
+			str += nm.substr(ix + 1);
+		}
+	}
 	break;
 	case CB_TAG_INTRINSIC:
 		str += output("cob_procedure_params[%u]->data",
@@ -847,9 +847,9 @@ output_data(cb_tree x)
 			str += output("NULL");
 			return str;
 		}
-		/* Fall through */
+	/* Fall through */
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
@@ -864,84 +864,149 @@ output_size(const cb_tree x)
 	case CB_TAG_CONST:
 		str += output("1");
 		break;
-	case CB_TAG_LITERAL:
-		{
-			cb_literal * l = CB_LITERAL(x);
-			str += output("%d", (int)(l->size +((l->sign != 0) ? 1 : 0)));
+	case CB_TAG_LITERAL: {
+		cb_literal * l = CB_LITERAL(x);
+		str += output("%d", (int)(l->size + ((l->sign != 0) ? 1 : 0)));
+	}
+	break;
+	case CB_TAG_REFERENCE: {
+		cb_reference * r = CB_REFERENCE(x);
+		cb_field * f = CB_FIELD(r->value);
+		if(f->flag_no_field) {
+			str += output("0");
+			break;
 		}
-		break;
-	case CB_TAG_REFERENCE:
-		{
-			cb_reference * r = CB_REFERENCE(x);
-			cb_field * f = CB_FIELD(r->value);
-			if(f->flag_no_field) {
-				str += output("0");
-				break;
-			}
-			if(r->length) {
-				str += output_integer(r->length);
-			} else if(r->offset && f->flag_any_length) {
-				str += output("%s%d.size - ", CB_PREFIX_FIELD, f->id);
-				str += output_index(r->offset);
-			} else {
-				cb_field * p = chk_field_variable_size(f);
-				cb_field * q = f;
+		if(r->length) {
+			str += output_integer(r->length);
+		} else if(r->offset && f->flag_any_length) {
+			str += output("%s%d.size - ", CB_PREFIX_FIELD, f->id);
+			str += output_index(r->offset);
+		} else {
+			cb_field * p = chk_field_variable_size(f);
+			cb_field * q = f;
 again:
-				if(!cb_flag_odoslide && p && p->flag_odo_item) {
-					q = p;
-					str += output("%d", p->size * p->occurs_max);
-				} else if(p &&(!r->flag_receiving ||
-							   !cb_field_subordinate(cb_code_field(p->depending),
-													 q))) {
-					if(p->offset - q->offset > 0) {
-						str += output("%d + ", p->offset - q->offset);
-					}
-					if(p->size != 1) {
-						str += output("%d * ", p->size);
-					}
-					str += output_integer(p->depending);
-					q = p;
-				} else {
-					str += output("%d", q->size);
+			if(!cb_flag_odoslide && p && p->flag_odo_relative) {
+				q = p;
+				str += output("%d", p->size * p->occurs_max);
+			} else if(p && (!r->flag_receiving ||
+							!cb_field_subordinate(cb_code_field(p->depending),
+												  q))) {
+				if(p->offset - q->offset > 0) {
+					str += output("%d + ", p->offset - q->offset);
 				}
+				if(p->size != 1) {
+					str += output("%d * ", p->size);
+				}
+				str += output_integer(p->depending);
+				q = p;
+			} else {
+				str += output("%d", q->size);
+			}
 
-				for(; q != f; q = q->parent) {
-					if(q->sister && !q->sister->redefines) {
-						q = q->sister;
-						p = q->depending ? q : chk_field_variable_size(q);
-						str += output(" + ");
-						goto again;
-					}
-				}
-				if(r->offset) {
-					str += output(" - ");
-					str += output_index(r->offset);
+			for(; q != f; q = q->parent) {
+				if(q->sister && !q->sister->redefines) {
+					q = q->sister;
+					p = q->depending ? q : chk_field_variable_size(q);
+					str += output(" + ");
+					goto again;
 				}
 			}
+			if(r->offset) {
+				str += output(" - ");
+				str += output_index(r->offset);
+			}
 		}
-		break;
+	}
+	break;
 	case CB_TAG_FIELD:
 		str += output("(int)%s%d.size", CB_PREFIX_FIELD, CB_FIELD(x)->id);
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
 }
 
+/* Picture strings */
+
+static int
+lookup_pic(const cob_pic_symbol * pic, const int length)
+{
+	/* Search picture string cache */
+	for(pic_list * l = pic_cache; l; l = l->next) {
+		if(length != l->length) {
+			continue;
+		}
+
+		bool different_pic_str = false;
+		for(int i = 0; i < l->length; ++i) {
+			if(pic[i].symbol != l->str[i].symbol || pic[i].times_repeated != l->str[i].times_repeated) {
+				different_pic_str = true;
+				break;
+			}
+		}
+
+		if(different_pic_str) {
+			continue;
+		}
+
+		return l->id;
+	}
+
+	/* Cache new picture string */
+
+	pic_list * l = (pic_list *) cobc_parse_malloc(sizeof(pic_list));
+	l->id = cb_pic_id;
+	l->length = length;
+	l->str = pic;
+	l->next = pic_cache;
+	pic_cache = l;
+
+	return cb_pic_id++;
+}
+
+static void
+output_pic_cache(void)
+{
+	if(pic_cache == NULL) {
+		return;
+	}
+
+	output_storage("\n/* Picture strings */\n\n");
+	pic_cache = list_reverse(pic_cache);
+
+	for(pic_list * pic = pic_cache; pic; pic = pic->next) {
+		output_storage("static const cob_pic_symbol %s%d[] = {\n",
+					   CB_PREFIX_PIC, pic->id);
+
+		for(int pos = 0; pos < pic->length && pic->str[pos].symbol != '\0'; ++pos) {
+			output_storage("\tcob_pic_symbol('%c', %u)",
+						   pic->str[pos].symbol,
+						   pic->str[pos].times_repeated);
+			output_storage(",\n");
+		}
+		output_storage("\tcob_pic_symbol(0, 1)");
+		output_storage("\n};\n");
+	}
+	output_storage("\n");
+}
+
+/* Attributes */
+
 static int
 lookup_attr(const int type, const cob_u32_t digits, const int scale,
-			const cob_u32_t flags, unsigned char * pic, const int lenstr)
+			const cob_u32_t flags, cob_pic_symbol * pic, const int lenstr)
 {
+	const int pic_id = pic ? lookup_pic(pic, lenstr) : -1;
+
 	/* Search attribute cache */
 	for(attr_list * l = attr_cache; l; l = l->next) {
 		if(type == l->type &&
 				digits == l->digits &&
 				scale == l->scale &&
 				flags == l->flags &&
-				((pic == l->pic) ||(pic && l->pic && lenstr == l->lenstr &&
-									memcmp((char *)pic, (char *)(l->pic), (size_t)lenstr) == 0))) {
+				pic_id == l->pic_id) {
 			return l->id;
 		}
 	}
@@ -954,24 +1019,11 @@ lookup_attr(const int type, const cob_u32_t digits, const int scale,
 	l->digits = digits;
 	l->scale = scale;
 	l->flags = flags;
-	l->pic = pic;
-	l->lenstr = lenstr;
+	l->pic_id = pic_id;
 	l->next = attr_cache;
 	attr_cache = l;
 
 	return cb_attr_id++;
-}
-
-static char *
-user_func_upper(const char * func)
-{
-	char * rets = cb_encode_program_id(func);
-	for(unsigned char * s = (unsigned char *)rets; *s; s++) {
-		if(islower((int)*s)) {
-			*s = (cob_u8_t)toupper((int)*s);
-		}
-	}
-	return rets;
 }
 
 static string
@@ -981,108 +1033,106 @@ output_attr(const cb_tree x)
 
 	int id = 0;
 	switch(CB_TREE_TAG(x)) {
-	case CB_TAG_LITERAL:
-		{
-			cb_literal * l = CB_LITERAL(x);
-			if(CB_TREE_CLASS(x) == CB_CLASS_NUMERIC) {
-				cob_u32_t flags = 0;
-				if(l->sign != 0) {
-					flags = COB_FLAG_HAVE_SIGN | COB_FLAG_SIGN_SEPARATE;
-				}
-				id = lookup_attr(COB_TYPE_NUMERIC_DISPLAY,
-								 l->size, l->scale, flags, NULL, 0);
+	case CB_TAG_LITERAL: {
+		cb_literal * l = CB_LITERAL(x);
+		if(CB_TREE_CLASS(x) == CB_CLASS_NUMERIC) {
+			cob_u32_t flags = COB_FLAG_CONSTANT;
+			if(l->sign != 0) {
+				flags = COB_FLAG_HAVE_SIGN | COB_FLAG_SIGN_SEPARATE;
+			}
+			id = lookup_attr(COB_TYPE_NUMERIC_DISPLAY,
+							 l->size, l->scale, flags, NULL, 0);
+		} else {
+			if(l->all) {
+				id = lookup_attr(COB_TYPE_ALPHANUMERIC_ALL, 0, 0, COB_FLAG_CONSTANT, NULL, 0);
 			} else {
-				if(l->all) {
-					id = lookup_attr(COB_TYPE_ALPHANUMERIC_ALL, 0, 0, 0, NULL, 0);
-				} else {
-					id = lookup_attr(COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL, 0);
-				}
+				id = lookup_attr(COB_TYPE_ALPHANUMERIC, 0, 0, COB_FLAG_CONSTANT, NULL, 0);
 			}
 		}
-		break;
-	case CB_TAG_REFERENCE:
-		{
-			cb_reference * r = CB_REFERENCE(x);
-			cb_field * f = CB_FIELD(r->value);
-			cob_u32_t flags = 0;
-			if(r->offset) {
-				id = lookup_attr(COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL, 0);
-			} else {
-				int type = cb_tree_type(x, f);
-				switch(type) {
-				case COB_TYPE_GROUP:
-				case COB_TYPE_ALPHANUMERIC:
-					if(f->flag_justified) {
-						id = lookup_attr(type, 0, 0, COB_FLAG_JUSTIFIED, NULL, 0);
-					} else {
-						id = lookup_attr(type, 0, 0, 0, NULL, 0);
+	}
+	break;
+	case CB_TAG_REFERENCE: {
+		cb_reference * r = CB_REFERENCE(x);
+		cb_field * f = CB_FIELD(r->value);
+		cob_u32_t flags = 0;
+		if(r->offset) {
+			id = lookup_attr(COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL, 0);
+		} else {
+			int type = cb_tree_type(x, f);
+			switch(type) {
+			case COB_TYPE_GROUP:
+			case COB_TYPE_ALPHANUMERIC:
+				if(f->flag_justified) {
+					id = lookup_attr(type, 0, 0, COB_FLAG_JUSTIFIED, NULL, 0);
+				} else {
+					id = lookup_attr(type, 0, 0, 0, NULL, 0);
+				}
+				break;
+			default:
+				if(f->pic->have_sign) {
+					flags |= COB_FLAG_HAVE_SIGN;
+					if(f->flag_sign_separate) {
+						flags |= COB_FLAG_SIGN_SEPARATE;
 					}
+					if(f->flag_sign_leading) {
+						flags |= COB_FLAG_SIGN_LEADING;
+					}
+				}
+				if(f->flag_blank_zero) {
+					flags |= COB_FLAG_BLANK_ZERO;
+				}
+				if(f->flag_justified) {
+					flags |= COB_FLAG_JUSTIFIED;
+				}
+				if(f->flag_binary_swap) {
+					flags |= COB_FLAG_BINARY_SWAP;
+				}
+				if(f->flag_real_binary) {
+					flags |= COB_FLAG_REAL_BINARY;
+				}
+				if(f->flag_is_pointer) {
+					flags |= COB_FLAG_IS_POINTER;
+				}
+				if(cb_binary_truncate &&
+						f->usage == CB_USAGE_BINARY &&
+						!f->flag_real_binary) {
+					flags |= COB_FLAG_BINARY_TRUNC;
+				}
+
+				switch(f->usage) {
+				case CB_USAGE_COMP_6:
+					flags |= COB_FLAG_NO_SIGN_NIBBLE;
+					break;
+				case CB_USAGE_DOUBLE:
+				case CB_USAGE_FLOAT:
+				case CB_USAGE_LONG_DOUBLE:
+#if	0	/* RXWRXW - Floating ind */
+				case CB_USAGE_FP_BIN32:
+				case CB_USAGE_FP_BIN64:
+				case CB_USAGE_FP_BIN128:
+				case CB_USAGE_FP_DEC64:
+				case CB_USAGE_FP_DEC128:
+#endif
+					flags |= COB_FLAG_IS_FP;
 					break;
 				default:
-					if(f->pic->have_sign) {
-						flags |= COB_FLAG_HAVE_SIGN;
-						if(f->flag_sign_separate) {
-							flags |= COB_FLAG_SIGN_SEPARATE;
-						}
-						if(f->flag_sign_leading) {
-							flags |= COB_FLAG_SIGN_LEADING;
-						}
-					}
-					if(f->flag_blank_zero) {
-						flags |= COB_FLAG_BLANK_ZERO;
-					}
-					if(f->flag_justified) {
-						flags |= COB_FLAG_JUSTIFIED;
-					}
-					if(f->flag_binary_swap) {
-						flags |= COB_FLAG_BINARY_SWAP;
-					}
-					if(f->flag_real_binary) {
-						flags |= COB_FLAG_REAL_BINARY;
-					}
-					if(f->flag_is_pointer) {
-						flags |= COB_FLAG_IS_POINTER;
-					}
-					if(cb_binary_truncate &&
-							f->usage == CB_USAGE_BINARY &&
-							!f->flag_real_binary) {
-						flags |= COB_FLAG_BINARY_TRUNC;
-					}
-
-					switch(f->usage) {
-					case CB_USAGE_COMP_6:
-						flags |= COB_FLAG_NO_SIGN_NIBBLE;
-						break;
-					case CB_USAGE_DOUBLE:
-					case CB_USAGE_FLOAT:
-					case CB_USAGE_LONG_DOUBLE:
-#if	0	/* RXWRXW - Floating ind */
-					case CB_USAGE_FP_BIN32:
-					case CB_USAGE_FP_BIN64:
-					case CB_USAGE_FP_BIN128:
-					case CB_USAGE_FP_DEC64:
-					case CB_USAGE_FP_DEC128:
-#endif
-						flags |= COB_FLAG_IS_FP;
-						break;
-					default:
-						break;
-					}
-
-					id = lookup_attr(type, f->pic->digits,
-									 f->pic->scale, flags,
-									 (cob_u8_ptr) f->pic->str,
-									 f->pic->lenstr);
 					break;
 				}
+
+				id = lookup_attr(type, f->pic->digits,
+								 f->pic->scale, flags,
+								 f->pic->str,
+								 f->pic->lenstr);
+				break;
 			}
 		}
-		break;
+	}
+	break;
 	case CB_TAG_ALPHABET_NAME:
 		id = lookup_attr(COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL, 0);
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 
@@ -1258,6 +1308,18 @@ output_field(cb_tree x)
 	return str;
 }
 
+static char *
+user_func_upper(const char * func)
+{
+	char * rets = cb_encode_program_id(func);
+	for(unsigned char * s = (unsigned char *)rets; *s; s++) {
+		if(islower((int)*s)) {
+			*s = (cob_u8_t)toupper((int) * s);
+		}
+	}
+	return rets;
+}
+
 /* Literal */
 
 static int
@@ -1322,58 +1384,56 @@ output_integer(cb_tree x)
 	case CB_TAG_LITERAL:
 		str = output("%d", cb_get_int(x));
 		break;
-	case CB_TAG_BINARY_OP:
-		{
-			cb_binary_op * p = CB_BINARY_OP(x);
-			if(p->flag) {
-				if(!cb_fits_int(p->x) || !cb_fits_int(p->y)) {
-					str = output("cob_get_int(");
-					str += output_param(x, -1);
-					str += output(")");
-					break;
-				}
-			}
-			if(p->op == '^') {
-				str += output("(int) pow((double)");
-				str += output_integer(p->x);
-				str += output(", (int)");
-				str += output_integer(p->y);
-				str += output(")");
-			} else {
-				str += output("(");
-				str += output_integer(p->x);
-				str += output(" %c ", p->op);
-				str += output_integer(p->y);
-				str += output(")");
-			}
-		}
-		break;
-	case CB_TAG_CAST:
-		{
-			cb_cast * cp = CB_CAST(x);
-			switch(cp->cast_type) {
-			case CB_CAST_ADDRESS:
-				str += output("(");
-				str += output_data(cp->val);
-				str += output(")");
-				break;
-			case CB_CAST_PROGRAM_POINTER:
-				str += output("cob_call_field(");
+	case CB_TAG_BINARY_OP: {
+		cb_binary_op * p = CB_BINARY_OP(x);
+		if(p->flag) {
+			if(!cb_fits_int(p->x) || !cb_fits_int(p->y)) {
+				str = output("cob_get_int(");
 				str += output_param(x, -1);
-				if(current_prog->nested_prog_list) {
-					gen_nested_tab = 1;
-					str += output(", cob_nest_tab, 0, %d)", cb_fold_call);
-				} else {
-					str += output(", NULL, 0, %d)", cb_fold_call);
-				}
+				str += output(")");
 				break;
-			default:
-				cobc_abort_pr(_("Unexpected cast type %d"),
-							  (int)cp->cast_type);
-				COBC_ABORT();
 			}
 		}
-		break;
+		if(p->op == '^') {
+			str += output("(int) pow((double)");
+			str += output_integer(p->x);
+			str += output(", (int)");
+			str += output_integer(p->y);
+			str += output(")");
+		} else {
+			str += output("(");
+			str += output_integer(p->x);
+			str += output(" %c ", p->op);
+			str += output_integer(p->y);
+			str += output(")");
+		}
+	}
+	break;
+	case CB_TAG_CAST: {
+		cb_cast * cp = CB_CAST(x);
+		switch(cp->cast_type) {
+		case CB_CAST_ADDRESS:
+			str += output("(");
+			str += output_data(cp->val);
+			str += output(")");
+			break;
+		case CB_CAST_PROGRAM_POINTER:
+			str += output("(unsigned char *)cob_call_field(");
+			str += output_param(x, -1);
+			if(current_program->nested_prog_list) {
+				gen_nested_tab = 1;
+				str += output(", cob_nest_tab, 0, %d)", cb_fold_call);
+			} else {
+				str += output(", NULL, 0, %d)", cb_fold_call);
+			}
+			break;
+		default:
+			cobc_err_msg(_("unexpected cast type: %d"),
+						 (int)cp->cast_type);
+			COBC_ABORT();
+		}
+	}
+	break;
 	case CB_TAG_REFERENCE:
 		f = cb_code_field(x);
 		switch(f->usage) {
@@ -1387,7 +1447,7 @@ output_integer(cb_tree x)
 				}
 				return str;
 			}
-			/* Fall through */
+		/* Fall through */
 		case CB_USAGE_LENGTH:
 			str += output("(*(int *)(");
 			str += output_data(x);
@@ -1455,14 +1515,14 @@ output_integer(cb_tree x)
 				return str;
 			}
 #ifdef	COB_NON_ALIGNED
-			if(f->storage != CB_STORAGE_LINKAGE && f->indexes == 0 &&(
+			if(f->storage != CB_STORAGE_LINKAGE && f->indexes == 0 && (
 #ifdef	COB_SHORT_BORK
-						(f->size == 2 &&(f->offset % 4 == 0)) ||
+					(f->size == 2 && (f->offset % 4 == 0)) ||
 #else
-						(f->size == 2 &&(f->offset % 2 == 0)) ||
+					(f->size == 2 && (f->offset % 2 == 0)) ||
 #endif
-						(f->size == 4 &&(f->offset % 4 == 0)) ||
-						(f->size == 8 &&(f->offset % 8 == 0)))) {
+					(f->size == 4 && (f->offset % 4 == 0)) ||
+					(f->size == 8 && (f->offset % 8 == 0)))) {
 #else
 			if(f->size == 2 || f->size == 4 || f->size == 8) {
 #endif
@@ -1559,7 +1619,7 @@ output_integer(cb_tree x)
 		str += output(")");
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
@@ -1591,59 +1651,57 @@ output_long_integer(cb_tree x)
 	case CB_TAG_LITERAL:
 		str += output(CB_FMT_LLD_F, cb_get_long_long(x));
 		break;
-	case CB_TAG_BINARY_OP:
-		{
-			cb_binary_op * p = CB_BINARY_OP(x);
-			if(p->flag) {
-				if(!cb_fits_long_long(p->x) ||
-						!cb_fits_long_long(p->y)) {
-					str += output("cob_get_llint(");
-					str += output_param(x, -1);
-					str += output(")");
-					break;
-				}
-			}
-			if(p->op == '^') {
-				str += output("(cob_s64_t) pow((double)");
-				str += output_long_integer(p->x);
-				str += output(", (double)");
-				str += output_long_integer(p->y);
-				str += output(")");
-			} else {
-				str += output("(");
-				str += output_long_integer(p->x);
-				str += output(" %c ", p->op);
-				str += output_long_integer(p->y);
-				str += output(")");
-			}
-		}
-		break;
-	case CB_TAG_CAST:
-		{
-			cb_cast * cp = CB_CAST(x);
-			switch(cp->cast_type) {
-			case CB_CAST_ADDRESS:
-				str += output("(");
-				str += output_data(cp->val);
-				str += output(")");
-				break;
-			case CB_CAST_PROGRAM_POINTER:
-				str += output("cob_call_field(");
+	case CB_TAG_BINARY_OP: {
+		cb_binary_op * p = CB_BINARY_OP(x);
+		if(p->flag) {
+			if(!cb_fits_long_long(p->x) ||
+					!cb_fits_long_long(p->y)) {
+				str += output("cob_get_llint(");
 				str += output_param(x, -1);
-				if(current_prog->nested_prog_list) {
-					gen_nested_tab = 1;
-					str += output(", cob_nest_tab, 0, %d)", cb_fold_call);
-				} else {
-					str += output(", NULL, 0, %d)", cb_fold_call);
-				}
+				str += output(")");
 				break;
-			default:
-				cobc_abort_pr(_("Unexpected cast type %d"),
-							  (int)cp->cast_type);
-				COBC_ABORT();
 			}
 		}
-		break;
+		if(p->op == '^') {
+			str += output("(cob_s64_t) pow((double)");
+			str += output_long_integer(p->x);
+			str += output(", (double)");
+			str += output_long_integer(p->y);
+			str += output(")");
+		} else {
+			str += output("(");
+			str += output_long_integer(p->x);
+			str += output(" %c ", p->op);
+			str += output_long_integer(p->y);
+			str += output(")");
+		}
+	}
+	break;
+	case CB_TAG_CAST: {
+		cb_cast * cp = CB_CAST(x);
+		switch(cp->cast_type) {
+		case CB_CAST_ADDRESS:
+			str += output("(");
+			str += output_data(cp->val);
+			str += output(")");
+			break;
+		case CB_CAST_PROGRAM_POINTER:
+			str += output("(unsigned char *)cob_call_field(");
+			str += output_param(x, -1);
+			if(current_program->nested_prog_list) {
+				gen_nested_tab = 1;
+				str += output(", cob_nest_tab, 0, %d)", cb_fold_call);
+			} else {
+				str += output(", NULL, 0, %d)", cb_fold_call);
+			}
+			break;
+		default:
+			cobc_err_msg(_("unexpected cast type: %d"),
+						 (int)cp->cast_type);
+			COBC_ABORT();
+		}
+	}
+	break;
 	case CB_TAG_REFERENCE:
 		f = cb_code_field(x);
 		switch(f->usage) {
@@ -1658,7 +1716,7 @@ output_long_integer(cb_tree x)
 				}
 				return str;
 			}
-			/* Fall through */
+		/* Fall through */
 		case CB_USAGE_LENGTH:
 			str += output("(cob_s64_t)(*(int *)(");
 			str += output_data(x);
@@ -1704,14 +1762,14 @@ output_long_integer(cb_tree x)
 				return str;
 			}
 #ifdef	COB_NON_ALIGNED
-			if(f->storage != CB_STORAGE_LINKAGE && f->indexes == 0 &&(
+			if(f->storage != CB_STORAGE_LINKAGE && f->indexes == 0 && (
 #ifdef	COB_SHORT_BORK
-						(f->size == 2 &&(f->offset % 4 == 0)) ||
+					(f->size == 2 && (f->offset % 4 == 0)) ||
 #else
-						(f->size == 2 &&(f->offset % 2 == 0)) ||
+					(f->size == 2 && (f->offset % 2 == 0)) ||
 #endif
-						(f->size == 4 &&(f->offset % 4 == 0)) ||
-						(f->size == 8 &&(f->offset % 8 == 0)))) {
+					(f->size == 4 && (f->offset % 4 == 0)) ||
+					(f->size == 8 && (f->offset % 8 == 0)))) {
 #else
 			if(f->size == 2 || f->size == 4 || f->size == 8) {
 #endif
@@ -1810,7 +1868,7 @@ output_long_integer(cb_tree x)
 		str += output(")");
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
@@ -1842,12 +1900,12 @@ static string
 output_param(cb_tree x, int id)
 {
 	string str("");
-	cb_reference *		r;
-	cb_field *			f;
-	cb_field *			ff;
-	cb_cast *			cp;
-	cb_binary_op *		bp;
-	cb_intrinsic *		ip;
+	cb_reference 	*	r;
+	cb_field 	*		f;
+	cb_field 	*		ff;
+	cb_cast 	*		cp;
+	cb_binary_op 	*	bp;
+	cb_intrinsic 	*	ip;
 	cb_alphabet_name *	abp;
 
 	param_id = id;
@@ -1890,9 +1948,9 @@ output_param(cb_tree x, int id)
 			str += output("cob_ebcdic_ascii");
 			break;
 #endif
-			/* Fall through for ASCII */
+		/* Fall through for ASCII */
 		case CB_ALPHABET_NATIVE:
-			if(current_prog->collating_sequence) {
+			if(current_program->collating_sequence) {
 				gen_native = 1;
 				str += output("cob_native");
 			} else {
@@ -1901,7 +1959,7 @@ output_param(cb_tree x, int id)
 			break;
 		case CB_ALPHABET_EBCDIC:
 #ifdef	COB_EBCDIC_MACHINE
-			if(current_prog->collating_sequence) {
+			if(current_program->collating_sequence) {
 				gen_native = 1;
 				str += output("cob_native");
 			} else {
@@ -1992,8 +2050,8 @@ output_param(cb_tree x, int id)
 		if(r->check) {
 			inside_stack[inside_check++] = 0;
 			if(inside_check >= COB_INSIDE_SIZE) {
-				cobc_abort_pr(_("Internal statement stack depth exceeded -> %d"),
-							  COB_INSIDE_SIZE);
+				cobc_err_msg(_("internal statement stack depth exceeded: %d"),
+							 COB_INSIDE_SIZE);
 				COBC_ABORT();
 			}
 			str += output("\n");
@@ -2030,7 +2088,7 @@ output_param(cb_tree x, int id)
 				str += output("&f_ebcdic_ascii");
 				break;
 #endif
-				/* Fall through for ASCII */
+			/* Fall through for ASCII */
 			case CB_ALPHABET_NATIVE:
 				gen_native = 2;
 				str += output("&f_native");
@@ -2060,6 +2118,14 @@ output_param(cb_tree x, int id)
 			break;
 		}
 
+		if(!CB_FIELD_P(r->value)) {
+			cobc_err_msg(_("call to '%s' with invalid parameter '%s'"),
+						 "output_param", "x");
+			cobc_err_msg(_("%s is not a field"), r->word->name);
+			cobc_err_msg(_("Please report this!"));
+			COBC_ABORT();
+		}
+
 		f = CB_FIELD(r->value);
 
 		ff = real_field_founder(f);
@@ -2083,8 +2149,8 @@ output_param(cb_tree x, int id)
 				fl->x = x;
 				fl->f = f;
 				fl->curr_prog = excp_current_program_id;
-				if(f->special_index != 2 &&(f->flag_is_global ||
-											current_prog->flag_file_global)) {
+				if(f->special_index != 2 && (f->flag_is_global ||
+											 current_program->flag_file_global)) {
 					fl->next = field_cache;
 					field_cache = fl;
 				} else {
@@ -2159,7 +2225,7 @@ output_param(cb_tree x, int id)
 	case CB_TAG_INTRINSIC:
 		ip = CB_INTRINSIC(x);
 		if(ip->isuser) {
-			char * func = user_func_upper(cb_name(ip->name));
+			char * func = user_func_upper(CB_PROTOTYPE(cb_ref(ip->name))->ext_name);
 			lookup_func_call(func);
 #if	0	/* RXWRXW Func */
 			str += output("cob_user_function(func_%s, &cob_dyn_%u, ",
@@ -2235,7 +2301,7 @@ output_param(cb_tree x, int id)
 		str += output_funcall(x);
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
@@ -2287,7 +2353,7 @@ output_funcall(cb_tree x)
 			}
 			break;
 		default:
-			cobc_abort_pr(_("Unexpected function %s"), p->name);
+			cobc_err_msg(_("unexpected function: %s"), p->name);
 			COBC_ABORT();
 		}
 		return str;
@@ -2349,7 +2415,7 @@ output_cond(cb_tree x, const int save_flag)
 		} else if(x == cb_false) {
 			str += output("0");
 		} else {
-			cobc_abort_pr(_("Unexpected constant"));
+			cobc_err_msg(_("unexpected constant"));
 			COBC_ABORT();
 		}
 		break;
@@ -2427,8 +2493,8 @@ output_cond(cb_tree x, const int save_flag)
 		}
 		inside_stack[inside_check++] = 0;
 		if(inside_check >= COB_INSIDE_SIZE) {
-			cobc_abort_pr(_("Internal statement stack depth exceeded -> %d"),
-						  COB_INSIDE_SIZE);
+			cobc_err_msg(_("internal statement stack depth exceeded: %d"),
+						 COB_INSIDE_SIZE);
 			COBC_ABORT();
 		}
 		str += output("(\n");
@@ -2444,7 +2510,7 @@ output_cond(cb_tree x, const int save_flag)
 		}
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
@@ -2473,7 +2539,7 @@ static int
 initialize_type(cb_initialize * p, cb_field * f, const int topfield)
 {
 	if(f->flag_item_78) {
-		cobc_abort_pr(_("Unexpected CONSTANT item"));
+		cobc_err_msg(_("unexpected CONSTANT item"));
 		COBC_ABORT();
 	}
 
@@ -2485,7 +2551,7 @@ initialize_type(cb_initialize * p, cb_field * f, const int topfield)
 		return INITIALIZE_NONE;
 	}
 
-	if(f->redefines &&(!topfield || !p->flag_init_statement)) {
+	if(f->redefines && (!topfield || !p->flag_init_statement)) {
 		return INITIALIZE_NONE;
 	}
 
@@ -2494,6 +2560,12 @@ initialize_type(cb_initialize * p, cb_field * f, const int topfield)
 	}
 
 	if(p->val && f->values) {
+		return INITIALIZE_ONE;
+	}
+
+	if(p->var && CB_REFERENCE_P(p->var)
+			&& CB_REFERENCE(p->var)->offset) {
+		/* Reference modified item */
 		return INITIALIZE_ONE;
 	}
 
@@ -2786,10 +2858,10 @@ output_initialize_one(cb_initialize * p, cb_tree x)
 								   f->occurs_max);
 				str += output_indent("{");
 				CB_REFERENCE(x)->subs =
-					CB_BUILD_CHAIN(cb_i[0], CB_REFERENCE(x)->subs);
+				CB_BUILD_CHAIN(cb_i[0], CB_REFERENCE(x)->subs);
 				str += output_move(value, x);
 				CB_REFERENCE(x)->subs =
-					CB_CHAIN(CB_REFERENCE(x)->subs);
+				CB_CHAIN(CB_REFERENCE(x)->subs);
 				str += output_indent("}");
 #ifdef _MSC_VER
 				str += output_indent("}");
@@ -2833,7 +2905,7 @@ output_initialize_one(cb_initialize * p, cb_tree x)
 			str += output_data(x);
 			str += output(", %u, %d);\n", (unsigned int)buffchar,
 						  (int)lsize);
-			if((int)l->size <(int)size) {
+			if((int)l->size < (int)size) {
 				str += output_prefix();
 				str += output("memset(");
 				str += output_data(x);
@@ -2946,13 +3018,14 @@ output_initialize_one(cb_initialize * p, cb_tree x)
 		case CB_CATEGORY_NUMERIC:
 		case CB_CATEGORY_NUMERIC_EDITED:
 			return output_move(cb_zero, x);
+		case CB_CATEGORY_ALPHANUMERIC:
 		case CB_CATEGORY_ALPHANUMERIC_EDITED:
 		case CB_CATEGORY_NATIONAL:
 		case CB_CATEGORY_NATIONAL_EDITED:
 			return output_move(cb_space, x);
 		default:
-			cobc_abort_pr(_("Unexpected tree category %d"),
-						  (int)CB_TREE_CATEGORY(x));
+			cobc_err_msg(_("unexpected tree category: %d"),
+						 (int)CB_TREE_CATEGORY(x));
 			COBC_ABORT();
 		}
 	}
@@ -2980,8 +3053,8 @@ output_initialize_compound(cb_initialize * p, cb_tree x)
 			if(last_char != -1) {
 				if(f->flag_occurs) {
 					CB_REFERENCE(c)->subs =
-						CB_BUILD_CHAIN(cb_int1,
-									   CB_REFERENCE(c)->subs);
+					CB_BUILD_CHAIN(cb_int1,
+								   CB_REFERENCE(c)->subs);
 				}
 
 				for(; f->sister; f = f->sister) {
@@ -3002,7 +3075,7 @@ output_initialize_compound(cb_initialize * p, cb_tree x)
 				str += output_initialize_uniform(c, last_char, (int) size);
 				break;
 			}
-			/* Fall through */
+		/* Fall through */
 		default:
 			if(f->flag_occurs) {
 				/* Begin occurs loop */
@@ -3015,7 +3088,7 @@ output_initialize_compound(cb_initialize * p, cb_tree x)
 								   i, i, f->occurs_max, i);
 				str += output_indent("{");
 				CB_REFERENCE(c)->subs =
-					CB_BUILD_CHAIN(cb_i[i], CB_REFERENCE(c)->subs);
+				CB_BUILD_CHAIN(cb_i[i], CB_REFERENCE(c)->subs);
 			}
 
 			if(type == INITIALIZE_ONE) {
@@ -3058,7 +3131,7 @@ output_initialize(cb_initialize * p)
 			if(c != -1) {
 				return output_initialize_uniform(p->var, c, f->occurs_max);
 			}
-			/* Fall through */
+		/* Fall through */
 		case INITIALIZE_COMPOUND:
 			i_counters[0] = 1;
 #ifdef _MSC_VER
@@ -3068,10 +3141,10 @@ output_initialize(cb_initialize * p)
 			str += output_indent("{");
 			x = cb_build_field_reference(f, NULL);
 			CB_REFERENCE(x)->subs =
-				CB_BUILD_CHAIN(cb_i[0], CB_REFERENCE(x)->subs);
+			CB_BUILD_CHAIN(cb_i[0], CB_REFERENCE(x)->subs);
 			str += output_initialize_compound(p, x);
 			CB_REFERENCE(x)->subs =
-				CB_CHAIN(CB_REFERENCE(x)->subs);
+			CB_CHAIN(CB_REFERENCE(x)->subs);
 			str += output_indent("}");
 #ifdef _MSC_VER
 			str += output_indent("}");
@@ -3093,7 +3166,7 @@ output_initialize(cb_initialize * p)
 			str += output_initialize_uniform(p->var, c, f->size);
 			return str;
 		}
-		/* Fall through */
+	/* Fall through */
 	case INITIALIZE_COMPOUND:
 		str += output_initialize_compound(p, p->var);
 		return str;
@@ -3115,11 +3188,17 @@ output_occurs(cb_field * p)
 }
 
 static string
-output_search_whens(cb_tree table, cb_tree var, cb_tree stmt, cb_tree whens)
+output_search_whens(cb_tree table, cb_field * p, cb_tree stmt, cb_tree var, cb_tree whens)
 {
 	string str("");
 	cb_tree idx = NULL;
-	cb_field * p = cb_code_field(table);
+
+	if(!p->index_list) {
+		cobc_err_msg(_("call to '%s' with invalid parameter '%s'"),
+					 "output_search", "table");
+		COBC_ABORT();
+	}
+
 	/* Determine the index to use */
 	if(var) {
 		for(cb_tree l = p->index_list; l; l = CB_CHAIN(l)) {
@@ -3177,9 +3256,8 @@ output_search_whens(cb_tree table, cb_tree var, cb_tree stmt, cb_tree whens)
 }
 
 static string
-output_search_all(cb_tree table, cb_tree stmt, cb_tree cond, cb_tree when)
+output_search_all(cb_tree table, cb_field * p, cb_tree stmt, cb_tree cond, cb_tree when)
 {
-	cb_field * p = cb_code_field(table);
 	cb_tree idx = CB_VALUE(p->index_list);
 	/* Header */
 	string str = output_indent("{");
@@ -3189,6 +3267,12 @@ output_search_all(cb_tree table, cb_tree stmt, cb_tree cond, cb_tree when)
 	str += output("tail = ");
 	str += output_occurs(p);
 	str += output(" + 1;\n");
+
+	/* Check for at least one entry */
+	str += output_prefix();
+	str += output("if (");
+	str += output_occurs(p);
+	str += output(" == 0) head = tail;\n");
 
 	/* Start loop */
 #ifdef _MSC_VER
@@ -3245,15 +3329,205 @@ output_search_all(cb_tree table, cb_tree stmt, cb_tree cond, cb_tree when)
 static string
 output_search(cb_search * p)
 {
+	struct cb_field * fp = cb_code_field(p->table);
+
+	/* TODO: Add run-time checks for the table, including ODO */
+
 	if(p->flag_all) {
-		return output_search_all(p->table, p->end_stmt,
+		return output_search_all(p->table, fp, p->end_stmt,
 								 CB_IF(p->whens)->test, CB_IF(p->whens)->stmt1);
 	}
-	return output_search_whens(p->table, p->var, p->end_stmt, p->whens);
+	return output_search_whens(p->table, fp, p->end_stmt, p->var, p->whens);
 }
 
 /* CALL */
 
+/**
+ * cast function pointer call frame to avoid default argument promotion
+ */
+static string
+output_call_protocast(cb_tree x, cb_tree l)
+{
+	switch(CB_TREE_TAG(x)) {
+	case CB_TAG_CAST:
+		return output("int");
+	case CB_TAG_INTRINSIC:
+		if(CB_INTRINSIC(x)->intr_tab->category == CB_CATEGORY_NUMERIC) {
+			return output("int");
+		}
+		return output("void *");
+	case CB_TAG_LITERAL: {
+		if(CB_TREE_CLASS(x) != CB_CLASS_NUMERIC) {
+			return output("int");
+		}
+		if(CB_SIZES_INT_UNSIGNED(l)) {
+			cob_u64_t uval = cb_get_u_long_long(x);
+			switch(CB_SIZES_INT(l)) {
+			case CB_SIZE_AUTO:
+				if(uval > UINT_MAX) {
+					return output("cob_u64_t");
+				}
+			/* Fall through to case 4 */
+			case CB_SIZE_4:
+				return output("cob_u32_t");
+			case CB_SIZE_1:
+				return output("cob_u8_t");
+			case CB_SIZE_2:
+				return output("cob_u16_t");
+			case CB_SIZE_8:
+				return output("cob_u64_t");
+			default:
+				cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
+				COBC_ABORT();
+			}
+		}
+		cob_s64_t val = cb_get_long_long(x);
+		switch(CB_SIZES_INT(l)) {
+		case CB_SIZE_AUTO:
+			if(val > INT_MAX) {
+				return output("cob_s64_t");
+			}
+		/* Fall through to case 4 */
+		case CB_SIZE_4:
+			return output("cob_s32_t");
+		case CB_SIZE_1:
+			return output("cob_s8_t");
+		case CB_SIZE_2:
+			return output("cob_s16_t");
+		case CB_SIZE_8:
+			return output("cob_s64_t");
+		default:
+			cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
+			COBC_ABORT();
+		}
+		return "";
+	}
+	default:
+		cb_field * f = cb_code_field(x);
+		switch(f->usage) {
+		case CB_USAGE_BINARY:
+		case CB_USAGE_COMP_5:
+		case CB_USAGE_COMP_X:
+		case CB_USAGE_PACKED:
+		case CB_USAGE_DISPLAY:
+		case CB_USAGE_COMP_6: {
+			int sizes = CB_SIZES_INT(l);
+			int sign = 0;
+			if(sizes == CB_SIZE_AUTO) {
+				if(f->pic->have_sign) {
+					sign = 1;
+				}
+				if(f->usage == CB_USAGE_PACKED ||
+						f->usage == CB_USAGE_DISPLAY ||
+						f->usage == CB_USAGE_COMP_6) {
+					sizes = f->pic->digits - f->pic->scale;
+				} else {
+					sizes = f->size;
+				}
+				switch(sizes) {
+				case 0:
+					sizes = CB_SIZE_4;
+					break;
+				case 1:
+					sizes = CB_SIZE_1;
+					break;
+				case 2:
+					sizes = CB_SIZE_2;
+					break;
+				case 3:
+					sizes = CB_SIZE_4;
+					break;
+				case 4:
+					sizes = CB_SIZE_4;
+					break;
+				case 5:
+					sizes = CB_SIZE_8;
+					break;
+				case 6:
+					sizes = CB_SIZE_8;
+					break;
+				case 7:
+					sizes = CB_SIZE_8;
+					break;
+				default:
+					sizes = CB_SIZE_8;
+					break;
+				}
+			} else {
+				if(!CB_SIZES_INT_UNSIGNED(l)) {
+					sign = 1;
+				}
+			}
+			const char * s;
+			switch(sizes) {
+			case CB_SIZE_1:
+				if(sign) {
+					s = "cob_c8_t";
+				} else {
+					s = "cob_u8_t";
+				}
+				break;
+			case CB_SIZE_2:
+				if(sign) {
+					s = "cob_s16_t";
+				} else {
+					s = "cob_u16_t";
+				}
+				break;
+			case CB_SIZE_4:
+				if(sign) {
+					s = "cob_s32_t";
+				} else {
+					s = "cob_u32_t";
+				}
+				break;
+			case CB_SIZE_8:
+				if(sign) {
+					s = "cob_s64_t";
+				} else {
+					s = "cob_u64_t";
+				}
+				break;
+			default:
+				if(sign) {
+					s = "cob_s32_t";
+				} else {
+					s = "cob_u32_t";
+				}
+				break;
+			}
+			return s;
+		}
+		case CB_USAGE_INDEX:
+			return output("cob_s32_t");
+		case CB_USAGE_LENGTH:
+			return output("cob_u32_t");
+		case CB_USAGE_POINTER:
+		case CB_USAGE_PROGRAM_POINTER:
+			return output("void *");
+		case CB_USAGE_FLOAT:
+			return output("float");
+		case CB_USAGE_DOUBLE:
+			return output("double");
+		case CB_USAGE_LONG_DOUBLE:
+			return output("long double");
+		case CB_USAGE_FP_BIN32:
+			return output("cob_u32_t");
+		case CB_USAGE_FP_BIN64:
+		case CB_USAGE_FP_DEC64:
+			return output("cob_u64_t");
+		case CB_USAGE_FP_BIN128:
+		case CB_USAGE_FP_DEC128:
+			return output("cob_fp_128");
+		default:
+			return output("void *");
+		}
+	}
+}
+
+/**
+ * dereference BY VALUE arguments, sync with call_output_protocast
+ */
 static string
 output_call_by_value_args(cb_tree x, cb_tree l)
 {
@@ -3288,7 +3562,7 @@ output_call_by_value_args(cb_tree x, cb_tree l)
 					str += output(CB_FMT_LLU_F, uval);
 					return str;
 				}
-				/* Fall through to case 4 */
+			/* Fall through to case 4 */
 			case CB_SIZE_4:
 				str += output("(cob_u32_t)");
 				str += output(CB_FMT_LLU_F, uval);
@@ -3306,7 +3580,7 @@ output_call_by_value_args(cb_tree x, cb_tree l)
 				str += output(CB_FMT_LLU_F, uval);
 				return str;
 			default:
-				cobc_abort_pr(_("Unexpected size"));
+				cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
 				COBC_ABORT();
 			}
 		}
@@ -3318,7 +3592,7 @@ output_call_by_value_args(cb_tree x, cb_tree l)
 				str += output(CB_FMT_LLD_F, val);
 				return str;
 			}
-			/* Fall through to case 4 */
+		/* Fall through to case 4 */
 		case CB_SIZE_4:
 			str += output("(cob_s32_t)");
 			str += output(CB_FMT_LLD_F, val);
@@ -3336,7 +3610,7 @@ output_call_by_value_args(cb_tree x, cb_tree l)
 			str += output(CB_FMT_LLD_F, val);
 			return str;
 		default:
-			cobc_abort_pr(_("Unexpected size"));
+			cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
 			COBC_ABORT();
 		}
 		return str;
@@ -3471,36 +3745,63 @@ output_bin_field(const cb_tree x, const cob_u32_t id)
 	if(!CB_NUMERIC_LITERAL_P(x)) {
 		return "";
 	}
-	cob_u32_t aflags = 0;
+	cob_u32_t aflags = COB_FLAG_REAL_BINARY;
 	cob_u32_t size;
+	cob_u32_t digits;
 	if(cb_fits_int(x)) {
 		size = 4;
-		aflags = COB_FLAG_HAVE_SIGN;
+		digits = 9;
+		aflags = COB_FLAG_HAVE_SIGN;	/* Drop: COB_FLAG_REAL_BINARY */
 	} else {
 		size = 8;
+		digits = 18;
 		if(CB_LITERAL(x)->sign < 0) {
-			aflags = COB_FLAG_HAVE_SIGN;
+			aflags |= COB_FLAG_HAVE_SIGN;
 		}
 	}
-	cob_u32_t digits;
-	if(size == 8) {
-		digits = 18;
-	} else {
-		digits = 9;
-	}
-	aflags |= COB_FLAG_REAL_BINARY;
+	aflags |= COB_FLAG_CONSTANT;
 	int i = lookup_attr(COB_TYPE_NUMERIC_BINARY, digits, 0, aflags, NULL, 0);
 	return output_line("cob_field\tcontent_fb_%u(%u, content_%u.data, &%s%d);",
 					   id, size, id, CB_PREFIX_ATTR, i);
+}
+
+static COB_INLINE COB_A_INLINE int
+is_literal_or_prototype_ref(cb_tree x)
+{
+	return CB_LITERAL_P(x)
+		   || (CB_REFERENCE_P(x) && CB_PROTOTYPE_P(cb_ref(x)));
+}
+
+static char *
+get_program_id_str(cb_tree id_item)
+{
+	if(CB_LITERAL_P(id_item)) {
+		return (char *) CB_LITERAL(id_item)->data;
+	}
+	/* prototype */
+	return (char *) CB_PROTOTYPE(cb_ref(id_item))->ext_name;
+}
+
+static struct nested_list *
+find_nested_prog_with_id(const char * encoded_id)
+{
+	struct nested_list	* nlp;
+
+	for(nlp = current_program->nested_prog_list; nlp; nlp = nlp->next) {
+		if(!strcmp(encoded_id, nlp->nested_prog->program_id)) {
+			break;
+		}
+	}
+
+	return nlp;
 }
 
 static string
 output_call(cb_call * p)
 {
 	string str("");
-#if	0	/* RXWRXW - Clear params */
-	cob_u32_t parmnum;
-#endif
+	const int name_is_literal_or_prototype
+		= is_literal_or_prototype_ref(p->name);
 
 	char * system_call = NULL;
 	size_t retptr = 0;
@@ -3524,37 +3825,31 @@ output_call(cb_call * p)
 
 	/* System routine entry points */
 	if(p->is_system) {
-#if	0	/* RXWRXW - system */
-		cb_literal * lp = CB_LITERAL(p->name);
-		for(const system_table * psyst = system_tab; psyst->syst_name; psyst++) {
-			if(!strcmp((const char *)lp->data,
-					   (const char *)psyst->syst_name)) {
-				system_call = (char *)psyst->syst_call;
-				dynamic_link = 0;
-				break;
-			}
-		}
-#else
-		cob_u32_t n = p->is_system - 1U;
-		const system_table * psyst = &system_tab[n];
+		const system_table * psyst = &system_tab[p->is_system - 1];
 		system_call = (char *)psyst->syst_call;
 		dynamic_link = 0;
-#endif
 	}
 
-	if(dynamic_link && CB_LITERAL_P(p->name)) {
-		if(cb_flag_static_call ||(p->convention & CB_CONV_STATIC_LINK)) {
+	if(dynamic_link && name_is_literal_or_prototype) {
+		if(cb_flag_static_call || (p->convention & CB_CONV_STATIC_LINK)) {
 			dynamic_link = 0;
 		}
-		cb_literal * lp = CB_LITERAL(p->name);
+
+		const char * name_str;
+		if(CB_LITERAL_P(p->name)) {
+			name_str = (const char *) CB_LITERAL(p->name)->data;
+		} else { /* prototype */
+			name_str = CB_PROTOTYPE(cb_ref(p->name))->ext_name;
+		}
+
 		for(cb_text_list * ctl = cb_static_call_list; ctl; ctl = ctl->next) {
-			if(!strcmp((const char *)lp->data, ctl->text)) {
+			if(!strcmp(name_str, ctl->text)) {
 				dynamic_link = 0;
 				break;
 			}
 		}
 		for(cb_text_list * ctl = cb_early_exit_list; ctl; ctl = ctl->next) {
-			if(!strcmp((const char *)lp->data, ctl->text)) {
+			if(!strcmp(name_str, ctl->text)) {
 				gen_exit_program = 1;
 				break;
 			}
@@ -3630,6 +3925,8 @@ output_call(cb_call * p)
 				str += output_line("\tcob_u64_t     dataull;");
 				str += output_line("\tint           dataint;");
 				str += output_line("} content_%u;", n);
+				str += output_line("char content_%s%u[sizeof(cob_field)];", CB_PREFIX_FIELD, n);
+				str += output_line("char content_%s%u[sizeof(cob_field_attr)];", CB_PREFIX_ATTR, n);
 				str += output_bin_field(x, n);
 			}
 			break;
@@ -3687,16 +3984,12 @@ output_call(cb_call * p)
 					if(cb_fits_int(x)) {
 						str += output("content_%u.dataint = ", n);
 						str += output("%d", cb_get_int(x));
+					} else if(CB_LITERAL(x)->sign >= 0) {
+						str += output("content_%u.dataull = ", n);
+						str += output(CB_FMT_LLU_F, cb_get_u_long_long(x));
 					} else {
-						if(CB_LITERAL(x)->sign >= 0) {
-							str += output("content_%u.dataull = ", n);
-							str += output(CB_FMT_LLU_F,
-										  cb_get_u_long_long(x));
-						} else {
-							str += output("content_%u.datall = ", n);
-							str += output(CB_FMT_LLD_F,
-										  cb_get_long_long(x));
-						}
+						str += output("content_%u.datall = ", n);
+						str += output(CB_FMT_LLD_F, cb_get_long_long(x));
 					}
 					str += output(";\n");
 				} else if(CB_REF_OR_FIELD_P(x) &&
@@ -3707,12 +4000,16 @@ output_call(cb_call * p)
 					str += output_integer(x);
 					str += output(";\n");
 				} else if(x != cb_null && !(CB_CAST_P(x))) {
+					/*
+					 * Create copy of cob_field&attr pointing to local copy of data
+					 * and setting flag COB_FLAG_CONSTANT
+					 */
 					str += output_prefix();
-					str += output("memcpy(content_%u.data, ", n);
-					str += output_data(x);
-					str += output(", ");
-					str += output_size(x);
-					str += output(");\n");
+					str += output("cob_field_constant(");
+					str += output_param(x, -1);
+					str += output(", (cob_field *)content_%s%u ", CB_PREFIX_FIELD, n);
+					str += output(", (cob_field_attr *)content_%s%u ", CB_PREFIX_ATTR, n);
+					str += output(", &content_%u);\n", n);
 				}
 			}
 			break;
@@ -3735,9 +4032,13 @@ output_call(cb_call * p)
 				str += output("&content_fb_%u", n + 1);
 				break;
 			}
-			/* Fall through */
+		/* Fall through */
 		case CB_TAG_FIELD:
 		case CB_TAG_INTRINSIC:
+			if(CB_PURPOSE_INT(l) == CB_CALL_BY_CONTENT) {
+				str += output("(cob_field *)content_%s%u", CB_PREFIX_FIELD, n + 1);
+				break;
+			}
 			str += output_param(x, -1);
 			break;
 		case CB_TAG_REFERENCE:
@@ -3745,6 +4046,10 @@ output_call(cb_call * p)
 			case CB_TAG_LITERAL:
 			case CB_TAG_FIELD:
 			case CB_TAG_INTRINSIC:
+				if(CB_PURPOSE_INT(l) == CB_CALL_BY_CONTENT) {
+					str += output("(cob_field *)content_%s%u", CB_PREFIX_FIELD, n + 1);
+					break;
+				}
 				str += output_param(x, -1);
 				break;
 			default:
@@ -3761,8 +4066,8 @@ output_call(cb_call * p)
 
 #if	0	/* RXWRXW - Clear params */
 	/* Clear extra parameters */
-	if(n > COB_MAX_FIELD_PARAMS - 4) {
-		parmnum = COB_MAX_FIELD_PARAMS - n;
+	if(n > MAX_CALL_FIELD_PARAMS - 4) {
+		parmnum = MAX_CALL_FIELD_PARAMS - n;
 	} else {
 		parmnum = 4;
 	}
@@ -3800,7 +4105,7 @@ output_call(cb_call * p)
 			if(p->convention & CB_CONV_NO_RET_UPD) {
 				str += output("(void)cob_unifunc.funcint");
 			} else {
-				str += output_integer(current_prog->cb_return_code);
+				str += output_integer(current_program->cb_return_code);
 				str += output(" = cob_unifunc.funcint");
 			}
 		}
@@ -3815,7 +4120,7 @@ output_call(cb_call * p)
 #endif
 				str += output(" = (void *)");
 			} else if(!(p->convention & CB_CONV_NO_RET_UPD)) {
-				str += output_integer(current_prog->cb_return_code);
+				str += output_integer(current_program->cb_return_code);
 				str += output(" = ");
 			} else {
 				str += output("(void)");
@@ -3824,48 +4129,41 @@ output_call(cb_call * p)
 		if(system_call) {
 			str += output("%s", system_call);
 		} else {
-			char * callp = cb_encode_program_id((char *)(CB_LITERAL(p->name)->data));
-			/* Check contained progs */
-			nested_list * nlp = current_prog->nested_prog_list;
-			for(; nlp; nlp = nlp->next) {
-				if(!strcmp(callp, nlp->nested_prog->program_id)) {
-					break;
-				}
-			}
+			char * s = get_program_id_str(p->name);
+			char * name_str = cb_encode_program_id(s);
+
+			/* Check contained programs */
+			nested_list * nlp = find_nested_prog_with_id(name_str);
 			if(nlp) {
-				str += output("%s_%d__", callp,
+				str += output("%s_%d__", name_str,
 							  nlp->nested_prog->toplev_count);
 			} else {
-				const char * declared = declpgms.get(callp);
+				const char * declared = declpgms.get(name_str);
 				if(declared == 0) {
 					if(retptr) {
-						output_storage("extern \"C\" void * %s(...);\n", callp);
+						output_storage("extern \"C\" void * %s(...);\n", name_str);
 					} else if(!(p->convention & CB_CONV_NO_RET_UPD)) {
-						output_storage("extern \"C\" int %s(...);\n", callp);
+						output_storage("extern \"C\" int %s(...);\n", name_str);
 					} else {
-						output_storage("extern \"C\" void %s(...);\n", callp);
+						output_storage("extern \"C\" void %s(...);\n", name_str);
 					}
-					declpgms.put(callp, "");
+					declpgms.put(name_str, "");
 				}
-				str += output("%s", callp);
+				str += output("%s", name_str);
 			}
 		}
 	} else {
 		/* Dynamic link */
 		char * callp;
-		if(CB_LITERAL_P(p->name)) {
-			char * s = (char *)(CB_LITERAL(p->name)->data);
+		if(name_is_literal_or_prototype) {
+			char * s = get_program_id_str(p->name);
 			callp = cb_encode_program_id(s);
 			lookup_call(callp);
-			/* Check contained progs */
-			nested_list * nlp = current_prog->nested_prog_list;
-			for(; nlp; nlp = nlp->next) {
-				if(!strcmp(callp, nlp->nested_prog->program_id)) {
-					break;
-				}
-			}
+
 			str += output("if(unlikely(call_%s.funcvoid == NULL || cob_glob_ptr->cob_physical_cancel)) {\n", callp);
 			str += output_prefix();
+
+			nested_list * nlp = find_nested_prog_with_id(callp);
 			if(nlp) {
 				str += output("  call_%s.funcint = (fintptr) %s_%d__;\n",
 							  callp, callp,
@@ -3884,7 +4182,7 @@ output_call(cb_call * p)
 			needs_unifunc = 1;
 			str += output("cob_unifunc.funcvoid = cob_call_field(");
 			str += output_param(p->name, -1);
-			if(current_prog->nested_prog_list) {
+			if(current_program->nested_prog_list) {
 				gen_nested_tab = 1;
 				str += output(", cob_nest_tab, %d, %d);\n",
 							  !p->stmt1, cb_fold_call);
@@ -3927,7 +4225,7 @@ output_call(cb_call * p)
 			}
 		} else {
 			if(!(p->convention & CB_CONV_NO_RET_UPD)) {
-				str += output_integer(current_prog->cb_return_code);
+				str += output_integer(current_program->cb_return_code);
 				str += output(" = ");
 			} else {
 				str += output("(void)");
@@ -3982,13 +4280,13 @@ output_call(cb_call * p)
 
 	str += output(");\n");
 
-	if(p->call_returning) {
+	if(p->call_returning && (!(p->convention & CB_CONV_NO_RET_UPD))) {
 		if(p->call_returning == cb_null) {
 			str += output_prefix();
-			str += output_integer(current_prog->cb_return_code);
+			str += output_integer(current_program->cb_return_code);
 			str += output(" = 0;\n");
 		} else if(!retptr) {
-			str += output_move(current_prog->cb_return_code,
+			str += output_move(current_program->cb_return_code,
 							   p->call_returning);
 #ifdef	COB_NON_ALIGNED
 		} else {
@@ -4023,15 +4321,23 @@ output_call(cb_call * p)
 /* SET ATTRIBUTE */
 
 static string
-output_set_attribute(const cb_field * f,
-					 const int val_on, const int val_off)
+output_set_attribute(const struct cb_field * f, cob_flags_t val_on,
+					 cob_flags_t val_off)
 {
+	/* Extension */
+	/* Prevent specifying HIGHLIGHT and LOWLIGHT simultaneously. */
+	if(val_on & COB_SCREEN_HIGHLIGHT) {
+		val_off |= COB_SCREEN_LOWLIGHT;
+	} else if(val_on & COB_SCREEN_LOWLIGHT) {
+		val_off |= COB_SCREEN_HIGHLIGHT;
+	}
+
 	string str("");
 	if(val_on) {
-		str += output_line("s_%d.attr |= 0x%x;", f->id, val_on);
+		str += output_line("s_%d.attr |= 0x" CB_FMT_LLX ";", f->id, val_on);
 	}
 	if(val_off) {
-		str += output_line("s_%d.attr &= ~0x%x;", f->id, val_off);
+		str += output_line("s_%d.attr &= ~0x" CB_FMT_LLX ";", f->id, val_off);
 	}
 	return str;
 }
@@ -4043,15 +4349,10 @@ output_cancel(cb_cancel * p)
 {
 	string str("");
 
-	if(CB_LITERAL_P(p->target)) {
-		char * s = (char *)(CB_LITERAL(p->target)->data);
+	if(is_literal_or_prototype_ref(p->target)) {
+		char * s = get_program_id_str(p->target);
 		char * callp = cb_encode_program_id(s);
-		nested_list * nlp = current_prog->nested_prog_list;
-		for(; nlp; nlp = nlp->next) {
-			if(!strcmp(callp, nlp->nested_prog->program_id)) {
-				break;
-			}
-		}
+		nested_list * nlp = find_nested_prog_with_id(callp);
 		if(nlp) {
 			str += output_prefix();
 			str += output("(void)%s_%d_(-1", callp,
@@ -4071,7 +4372,7 @@ output_cancel(cb_cancel * p)
 	str += output_prefix();
 	str += output("cob_cancel_field(");
 	str += output_param(p->target, -1);
-	if(current_prog->nested_prog_list) {
+	if(current_program->nested_prog_list) {
 		gen_nested_tab = 1;
 		str += output(", cob_nest_tab");
 	} else {
@@ -4088,7 +4389,7 @@ output_perform_call(cb_label * lb, cb_label * le)
 {
 	string str("");
 
-	if(lb == current_prog->all_procedure || lb->flag_is_debug_sect) {
+	if(lb == current_program->all_procedure || lb->flag_is_debug_sect) {
 		str += output_line("/* DEBUGGING Callback PERFORM %s */",
 						   (const char *)lb->name);
 	} else if(lb == le) {
@@ -4099,9 +4400,8 @@ output_perform_call(cb_label * lb, cb_label * le)
 	}
 
 	/* Save current independent segment pointers */
-	if(current_prog->flag_segments && last_section &&
-			last_section->section_id != lb->section_id)
-	{
+	if(current_program->flag_segments && last_section &&
+			last_section->section_id != lb->section_id) {
 		cb_para_label * p = last_section->para_label;
 		for(; p; p = p->next) {
 			if(p->para->segment > 49 &&
@@ -4113,7 +4413,7 @@ output_perform_call(cb_label * lb, cb_label * le)
 		}
 	}
 	/* Zap target independent labels */
-	if(current_prog->flag_segments && last_segment != lb->segment) {
+	if(current_program->flag_segments && last_segment != lb->segment) {
 		cb_para_label * p;
 		if(lb->flag_section) {
 			p = lb->para_label;
@@ -4132,8 +4432,8 @@ output_perform_call(cb_label * lb, cb_label * le)
 	}
 
 	/* Update debugging name */
-	if(current_prog->flag_gen_debug && lb->flag_real_label &&
-			(current_prog->all_procedure || lb->flag_debugging_mode)) {
+	if(current_program->flag_gen_debug && lb->flag_real_label &&
+			(current_program->all_procedure || lb->flag_debugging_mode)) {
 		str += output_stmt(cb_build_debug(cb_debug_name,
 										  (const char *)lb->name, NULL));
 	}
@@ -4166,15 +4466,13 @@ output_perform_call(cb_label * lb, cb_label * le)
 	str += output_line("_frame_ptr--;");
 	cb_id++;
 
-	if(current_prog->flag_segments && last_section &&
-			last_section->section_id != lb->section_id)
-	{
+	if(current_program->flag_segments && last_section &&
+			last_section->section_id != lb->section_id) {
 		/* Restore current independent segment pointers */
 		cb_para_label * p = last_section->para_label;
 		for(; p; p = p->next) {
 			if(p->para->segment > 49 &&
-					p->para->flag_alter)
-			{
+					p->para->flag_alter) {
 				str += output_line("label_%s%d = save_label_%s%d;",
 								   CB_PREFIX_LABEL, p->para->id,
 								   CB_PREFIX_LABEL, p->para->id);
@@ -4208,10 +4506,11 @@ output_perform_exit(cb_label * l)
 		str += output_line("/* Implicit GLOBAL DECLARATIVE return */");
 		str += output_line("if(entry == %d) {", l->id);
 		str += output_line("  cob_module_leave(module);");
-		if(cb_flag_stack_on_heap || current_prog->flag_recursive) {
+		if(cb_flag_stack_on_heap || current_program->flag_recursive) {
 			str += output_line("  cob_free(_frame_stack);");
 			str += output_line("  cob_free(cob_procedure_params);");
 			str += output_line("  cob_cache_free(module);");
+			str += output_line("  module = NULL;");
 		}
 		str += output_line("  return 0;");
 		str += output_line("}");
@@ -4226,7 +4525,7 @@ output_perform_exit(cb_label * l)
 		str += output_line("/* Implicit PERFORM return */");
 	}
 
-	if(cb_perform_osvs && current_prog->prog_type == CB_PROGRAM_TYPE) {
+	if(cb_perform_osvs && current_program->prog_type == CB_PROGRAM_TYPE) {
 		str += output_line("{");
 		str += output_line
 			   ("  for(cob_frame * _temp_index = _frame_ptr; _temp_index->perform_through; _temp_index--) {");
@@ -4415,7 +4714,7 @@ output_perform_until(cb_perform * p, cb_tree l)
 		str += output_move(CB_PERFORM_VARYING(CB_VALUE(next))->from,
 						   CB_PERFORM_VARYING(CB_VALUE(next))->name);
 		/* DEBUG */
-		if(current_prog->flag_gen_debug) {
+		if(current_program->flag_gen_debug) {
 			cb_field * f = CB_FIELD(cb_ref(CB_PERFORM_VARYING(CB_VALUE(next))->name));
 			if(f->flag_field_debug) {
 				str += output_stmt(cb_build_debug(cb_debug_name,
@@ -4434,7 +4733,7 @@ output_perform_until(cb_perform * p, cb_tree l)
 	}
 
 	/* DEBUG */
-	if(current_prog->flag_gen_debug) {
+	if(current_program->flag_gen_debug) {
 		str += output_cond_debug(v->until);
 	}
 
@@ -4495,7 +4794,7 @@ output_perform(cb_perform * p)
 		if(v->name) {
 			str += output_move(v->from, v->name);
 			/* DEBUG */
-			if(current_prog->flag_gen_debug) {
+			if(current_program->flag_gen_debug) {
 				cb_field * f = CB_FIELD(cb_ref(v->name));
 				if(f->flag_field_debug) {
 					str += output_stmt(cb_build_debug(cb_debug_name,
@@ -4537,11 +4836,11 @@ output_file_error(cb_file * pfile)
 {
 	string str("");
 
-	if(current_prog->flag_gen_debug) {
+	if(current_program->flag_gen_debug) {
 		str += output_stmt(cb_build_debug(cb_debug_contents,
 										  "USE PROCEDURE", NULL));
 	}
-	for(cb_tree l =  current_prog->local_file_list; l; l = CB_CHAIN(l)) {
+	for(cb_tree l =  current_program->local_file_list; l; l = CB_CHAIN(l)) {
 		cb_file * fl = CB_FILE(CB_VALUE(l));
 		if(!strcmp(pfile->name, fl->name)) {
 			str += output_perform_call(fl->handler,
@@ -4549,10 +4848,10 @@ output_file_error(cb_file * pfile)
 			return str;
 		}
 	}
-	for(cb_tree l =  current_prog->global_file_list; l; l = CB_CHAIN(l)) {
+	for(cb_tree l =  current_program->global_file_list; l; l = CB_CHAIN(l)) {
 		cb_file * fl = CB_FILE(CB_VALUE(l));
 		if(!strcmp(pfile->name, fl->name)) {
-			if(fl->handler_prog == current_prog) {
+			if(fl->handler_prog == current_program) {
 				str += output_perform_call(fl->handler,
 										   fl->handler);
 			} else {
@@ -4582,7 +4881,7 @@ output_goto_1(cb_tree x)
 	string str("");
 
 	cb_label * lb = CB_LABEL(cb_ref(x));
-	if(current_prog->flag_segments && last_segment != lb->segment) {
+	if(current_program->flag_segments && last_segment != lb->segment) {
 		/* Zap independent labels */
 		cb_para_label * p;
 		if(lb->flag_section) {
@@ -4602,8 +4901,8 @@ output_goto_1(cb_tree x)
 	}
 
 	/* Check for debugging on procedure */
-	if(current_prog->flag_gen_debug && lb->flag_real_label &&
-			(current_prog->all_procedure || lb->flag_debugging_mode)) {
+	if(current_program->flag_gen_debug && lb->flag_real_label &&
+			(current_program->all_procedure || lb->flag_debugging_mode)) {
 		str += output_stmt(cb_build_debug(cb_debug_name,
 										  (const char *)lb->name, NULL));
 		str += output_move(cb_space, cb_debug_contents);
@@ -4621,7 +4920,7 @@ output_goto(cb_goto * p)
 	int i = 1;
 	if(p->depending) {
 		/* Check for debugging on the DEPENDING item */
-		if(current_prog->flag_gen_debug) {
+		if(current_program->flag_gen_debug) {
 			cb_field * f = CB_FIELD(cb_ref(p->depending));
 			if(f->flag_all_debug) {
 				str += output_stmt(cb_build_debug(cb_debug_name,
@@ -4647,8 +4946,8 @@ output_goto(cb_goto * p)
 	} else if(p->target == NULL) {
 		/* EXIT PROGRAM/FUNCTION */
 		needs_exit_prog = 1;
-		if(cb_flag_implicit_init || current_prog->nested_level ||
-				current_prog->prog_type == CB_FUNCTION_TYPE) {
+		if(cb_flag_implicit_init || current_program->nested_level ||
+				current_program->prog_type == CB_FUNCTION_TYPE) {
 			str += output_line("goto exit_program;");
 		} else {
 			/* Ignore if not a callee */
@@ -4676,15 +4975,15 @@ output_alter(cb_alter * p)
 	str += output_line("label_%s%d = %d;", CB_PREFIX_LABEL, l1->id, l2->id);
 
 	/* Check for debugging on procedure name */
-	if(current_prog->flag_gen_debug && l1->flag_real_label &&
-			(current_prog->all_procedure || l1->flag_debugging_mode)) {
+	if(current_program->flag_gen_debug && l1->flag_real_label &&
+			(current_program->all_procedure || l1->flag_debugging_mode)) {
 		str += output_stmt(cb_build_debug(cb_debug_name,
 										  (const char *)l1->name, NULL));
 		str += output_stmt(cb_build_debug(cb_debug_contents,
 										  (const char *)l2->name, NULL));
-		if(current_prog->all_procedure) {
-			str += output_perform_call(current_prog->all_procedure,
-									   current_prog->all_procedure);
+		if(current_program->all_procedure) {
+			str += output_perform_call(current_program->all_procedure,
+									   current_program->all_procedure);
 		} else if(l1->flag_debugging_mode) {
 			str += output_perform_call(l1->debug_section,
 									   l1->debug_section);
@@ -4695,37 +4994,49 @@ output_alter(cb_alter * p)
 
 /* Output statement */
 
+static int
+get_ec_code_for_handler(const enum cb_handler_type handler_type)
+{
+	switch(handler_type) {
+	case AT_END_HANDLER:
+		return CB_EXCEPTION_CODE(COB_EC_I_O_AT_END);
+	case EOP_HANDLER:
+		return CB_EXCEPTION_CODE(COB_EC_I_O_EOP);
+	case INVALID_KEY_HANDLER:
+		return CB_EXCEPTION_CODE(COB_EC_I_O_INVALID_KEY);
+	default:
+		cobc_err_msg(_("unexpected handler type: %d"), (int) handler_type);
+		COBC_ABORT();
+	}
+}
+
 static string
-output_ferror_stmt(cb_statement * p, const int code)
+output_ferror_stmt(cb_statement * p)
 {
 	string str = output_line("if(unlikely(cob_glob_ptr->cob_exception_code != 0))");
 	str += output_indent("{");
-	if(p->handler1) {
-		if((code & 0x00ff) == 0) {
-			str += output_line("if((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x)",
-							   code);
-		} else {
-			str += output_line("if(cob_glob_ptr->cob_exception_code == 0x%04x)", code);
-		}
+	if(p->ex_handler) {
+		str += output_line("if (cob_glob_ptr->cob_exception_code == 0x%04x)",
+						   get_ec_code_for_handler(p->handler_type));
 		str += output_indent("{");
-		str += output_stmt(p->handler1);
+		str += output_stmt(p->ex_handler);
 		str += output_indent("}");
 		str += output_line("else");
 		str += output_indent("{");
 	}
 	str += output_file_error(CB_FILE(p->file));
 	str += output_indent("}");
-	if(p->handler1) {
+	if(p->ex_handler) {
 		str += output_indent("}");
 	}
-	if(p->handler2 || p->handler3) {
+	if(p->not_ex_handler || p->handler3) {
 		str += output_line("else");
 		str += output_indent("{");
 		if(p->handler3) {
 			str += output_stmt(p->handler3);
 		}
-		if(p->handler2) {
-			str += output_stmt(p->handler2);
+		if(p->not_ex_handler) {
+			str += output_stmt(p->not_ex_handler);
 		}
 		str += output_indent("}");
 	}
@@ -4849,7 +5160,7 @@ output_alter_check(cb_label * lp)
 {
 	output_local("static int\tlabel_%s%d = 0;\n",
 				 CB_PREFIX_LABEL, lp->id);
-	if(current_prog->flag_segments) {
+	if(current_program->flag_segments) {
 		output_local("static int\tsave_label_%s%d = 0;\n",
 					 CB_PREFIX_LABEL, lp->id);
 	}
@@ -4864,6 +5175,75 @@ output_alter_check(cb_label * lp)
 	}
 	str += output_indent("}");
 	str += output_newline();
+	return str;
+}
+
+static string
+output_level_2_ex_condition(const int level_2_ec)
+{
+	return output_line("if(unlikely((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x))",
+					   CB_EXCEPTION_CODE(level_2_ec));
+}
+
+static string
+output_display_accept_ex_condition(const cb_handler_type handler_type)
+{
+	string str = output_line("if(unlikely((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x",
+							 CB_EXCEPTION_CODE(COB_EC_SCREEN));
+
+	int imp_ec = (handler_type == DISPLAY_HANDLER) ? COB_EC_IMP_DISPLAY : /* ACCEPT_HANDLER */ COB_EC_IMP_ACCEPT;
+	str += output_line("               || cob_glob_ptr->cob_exception_code == 0x%04x))", CB_EXCEPTION_CODE(imp_ec));
+	return str;
+}
+
+static string
+output_ec_condition_for_handler(const cb_handler_type handler_type)
+{
+	switch(handler_type) {
+	case DISPLAY_HANDLER:
+		return output_display_accept_ex_condition(DISPLAY_HANDLER);
+
+	case ACCEPT_HANDLER:
+		return output_display_accept_ex_condition(ACCEPT_HANDLER);
+
+	case SIZE_ERROR_HANDLER:
+		return output_level_2_ex_condition(COB_EC_SIZE);
+
+	case OVERFLOW_HANDLER:
+		return output_level_2_ex_condition(COB_EC_OVERFLOW);
+
+	default:
+		cobc_err_msg(_("unexpected handler type: %d"), (int) handler_type);
+		COBC_ABORT();
+	}
+	return "";
+}
+
+static string
+output_handler(cb_statement * stmt)
+{
+	if(stmt->file) {
+		return output_ferror_stmt(stmt);
+	}
+
+	string str("");
+	if(stmt->ex_handler) {
+		str += output_ec_condition_for_handler(stmt->handler_type);
+		str += output_indent("{");
+		str += output_stmt(stmt->ex_handler);
+		str += output_indent("}");
+		if(stmt->not_ex_handler) {
+			str += output_line("else");
+		}
+	}
+	if(stmt->not_ex_handler) {
+		if(stmt->ex_handler == NULL) {
+			str += output_line("if(!cob_glob_ptr->cob_exception_code)");
+		}
+		str += output_indent("{");
+		str += output_stmt(stmt->not_ex_handler);
+		str += output_indent("}");
+	}
 	return str;
 }
 
@@ -4889,7 +5269,7 @@ output_stmt(cb_tree x)
 		return str;
 	}
 	if(unlikely(x == cb_error_node)) {
-		cobc_abort_pr(_("Unexpected error_node parameter"));
+		cobc_err_msg(_("unexpected error_node parameter"));
 		COBC_ABORT();
 	}
 
@@ -4914,7 +5294,7 @@ output_stmt(cb_tree x)
 				/* Output source location as code */
 				str += output_trace_info(x, p);
 			}
-			if(current_prog->flag_gen_debug &&
+			if(current_program->flag_gen_debug &&
 					!p->flag_in_debug) {
 				str += output_prefix();
 				str += output("memcpy(");
@@ -4924,12 +5304,7 @@ output_stmt(cb_tree x)
 			last_line = x->source_line;
 		}
 
-#if	0	/* RXWRXW - Exception */
-		if(p->handler1 || p->handler2 ||
-				(p->file && CB_EXCEPTION_ENABLE(COB_EC_I_O))) {
-#else
-		if(!p->file &&(p->handler1 || p->handler2)) {
-#endif
+		if(!p->file && (p->ex_handler || p->not_ex_handler)) {
 			str += output_line("cob_glob_ptr->cob_exception_code = 0;");
 		}
 
@@ -4942,14 +5317,14 @@ output_stmt(cb_tree x)
 		}
 
 		/* Output field debugging statements */
-		if(current_prog->flag_gen_debug && p->debug_check) {
+		if(current_program->flag_gen_debug && p->debug_check) {
 			str += output_stmt(p->debug_check);
 		}
 
 		/* Special debugging callback for START / DELETE */
 		/* Must be done immediately after I/O and before */
 		/* status check */
-		if(current_prog->flag_gen_debug && p->file && p->flag_callback) {
+		if(current_program->flag_gen_debug && p->file && p->flag_callback) {
 			str += output_line("save_exception_code = cob_glob_ptr->cob_exception_code;");
 			str += output_stmt(cb_build_debug(cb_debug_name,
 											  CB_FILE(p->file)->name, NULL));
@@ -4960,35 +5335,9 @@ output_stmt(cb_tree x)
 			need_save_exception = 1;
 		}
 
-		if(p->handler1 || p->handler2 ||
+		if(p->ex_handler || p->not_ex_handler ||
 				(p->file && CB_EXCEPTION_ENABLE(COB_EC_I_O))) {
-			code = CB_EXCEPTION_CODE(p->handler_id);
-			if(p->file) {
-				str += output_ferror_stmt(p, code);
-			} else {
-				if(p->handler1) {
-					if((code & 0x00ff) == 0) {
-						str += output_line("if(unlikely((cob_glob_ptr->cob_exception_code & 0xff00) == 0x%04x))",
-										   code);
-					} else {
-						str += output_line("if(unlikely(cob_glob_ptr->cob_exception_code == 0x%04x))", code);
-					}
-					str += output_indent("{");
-					str += output_stmt(p->handler1);
-					str += output_indent("}");
-					if(p->handler2) {
-						str += output_line("else");
-					}
-				}
-				if(p->handler2) {
-					if(p->handler1 == NULL) {
-						str += output_line("if(!cob_glob_ptr->cob_exception_code)");
-					}
-					str += output_indent("{");
-					str += output_stmt(p->handler2);
-					str += output_indent("}");
-				}
-			}
+			str += output_handler(p);
 		}
 		break;
 	case CB_TAG_LABEL:
@@ -5013,7 +5362,7 @@ output_stmt(cb_tree x)
 		}
 
 		/* Check for runtime debug flag */
-		if(current_prog->flag_debugging && lp->flag_is_debug_sect) {
+		if(current_program->flag_debugging && lp->flag_is_debug_sect) {
 			str += output_line("if(!cob_debugging_mode)");
 			str += output_line("\tgoto %s%d;",
 							   CB_PREFIX_LABEL, CB_LABEL(lp->exit_label)->id);
@@ -5024,12 +5373,12 @@ output_stmt(cb_tree x)
 		}
 
 		/* Check procedure debugging */
-		if(current_prog->flag_gen_debug && lp->flag_real_label) {
+		if(current_program->flag_gen_debug && lp->flag_real_label) {
 			str += output_stmt(cb_build_debug(cb_debug_name,
 											  (const char *)lp->name, NULL));
-			if(current_prog->all_procedure) {
-				str += output_perform_call(current_prog->all_procedure,
-										   current_prog->all_procedure);
+			if(current_program->all_procedure) {
+				str += output_perform_call(current_program->all_procedure,
+										   current_program->all_procedure);
 			} else if(lp->flag_debugging_mode) {
 				str += output_perform_call(lp->debug_section,
 										   lp->debug_section);
@@ -5057,8 +5406,7 @@ output_stmt(cb_tree x)
 		/* Nonaligned */
 		if(CB_TREE_TAG(ap->val) != CB_TAG_BINARY_OP &&
 				(CB_TREE_CLASS(ap->var) == CB_CLASS_POINTER ||
-				CB_TREE_CLASS(ap->val) == CB_CLASS_POINTER))
-		{
+				 CB_TREE_CLASS(ap->val) == CB_CLASS_POINTER)) {
 			/* Pointer assignment */
 			str += output_indent("{");
 			str += output_line("void *temp_ptr;");
@@ -5077,9 +5425,9 @@ output_stmt(cb_tree x)
 					str += output_data(cp->val);
 					break;
 				case CB_CAST_PROGRAM_POINTER:
-					str += output("cob_call_field(");
+					str += output("(unsigned char *)cob_call_field(");
 					str += output_param(ap->val, -1);
-					if(current_prog->nested_prog_list) {
+					if(current_program->nested_prog_list) {
 						gen_nested_tab = 1;
 						str += output(", cob_nest_tab, 0, %d)",
 									  cb_fold_call);
@@ -5089,8 +5437,8 @@ output_stmt(cb_tree x)
 					}
 					break;
 				default:
-					cobc_abort_pr(_("Unexpected cast type %d"),
-								  cp->cast_type);
+					cobc_err_msg(_("unexpected cast type: %d"),
+								 cp->cast_type);
 					COBC_ABORT();
 				}
 				str += output(";\n");
@@ -5107,8 +5455,8 @@ output_stmt(cb_tree x)
 				/* SET ADDRESS OF var ... */
 				cp = CB_CAST(ap->var);
 				if(cp->cast_type != CB_CAST_ADDRESS) {
-					cobc_abort_pr(_("Unexpected tree type %d"),
-								  cp->cast_type);
+					cobc_err_msg(_("unexpected tree type: %d"),
+								 cp->cast_type);
 					COBC_ABORT();
 				}
 				str += output("*((void **)&");
@@ -5250,7 +5598,7 @@ output_stmt(cb_tree x)
 		}
 		break;
 	case CB_TAG_DEBUG:
-		if(!current_prog->flag_gen_debug) {
+		if(!current_program->flag_gen_debug) {
 			break;
 		}
 		str += output_prefix();
@@ -5303,7 +5651,7 @@ output_stmt(cb_tree x)
 								   CB_DEBUG_CALL(x)->target);
 		break;
 	default:
-		cobc_abort_pr(_("Unexpected tree tag %d"), (int)CB_TREE_TAG(x));
+		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
 	}
 	return str;
@@ -5375,38 +5723,36 @@ static string
 output_file_initialization(cb_file * f)
 {
 	string str("");
+	int nkeys;
+	char key_ptr[64];
 
-	int nkeys = 1;
-	if(f->flag_external) {
-		str += output_line("%s%s = (cob_file *) cob_external_addr(\"%s\", sizeof(cob_file));",
-						   CB_PREFIX_FILE, f->cname, f->cname);
-		str += output_line("if(cob_glob_ptr->cob_initial_external)");
-		str += output_indent("{");
-		if(f->linage) {
-			str += output_line("%s%s->linorkeyptr = (cob_linage *) cob_cache_malloc(sizeof(cob_linage));", CB_PREFIX_FILE, f->cname);
-		}
-	} else {
-		str += output_line("if(!%s%s)", CB_PREFIX_FILE, f->cname);
-		str += output_indent("{");
-		str += output_line("%s%s = (cob_file *) cob_cache_malloc(sizeof(cob_file));", CB_PREFIX_FILE, f->cname);
-		if(f->linage) {
-			str += output_line("%s%s->linorkeyptr = (cob_linage *) cob_cache_malloc(sizeof(cob_linage));", CB_PREFIX_FILE, f->cname);
-		}
-		str += output_indent("}");
-	}
-	/* Output RELATIVE/RECORD KEY's */
 	if(f->organization == COB_ORG_RELATIVE
-			|| f->organization == COB_ORG_INDEXED)
-	{
+			|| f->organization == COB_ORG_INDEXED) {
+		nkeys = 1;
 		for(cb_alt_key * l = f->alt_key_list; l; l = l->next) {
 			nkeys++;
 		}
-		str += output_line("if(!%s%s)", CB_PREFIX_KEYS, f->cname);
+		sprintf(key_ptr, "&%s%s", CB_PREFIX_KEYS, f->cname);
+	} else {
+		nkeys = 0;
+		strcpy(key_ptr, "NULL");
+	}
+	if(f->flag_external) {
+		str += output_line("cob_file_external_addr(\"%s\", &%s%s, %s, %d, %d);",
+						   f->cname,
+						   CB_PREFIX_FILE, f->cname,
+						   key_ptr, nkeys, f->linage ? 1 : 0);
+		str += output_line("if(cob_glob_ptr->cob_initial_external)");
 		str += output_indent("{");
-		str += output_line("%s%s = (cob_file_key *) cob_cache_malloc(sizeof(cob_file_key) * %d);",
-						   CB_PREFIX_KEYS, f->cname, nkeys);
-		str += output_indent("}");
-		nkeys = 1;
+	} else {
+		str += output_line("cob_file_malloc (&%s%s, %s, %d, %d);",
+						   CB_PREFIX_FILE, f->cname,
+						   key_ptr, nkeys, f->linage ? 1 : 0);
+	}
+	nkeys = 1;
+	/* Output RELATIVE/RECORD KEY's */
+	if(f->organization == COB_ORG_RELATIVE
+			|| f->organization == COB_ORG_INDEXED) {
 		str += output_prefix();
 		str += output("%s%s->field = ", CB_PREFIX_KEYS, f->cname);
 		str += output_param(f->key, -1);
@@ -5525,18 +5871,11 @@ output_file_initialization(cb_file * f)
 					   f->organization);
 	str += output_line("%s%s->access_mode = %d;", CB_PREFIX_FILE, f->cname,
 					   f->access_mode);
-	str += output_line("%s%s->lock_mode = %d;", CB_PREFIX_FILE, f->cname,
+	str += output_line("%s%s->lock_mode = " CB_FMT_LLD ";", CB_PREFIX_FILE, f->cname,
 					   f->lock_mode);
 	str += output_line("%s%s->open_mode = 0;", CB_PREFIX_FILE, f->cname);
 	str += output_line("%s%s->flag_optional = %d;", CB_PREFIX_FILE, f->cname,
 					   f->optional);
-	str += output_line("%s%s->last_open_mode = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_operation = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_nonexistent = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_end_of_file = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_begin_of_file = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_first_read = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_read_done = 0;", CB_PREFIX_FILE, f->cname);
 	int features = 0;
 	if(f->file_status) {
 		features |= COB_SELECT_FILE_STATUS;
@@ -5553,8 +5892,6 @@ output_file_initialization(cb_file * f)
 	}
 	str += output_line("%s%s->flag_select_features = %d;", CB_PREFIX_FILE, f->cname,
 					   features);
-	str += output_line("%s%s->flag_needs_nl = 0;", CB_PREFIX_FILE, f->cname);
-	str += output_line("%s%s->flag_needs_top = 0;", CB_PREFIX_FILE, f->cname);
 	str += output_line("%s%s->file_version = %d;", CB_PREFIX_FILE, f->cname,
 					   COB_FILE_VERSION);
 	if(f->flag_external) {
@@ -5586,7 +5923,7 @@ output_screen_definition(cb_field * p)
 }
 
 static string
-output_screen_init(cb_field * p)
+output_screen_init(cb_field * p, cb_field * previous)
 {
 	int type = (p->children ? COB_SCREEN_TYPE_GROUP :
 				p->values ? COB_SCREEN_TYPE_VALUE :
@@ -5599,20 +5936,40 @@ output_screen_init(cb_field * p)
 	} else {
 		str += output("NULL, ");
 	}
+
+	if(previous && previous->level != 1) {
+		str += output("&s_%d, ", previous->id);
+	} else {
+		str += output("NULL, ");
+	}
+
+	str += output_newline();
+	str += output_prefix();
+	str += output("\t\t  ");
+
 	if(type == COB_SCREEN_TYPE_GROUP) {
 		str += output("&s_%d, ", p->children->id);
 	} else {
 		str += output("NULL, ");
 	}
-	str += output_newline();
-	str += output_prefix();
-	str += output("\t\t  ");
+
+	if(p->parent) {
+		str += output("&s_%d, ", p->parent->id);
+	} else {
+		str += output("NULL, ");
+	}
+
 	if(type == COB_SCREEN_TYPE_FIELD) {
 		str += output_param(cb_build_field_reference(p, NULL), -1);
 		str += output(", ");
 	} else {
 		str += output("NULL, ");
 	}
+
+	str += output_newline();
+	str += output_prefix();
+	str += output("\t\t  ");
+
 	if(type == COB_SCREEN_TYPE_VALUE) {
 		/* Need a field reference here */
 		str += output_param(cb_build_field_reference(p, NULL), -1);
@@ -5627,43 +5984,50 @@ output_screen_init(cb_field * p)
 	} else {
 		str += output("NULL, ");
 	}
-	str += output_newline();
-	str += output_prefix();
-	str += output("\t\t  ");
+
 	if(p->screen_column) {
 		str += output_param(p->screen_column, 0);
 		str += output(", ");
 	} else {
 		str += output("NULL, ");
 	}
+
+	str += output_newline();
+	str += output_prefix();
+	str += output("\t\t  ");
+
 	if(p->screen_foreg) {
 		str += output_param(p->screen_foreg, 0);
 		str += output(", ");
 	} else {
 		str += output("NULL, ");
 	}
+
 	if(p->screen_backg) {
 		str += output_param(p->screen_backg, 0);
 		str += output(", ");
 	} else {
 		str += output("NULL, ");
 	}
-	str += output_newline();
-	str += output_prefix();
-	str += output("\t\t  ");
+
 	if(p->screen_prompt) {
 		str += output_param(p->screen_prompt, 0);
 		str += output(", ");
 	} else {
 		str += output("NULL, ");
 	}
-	str += output("%d, %d, 0x%x);\n", type, p->occurs_min, p->screen_flag);
+
+	str += output_newline();
+	str += output_prefix();
+	str += output("\t\t  ");
+
+	str += output("%d, %d, 0x" CB_FMT_LLX ");\n", type, p->occurs_min, p->screen_flag);
 
 	if(p->children) {
-		str += output_screen_init(p->children);
+		str += output_screen_init(p->children, NULL);
 	}
 	if(p->sister) {
-		str += output_screen_init(p->sister);
+		str += output_screen_init(p->sister, p);
 	}
 	return str;
 }
@@ -5788,6 +6152,18 @@ output_class_name_definition(cb_class_name * p)
 }
 
 static string
+output_class_names(cb_program * prog)
+{
+	string str("");
+	if(!prog->nested_level && prog->class_name_list) {
+		str += output("/* Class names */\n");
+		for(cb_tree l = prog->class_name_list; l; l = CB_CHAIN(l)) {
+			str += output_class_name_definition(CB_CLASS_NAME(CB_VALUE(l)));
+		}
+	}
+}
+
+static string
 output_initial_values(cb_field * f)
 {
 	string str("");
@@ -5877,22 +6253,7 @@ output_error_handler(cb_program * prog)
 static string
 output_module_init(cb_program * prog)
 {
-#if	0	/* Module comments */
-	output("/* Next pointer, Parameter list pointer, Module name, */\n");
-	output("/* Module formatted date, Module source, */\n");
-	output("/* Module entry, Module cancel, */\n");
-	output("/* Collating, CRT status, CURSOR, */\n");
-	output("/* Module reference count, Module path, Module active, */\n");
-	output("/* Module date, Module time, */\n");
-	output("/* Module type, Number of USING params, Return type */\n");
-	output("/* Current param count */\n");
-	output("/* Display sign, Decimal point, Currency symbol, */\n");
-	output("/* Numeric separator, File name mapping, Binary truncate, */\n");
-	output("/* Alternate numeric display, Host sign, No physical cancel */\n");
-	output("/* Flag main program, Fold call, Exit after CALL */\n\n");
-#endif
-
-	/* Do not initialize next pointer, parameter list pointer, param count */
+	/* Do not initialize next pointer, parameter list pointer + count */
 	string str = output_line("/* Initialize module structure */");
 	str += output_line("module->module_name = \"%s\";", prog->orig_program_id);
 	str += output_line("module->module_formatted_date = COB_MODULE_FORMATTED_DATE;");
@@ -6029,25 +6390,14 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 	output_local("static unsigned int\tinitialized = 0;\n\n");
 
 	output_local("/* Module structure pointer */\n");
-#if	0	/* RXWRXW - MODULE */
-	if(prog->flag_recursive) {
-		output_local("cob_module\t\t*module;\n\n");
-	} else {
-		output_local("static cob_module\tmodule_data;\n");
-		output_local("static cob_module\t*module = &module_data;\n\n");
-	}
-#else
 	if(prog->flag_recursive) {
 		output_local("cob_module\t\t*module = NULL;\n\n");
 	} else {
 		output_local("static cob_module\t*module = NULL;\n\n");
 	}
-#endif
 
-#if	1	/* RXWRXW - GLOBPTR */
 	output_local("/* Global variable pointer */\n");
 	output_local("cob_global\t\t*cob_glob_ptr;\n\n");
-#endif
 
 	/* Decimal structures */
 	if(prog->decimal_index_max) {
@@ -6106,7 +6456,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 		}
 	}
 
-	/* Files */
+	/* Allocate files */
 	if(prog->file_list) {
 		int i = 0;
 		for(cb_tree l = prog->file_list; l; l = CB_CHAIN(l)) {
@@ -6256,8 +6606,8 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 			}
 			if(!f->bUseName) {
 				if(f->flag_is_returning) {
-					output_local ("cob_s64_t\tret_%s%d = 0;\t// %s\n", CB_PREFIX_BASE, f->id, f->name);
-					output_local ("cob_u8_t\t*%s%d = (unsigned char *)&ret_%s%d;\t// %s\n", CB_PREFIX_BASE, f->id, CB_PREFIX_BASE, f->id, f->name);
+					output_local("cob_s64_t\tret_%s%d = 0;\t// %s\n", CB_PREFIX_BASE, f->id, f->name);
+					output_local("cob_u8_t\t*%s%d = (unsigned char *)&ret_%s%d;\t// %s\n", CB_PREFIX_BASE, f->id, CB_PREFIX_BASE, f->id, f->name);
 				} else {
 					output_local("static cob_u8_t\t*%s%d = NULL;\t// %s\n", CB_PREFIX_BASE, f->id, f->name);
 				}
@@ -6267,8 +6617,8 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 				}
 				if(!f->children) {
 					if(f->flag_is_returning) {
-						output_local ("cob_s64_t\tret_%s = 0;\t// %s\n", f->sName, f->name);
-						output_local ("cob_u8_t\t*%s = (unsigned char *)&ret_%s;\t// %s\n", f->sName, f->sName, f->name);
+						output_local("cob_s64_t\tret_%s = 0;\t// %s\n", f->sName, f->name);
+						output_local("cob_u8_t\t*%s = (unsigned char *)&ret_%s;\t// %s\n", f->sName, f->sName, f->name);
 					} else {
 						if(f->flag_occurs) {
 							f->bUseName = false;
@@ -6341,33 +6691,29 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 		str += output_newline();
 	}
 
-#if	0	/* RXWRXW - MODULEALL */
-	/* Recursive module initialization */
-	if(prog->flag_recursive) {
-		str += output_line("/* Allocate cob_module structure */");
-		str += output_line("module = cob_malloc(sizeof(cob_module));");
-		str += output_newline();
-	}
-#endif
-
-
 	str += output_line("/* Check initialized, check module allocated, */");
 	str += output_line("/* set global pointer, */");
 	str += output_line("/* push module stack, save call parameter count */");
-#if	0	/* RXWRXW - MODULEALL */
-	str += output_line("cob_module_enter(module, &cob_glob_ptr, %d);",
-					   cb_flag_implicit_init);
-#else
 	str += output_line("cob_module_enter(&module, &cob_glob_ptr, %d);",
 					   cb_flag_implicit_init);
-#endif
 	str += output_newline();
+
+	/* Check INITIAL programms being non-recursive */
+	if(CB_EXCEPTION_ENABLE(COB_EC_PROGRAM_RECURSIVE_CALL)
+			&& prog->flag_initial) {
+		str += output_line("/* Check active count */");
+		str += output_line("if (unlikely(module->module_active)) {");
+		/* FIXME: Should raise COB_EC_PROGRAM_RECURSIVE_CALL instead */
+		str += output_line("\tcob_fatal_error (COB_FERROR_RECURSIVE);");
+		str += output_line("}");
+	}
 
 	/* Recursive module initialization */
 	if(prog->flag_recursive) {
 		str += output_module_init(prog);
 	}
 
+	/* Module Parameters */
 	str += output_line("/* Set address of module parameter list */");
 	if(cb_flag_stack_on_heap || prog->flag_recursive) {
 		int i = prog->max_call_param ? prog->max_call_param : 1;
@@ -6410,18 +6756,6 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 	}
 	str += output_newline();
 
-	/* Initialization */
-	str += output_line("/* Initialize program */");
-	str += output_line("if(unlikely(initialized == 0)) {");
-	str += output_line("\tgoto P_initialize;");
-	if(prog->flag_chained) {
-		str += output_line("} else {");
-		str += output_line("\tcob_fatal_error(COB_FERROR_CHAINING);");
-	}
-	str += output_line("}");
-	str += output_line("P_ret_initialize:");
-	str += output_newline();
-
 	/* Set up LOCAL-STORAGE size */
 	if(prog->local_storage) {
 		for(cb_field * f0 = prog->local_storage; f0; f0 = f0->sister) {
@@ -6436,7 +6770,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 				continue;
 			}
 			if(f->flag_item_78) {
-				cobc_abort_pr(_("Unexpected CONSTANT item"));
+				cobc_err_msg(_("unexpected CONSTANT item"));
 				COBC_ABORT();
 			}
 			f->flag_local_storage = 1;
@@ -6462,7 +6796,32 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 			local_mem += ((f->memory_size + COB_MALLOC_ALIGN) &
 						  ~COB_MALLOC_ALIGN);
 		}
+		/* Allocate / initialize LOCAL storage */
+		if(local_mem) {
+			str += output_line("/* Allocate LOCAL storage */");
+			str += output_line("cob_local_ptr = (unsigned char *) cob_malloc(%dU);",
+							   local_mem);
+			if(prog->flag_global_use) {
+				str += output_line("cob_local_save = cob_local_ptr;");
+			}
+		}
+		str += output_newline();
+		str += output_line("/* Initialize LOCAL storage */");
+		str += output_initial_values(prog->local_storage);
+		str += output_newline();
 	}
+
+	/* Initialization */
+	str += output_line("/* Initialize program */");
+	str += output_line("if(unlikely(initialized == 0)) {");
+	str += output_line("\tgoto P_initialize;");
+	if(prog->flag_chained) {
+		str += output_line("} else {");
+		str += output_line("\tcob_fatal_error(COB_FERROR_CHAINING);");
+	}
+	str += output_line("}");
+	str += output_line("P_ret_initialize:");
+	str += output_newline();
 
 	if(prog->decimal_index_max) {
 		str += output_line("/* Allocate decimal numbers */");
@@ -6521,7 +6880,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 		str += output_newline();
 	}
 
-	/* Initialize W/S unconditionally when INITIAL program */
+	/* Initialize W/S and files unconditionally when INITIAL program */
 	if(prog->flag_initial) {
 		str += output_line("/* Initalize INITIAL program WORKING-STORAGE */");
 		str += output_initial_values(prog->working_storage);
@@ -6532,116 +6891,107 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 		str += output_newline();
 	}
 
-	/* Allocate / initialize LOCAL storage */
-	if(prog->local_storage) {
-		if(local_mem) {
-			str += output_line("/* Allocate LOCAL storage */");
-			str += output_line("cob_local_ptr = (unsigned char *) cob_malloc(%dU);",
-							   local_mem);
-			if(prog->flag_global_use) {
-				str += output_line("cob_local_save = cob_local_ptr;");
-			}
-		}
-		str += output_newline();
-		str += output_line("/* Initialialize LOCAL storage */");
-		str += output_initial_values(prog->local_storage);
-		str += output_newline();
-	}
-
 	/* Call parameters */
 	if(cb_code_field(prog->cb_call_params)->count) {
-		str += output_line("/* Set NUMBER-OF-CALL-PARAMETERS */");
+		str += output_line("/* Set NUMBER-OF-CALL-PARAMETERS (independant from LINKAGE) */");
 		str += output_prefix();
 		str += output_integer(prog->cb_call_params);
 		str += output(" = cob_glob_ptr->cob_call_params;\n");
 		str += output_newline();
 	}
 
-#if	1	/* RXWRXW - Save call params */
+#if	0	/* RXWRXW - Save call params */
 	str += output_line("/* Save number of call params */");
 	str += output_line("module->module_num_params = cob_glob_ptr->cob_call_params;");
 	str += output_newline();
 #endif
+	if(!cb_sticky_linkage && !prog->flag_chained
+#if	0	/* RXWRXW USERFUNC */
+			&& prog->prog_type != CB_FUNCTION_TYPE
+#endif
+			&& prog->num_proc_params) {
+		str += output_line("/* Set not passed parameter pointers to NULL */");
+		str += output_line("switch(cob_call_params) {");
+		int i = 0;
+		for(cb_tree l = parameter_list; l; l = CB_CHAIN(l)) {
+			cb_field * f = cb_code_field(CB_VALUE(l));
+			string fname = get_parm_name(f);
+			str += output_line("case %d:", i++);
+			str += output_line("\t%s = NULL;", fname.c_str());
+		}
+		str += output_line("default:\n\tbreak;");
+		str += output_line("}");
+		str += output_newline();
+	}
 
 	/* Set up ANY length items */
 	if(anyseen) {
 		str += output_line("/* Initialize ANY LENGTH parameters */");
-	}
-	int i = 0;
-	for(cb_tree l = parameter_list; l; l = CB_CHAIN(l), i++) {
-		cb_field * f = cb_code_field(CB_VALUE(l));
-		if(f->flag_any_length) {
-			/* Force field cache */
-			FILE * savetarget = output_target;
-			output_target = NULL;
-			str += output_param(CB_VALUE(l), i);
-			output_target = savetarget;
+		int i = 0;
+		for(cb_tree l = parameter_list; l; l = CB_CHAIN(l), i++) {
+			cb_field * f = cb_code_field(CB_VALUE(l));
+			if(f->flag_any_length) {
+				/* Force field cache */
+				FILE * savetarget = output_target;
+				output_target = NULL;
+				str += output_param(CB_VALUE(l), i);
+				output_target = savetarget;
 
-			str += output_line("if(cob_glob_ptr->cob_call_params > %d && %s%d%s)",
-							   i, "module->next->cob_procedure_params[",
-							   i, "]");
-			if(f->flag_any_numeric) {
-				/* Copy complete structure */
-				str += output_line("  %s%d = *(%s%d%s);",
-								   CB_PREFIX_FIELD, f->id,
-								   "module->next->cob_procedure_params[",
+				str += output_line("if(cob_call_params > %d && %s%d%s)",
+								   i, "module->next->cob_procedure_params[",
 								   i, "]");
-			} else {
-				/* Copy size */
-				str += output_line("  %s%d.size = %s%d%s;",
-								   CB_PREFIX_FIELD, f->id,
-								   "module->next->cob_procedure_params[",
-								   i, "]->size");
-			}
-			str += output_prefix();
-			str += output("%s%d.data = ", CB_PREFIX_FIELD, f->id);
-			str += output_data(CB_VALUE(l));
-			str += output(";\n");
+				if(f->flag_any_numeric) {
+					/* Copy complete structure */
+					str += output_line("  %s%d = *(%s%d%s);",
+									   CB_PREFIX_FIELD, f->id,
+									   "module->next->cob_procedure_params[",
+									   i, "]");
+				} else {
+					/* Copy size */
+					str += output_line("  %s%d.size = %s%d%s;",
+									   CB_PREFIX_FIELD, f->id,
+									   "module->next->cob_procedure_params[",
+									   i, "]->size");
+				}
+				str += output_prefix();
+				str += output("%s%d.data = ", CB_PREFIX_FIELD, f->id);
+				str += output_data(CB_VALUE(l));
+				str += output(";\n");
 #if	0	/* RXWRXW - Num check */
-			if(CB_EXCEPTION_ENABLE(COB_EC_DATA_INCOMPATIBLE) &&
-					f->flag_any_numeric &&
-					(f->usage == CB_USAGE_DISPLAY ||
-					 f->usage == CB_USAGE_PACKED ||
-					 f->usage == CB_USAGE_COMP_6)) {
-				str += output_line("cob_check_numeric(&%s%d, %s%d);",
-								   CB_PREFIX_FIELD
-								   f->id,
-								   CB_PREFIX_STRING,
-								   lookup_string(f->name));
-			}
+				if(CB_EXCEPTION_ENABLE(COB_EC_DATA_INCOMPATIBLE) &&
+						f->flag_any_numeric &&
+						(f->usage == CB_USAGE_DISPLAY ||
+						 f->usage == CB_USAGE_PACKED ||
+						 f->usage == CB_USAGE_COMP_6)) {
+					str += output_line("cob_check_numeric(&%s%d, %s%d);",
+									   CB_PREFIX_FIELD
+									   f->id,
+									   CB_PREFIX_STRING,
+									   lookup_string(f->name));
+				}
 #endif
+			}
 		}
-	}
-	if(anyseen) {
 		str += output_newline();
 	}
 
-	if(prog->prog_type == CB_FUNCTION_TYPE) {
-		bool seen = false;
-		for(cb_field * f = prog->working_storage; f; f = f->sister) {
-			if(f == cb_code_field(prog->returning)) {
-				seen = true;
-				break;
-			}
-		}
-		if(!seen) {
-			str += output_line ("// Initialize RETURNING item in LOCAL-STORAGE");
-			str += output_prefix();
-			str += output("*((void**)& ");
-			str += output_data(prog->returning);
-			str += output(") = cob_malloc(");
-			str += output_size(prog->returning);
-			str += output("U);\n\n");
-		}
+	if(prog->prog_type == CB_FUNCTION_TYPE &&
+			CB_FIELD_PTR(prog->returning)->storage == CB_STORAGE_LINKAGE) {
+		str += output_line("/* Storage for returning item */");
+		str += output_prefix();
+		str += output("*((void**)& ");
+		str += output_data(prog->returning);
+		str += output(") = cob_malloc(");
+		str += output_size(prog->returning);
+		str += output("U);\n\n");
 	}
 
 	if(prog->flag_global_use && parameter_list) {
 		str += output_line("/* Parameter save */");
 		for(cb_tree l = parameter_list; l; l = CB_CHAIN(l)) {
 			cb_field * f = cb_code_field(CB_VALUE(l));
-			str += output_line("save_%s%d = %s%d;",
-							   CB_PREFIX_BASE, f->id,
-							   CB_PREFIX_BASE, f->id);
+			string fname = get_parm_name(f);
+			str += output_line("save_%s = %s;", fname.c_str(), fname.c_str());
 		}
 		str += output_newline();
 	}
@@ -6734,7 +7084,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 			str += output_line("if(cob_local_ptr) {");
 			str += output_line("\tcob_free(cob_local_ptr);");
 			str += output_line("\tcob_local_ptr = NULL;");
-			if(current_prog->flag_global_use) {
+			if(current_program->flag_global_use) {
 				str += output_line("\tcob_local_save = NULL;");
 			}
 			str += output_line("}");
@@ -6784,11 +7134,8 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 
 	if(prog->flag_recursive) {
 		str += output_line("/* Free cob_module structure */");
-#if	1	/* RXWRXW Mod */
 		str += output_line("cob_cache_free(module);");
-#else
-		str += output_line("cob_free(module);");
-#endif
+		str += output_line("module = NULL;");
 		str += output_newline();
 	}
 
@@ -6868,7 +7215,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 				continue;
 			}
 			if(f->flag_item_78) {
-				cobc_abort_pr(_("Unexpected CONSTANT item"));
+				cobc_err_msg(_("unexpected CONSTANT item"));
 				COBC_ABORT();
 			}
 			if(f->flag_is_global) {
@@ -6985,7 +7332,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 		str += output_line("/* Initialize SCREEN items */");
 		/* Initialize items with VALUE */
 		str += output_initial_values(prog->screen_storage);
-		str += output_screen_init(prog->screen_storage);
+		str += output_screen_init(prog->screen_storage, NULL);
 		str += output_newline();
 	}
 
@@ -7034,21 +7381,15 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 			str += output_line("cob_close(%s%s, NULL, COB_CLOSE_NORMAL, 1);",
 							   CB_PREFIX_FILE, fl->cname);
 			if(!fl->flag_external) {
-				if(fl->linage) {
-					str += output_line("cob_cache_free(%s%s->linorkeyptr);",
-									   CB_PREFIX_FILE, fl->cname);
+				char key_ptr[64];
+				if(fl->organization == COB_ORG_RELATIVE
+						|| fl->organization == COB_ORG_INDEXED) {
+					sprintf(key_ptr, "&%s%s", CB_PREFIX_KEYS, fl->cname);
+				} else {
+					strcpy(key_ptr, "NULL");
 				}
-				if(fl->organization == COB_ORG_RELATIVE ||
-						fl->organization == COB_ORG_INDEXED) {
-					str += output_line("cob_cache_free(%s%s);",
-									   CB_PREFIX_KEYS, fl->cname);
-					str += output_line("%s%s = NULL;",
-									   CB_PREFIX_KEYS, fl->cname);
-				}
-				str += output_line("cob_cache_free(%s%s);",
-								   CB_PREFIX_FILE, fl->cname);
-				str += output_line("%s%s = NULL;",
-								   CB_PREFIX_FILE, fl->cname);
+				output_line("cob_file_free(&%s%s, %s);", CB_PREFIX_FILE, fl->cname, key_ptr);
+
 			}
 		} else {
 			str += output_line("cob_cache_free(%s%s);",
@@ -7101,16 +7442,14 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 	}
 
 	/* Clear RETURN-CODE */
-	if(!prog->nested_level && !prog->flag_initial) {
+	if(!prog->nested_level) {
 		str += output_prefix();
-		str += output_integer(current_prog->cb_return_code);
+		str += output_integer(current_program->cb_return_code);
 		str += output(" = 0;\n");
 	}
 
-#if	1	/* RXWRXW Mod */
 	str += output_line("cob_cache_free(module);");
 	str += output_line("module = NULL;");
-#endif
 	str += output_newline();
 
 cancel_end:
@@ -7128,274 +7467,156 @@ prog_cancel_end:
 	return str;
 }
 
+/* Output the entry function for a COBOL function. */
 static string
-output_entry_function(cb_program * prog, cb_tree entry,
-					  cb_tree parameter_list, bool gencode)
+output_function_entry_function(struct cb_program * prog, const int gencode,
+							   const char * entry_name, cb_tree using_list)
 {
-	string	str("");
-
-	const char * entry_name = CB_LABEL(CB_PURPOSE(entry))->name;
-	cb_tree using_list = CB_VALUE(entry);
-
+	string str("");
 	if(gencode) {
-		str += output("/* ENTRY '%s' */\n\n", entry_name);
+		str += output("cob_field *\n");
+	} else {
+		str += output("cob_field\t\t*");
 	}
-
-	if(!gencode && !prog->nested_level) {
-		str += output("extern \"C\" ");
-#if	defined(_WIN32) || defined(__CYGWIN__)
-		str += output("__declspec(dllexport) ");
-#endif
+	str += output("%s(", entry_name);
+	if(!gencode) {
+		str += output("cob_field **, const int");
+	} else {
+		str += output("cob_field ** cob_fret, const int cob_pam");
 	}
+	cob_u32_t parmnum = 0;
+	if(using_list) {
+		str += output(", ");
+		for(cb_tree l = using_list; l; l = CB_CHAIN(l), ++parmnum) {
+			if(!gencode) {
+				str += output("cob_field * ");
+			} else {
+				str += output("cob_field * f%u", parmnum);
+			}
+			if(CB_CHAIN(l)) {
+				str += output(", ");
+			}
+		}
+	}
+	if(gencode) {
+		str += output(")\n");
+	} else {
+		/* Finish prototype and return */
+		str += output(");\n");
+		return str;
+	}
+	str += output("{\n");
+	str += output("  struct cob_func_loc\t*floc;\n\n");
+	str += output("  /* Save environment */\n");
+	str += output("  floc = cob_save_func(cob_fret, cob_pam, %u", parmnum);
+	for(cob_u32_t n = 0; n < parmnum; ++n) {
+		str += output(", f%u", n);
+	}
+	str += output(");\n");
+	str += output("cob_call_params = cob_get_global_ptr()->cob_call_params;\n");
 
-	if(unlikely(prog->prog_type == CB_FUNCTION_TYPE)) {
-		if(gencode) {
-			str += output("cob_field *\n");
-		} else {
-			str += output("cob_field\t\t*");
-		}
-		str += output("%s(", entry_name);
-		if(!gencode) {
-			str += output("cob_field **, const int");
-		} else {
-			str += output("cob_field ** cob_fret, const int cob_pam");
-		}
-		cob_u32_t parmnum = 0;
-		if(using_list) {
-			str += output(", ");
-			for(cb_tree l = using_list; l; l = CB_CHAIN(l), ++parmnum) {
-				if(!gencode) {
-					str += output("cob_field * ");
-				} else {
-					str += output("cob_field * f%u", parmnum);
-				}
-				if(CB_CHAIN(l)) {
-					str += output(", ");
-				}
-			}
-		}
-		if(gencode) {
-			str += output(")\n");
-		} else {
-			/* Finish prototype and return */
-			str += output(");\n");
-			return str;
-		}
-		str += output("{\n");
-		str += output("  struct cob_func_loc\t*floc;\n\n");
-		str += output("  /* Save environment */\n");
-		str += output("  floc = cob_save_func(cob_fret, cob_pam, %u", parmnum);
-#if	0	/* RXWRXW - UFUNC */
-		if (!using_list) {
-			str += output("  floc->ret_fld = %s_(0);\n", prog->program_id);
-			str += output("  **cob_fret = *floc->ret_fld;\n");
-			str += output("  cob_restore_func(floc);\n");
-			str += output("  return *cob_fret;\n}\n\n");
-			return str;
-		}
-		str += output("  switch(cob_pam) {\n");
-		for(cob_u32_t n = 0; n <= parmnum; ++n) {
-			if(!n) {
-				str += output("  case 0:\n");
-				str += output("    break;\n");
-				continue;
-			}
-			str += output("  case %u:\n", n);
-			if(n == parmnum) {
-				str += output("  default:\n");
-			}
-			for(cob_u32_t n2 = 0; n2 < n; ++n2) {
-				str += output("    if(f%u) {\n", n2);
-				str += output("      floc->func_params[%u] = f%u;\n",
-							  n2, n2);
-				str += output("      floc->data[%u] = f%u->data;\n",
-							  n2, n2);
-				str += output("    }\n");
-				str += output("    break;\n");
-			}
-		}
-		str += output("  }\n");
-#else
+	str += output("  floc->ret_fld = %s_(0", prog->program_id);
+	if(parmnum != 0) {
+		str += output(", ");
 		for(cob_u32_t n = 0; n < parmnum; ++n) {
-			str += output(", f%u", n);
-		}
-		str += output(");\n");
-#endif
-
-		str += output("  floc->ret_fld = %s_(0", prog->program_id);
-		if (parmnum != 0) {
-			str += output(", ");
-			for(cob_u32_t n = 0; n < parmnum; ++n) {
-				str += output("floc->data[%u]", n);
-				if (n != parmnum - 1) {
-					str += output(", ");
-				}
+			str += output("floc->data[%u]", n);
+			if(n != parmnum - 1) {
+				str += output(", ");
 			}
 		}
-		str += output(");\n");
-		str += output("  **cob_fret = *floc->ret_fld;\n");
-		str += output("  /* Restore environment */\n");
-		str += output("  cob_restore_func(floc);\n");
-		str += output("  return *cob_fret;\n}\n\n");
-		return str;
 	}
-	if(prog->nested_level) {
-		if(gencode) {
-			str += output("static int\n");
-		} else {
-			str += output("static int\t\t");
-		}
-	} else {
-		if(prog->flag_main && !prog->flag_recursive) {
-			str += output("static ");
-		}
-		if(gencode) {
-			str += output("int\n");
-		} else {
-			str += output("int\t\t\t");
-		}
-	}
+	str += output(");\n");
+	str += output("  **cob_fret = *floc->ret_fld;\n");
+	str += output("  /* Restore environment */\n");
+	str += output("  cob_restore_func(floc);\n");
+	str += output("  return *cob_fret;\n}\n\n");
+	return str;
+}
 
-	if(prog->nested_level) {
-		str += output("%s_%d__(", entry_name, prog->toplev_count);
-	} else {
-		str += output("%s(", entry_name);
+/* Returns NULL if it could not deduce the parameter type. */
+static const char *
+try_get_by_value_parameter_type(const cb_field * f, cb_tree l)
+{
+	if(f->usage == CB_USAGE_FLOAT || f->usage == CB_USAGE_DOUBLE) {
+		return "double";
 	}
-	if(prog->flag_chained) {
-		using_list = NULL;
-		parameter_list = NULL;
+	if(f->usage == CB_USAGE_LONG_DOUBLE) {
+		return "long double";
 	}
-	if(!gencode && !using_list) {
-		str += output("void);\n");
-		return str;
+	if(f->usage == CB_USAGE_FP_BIN32) {
+		return "cob_u32_t";
 	}
+	if(f->usage == CB_USAGE_FP_BIN64 || f->usage == CB_USAGE_FP_DEC64 ||
+			f->usage == CB_USAGE_PACKED ||
+			(f->usage == CB_USAGE_DISPLAY && CB_TREE_CLASS(CB_VALUE(l)) == CB_CLASS_NUMERIC) ||
+			f->usage == CB_USAGE_COMP_6) {
+		return "cob_u64_t";
+	}
+	if(f->usage == CB_USAGE_FP_BIN128 ||
+			f->usage == CB_USAGE_FP_DEC128) {
+		return "cob_fp_128";
+	}
+	if(CB_TREE_CLASS(CB_VALUE(l)) == CB_CLASS_NUMERIC) {
+		int sizes = CB_SIZES_INT(l);
+		if(sizes == CB_SIZE_AUTO) {
+			if(f->size > 4) {
+				sizes = CB_SIZE_8;
+			} else if(f->size > 2) {
+				sizes = CB_SIZE_4;
+			} else if(f->size > 1) {
+				sizes = CB_SIZE_2;
+			} else {
+				sizes = CB_SIZE_1;
+			}
+		}
+		bool is_unsigned = (CB_SIZES(l) & CB_SIZE_UNSIGNED) != 0;
+		switch(sizes) {
+		case CB_SIZE_1:
+			if(is_unsigned) {
+				return "cob_u8_t";
+			}
+			return "cob_c8_t";
+		case CB_SIZE_2:
+			if(is_unsigned) {
+				return "cob_u16_t";
+			}
+			return "cob_s16_t";
+		case CB_SIZE_4:
+			if(is_unsigned) {
+				return "cob_u32_t";
+			}
+			return "cob_s32_t";
+		case CB_SIZE_8:
+			if(is_unsigned) {
+				return "cob_u64_t";
+			}
+			return "cob_s64_t";
+		default:
+			break;
+		}
+	}
+	return NULL;
+}
 
-	string	s_type[COB_MAX_FIELD_PARAMS];
-	string	sticky_ids[COB_MAX_FIELD_PARAMS];
-	char	sticky_nonp[COB_MAX_FIELD_PARAMS];
-	memset(sticky_nonp, 0, sizeof(sticky_nonp));
-
+static string
+output_program_entry_function_parameters(cb_tree using_list, const int gencode,
+		string * s_type)
+{
+	string str("");
 	cob_u32_t n = 0;
 	for(cb_tree l = using_list; l; l = CB_CHAIN(l), ++n) {
 		cb_field * f = cb_code_field(CB_VALUE(l));
 		string fname = get_parm_name(f);
 		switch(CB_PURPOSE_INT(l)) {
-		case CB_CALL_BY_VALUE:
-			if(f->usage == CB_USAGE_FLOAT || f->usage == CB_USAGE_DOUBLE) {
+		case CB_CALL_BY_VALUE: {
+			const char * type = try_get_by_value_parameter_type(f, l);
+			if(type) {
 				if(gencode) {
-					str += output("double %s", fname.c_str());
+					str += output("%s %s", type, fname.c_str());
 				} else {
-					str += output("double");
+					str += output("%s", type);
 				}
-				if(cb_sticky_linkage) {
-					s_type[n] = "";
-				} else {
-					s_type[n] = "(cob_u8_ptr)&";
-				}
-				break;
-			} else if(f->usage == CB_USAGE_LONG_DOUBLE) {
-				if(gencode) {
-					str += output("long double %s", fname.c_str());
-				} else {
-					str += output("long double");
-				}
-				if(cb_sticky_linkage) {
-					s_type[n] = "";
-				} else {
-					s_type[n] = "(cob_u8_ptr)&";
-				}
-				break;
-			} else if(f->usage == CB_USAGE_FP_BIN32) {
-				if(gencode) {
-					str += output("cob_u32_t %s", fname.c_str());
-				} else {
-					str += output("cob_u32_t");
-				}
-				if(cb_sticky_linkage) {
-					s_type[n] = "";
-				} else {
-					s_type[n] = "(cob_u8_ptr)&";
-				}
-				break;
-			} else if(f->usage == CB_USAGE_FP_BIN64 || f->usage == CB_USAGE_FP_DEC64 ||
-					  f->usage == CB_USAGE_PACKED ||
-					  (f->usage == CB_USAGE_DISPLAY && CB_TREE_CLASS(CB_VALUE(l)) == CB_CLASS_NUMERIC) ||
-					  f->usage == CB_USAGE_COMP_6) {
-				if(gencode) {
-					str += output("cob_u64_t %s", fname.c_str());
-				} else {
-					str += output("cob_u64_t");
-				}
-				if(cb_sticky_linkage) {
-					s_type[n] = "";
-				} else {
-					s_type[n] = "(cob_u8_ptr)&";
-				}
-				break;
-			} else if(f->usage == CB_USAGE_FP_BIN128 ||
-					  f->usage == CB_USAGE_FP_DEC128) {
-				if(gencode) {
-					str += output("cob_fp_128 %s", fname.c_str());
-				} else {
-					str += output("cob_fp_128");
-				}
-				if(cb_sticky_linkage) {
-					s_type[n] = "";
-				} else {
-					s_type[n] = "(cob_u8_ptr)&";
-				}
-				break;
-			} else if(CB_TREE_CLASS(CB_VALUE(l)) == CB_CLASS_NUMERIC) {
-				const char * s = "";
-				int sizes = CB_SIZES_INT(l);
-				if(sizes == CB_SIZE_AUTO) {
-					if(f->size > 4) {
-						sizes = CB_SIZE_8;
-					} else if(f->size > 2) {
-						sizes = CB_SIZE_4;
-					} else if(f->size > 1) {
-						sizes = CB_SIZE_2;
-					} else {
-						sizes = CB_SIZE_1;
-					}
-				}
-				switch(sizes) {
-				case CB_SIZE_1:
-					if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-						s = "cob_u8_t";
-					} else {
-						s = "cob_c8_t";
-					}
-					break;
-				case CB_SIZE_2:
-					if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-						s = "cob_u16_t";
-					} else {
-						s = "cob_s16_t";
-					}
-					break;
-				case CB_SIZE_4:
-					if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-						s = "cob_u32_t";
-					} else {
-						s = "cob_s32_t";
-					}
-					break;
-				case CB_SIZE_8:
-					if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-						s = "cob_u64_t";
-					} else {
-						s = "cob_s64_t";
-					}
-					break;
-				default:
-					break;
-				}
-				if(gencode) {
-					str += output("%s %s", s, fname.c_str());
-				} else {
-					str += output("%s", s);
-				}
+
 				if(cb_sticky_linkage) {
 					s_type[n] = "";
 				} else {
@@ -7403,10 +7624,11 @@ output_entry_function(cb_program * prog, cb_tree entry,
 				}
 				break;
 			}
-			/* Fall through */
+		}
+		/* Fall through */
 		case CB_CALL_BY_REFERENCE:
 		case CB_CALL_BY_CONTENT:
-			if(!f->bUseName ||(!f->parent && !f->children)) {
+			if(!f->bUseName || (!f->parent && !f->children)) {
 				if(gencode) {
 					str += output("cob_u8_t *%s", fname.c_str());
 				} else {
@@ -7431,6 +7653,92 @@ output_entry_function(cb_program * prog, cb_tree entry,
 			str += output(", ");
 		}
 	}
+	return str;
+}
+
+static string
+output_entry_function(cb_program * prog, cb_tree entry,
+					  cb_tree parameter_list, bool gencode)
+{
+	string	str("");
+
+	const char * entry_name = CB_LABEL(CB_PURPOSE(entry))->name;
+	cb_tree using_list = CB_VALUE(CB_VALUE(entry));
+
+	if(gencode) {
+		str += output("/* ENTRY '%s' */\n\n", entry_name);
+	}
+
+	if(!gencode && !prog->nested_level) {
+		str += output("extern \"C\" ");
+#if	defined(_WIN32) || defined(__CYGWIN__)
+		str += output("__declspec(dllexport) ");
+#endif
+	}
+
+	if(unlikely(prog->prog_type == CB_FUNCTION_TYPE)) {
+		str += output_function_entry_function(prog, gencode, entry_name, using_list);
+		return str;
+	}
+
+	/* entry convention */
+	int entry_convention = 0;
+	cb_tree l = CB_PURPOSE(CB_VALUE(entry));
+	if(!l || !(CB_INTEGER(l) || CB_NUMERIC_LITERAL_P(l))) {
+		/* not translated as it is a fatal abort, remove the check later */
+		cobc_err_msg("Missing /wrong internal entry convention!");
+		cobc_err_msg(_("Please report this!"));
+		COBC_ABORT();
+	} else if(CB_INTEGER_P(l)) {
+		entry_convention = CB_INTEGER(l)->val;
+	} else if(CB_NUMERIC_LITERAL_P(l)) {
+		entry_convention = cb_get_int(l);
+	}
+
+	/* Output return type. */
+	if((prog->nested_level && !prog->flag_void)
+			|| (prog->flag_main && !prog->flag_recursive
+				&& !strcmp(prog->program_id, entry_name))) {
+		str += output("static ");
+	}
+	if(prog->flag_void) {
+		str += output("void");
+	} else {
+		str += output("int");
+	}
+	if(entry_convention & CB_CONV_STDCALL) {
+		str += output(" __stdcall");
+	}
+	if(gencode) {
+		str += output("\n");
+	} else {
+		str += output("\t\t");
+	}
+
+	/* Output function name */
+	if(prog->nested_level) {
+		str += output("%s_%d__(", entry_name, prog->toplev_count);
+	} else {
+		str += output("%s(", entry_name);
+	}
+
+	/* Output parameter list */
+	if(prog->flag_chained) {
+		using_list = NULL;
+		parameter_list = NULL;
+	}
+
+	if(!gencode && !using_list) {
+		str += output("void);\n");
+		return str;
+	}
+
+	string	s_type[MAX_CALL_FIELD_PARAMS];
+	string	sticky_ids[MAX_CALL_FIELD_PARAMS];
+	char	sticky_nonp[MAX_CALL_FIELD_PARAMS];
+	memset(sticky_nonp, 0, sizeof(sticky_nonp));
+
+	str += output_program_entry_function_parameters(using_list, gencode, s_type);
 
 	if(gencode) {
 		str += output(")\n");
@@ -7442,110 +7750,6 @@ output_entry_function(cb_program * prog, cb_tree entry,
 
 	str += output("{\n");
 
-	/* We have to cater for sticky-linkage here at the entry point site */
-	/* Doing it in the internal function is too late as we */
-	/* then do not have the information as to possible ENTRY clauses */
-
-	cob_u32_t parmnum = 0;
-	/* Sticky linkage parameters */
-	if(cb_sticky_linkage && using_list) {
-		for(cb_tree l = using_list; l; l = CB_CHAIN(l), parmnum++) {
-			cb_field * f = cb_code_field(CB_VALUE(l));
-			sticky_ids[parmnum] = get_parm_name(f);
-			switch(CB_PURPOSE_INT(l)) {
-			case CB_CALL_BY_VALUE:
-				{
-					const char * s = NULL;
-					const char * s2 = "0";
-					if(f->usage == CB_USAGE_FLOAT) {
-						s = "float";
-					} else if(f->usage == CB_USAGE_DOUBLE) {
-						s = "double";
-					} else if(f->usage == CB_USAGE_LONG_DOUBLE) {
-						s = "long double";
-					} else if(f->usage == CB_USAGE_FP_BIN32) {
-						s = "cob_u32_t";
-					} else if(f->usage == CB_USAGE_FP_BIN64 ||
-							  f->usage == CB_USAGE_FP_DEC64) {
-						s = "cob_u64_t";
-					} else if(f->usage == CB_USAGE_FP_BIN128 ||
-							  f->usage == CB_USAGE_FP_DEC128) {
-						s = "cob_fp_128";
-						s2 = "{{0, 0}}";
-					} else if(CB_TREE_CLASS(CB_VALUE(l)) == CB_CLASS_NUMERIC) {
-						int sizes = CB_SIZES_INT(l);
-						if(sizes == CB_SIZE_AUTO) {
-							if(f->size > 4) {
-								sizes = CB_SIZE_8;
-							} else if(f->size > 2) {
-								sizes = CB_SIZE_4;
-							} else if(f->size > 1) {
-								sizes = CB_SIZE_2;
-							} else {
-								sizes = CB_SIZE_1;
-							}
-						}
-						switch(sizes) {
-						case CB_SIZE_1:
-							if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-								s = "cob_u8_t";
-							} else {
-								s = "cob_c8_t";
-							}
-							break;
-						case CB_SIZE_2:
-							if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-								s = "cob_u16_t";
-							} else {
-								s = "cob_s16_t";
-							}
-							if(f->flag_binary_swap) {
-								sticky_nonp[parmnum] = 2;
-							}
-							break;
-						case CB_SIZE_4:
-							if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-								s = "cob_u32_t";
-							} else {
-								s = "cob_s32_t";
-							}
-							if(f->flag_binary_swap) {
-								sticky_nonp[parmnum] = 4;
-							}
-							break;
-						case CB_SIZE_8:
-							if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
-								s = "cob_u64_t";
-							} else {
-								s = "cob_s64_t";
-							}
-							if(f->flag_binary_swap) {
-								sticky_nonp[parmnum] = 8;
-							}
-							break;
-						default:
-							break;
-						}
-					}
-					if(s) {
-						str += output("  static %s\tcob_parm_l_%s = %s;\n",
-									  s, sticky_ids[parmnum].c_str(), s2);
-						if(sticky_nonp[parmnum] == 0) {
-							sticky_nonp[parmnum] = 1;
-						}
-						break;
-					}
-				}
-				/* Fall through */
-			case CB_CALL_BY_REFERENCE:
-			case CB_CALL_BY_CONTENT:
-				break;
-			default:
-				break;
-			}
-		}
-	}
-
 	/* By value fields */
 	for(cb_tree l = using_list; l; l = CB_CHAIN(l)) {
 		cb_field * f = cb_code_field(CB_VALUE(l));
@@ -7556,6 +7760,125 @@ output_entry_function(cb_program * prog, cb_tree entry,
 			} else if(f->usage == CB_USAGE_FLOAT && !cb_sticky_linkage) {
 				string fname = get_parm_name(f);
 				str += output("  float\t\t_flt_%s;\n", fname.c_str());
+			}
+		}
+	}
+
+	/* For calling into a module, cob_call_params may not be known */
+	if(using_list) {
+		int parmnum = 0;
+		for(cb_tree l = using_list; l; l = CB_CHAIN(l)) {
+			parmnum++;
+		}
+		if(entry_convention & CB_CONV_COBOL) {
+			str += output("  /* Get current number of call parameters,\n");
+			str += output("     if the parameter count is unknown, set it to all */\n");
+			if(cb_flag_implicit_init) {
+				str += output("  if(cob_is_initialized() && cob_get_global_ptr()->cob_current_module) {\n");
+			} else {
+				str += output("  if(cob_get_global_ptr()->cob_current_module) {\n");
+			}
+			str += output("\tcob_call_params = cob_get_global_ptr()->cob_call_params;\n");
+			str += output("  } else {\n");
+			str += output("\tcob_call_params = %d;\n", parmnum);
+			str += output("  };\n");
+		} else {
+			str += output("  /* Set current number of call parameters to max */\n");
+			str += output("  cob_call_params = %d;\n", parmnum);
+		}
+		str += output_newline();
+	}
+
+	/* We have to cater for sticky-linkage here at the entry point site */
+	/* Doing it in the internal function is too late as we */
+	/* then do not have the information as to possible ENTRY clauses */
+
+	cob_u32_t parmnum = 0;
+	/* Sticky linkage parameters */
+	if(cb_sticky_linkage && using_list) {
+		for(cb_tree l = using_list; l; l = CB_CHAIN(l), parmnum++) {
+			cb_field * f = cb_code_field(CB_VALUE(l));
+			sticky_ids[parmnum] = get_parm_name(f);
+			if(CB_PURPOSE_INT(l) == CB_CALL_BY_VALUE) {
+				const char * s = NULL;
+				const char * s2 = "0";
+				if(f->usage == CB_USAGE_FLOAT) {
+					s = "float";
+				} else if(f->usage == CB_USAGE_DOUBLE) {
+					s = "double";
+				} else if(f->usage == CB_USAGE_LONG_DOUBLE) {
+					s = "long double";
+				} else if(f->usage == CB_USAGE_FP_BIN32) {
+					s = "cob_u32_t";
+				} else if(f->usage == CB_USAGE_FP_BIN64 ||
+						  f->usage == CB_USAGE_FP_DEC64) {
+					s = "cob_u64_t";
+				} else if(f->usage == CB_USAGE_FP_BIN128 ||
+						  f->usage == CB_USAGE_FP_DEC128) {
+					s = "cob_fp_128";
+					s2 = "{{0, 0}}";
+				} else if(CB_TREE_CLASS(CB_VALUE(l)) == CB_CLASS_NUMERIC) {
+					int sizes = CB_SIZES_INT(l);
+					if(sizes == CB_SIZE_AUTO) {
+						if(f->size > 4) {
+							sizes = CB_SIZE_8;
+						} else if(f->size > 2) {
+							sizes = CB_SIZE_4;
+						} else if(f->size > 1) {
+							sizes = CB_SIZE_2;
+						} else {
+							sizes = CB_SIZE_1;
+						}
+					}
+					switch(sizes) {
+					case CB_SIZE_1:
+						if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
+							s = "cob_u8_t";
+						} else {
+							s = "cob_c8_t";
+						}
+						break;
+					case CB_SIZE_2:
+						if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
+							s = "cob_u16_t";
+						} else {
+							s = "cob_s16_t";
+						}
+						if(f->flag_binary_swap) {
+							sticky_nonp[parmnum] = 2;
+						}
+						break;
+					case CB_SIZE_4:
+						if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
+							s = "cob_u32_t";
+						} else {
+							s = "cob_s32_t";
+						}
+						if(f->flag_binary_swap) {
+							sticky_nonp[parmnum] = 4;
+						}
+						break;
+					case CB_SIZE_8:
+						if(CB_SIZES(l) & CB_SIZE_UNSIGNED) {
+							s = "cob_u64_t";
+						} else {
+							s = "cob_s64_t";
+						}
+						if(f->flag_binary_swap) {
+							sticky_nonp[parmnum] = 8;
+						}
+						break;
+					default:
+						break;
+					}
+				}
+				if(s) {
+					str += output("  static %s\tcob_parm_l_%s = %s;\n",
+								  s, sticky_ids[parmnum].c_str(), s2);
+					if(sticky_nonp[parmnum] == 0) {
+						sticky_nonp[parmnum] = 1;
+					}
+				}
 			}
 		}
 	}
@@ -7633,10 +7956,15 @@ output_entry_function(cb_program * prog, cb_tree entry,
 		}
 	}
 
-	if(!prog->nested_level) {
-		str += output("  return %s_(%d", prog->program_id, progid++);
+	if(prog->flag_void) {
+		str += output("  (void)");
 	} else {
-		str += output("  return %s_%d_(%d", prog->program_id,
+		str += output("  return ");
+	}
+	if(!prog->nested_level) {
+		str += output("%s_(%d", prog->program_id, progid++);
+	} else {
+		str += output("%s_%d_(%d", prog->program_id,
 					  prog->toplev_count, progid++);
 	}
 
@@ -7646,6 +7974,7 @@ output_entry_function(cb_program * prog, cb_tree entry,
 		return str;
 	}
 
+	/* Output parameter list for final function call. */
 	for(cb_tree l1 = parameter_list; l1; l1 = CB_CHAIN(l1)) {
 		cb_field * f1 = cb_code_field(CB_VALUE(l1));
 		cob_u32_t n = 0;
@@ -7665,7 +7994,7 @@ output_entry_function(cb_program * prog, cb_tree entry,
 						str += output(", (cob_u8_ptr)&_flt_%s", fname.c_str());
 						break;
 					}
-					/* Fall through */
+				/* Fall through */
 				case CB_CALL_BY_REFERENCE:
 				case CB_CALL_BY_CONTENT:
 					str += output(", %s%s%s",
@@ -7695,10 +8024,17 @@ static string
 output_main_function(cb_program * prog)
 {
 	string str = output_line("/* Main function */");
-	str += output_line("int");
-	str += output_line("main(int argc, char **argv)");
-	str += output_indent("{");
-	str += output_line("cob_init(argc, argv);");
+	if(!cb_flag_winmain) {
+		str += output_line("int");
+		str += output_line("main(int argc, char **argv)");
+		str += output_indent("{");
+		str += output_line("cob_init(argc, argv);");
+	} else {
+		str += output_line("int WINAPI");
+		str += output_line("WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR pCmdLine, int nCmdShow)");
+		str += output_indent("{");
+		str += output_line("cob_init(__argc, __argv);");
+	}
 	str += output_line("cob_stop_run(%s());", prog->program_id);
 	str += output_indent("}\n");
 	return str;
@@ -7712,8 +8048,8 @@ output_header(FILE * fp, const char * locbuff, const cb_program * cp)
 				PACKAGE_VERSION, PATCH_LEVEL);
 		fprintf(fp, "/* Generated from              %s */\n", cb_source_file);
 		fprintf(fp, "/* Generated at                %s */\n", locbuff);
-		fprintf(fp, "/* GNU Cobol C++ build date    %s */\n", cb_oc_build_stamp);
-		fprintf(fp, "/* GNU Cobol C++ package date  %s */\n", COB_TAR_DATE);
+		fprintf(fp, "/* GnuCOBOL C++ build date     %s */\n", cb_cobc_build_stamp);
+		fprintf(fp, "/* GnuCOBOL C++ package date   %s */\n", COB_TAR_DATE);
 		fprintf(fp, "/* Compile command         ");
 		for(int i = 0; i < cb_saveargc; i++) {
 			fprintf(fp, "%s ", cb_saveargv[i]);
@@ -7731,7 +8067,7 @@ codegen(cb_program * prog, const int nested)
 {
 	/* Clear local program stuff */
 	declpgms.clear();
-	current_prog = prog;
+	current_program = prog;
 	param_id = 0;
 	stack_id = 0;
 	num_cob_fields = 0;
@@ -7767,7 +8103,7 @@ codegen(cb_program * prog, const int nested)
 #endif
 
 	output_target = yyout;
-	cb_local_file = current_prog->local_include->local_fp;
+	cb_local_file = current_program->local_include->local_fp;
 
 	if(!nested) {
 		/* First iteration */
@@ -7778,6 +8114,7 @@ codegen(cb_program * prog, const int nested)
 		gen_figurative = 0;
 		non_nested_count = 0;
 		working_mem = 0;
+		pic_cache = NULL;
 		attr_cache = NULL;
 		base_cache = NULL;
 		globext_cache = NULL;
@@ -7828,6 +8165,9 @@ codegen(cb_program * prog, const int nested)
 		real_output(output("#define  COB_KEYWORD_INLINE %s\n",
 						   CB_XSTRINGIFY(COB_KEYWORD_INLINE)).c_str());
 #endif
+		if(cb_flag_winmain) {
+			real_output("#include <windows.h>\n");
+		}
 		real_output("#include <libcob.h>\n\n");
 
 		real_output(output("#define  COB_SOURCE_FILE\t\t\"%s\"\n",
@@ -7860,17 +8200,17 @@ codegen(cb_program * prog, const int nested)
 		real_output("/* Function prototypes */\n\n");
 		for(cb_program * cp = prog; cp; cp = cp->next_program) {
 			/* Build parameter list */
-			for(cb_tree l = cp->entry_list; l; l = CB_CHAIN(l)) {
-				for(cb_tree l1 = CB_VALUE(l); l1; l1 = CB_CHAIN(l1)) {
-					cb_tree l2;
-					for(l2 = cp->parameter_list; l2; l2 = CB_CHAIN(l2)) {
-						if(strcasecmp(cb_code_field(CB_VALUE(l1))->name,
-									  cb_code_field(CB_VALUE(l2))->name) == 0) {
+			for(cb_tree entry = cp->entry_list; entry; entry = CB_CHAIN(entry)) {
+				for(cb_tree entry_param = CB_VALUE(CB_VALUE(entry)); entry_param; entry_param = CB_CHAIN(entry_param)) {
+					cb_tree prog_param;
+					for(prog_param = cp->parameter_list; prog_param; prog_param = CB_CHAIN(prog_param)) {
+						if(strcasecmp(cb_code_field(CB_VALUE(entry_param))->name,
+									  cb_code_field(CB_VALUE(prog_param))->name) == 0) {
 							break;
 						}
 					}
-					if(l2 == NULL) {
-						cp->parameter_list = cb_list_add(cp->parameter_list, CB_VALUE(l1));
+					if(prog_param == NULL) {
+						cp->parameter_list = cb_list_add(cp->parameter_list, CB_VALUE(entry_param));
 					}
 				}
 			}
@@ -7881,6 +8221,13 @@ codegen(cb_program * prog, const int nested)
 				} else {
 					real_output(output("int\t\t\t%s();\n",
 									   cp->program_id).c_str());
+				}
+				for(cb_tree l = cp->entry_list; l; l = CB_CHAIN(l)) {
+					const char * entry_name = CB_LABEL(CB_PURPOSE(l))->name;
+					if(0 == strcmp(entry_name, cp->program_id)) {
+						continue;
+					}
+					real_output(output_entry_function(cp, l, cp->parameter_list, false).c_str());
 				}
 			} else {
 				for(cb_tree l = cp->entry_list; l; l = CB_CHAIN(l)) {
@@ -8074,7 +8421,7 @@ codegen(cb_program * prog, const int nested)
 	if(prog->local_storage && local_mem) {
 		output_local("\n/* LOCAL storage pointer */\n");
 		output_local("unsigned char\t\t*cob_local_ptr = NULL;\n");
-		if(current_prog->flag_global_use) {
+		if(current_program->flag_global_use) {
 			output_local("static unsigned char\t*cob_local_save = NULL;\n");
 		}
 	}
@@ -8140,7 +8487,7 @@ codegen(cb_program * prog, const int nested)
 
 	if(local_field_cache) {
 		/* Switch to local storage file */
-		output_target = current_prog->local_include->local_fp;
+		output_target = current_program->local_include->local_fp;
 		output_local("\n/* Fields */\n");
 		local_field_cache = (field_list *) list_cache_sort(local_field_cache,
 							&field_cache_cmp);
@@ -8176,11 +8523,6 @@ codegen(cb_program * prog, const int nested)
 
 	/* Finalize the main include file */
 
-#if	0	/* RXWRXW - GLOBPTR */
-	output_storage("\n/* Global variable pointer */\n");
-	output_storage("static cob_global\t\t*cob_glob_ptr = NULL;\n");
-#endif
-
 	if(!cobc_flag_main && non_nested_count > 1) {
 		output_storage("\n/* Module reference count */\n");
 		output_storage("static unsigned int\t\tcob_reference_count = 0;\n");
@@ -8188,6 +8530,9 @@ codegen(cb_program * prog, const int nested)
 
 	output_storage("\n/* Module path */\n");
 	output_storage("static const char\t\t*cob_module_path = NULL;\n");
+
+	output_storage("\n/* Number of call parameters */\n");
+	output_storage("static int\t\tcob_call_params = 0;\n");
 
 	if(globext_cache) {
 		output_storage("\n/* GLOBAL EXTERNAL pointers */\n");
@@ -8228,22 +8573,19 @@ codegen(cb_program * prog, const int nested)
 		output_storage("\n/* End of data storage */\n\n");
 	}
 
+	output_pic_cache();
+
 	/* Attributes */
 	if(attr_cache || gen_figurative) {
 		output_storage("\n/* Attributes */\n\n");
-		attr_cache = attr_list_reverse(attr_cache);
-		for(attr_list * j = attr_cache; j; j = j->next) {
-			output_storage("static const cob_field_attr %s%d(", CB_PREFIX_ATTR, j->id);
+		attr_cache = list_reverse(attr_cache);
+		for(attr_list * attr = attr_cache; attr; attr = attr->next) {
+			output_storage("static const cob_field_attr %s%d(", CB_PREFIX_ATTR, attr->id);
 			output_storage("0x%02x, %3u, %3d, 0x%04x, ",
-						   j->type, j->digits,
-						   j->scale, j->flags);
-			if(j->pic) {
-				output_storage("\"");
-				for(unsigned char * s = j->pic; *s; s += 5) {
-					output_storage("%c\\%03o\\%03o\\%03o\\%03o",
-								   s[0], s[1], s[2], s[3], s[4]);
-				}
-				output_storage("\"");
+						   attr->type, attr->digits,
+						   attr->scale, attr->flags);
+			if(attr->pic_id != -1) {
+				output_storage("%s%d", CB_PREFIX_PIC, attr->pic_id);
 			} else {
 				output_storage("NULL");
 			}
@@ -8290,7 +8632,7 @@ codegen(cb_program * prog, const int nested)
 	if(literal_cache || gen_figurative) {
 		output_storage("\n/* Constants */\n");
 		string str("");
-		literal_cache = literal_list_reverse(literal_cache);
+		literal_cache = list_reverse(literal_cache);
 		for(literal_list * m = literal_cache; m; m = m->next) {
 #if	0	/* RXWRXW - Const */
 			str += output("static const cob_fld_union %s%d\t= ",
@@ -8301,7 +8643,7 @@ codegen(cb_program * prog, const int nested)
 			cb_literal * lp = CB_LITERAL(m->x);
 			if(CB_TREE_CLASS(m->x) == CB_CLASS_NUMERIC) {
 				str += output("\"%s%s\"", (char *)lp->data,
-							  (lp->sign < 0) ? "-" :(lp->sign > 0) ? "+" : "");
+							  (lp->sign < 0) ? "-" : (lp->sign > 0) ? "+" : "");
 			} else {
 				str += output_string(lp->data, (int) lp->size, lp->llit);
 			}
@@ -8536,7 +8878,7 @@ codegen(cb_program * prog, const int nested)
 	/* Strings */
 	if(string_cache) {
 		output_storage("\n/* Strings */\n");
-		string_cache = string_list_reverse(string_cache);
+		string_cache = list_reverse(string_cache);
 		string str("");
 		for(string_list * stp = string_cache; stp; stp = stp->next) {
 			str += output("static const char %s%d[]\t= \"%s\";\n",

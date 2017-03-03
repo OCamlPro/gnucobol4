@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin, Ron Norman
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ compiler is free software: you can redistribute it
+   The GnuCOBOL C++ compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -27,9 +26,18 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "cobc.h"
 #include "tree.h"
+
+/* sanity checks */
+#if COB_MAX_FIELD_SIZE > INT_MAX
+	#error COB_MAX_FIELD_SIZE is too big, must be less than INT_MAX
+#endif
+#if COB_MAX_UNBOUNDED_SIZE > INT_MAX
+	#error COB_MAX_UNBOUNDED_SIZE is too big, must be less than INT_MAX
+#endif
 
 /* Global variables */
 
@@ -55,7 +63,7 @@ cb_get_level(cb_tree x)
 		if(!isdigit((int)(*p))) {
 			goto level_error;
 		}
-		level = level * 10 +(*p - '0');
+		level = level * 10 + (*p - '0');
 		if(level > 88) {
 			goto level_error;
 		}
@@ -78,7 +86,7 @@ cb_get_level(cb_tree x)
 	return level;
 
 level_error:
-	cb_error_x(x, _("Invalid level number '%s'"), name);
+	cb_error_x(x, _("invalid level number '%s'"), name);
 	return 0;
 }
 
@@ -142,8 +150,7 @@ cb_build_field_tree(cb_tree level, cb_tree name, cb_field * last_field,
 						CB_FIELD(x)->level == 01 ||
 						CB_FIELD(x)->level == 77 ||
 						(last_field && f->level == last_field->level &&
-						 CB_FIELD(x)->parent == last_field->parent))
-				{
+						 CB_FIELD(x)->parent == last_field->parent)) {
 					redefinition_warning(name, x);
 					break;
 				}
@@ -164,10 +171,11 @@ cb_build_field_tree(cb_tree level, cb_tree name, cb_field * last_field,
 		}
 	} else if(!last_field || cb_needs_01) {
 		/* Invalid top level */
-		cb_error_x(name, _("Level number must begin with 01 or 77"));
+		cb_error_x(name, _("level number must begin with 01 or 77"));
 		return cb_error_node;
 	} else if(f->level == 66) {
 		/* Level 66 */
+		/* Check no segfault when 66 is first field */
 		f->parent = cb_field_founder(last_field);
 		cb_field * p;
 		for(p = f->parent->children; p && p->sister; p = p->sister) ;
@@ -177,6 +185,14 @@ cb_build_field_tree(cb_tree level, cb_tree name, cb_field * last_field,
 	} else if(f->level == 88) {
 		/* Level 88 */
 		f->parent = last_field;
+		if(last_real_field && last_real_field->level == 88) {
+			/* Level 88 sister */
+			last_real_field->sister = f;
+		} else {
+			/* First Level 88 on this item */
+			last_field->validation = f;
+			last_field = f;
+		}
 	} else if(f->level > last_field->level) {
 		/* Lower level */
 		last_field->children = f;
@@ -189,7 +205,7 @@ same_level:
 	} else {
 		/* Upper level */
 		cb_field * p;
-		for(p = last_field->parent; p; p = p->parent) {
+		for(p = last_field->parent; p /* <- silence warnings */; p = p->parent) {
 			if(p->level == f->level) {
 				last_field = p;
 				goto same_level;
@@ -198,11 +214,11 @@ same_level:
 				break;
 			}
 		}
-		if(cb_relax_level_hierarchy) {
+		if(cb_relax_level_hierarchy && p /* <- silence warnings */) {
 			cb_tree dummy_fill = cb_build_filler();
 			cb_field * field_fill = CB_FIELD(cb_build_field(dummy_fill));
 			cb_warning_x(name,
-						 _("No previous data item of level %02d"),
+						 _("no previous data item of level %02d"),
 						 f->level);
 			field_fill->level = f->level;
 			field_fill->flag_filler = 1;
@@ -218,7 +234,7 @@ same_level:
 			/* last_field = field_fill; */
 		} else {
 			cb_error_x(name,
-					   _("No previous data item of level %02d"),
+					   _("no previous data item of level %02d"),
 					   f->level);
 			return cb_error_node;
 		}
@@ -283,16 +299,12 @@ cb_resolve_redefines(cb_field * field, cb_tree redefines)
 
 	/* Check level number */
 	if(f->level != field->level) {
-		cb_error_x(x, _("Level number of REDEFINES entries must be identical"));
-		return NULL;
-	}
-	if(f->level == 66 || f->level == 88) {
-		cb_error_x(x, _("Level number of REDEFINES entry cannot be 66 or 88"));
+		cb_error_x(x, _("level number of REDEFINES entries must be identical"));
 		return NULL;
 	}
 
 	if(!cb_indirect_redefines && f->redefines) {
-		cb_error_x(x, _("'%s' not the original definition"), f->name);
+		cb_error_x(x, _("'%s' is not the original definition"), f->name);
 		return NULL;
 	}
 
@@ -303,15 +315,11 @@ cb_resolve_redefines(cb_field * field, cb_tree redefines)
 	return f;
 }
 
-static void
-validate_field_clauses(cb_tree x, cb_field * f)
+static COB_INLINE COB_A_INLINE void
+emit_incompatible_pic_and_usage_error(cb_tree item, const enum cb_usage usage)
 {
-	if(f->flag_blank_zero) {
-		cb_error_x(x, _("BLANK ZERO not compatible with USAGE"));
-	}
-	if(f->flag_sign_leading || f->flag_sign_separate) {
-		cb_error_x(x, _("SIGN clause not compatible with USAGE"));
-	}
+	cb_error_x(item, _("PICTURE clause not compatible with USAGE %s"),
+			   cb_get_usage_string(usage));
 }
 
 static unsigned int
@@ -380,13 +388,14 @@ check_picture_item(cb_tree x, cb_field * f)
 		return 1;
 	}
 	if(CB_NUMERIC_LITERAL_P(CB_VALUE(f->values))) {
-		cb_error_x(x, _("A non-numeric literal is expected for '%s'"),
+		cb_error_x(x, _("a non-numeric literal is expected for '%s'"),
 				   cb_name(x));
 		return 1;
 	}
 	int vorint = (int)CB_LITERAL(CB_VALUE(f->values))->size;
+	/* Checkme: should we raise an error for !cb_relaxed_syntax_checks? */
 	if(warningopt) {
-		cb_warning_x(x, _("Defining implicit picture size %d for '%s'"), vorint, cb_name(x));
+		cb_warning_x(x, _("defining implicit picture size %d for '%s'"), vorint, cb_name(x));
 	}
 	sprintf(pic, "X(%d)", vorint);
 	f->pic = CB_PICTURE(cb_build_picture(pic));
@@ -475,22 +484,11 @@ validate_field_1(cb_field * f)
 			cb_error_x(x, _("'%s' BASED only allowed at the 01 and 77 levels"), cb_name(x));
 		}
 	}
-	if(f->level == 66) {
-		if(!f->redefines) {
-			level_require_error(x, "RENAMES");
-			return 1;
-		}
-		if(f->flag_occurs) {
-			level_except_error(x, "RENAMES");
-		}
-		return 0;
-	}
 
 	/* Validate OCCURS */
 	if(f->flag_occurs) {
-		if((!cb_verify(cb_top_level_occurs_clause, "01/77 OCCURS") &&
-				(f->level == 01 || f->level == 77)) ||
-				(f->level == 66 || f->level == 88)) {
+		if(!cb_verify(cb_top_level_occurs_clause, "01/77 OCCURS") &&
+				(f->level == 01 || f->level == 77)) {
 			level_redundant_error(x, "OCCURS");
 		}
 		for(cb_tree l = f->index_list; l; l = CB_CHAIN(l)) {
@@ -500,27 +498,29 @@ validate_field_1(cb_field * f)
 
 	/* Validate OCCURS DEPENDING */
 	if(f->depending) {
-		/* The data item that contains a OCCURS DEPENDING clause shall not
-		   be subordinate to a data item that has an OCCURS clause */
-		for(cb_field * p = f->parent; p; p = p->parent) {
-			if(p->flag_occurs) {
-				cb_error_x(p,
-						   _("'%s' cannot have the OCCURS clause due to '%s'"),
-						   cb_name(p),
-						   cb_name(x));
-				break;
-			}
-		}
-
 		/* Cache field for later checking */
 		cb_depend_check = cb_list_add(cb_depend_check, x);
+
+		if(!cb_complex_odo) {
+			/* The data item that contains a OCCURS DEPENDING clause shall not
+			   be subordinate to a data item that has an OCCURS clause */
+			for(cb_field * p = f->parent; p; p = p->parent) {
+				if(p->flag_occurs) {
+					cb_error_x(p,
+							   _("'%s' cannot have the OCCURS clause due to '%s'"),
+							   cb_name(p),
+							   cb_name(x));
+					break;
+				}
+			}
+		}
 	}
 
 	/* Validate REDEFINES */
-	if(f->redefines) {
+	if(f->redefines && f->level != 66) {
 		/* Check OCCURS */
 		if(f->redefines->flag_occurs) {
-			cb_warning_x(x, _("The original definition '%s' should not have OCCURS"),
+			cb_warning_x(x, _("the original definition '%s' should not have OCCURS clause"),
 						 f->redefines->name);
 		}
 
@@ -538,9 +538,13 @@ validate_field_1(cb_field * f)
 		}
 		if(cb_field_variable_size(f->redefines)) {
 			cb_error_x(x,
-					   _("The original definition '%s' cannot be variable length"),
+					   _("the original definition '%s' cannot be variable length"),
 					   f->redefines->name);
 		}
+	}
+
+	if(f->level == 66) {
+		return 0;
 	}
 
 	if(f->children) {
@@ -596,7 +600,6 @@ validate_field_1(cb_field * f)
 		case CB_USAGE_UNSIGNED_SHORT:
 		case CB_USAGE_UNSIGNED_INT:
 		case CB_USAGE_UNSIGNED_LONG:
-		case CB_USAGE_PROGRAM:
 			need_picture = false;
 			break;
 		default:
@@ -628,97 +631,81 @@ validate_field_1(cb_field * f)
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-CHAR", 2, 1);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_SIGNED_SHORT:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-SHORT", 4, 1);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_SIGNED_INT:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-LONG", 9, 1);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_SIGNED_LONG:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-DOUBLE", 18, 1);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_UNSIGNED_CHAR:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-CHAR", 2, 0);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_UNSIGNED_SHORT:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-SHORT", 4, 0);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_UNSIGNED_INT:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-LONG", 9, 0);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_UNSIGNED_LONG:
 			f->usage = CB_USAGE_COMP_5;
 			f->pic = cb_build_binary_picture("BINARY-DOUBLE", 18, 0);
 			f->flag_real_binary = 1;
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_BINARY:
 		case CB_USAGE_PACKED:
 		case CB_USAGE_BIT:
 			if(f->pic->category != CB_CATEGORY_NUMERIC) {
-				cb_error_x(x, _("'%s' PICTURE clause not compatible with USAGE"), cb_name(x));
+				emit_incompatible_pic_and_usage_error(x, f->usage);
 			}
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_COMP_6:
 			if(f->pic->category != CB_CATEGORY_NUMERIC) {
-				cb_error_x(x, _("'%s' PICTURE clause not compatible with USAGE"), cb_name(x));
+				emit_incompatible_pic_and_usage_error(x, f->usage);
 			}
 			if(f->pic->have_sign) {
-				cb_warning_x(x, _("'%s' COMP-6 with sign - Changing to COMP-3"), cb_name(x));
+				cb_warning_x(x, _("'%s' COMP-6 with sign - changing to COMP-3"), cb_name(x));
 				f->usage = CB_USAGE_PACKED;
 			}
-			validate_field_clauses(x, f);
 			break;
 		case CB_USAGE_COMP_5:
+			f->flag_real_binary = 1;
 		case CB_USAGE_COMP_X:
 			if(f->pic) {
 				if(f->pic->category != CB_CATEGORY_NUMERIC &&
 						f->pic->category != CB_CATEGORY_ALPHANUMERIC) {
-					cb_error_x(x, _("'%s' PICTURE clause not compatible with USAGE"), cb_name(x));
+					emit_incompatible_pic_and_usage_error(x, f->usage);
 				}
 			}
-			validate_field_clauses(x, f);
-			break;
-		case CB_USAGE_POINTER:
-		case CB_USAGE_PROGRAM_POINTER:
-		case CB_USAGE_PROGRAM:
-		case CB_USAGE_FLOAT:
-		case CB_USAGE_DOUBLE:
-		case CB_USAGE_LONG_DOUBLE:
-		case CB_USAGE_FP_BIN32:
-		case CB_USAGE_FP_BIN64:
-		case CB_USAGE_FP_BIN128:
-		case CB_USAGE_FP_DEC64:
-		case CB_USAGE_FP_DEC128:
-		case CB_USAGE_INDEX:
-			validate_field_clauses(x, f);
 			break;
 		default:
 			break;
 		}
 
 		/* Validate SIGN */
+		if(f->flag_sign_clause) {
+			if(!(f->pic && f->pic->have_sign)) {
+				cb_error_x(x, _("elementary items with SIGN clause must have S in PICTURE"));
+			} else if(f->usage != CB_USAGE_DISPLAY
+					  && f->usage != CB_USAGE_NATIONAL) {
+				cb_error_x(x, _("elementary items with SIGN clause must be USAGE DISPLAY or NATIONAL"));
+			}
+		}
 
 		/* Validate JUSTIFIED RIGHT */
 		if(f->flag_justified) {
@@ -736,57 +723,73 @@ validate_field_1(cb_field * f)
 
 		/* Validate BLANK ZERO */
 		if(f->flag_blank_zero) {
+			if(f->pic->have_sign
+					&& f->pic->category != CB_CATEGORY_NUMERIC_EDITED) {
+				cb_error_x(x, _("'%s' cannot have S in PICTURE string and BLANK WHEN ZERO"),
+						   cb_name(x));
+			}
+
+			if(f->usage != CB_USAGE_DISPLAY && f->usage != CB_USAGE_NATIONAL) {
+				cb_error_x(x, _("'%s' cannot have BLANK WHEN ZERO without being USAGE DISPLAY or NATIONAL"),
+						   cb_name(x));
+			}
+
 			int n = 0;
 			switch(f->pic->category) {
 			case CB_CATEGORY_NUMERIC:
 				/* Reconstruct the picture string */
 				if(f->pic->scale > 0) {
 					/* Enough for genned string */
-					f->pic->str = (char *) cobc_parse_malloc((size_t)32);
-					unsigned char * pstr = (unsigned char *)(f->pic->str);
+					f->pic->str = (cob_pic_symbol *) cobc_parse_malloc(5 * sizeof(cob_pic_symbol));
+					cob_pic_symbol * pstr = f->pic->str;
 					if(f->pic->have_sign) {
-						*pstr++ = '+';
-						int vorint = 1;
-						memcpy(pstr, (void *)&vorint, sizeof(int));
-						pstr += sizeof(int);
+						pstr->symbol = '+';
+						pstr->times_repeated = 1;
+						++pstr;
 						n = 5;
 					}
-					*pstr++ = '9';
-					int vorint = (int)f->pic->digits - f->pic->scale;
-					memcpy(pstr, (void *)&vorint, sizeof(int));
-					pstr += sizeof(int);
-					*pstr++ = 'V';
-					vorint = 1;
-					memcpy(pstr, (void *)&vorint, sizeof(int));
-					pstr += sizeof(int);
-					*pstr++ = '9';
-					vorint = f->pic->scale;
-					memcpy(pstr, (void *)&vorint, sizeof(int));
+					pstr->symbol = '9';
+					pstr->times_repeated = (int)f->pic->digits - f->pic->scale;
+					++pstr;
+
+					pstr->symbol = 'V';
+					pstr->times_repeated = 1;
+					++pstr;
+
+					pstr->symbol = '9';
+					pstr->times_repeated = f->pic->scale;
+					++pstr;
+
 					f->pic->size++;
 					n += 15;
 				} else {
 					/* Enough for genned string */
-					f->pic->str = (char *) cobc_parse_malloc((size_t)16);
-					unsigned char * pstr = (unsigned char *)(f->pic->str);
+					f->pic->str = (cob_pic_symbol *) cobc_parse_malloc(3 * sizeof(cob_pic_symbol));
+					cob_pic_symbol * pstr = f->pic->str;
 					if(f->pic->have_sign) {
-						*pstr++ = '+';
-						int vorint = 1;
-						memcpy(pstr, (void *)&vorint, sizeof(int));
-						pstr += sizeof(int);
+						pstr->symbol = '+';
+						pstr->times_repeated = 1;
+						++pstr;
 						n = 5;
 					}
-					*pstr++ = '9';
-					int vorint = f->pic->digits;
-					memcpy(pstr, (void *)&vorint, sizeof(int));
+					pstr->symbol = '9';
+					pstr->times_repeated = f->pic->digits;
 					n += 5;
 				}
 				f->pic->lenstr = n;
 				f->pic->category = CB_CATEGORY_NUMERIC_EDITED;
 				break;
 			case CB_CATEGORY_NUMERIC_EDITED:
+				for(int i = 0; f->pic->str[i].symbol != '\0'; ++i) {
+					if(f->pic->str[i].symbol == '*') {
+						cb_error_x(x, _("'%s' cannot have * in PICTURE string and BLANK WHEN ZERO"),
+								   cb_name(x));
+						break;
+					}
+				}
 				break;
 			default:
-				cb_error_x(x, _("'%s' cannot have BLANK WHEN ZERO"), cb_name(x));
+				cb_error_x(x, _("'%s' is not numeric, so cannot have BLANK WHEN ZERO"), cb_name(x));
 				break;
 			}
 		}
@@ -794,16 +797,19 @@ validate_field_1(cb_field * f)
 		/* Validate VALUE */
 		if(f->values) {
 			if(CB_PAIR_P(CB_VALUE(f->values)) || CB_CHAIN(f->values)) {
-				cb_error_x(x, _("Only level 88 item may have multiple values"));
+				cb_error_x(x, _("only level 88 items may have multiple values"));
 			}
 
 			/* ISO+IEC+1989-2002: 13.16.42.2-10 */
 			for(cb_field * p = f; p; p = p->parent) {
-				if(p->redefines) {
-					cb_error_x(x, _("Entries under REDEFINES cannot have a VALUE clause"));
-				}
-				if(p->flag_external && cb_warn_external_val) {
-					cb_warning_x(x, _("Initial VALUE clause ignored for EXTERNAL item"));
+				if(cb_warn_ignored_initial_val) {
+					if(p->flag_external) {
+						cb_warning_x(x, _("initial VALUE clause ignored for %s item"),
+									 "EXTERNAL");
+					} else if(p->redefines) {
+						cb_warning_x(x, _("initial VALUE clause ignored for %s item"),
+									 "REDEFINES");
+					}
 				}
 			}
 		}
@@ -862,6 +868,7 @@ setup_parameters(cb_field * f)
 			break;
 
 		case CB_USAGE_COMP_5:
+			f->flag_real_binary = 1;
 		case CB_USAGE_COMP_X:
 			if(f->pic->category == CB_CATEGORY_ALPHANUMERIC) {
 				char pic[8];
@@ -892,7 +899,7 @@ compute_binary_size(cb_field * f, const int size)
 	if(cb_binary_size == CB_BINARY_SIZE_1_2_4_8) {
 		f->size = ((size <= 2) ? 1 :
 				   (size <= 4) ? 2 :
-				   (size <= 9) ? 4 :(size <= 18) ? 8 : 16);
+				   (size <= 9) ? 4 : (size <= 18) ? 8 : 16);
 		return;
 	}
 	if(cb_binary_size == CB_BINARY_SIZE_2_4_8) {
@@ -900,7 +907,7 @@ compute_binary_size(cb_field * f, const int size)
 			f->size = 1;
 		} else {
 			f->size = ((size <= 4) ? 2 :
-					   (size <= 9) ? 4 :(size <= 18) ? 8 : 16);
+					   (size <= 9) ? 4 : (size <= 18) ? 8 : 16);
 		}
 		return;
 	}
@@ -1069,13 +1076,16 @@ compute_size(cb_field * f)
 		return f->size;
 	}
 
+	int unbounded_items = 0;
+	int unbounded_parts = 1;
 	if(f->children) {
 		/* Groups */
 		if(f->flag_synchronized && warningopt) {
-			cb_warning_x(f, _("Ignoring SYNCHRONIZED for group item '%s'"),
+			cb_warning_x(f, _("ignoring SYNCHRONIZED for group item '%s'"),
 						 cb_name(f));
 		}
-		int size = 0;
+unbounded_again:
+		cob_u64_t size_check = 0;
 		occur_align_size = 1;
 		for(cb_field * c = f->children; c; c = c->sister) {
 			if(c->redefines) {
@@ -1087,7 +1097,7 @@ compute_size(cb_field * f)
 						c->redefines->size * c->redefines->occurs_max) {
 					if(cb_larger_redefines_ok) {
 						cb_warning_x(c,
-									 _("Size of '%s' larger than size of '%s'"),
+									 _("size of '%s' larger than size of '%s'"),
 									 c->name, c->redefines->name);
 						int maxsz = c->redefines->size * c->redefines->occurs_max;
 						for(cb_field * c0 = c->redefines->sister; c0 != c; c0 = c0->sister) {
@@ -1096,17 +1106,22 @@ compute_size(cb_field * f)
 							}
 						}
 						if(c->size * c->occurs_max > maxsz) {
-							size += (c->size * c->occurs_max) - maxsz;
+							size_check += (c->size * c->occurs_max) - maxsz;
 						}
 					} else {
 						cb_error_x(c,
-								   _("Size of '%s' larger than size of '%s'"),
+								   _("size of '%s' larger than size of '%s'"),
 								   c->name, c->redefines->name);
 					}
 				}
 			} else {
-				c->offset = f->offset + size;
-				size += compute_size(c) * c->occurs_max;
+				c->offset = f->offset + (int) size_check;
+				compute_size(c);
+				if(c->flag_unbounded) {
+					unbounded_items++;
+					c->occurs_max = (COB_MAX_UNBOUNDED_SIZE / c->size / unbounded_parts) - 1;
+				}
+				size_check += c->size * c->occurs_max;
 
 				/* Word alignment */
 				if(c->flag_synchronized &&
@@ -1138,16 +1153,15 @@ compute_size(cb_field * f)
 					case CB_USAGE_OBJECT:
 					case CB_USAGE_POINTER:
 					case CB_USAGE_PROGRAM_POINTER:
-					case CB_USAGE_PROGRAM:
 						align_size = sizeof(void *);
 						break;
 					default:
 						break;
 					}
 					if(c->offset % align_size != 0) {
-						int pad = align_size -(c->offset % align_size);
+						int pad = align_size - (c->offset % align_size);
 						c->offset += pad;
-						size += pad;
+						size_check += pad;
 					}
 					if(align_size > occur_align_size) {
 						occur_align_size = align_size;
@@ -1155,12 +1169,28 @@ compute_size(cb_field * f)
 				}
 			}
 		}
-		if(f->occurs_max > 1 &&(size % occur_align_size) != 0) {
-			int pad = occur_align_size -(size % occur_align_size);
-			size += pad;
+		if(f->occurs_max > 1 && (size_check % occur_align_size) != 0) {
+			int pad = occur_align_size - (size_check % occur_align_size);
+			size_check += pad;
 			f->offset += pad;
 		}
-		f->size = size;
+		/* size check for group items */
+		if(unbounded_items) {
+			if(size_check > COB_MAX_UNBOUNDED_SIZE) {
+				/* Hack: run again for finding the correct max_occurs for unbounded items */
+				if(unbounded_parts == 1 && unbounded_items != 1) {
+					unbounded_parts = unbounded_items;
+				} else {
+					unbounded_parts++;
+				}
+				goto unbounded_again;
+			}
+		} else if(size_check > COB_MAX_FIELD_SIZE) {
+			cb_error_x(f,
+					   _("'%s' cannot be larger than %d bytes"),
+					   f->name, COB_MAX_FIELD_SIZE);
+		}
+		f->size = (int) size_check;
 	} else {
 		/* Elementary item */
 		int size;
@@ -1170,13 +1200,13 @@ compute_size(cb_field * f)
 				break;
 			}
 			size = f->pic->size;
-			f->size = ((size <= 2) ? 1 :(size <= 4) ? 2 :
-					   (size <= 7) ? 3 :(size <= 9) ? 4 :
-					   (size <= 12) ? 5 :(size <= 14) ? 6 :
-					   (size <= 16) ? 7 :(size <= 19) ? 8 :
-					   (size <= 21) ? 9 :(size <= 24) ? 10 :
-					   (size <= 26) ? 11 :(size <= 28) ? 12 :
-					   (size <= 31) ? 13 :(size <= 33) ? 14 :
+			f->size = ((size <= 2) ? 1 : (size <= 4) ? 2 :
+					   (size <= 7) ? 3 : (size <= 9) ? 4 :
+					   (size <= 12) ? 5 : (size <= 14) ? 6 :
+					   (size <= 16) ? 7 : (size <= 19) ? 8 :
+					   (size <= 21) ? 9 : (size <= 24) ? 10 :
+					   (size <= 26) ? 11 : (size <= 28) ? 12 :
+					   (size <= 31) ? 13 : (size <= 33) ? 14 :
 					   (size <= 36) ? 15 : 16);
 			break;
 		case CB_USAGE_BINARY:
@@ -1186,7 +1216,7 @@ compute_size(cb_field * f)
 			if(size > COB_MAX_BINARY) {
 				f->flag_binary_swap = 0;
 				size = 38;
-				cb_error_x(CB_TREE(f),
+				cb_error_x(f,
 						   _("'%s' binary field cannot be larger than %d digits"),
 						   f->name, COB_MAX_BINARY);
 			}
@@ -1203,6 +1233,12 @@ compute_size(cb_field * f)
 			break;
 		case CB_USAGE_DISPLAY:
 			f->size = f->pic->size;
+			/* size check for single items */
+			if(f->size > COB_MAX_FIELD_SIZE) {
+				cb_error_x(f,
+						   _("'%s' cannot be larger than %d bytes"),
+						   f->name, COB_MAX_FIELD_SIZE);
+			}
 			if(f->pic->have_sign && f->flag_sign_separate) {
 				f->size++;
 			}
@@ -1240,12 +1276,11 @@ compute_size(cb_field * f)
 		case CB_USAGE_OBJECT:
 		case CB_USAGE_POINTER:
 		case CB_USAGE_PROGRAM_POINTER:
-		case CB_USAGE_PROGRAM:
 			f->size = sizeof(void *);
 			break;
 		default:
-			cobc_abort_pr(_("Unexpected usage - %d"),
-						  (int)f->usage);
+			cobc_err_msg(_("unexpected USAGE: %d"),
+						 (int)f->usage);
 			COBC_ABORT();
 		}
 	}
@@ -1256,10 +1291,10 @@ compute_size(cb_field * f)
 	if(f->redefines && f->redefines->flag_external &&
 			(f->size * f->occurs_max > f->redefines->size * f->redefines->occurs_max)) {
 		if(cb_larger_redefines_ok) {
-			cb_warning_x(f, _("Size of '%s' larger than size of '%s'"),
+			cb_warning_x(f, _("size of '%s' larger than size of '%s'"),
 						 f->name, f->redefines->name);
 		} else {
-			cb_error_x(f, _("Size of '%s' larger than size of '%s'"),
+			cb_error_x(f, _("size of '%s' larger than size of '%s'"),
 					   f->name, f->redefines->name);
 		}
 	}
@@ -1332,20 +1367,11 @@ cb_validate_field(cb_field * f)
 void
 cb_validate_88_item(cb_field * f)
 {
-	if(!f->values) {
-		level_require_error(f, "VALUE");
-		return;
-	}
-
-	if(f->pic || f->flag_occurs) {
-		level_except_error(f, "VALUE");
-		return;
-	}
 	if(CB_VALID_TREE(f->parent) && CB_TREE_CLASS(f->parent) == CB_CLASS_NUMERIC) {
 		for(cb_tree l = f->values; l; l = CB_CHAIN(l)) {
 			cb_tree t = CB_VALUE(l);
 			if(t == cb_space || t == cb_low || t == cb_high || t == cb_quote) {
-				cb_error_x(f, _("Literal type does not match data type"));
+				cb_error_x(f, _("literal type does not match numeric data type"));
 			}
 		}
 	}
@@ -1361,14 +1387,179 @@ cb_validate_78_item(cb_field * f, const cob_u32_t no78add)
 		noadd = 1;
 	}
 
-	if(f->pic || f->flag_occurs) {
-		level_except_error(f, "VALUE");
-		noadd = 1;
-	}
 	if(!noadd) {
 		cb_add_78(f);
 	}
 	return last_real_field;
+}
+
+static const struct cb_field *
+get_last_child(const struct cb_field * f)
+{
+	do {
+		f = f->children;
+		while(f->sister) {
+			f = f->sister;
+		}
+	} while(f->children);
+
+	return f;
+}
+
+static struct cb_field *
+get_next_record_field(const struct cb_field * f)
+{
+	if(f->children) {
+		return f->children;
+	}
+
+	while(f) {
+		if(f->sister) {
+			return f->sister;
+		} else {
+			f = f->parent;
+		}
+	}
+
+	return NULL;
+}
+
+static int
+error_if_rename_thru_is_before_redefines(cb_field * item)
+{
+	struct cb_field	* f = cb_field_founder(item->redefines);
+
+	/*
+	  Perform depth-first search on the record containing the RENAMES items.
+	*/
+	while(f) {
+		/* Error if we find rename_thru before redefines */
+		if(f == item->rename_thru) {
+			cb_error_x(item,
+					   _("THRU item '%s' may not come before '%s'"),
+					   cb_name(item->rename_thru),
+					   cb_name(item->redefines));
+			return 1;
+		} else if(f == item->redefines) {
+			return 0;
+		}
+
+		f = get_next_record_field(f);
+	}
+
+	return 0;
+}
+
+static void
+error_if_is_or_in_occurs(cb_field * field,
+						 cb_field * const referring_field)
+{
+	struct cb_field * parent;
+
+	if(field->flag_occurs) {
+		cb_error_x(referring_field,
+				   _("RENAMES cannot start/end at the OCCURS item '%s'"),
+				   cb_name(field));
+	}
+
+	for(parent = field->parent; parent; parent = parent->parent) {
+		if(parent->flag_occurs) {
+			cb_error_x(referring_field,
+					   _("cannot use RENAMES on part of the table '%s'"),
+					   cb_name(parent));
+		}
+	}
+}
+
+static void
+error_if_invalid_type_in_renames_range(cb_field * const item)
+{
+	const cb_field * end;
+	cb_field * f = item->redefines;
+	enum cb_category	category;
+
+	/* Find last item in RENAMES range */
+	if(item->rename_thru) {
+		if(item->rename_thru->children) {
+			end = get_last_child(item->rename_thru);
+		} else {
+			end = item->rename_thru;
+		}
+	} else {
+		end = item->redefines;
+	}
+
+	/*
+	  Check all items are not pointers, object references or OCCURS
+	  DEPENDING tables.
+	*/
+	while(f) {
+		category = cb_tree_category(f);
+		if(category == CB_CATEGORY_OBJECT_REFERENCE
+				|| category == CB_CATEGORY_DATA_POINTER
+				|| category == CB_CATEGORY_PROGRAM_POINTER) {
+			cb_error_x(item,
+					   _("RENAMES may not contain '%s' as it is a pointer or object reference"),
+					   cb_name(f));
+		} else if(f->depending) {
+			cb_error_x(item,
+					   _("RENAMES may not contain '%s' as it is an OCCURS DEPENDING table"),
+					   cb_name(f));
+
+		}
+
+		if(f == end) {
+			break;
+		} else {
+			f = get_next_record_field(f);
+		}
+	}
+}
+
+void
+cb_validate_renames_item(cb_field * item)
+{
+	const char	* redefines_name = cb_name(item->redefines);
+	const char	* rename_thru_name = cb_name(item->rename_thru);
+	struct cb_field * founder;
+	struct cb_field * f;
+
+	founder = cb_field_founder(item->redefines);
+	if(item->parent != founder) {
+		cb_error_x(item,
+				   _("'%s' must immediately follow the record '%s'"),
+				   cb_name(item),
+				   cb_name(founder));
+	}
+
+	if(item->rename_thru
+			&& founder != cb_field_founder(item->rename_thru)) {
+		cb_error_x(item,
+				   _("'%s' and '%s' must be in the same record"),
+				   redefines_name, rename_thru_name);
+	}
+
+	if(item->redefines == item->rename_thru) {
+		cb_error_x(item,
+				   _("THRU item must be different to '%s'"),
+				   redefines_name);
+	} else if(!error_if_rename_thru_is_before_redefines(item)) {
+		error_if_invalid_type_in_renames_range(item);
+	}
+
+	for(f = item->rename_thru; f; f = f->parent) {
+		if(f->parent == item->redefines) {
+			cb_error_x(item,
+					   _("THRU item '%s' may not be subordinate to '%s'"),
+					   rename_thru_name, redefines_name);
+			break;
+		}
+	}
+
+	error_if_is_or_in_occurs(item->redefines, item);
+	if(item->rename_thru) {
+		error_if_is_or_in_occurs(item->rename_thru, item);
+	}
 }
 
 void
@@ -1381,4 +1572,76 @@ cb_field *
 cb_get_real_field(void)
 {
 	return last_real_field;
+}
+
+const char *
+cb_get_usage_string(const enum cb_usage usage)
+{
+	switch(usage) {
+	case CB_USAGE_BINARY:
+		return "COMP";
+	case CB_USAGE_BIT:
+		return "BIT";
+	case CB_USAGE_COMP_5:
+		return "COMP-5";
+	case CB_USAGE_COMP_X:
+		return "COMP-X";
+	case CB_USAGE_DISPLAY:
+		return "DISPLAY";
+	case CB_USAGE_FLOAT:
+		return "COMP-1";
+	/* return "FLOAT-SHORT"; */
+	case CB_USAGE_DOUBLE:
+		return "COMP-2";
+	/* return "FLOAT-LONG"; */
+	case CB_USAGE_INDEX:
+		return "INDEX";
+	case CB_USAGE_NATIONAL:
+		return "NATIONAL";
+	case CB_USAGE_OBJECT:
+		return "OBJECT REFERENCE";
+	case CB_USAGE_PACKED:
+		return "COMP-3";
+	/* return "PACKED-DECIMAL"; */
+	case CB_USAGE_POINTER:
+		return "POINTER";
+	case CB_USAGE_LENGTH:
+		/* Probably---generates a cob_u32_t item.*/
+		return "BINARY-LONG";
+	case CB_USAGE_PROGRAM_POINTER:
+		return "PROGRAM-POINTER";
+	case CB_USAGE_UNSIGNED_CHAR:
+		return "UNSIGNED-CHAR";
+	case CB_USAGE_SIGNED_CHAR:
+		return "SIGNED-CHAR";
+	case CB_USAGE_UNSIGNED_SHORT:
+		return "UNSIGNED-SHORT";
+	case CB_USAGE_SIGNED_SHORT:
+		return "SIGNED-SHORT";
+	case CB_USAGE_UNSIGNED_INT:
+		return "UNSIGNED-INT";
+	case CB_USAGE_SIGNED_INT:
+		return "SIGNED-INT";
+	case CB_USAGE_UNSIGNED_LONG:
+		return "UNSIGNED-LONG";
+	case CB_USAGE_SIGNED_LONG:
+		return "SIGNED-LONG";
+	case CB_USAGE_COMP_6:
+		return "COMP-6";
+	case CB_USAGE_FP_DEC64:
+		return "FLOAT-DECIMAL-16";
+	case CB_USAGE_FP_DEC128:
+		return "FLOAT-DECIMAL-34";
+	case CB_USAGE_FP_BIN32:
+		return "FLOAT-BINARY-32";
+	case CB_USAGE_FP_BIN64:
+		return "FLOAT-BINARY-64";
+	case CB_USAGE_FP_BIN128:
+		return "FLOAT-BINARY-128";
+	case CB_USAGE_LONG_DOUBLE:
+		return "FLOAT-EXTENDED";
+	default:
+		cb_error(_("unexpected usage %d"), usage);
+		COBC_ABORT();
+	}
 }

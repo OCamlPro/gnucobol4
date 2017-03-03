@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2006-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2006-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Roger While, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ compiler is free software: you can redistribute it
+   The GnuCOBOL C++ compiler is free software: you can redistribute it
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "config.h"
@@ -52,13 +52,16 @@ cob_gen_optim(const enum cb_optim val)
 	case COB_SET_SCREEN:
 		output_storage("static void COB_NOINLINE");
 		output_storage("cob_set_screen(cob_screen *s, cob_screen *next,");
-		output_storage("		cob_screen *child, cob_field *field, cob_field *value,");
+		output_storage("		cob_screen *prev, cob_screen *child, cob_screen *parent,");
+		output_storage("		cob_field *field, cob_field *value,");
 		output_storage("		cob_field *line, cob_field *column,");
 		output_storage("		cob_field *foreg, cob_field *backg, cob_field *prompt,");
 		output_storage("		const int type, const int occurs, const int attr)");
 		output_storage("{");
 		output_storage("	s->next = next;");
+		output_storage("	s->prev = prev;");
 		output_storage("	s->child = child;");
+		output_storage("	s->parent = parent;");
 		output_storage("	s->field = field;");
 		output_storage("	s->value = value;");
 		output_storage("	s->line = line;");
@@ -199,9 +202,9 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Aligned variants */
+	/* Aligned variants */
 
-		/* Aligned compares */
+	/* Aligned compares */
 
 	case COB_CMP_ALIGN_U16:
 		output_storage("static COB_INLINE COB_A_INLINE int");
@@ -255,13 +258,10 @@ cob_gen_optim(const enum cb_optim val)
 
 	case COB_CMP_ALIGN_U64:
 		output_storage("static COB_INLINE COB_A_INLINE int");
-		output_storage("cob_cmp_align_u64(const void *p, const cob_s64_t n)");
+		output_storage("cob_cmp_align_u64(const void *p, const cob_u64_t n)");
 		output_storage("{");
 		output_storage("	cob_u64_t	val;");
 
-		output_storage("	if(unlikely(n < 0)) {");
-		output_storage("		return 1;");
-		output_storage("	}");
 		output_storage("	val = *(cob_u64_t __unaligned *)p;");
 		output_storage("	return(val < n) ? -1 :(val > n);");
 		output_storage("}");
@@ -278,7 +278,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Aligned adds */
+	/* Aligned adds */
 
 	case COB_ADD_ALIGN_U16:
 		output_storage("static COB_INLINE COB_A_INLINE void");
@@ -328,7 +328,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Aligned subtracts */
+	/* Aligned subtracts */
 
 	case COB_SUB_ALIGN_U16:
 		output_storage("static COB_INLINE COB_A_INLINE void");
@@ -453,7 +453,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Binary compare */
+	/* Binary compare */
 
 	case COB_CMP_U8:
 		output_storage("static COB_INLINE COB_A_INLINE int");
@@ -708,16 +708,13 @@ cob_gen_optim(const enum cb_optim val)
 
 	case COB_CMP_U64:
 		output_storage("static COB_INLINE COB_A_INLINE int");
-		output_storage("cob_cmp_u64(const void *p, const cob_s64_t n)");
+		output_storage("cob_cmp_u64(const void *p, const cob_u64_t n)");
 		output_storage("{");
 #ifndef COB_ALLOW_UNALIGNED
 		output_storage("	void		*x;");
 #endif
 		output_storage("	cob_u64_t	val;");
 
-		output_storage("	if(unlikely(n < 0)) {");
-		output_storage("		return 1;");
-		output_storage("	}");
 #ifdef	COB_ALLOW_UNALIGNED
 		output_storage("	val = *(const cob_u64_t __unaligned *)p;");
 #else
@@ -746,7 +743,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Add/Subtract */
+	/* Add/Subtract */
 
 	case COB_ADD_U8:
 		output_storage("static COB_INLINE COB_A_INLINE void");
@@ -1332,7 +1329,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Binary swapped compare */
+	/* Binary swapped compare */
 
 	case COB_CMPSWP_U16:
 		output_storage("static COB_INLINE COB_A_INLINE int");
@@ -1587,7 +1584,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Binary swapped add */
+	/* Binary swapped add */
 
 	case COB_ADDSWP_U16:
 		output_storage("static COB_INLINE COB_A_INLINE void");
@@ -1961,7 +1958,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Binary swapped subtract */
+	/* Binary swapped subtract */
 
 	case COB_SUBSWP_U16:
 		output_storage("static COB_INLINE COB_A_INLINE void");
@@ -2335,7 +2332,7 @@ cob_gen_optim(const enum cb_optim val)
 		output_storage("}");
 		return;
 
-		/* Binary set swapped value */
+	/* Binary set swapped value */
 	case COB_SETSWP_U16:
 		output_storage("static COB_INLINE COB_A_INLINE void");
 		output_storage("cob_setswp_u16(void *p, const int val)");
@@ -2626,6 +2623,6 @@ cob_gen_optim(const enum cb_optim val)
 	default:
 		break;
 	}
-	cobc_abort_pr(_("Unexpected optimization value"));
+	cobc_err_msg(_("unexpected optimization value: %d"), val);
 	COBC_ABORT();
 }

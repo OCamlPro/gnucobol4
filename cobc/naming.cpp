@@ -1,21 +1,22 @@
 /*
-   Copyright (C) 2013 Sergey Kashyrin <ska@kiska.net>
+   Copyright (C) 2005-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ compiler is free software: you can redistribute it
-   and/or modify it under the terms of the GNU General Public License
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
+   and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
-*/
+   You should have received a copy of the GNU Lesser General Public License
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #include <stdlib.h>
 #include <stdarg.h>
@@ -24,8 +25,11 @@
 #include <ctype.h>
 #include "cobc.h"
 #include "tree.h"
+#include "vcache.h"
 
 // NAMES REORGANIZATION
+static int dupnum = 1;
+static vcache<cb_field *> Names;
 
 static void reorg_fields(cb_field * f)
 {
@@ -102,7 +106,7 @@ static char * reserved[] = {
 
 static bool isreserved(const char * name)
 {
-	for(int i = 0; i < sizeof(reserved)/sizeof(reserved[0]); ++i) {
+	for(int i = 0; i < sizeof(reserved) / sizeof(reserved[0]); ++i) {
 		if(0 == strcmp(reserved[i], name)) {
 			return true;
 		}
@@ -138,11 +142,15 @@ static void reorg_fnames(cb_field * f, const char * basename, const char * add =
 		if(!isalpha(f->name[0]) && f->name[0] != '_') {
 			nm0[0] = '_';
 			strcpy(nm0 + 1, f->name);
-			if(adddup[0] != 0) strcat(nm0, adddup);
+			if(adddup[0] != 0) {
+				strcat(nm0, adddup);
+			}
 			++nm0len;
 		} else {
 			strcpy(nm0, f->name);
-			if(adddup[0] != 0) strcat(nm0, adddup);
+			if(adddup[0] != 0) {
+				strcat(nm0, adddup);
+			}
 		}
 		for(char * p = nm0; *p; ++p) {
 			if(*p == ' ' || *p == '-') {
@@ -156,7 +164,7 @@ static void reorg_fnames(cb_field * f, const char * basename, const char * add =
 			memcpy(nn, nm0, nm0len);
 			nn[nm0len - 1] = '_';
 			nn[nm0len] = 0;
-			delete nm0;
+			delete [] nm0;
 			nm0 = nn;
 			++nm0len;
 		}
@@ -200,12 +208,11 @@ static bool chkren(cb_field * f, bool bSister = true)
 	return false;
 }
 
-void externalize_tree(cb_program * pgm, cb_field ** base)
+void externalize_tree(cb_program * pgm, cb_field ** base, bool bWS)
 {
 	if(*base == 0) {
 		return;
 	}
-	int dupnum = 1;
 	reorg_fields(*base);
 	reorg_redef(*base, 1, base);
 	for(cb_field * f = *base; f; f = f->sister) {
@@ -239,22 +246,41 @@ void externalize_tree(cb_program * pgm, cb_field ** base)
 			continue;	// names issues
 		}
 		skadbg("YES REORG - %s\n", f->name);
-		// Resolving unused duplicate names of 01 level
+		// Resolving duplicate names of 01 level
 		char adddup[20];
 		adddup[0] = 0;
+		cb_field * fd = NULL;
 		if(0 == strcmp(pgm->program_id, f->name)) {
 			sprintf(adddup, "_%d_", dupnum);
 			++dupnum;
 		} else {
-			for(cb_field * prev = *base; prev != f; prev = prev->sister) {
-				if(0 == strcmp(prev->name, f->name)) {
-					// Duplicate
+			if(bWS) {
+				fd = Names[f->name];
+				if(fd != NULL && f->id != fd->id) {
+					// 01 level duplicate in the same or different program
 					sprintf(adddup, "_%d_", dupnum);
 					++dupnum;
-					break;
+				}
+			} else {
+				for(cb_field * prev = *base; prev != f; prev = prev->sister) {
+					if(0 == strcmp(prev->name, f->name)) {
+						// Duplicate
+						sprintf(adddup, "_%d_", dupnum);
+						++dupnum;
+						break;
+					}
 				}
 			}
 		}
 		reorg_fnames(f, "", adddup);
+		if(bWS && fd == NULL) {
+			Names.put(f->name, f);
+		}
 	}
+}
+
+void naming_init()
+{
+	dupnum = 1;
+	Names.clear();
 }

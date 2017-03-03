@@ -17,8 +17,8 @@
 #
 # Makefile gnu-cobol-cpp/doc
 #
-# Copyright (C) 2003-2012, 2015-2017 Free Software Foundation, Inc.
-# Written by Keisuke Nishida, Roger While, Simon Sobisch
+# Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
+# Copyright (C) 2008-2012 Roger While
 #
 # This file is part of GNU Cobol.
 #
@@ -123,7 +123,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/version.texi \
 	$(srcdir)/stamp-vti $(am__DIST_COMMON)
-mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+mkinstalldirs = $(SHELL) $(top_srcdir)/build_aux/mkinstalldirs
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
@@ -170,7 +170,7 @@ am__v_texidevnull_ = $(am__v_texidevnull_@AM_DEFAULT_V@)
 am__v_texidevnull_0 = > /dev/null
 am__v_texidevnull_1 = 
 INFO_DEPS = $(srcdir)/gnucobol.info
-am__TEXINFO_TEX_DIR = $(srcdir)/.
+am__TEXINFO_TEX_DIR = $(srcdir)/..
 DVIS = gnucobolcpp.dvi
 PDFS = gnucobolcpp.pdf
 PSS = gnucobolcpp.ps
@@ -213,8 +213,10 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
-am__DIST_COMMON = $(gnucobolcpp_TEXINFOS) $(srcdir)/Makefile.in \
-	$(top_srcdir)/mkinstalldirs ChangeLog mdate-sh
+am__DIST_COMMON = $(srcdir)/Makefile.in \
+	$(top_srcdir)/build_aux/mdate-sh \
+	$(top_srcdir)/build_aux/mkinstalldirs ChangeLog mdate-sh \
+	texinfo.tex
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 ALLOCA = @ALLOCA@
@@ -235,10 +237,13 @@ COB_CC = @COB_CC@
 COB_CFLAGS = @COB_CFLAGS@
 COB_CONFIG_DIR = @COB_CONFIG_DIR@
 COB_COPY_DIR = @COB_COPY_DIR@
+COB_EXE_EXT = @COB_EXE_EXT@
 COB_EXPORT_DYN = @COB_EXPORT_DYN@
 COB_FIX_LIB = @COB_FIX_LIB@
 COB_FIX_LIBTOOL = @COB_FIX_LIBTOOL@
+COB_HAS_CURSES = @COB_HAS_CURSES@
 COB_HAS_ISAM = @COB_HAS_ISAM@
+COB_HAS_UTC_OFFSET = @COB_HAS_UTC_OFFSET@
 COB_KEYWORD_INLINE = @COB_KEYWORD_INLINE@
 COB_LDFLAGS = @COB_LDFLAGS@
 COB_LIBRARY_PATH = @COB_LIBRARY_PATH@
@@ -376,14 +381,14 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-COBCINFOSH = . $(top_builddir)/tests/atconfig && . $(top_builddir)/tests/atlocal && \
-	$(top_srcdir)/doc/cobcinfo.sh
-
 info_TEXINFOS = gnucobolcpp.texi
-gnucobolcpp_TEXINFOS = cbhelp.tex cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex cbconf.tex
+gnucobol_TEXINFOS = cbhelp.tex cbinfo.tex cbrese.tex \
+	cbintr.tex cbsyst.tex cbmnem.tex cbconf.tex
 
-EXTRA_DIST = gnucobolcpp.pdf cobcinfo.sh
-TEXINFO_TEX = texinfo.texi
+EXTRA_DIST = gnucobolcpp.pdf cobcinfo.sh cbhelp.tex cbinfo.tex cbrese.tex \
+	cbintr.tex cbsyst.tex cbmnem.tex cbconf.tex
+
+TEXINFO_TEX = ../texinfo.tex
 AM_MAKEINFOHTMLFLAGS = --no-headers --no-split
 CLEANFILES = *.aux  *.cp *.fn *.ky *.log *.pg *.toc *.tp *.vr *.vrs
 TEXI2DVI = texi2dvi -I $(srcdir)
@@ -470,14 +475,14 @@ clean-libtool:
 	else \
 	  rm -rf $(@:.html=.htp); exit 1; \
 	fi
-$(srcdir)/gnucobol.info: gnucobolcpp.texi $(srcdir)/version.texi $(gnucobolcpp_TEXINFOS)
-gnucobol.dvi: gnucobolcpp.texi $(srcdir)/version.texi $(gnucobolcpp_TEXINFOS)
-gnucobol.pdf: gnucobolcpp.texi $(srcdir)/version.texi $(gnucobolcpp_TEXINFOS)
-gnucobol.html: gnucobolcpp.texi $(srcdir)/version.texi $(gnucobolcpp_TEXINFOS)
+$(srcdir)/gnucobol.info: gnucobolcpp.texi $(srcdir)/version.texi
+gnucobol.dvi: gnucobolcpp.texi $(srcdir)/version.texi
+gnucobol.pdf: gnucobolcpp.texi $(srcdir)/version.texi
+gnucobol.html: gnucobolcpp.texi $(srcdir)/version.texi
 $(srcdir)/version.texi: @MAINTAINER_MODE_TRUE@ $(srcdir)/stamp-vti
 $(srcdir)/stamp-vti: gnucobolcpp.texi $(top_srcdir)/configure
 	@(dir=.; test -f ./gnucobolcpp.texi || dir=$(srcdir); \
-	set `$(SHELL) $(srcdir)/mdate-sh $$dir/gnucobolcpp.texi`; \
+	set `$(SHELL) $(top_srcdir)/build_aux/mdate-sh $$dir/gnucobolcpp.texi`; \
 	echo "@set UPDATED $$1 $$2 $$3"; \
 	echo "@set UPDATED-MONTH $$2 $$3"; \
 	echo "@set EDITION $(VERSION)"; \
@@ -845,20 +850,6 @@ uninstall-am: uninstall-dvi-am uninstall-html-am uninstall-info-am \
 
 .PRECIOUS: Makefile
 
-
-cbhelp.tex: $(top_srcdir)/cobc/cobc.cpp $(top_srcdir)/configure.ac \
-	$(top_srcdir)/cobc/flag.def $(top_srcdir)/cobc/warning.def \
-	$(top_srcdir)/doc/cobcinfo.sh
-	$(COBCINFOSH) $@
-
-cbconf.tex: $(top_srcdir)/config/default.conf \
-	$(top_srcdir)/doc/cobcinfo.sh
-	$(COBCINFOSH) $@
-
-cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex: \
-	$(top_srcdir)/cobc/cobc.cpp $(top_srcdir)/cobc/reserved.cpp \
-	$(top_srcdir)/doc/cobcinfo.sh
-	$(COBCINFOSH) $@
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

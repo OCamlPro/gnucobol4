@@ -1,22 +1,21 @@
 /*
-   Copyright (C) 2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2014-2017 Free Software Foundation, Inc.
+   Written by Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ runtime library is free software: you can redistribute it
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "config.h"
@@ -39,7 +38,8 @@
 /////////////////////////////////////////////////////////////////////////////
 // assignment operators
 
-cob_decimal & cob_decimal::operator=(const cob_s64_t rhs) {
+cob_decimal & cob_decimal::operator=(const cob_s64_t rhs)
+{
 	scale = 0;
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	value = rhs;
@@ -53,7 +53,8 @@ cob_decimal & cob_decimal::operator=(const cob_s64_t rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator=(const cob_u64_t rhs) {
+cob_decimal & cob_decimal::operator=(const cob_u64_t rhs)
+{
 	scale = 0;
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	value = rhs;
@@ -67,7 +68,8 @@ cob_decimal & cob_decimal::operator=(const cob_u64_t rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator=(const double rhs) {
+cob_decimal & cob_decimal::operator=(const double rhs)
+{
 	cob_u64_t t1;
 	memset(&t1, ' ', sizeof(t1));
 	union {
@@ -96,7 +98,9 @@ cob_decimal & cob_decimal::operator=(const double rhs) {
 		scale = 0;
 		return *this;
 	}
-	if(str[0] == '-') --len;
+	if(str[0] == '-') {
+		--len;
+	}
 
 	value.set_str(str, 10);
 	len -= lscale;
@@ -115,7 +119,8 @@ cob_decimal & cob_decimal::operator=(const double rhs) {
 /////////////////////////////////////////////////////////////////////////////
 // operator +
 
-cob_decimal cob_decimal::operator+(const cob_decimal & rhs) const {
+cob_decimal cob_decimal::operator+(const cob_decimal & rhs) const
+{
 	cob_decimal res;
 	if(scale == rhs.scale) {
 		res.scale = scale;
@@ -136,7 +141,8 @@ cob_decimal cob_decimal::operator+(const cob_decimal & rhs) const {
 	return res;
 }
 
-cob_decimal cob_decimal::operator+(const signed int rhs) const {
+cob_decimal cob_decimal::operator+(const signed int rhs) const
+{
 	cob_decimal res;
 	if(scale < 0) {
 		mpz_ui_pow_ui(res.value.get_mpz_t(), 10, -scale);
@@ -155,7 +161,8 @@ cob_decimal cob_decimal::operator+(const signed int rhs) const {
 	return res;
 }
 
-cob_decimal cob_decimal::operator+(const unsigned int rhs) const {
+cob_decimal cob_decimal::operator+(const unsigned int rhs) const
+{
 	cob_decimal res;
 	if(scale < 0) {
 		mpz_ui_pow_ui(res.value.get_mpz_t(), 10, -scale);
@@ -174,7 +181,8 @@ cob_decimal cob_decimal::operator+(const unsigned int rhs) const {
 	return res;
 }
 
-cob_decimal cob_decimal::operator+(const cob_s64_t rhs) const {
+cob_decimal cob_decimal::operator+(const cob_s64_t rhs) const
+{
 	cob_decimal res = rhs;
 	if(scale < 0) {
 		mpz_class temp;
@@ -193,7 +201,8 @@ cob_decimal cob_decimal::operator+(const cob_s64_t rhs) const {
 	return res;
 }
 
-cob_decimal cob_decimal::operator+(const cob_u64_t rhs) const {
+cob_decimal cob_decimal::operator+(const cob_u64_t rhs) const
+{
 	cob_decimal res = rhs;
 	if(scale < 0) {
 		mpz_class temp;
@@ -215,7 +224,8 @@ cob_decimal cob_decimal::operator+(const cob_u64_t rhs) const {
 /////////////////////////////////////////////////////////////////////////////
 // operator +=
 
-cob_decimal & cob_decimal::operator+=(const cob_decimal & rhs) {
+cob_decimal & cob_decimal::operator+=(const cob_decimal & rhs)
+{
 	if(scale == rhs.scale) {
 		value += rhs.value;
 		return *this;
@@ -234,7 +244,8 @@ cob_decimal & cob_decimal::operator+=(const cob_decimal & rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator+=(const signed int rhs) {
+cob_decimal & cob_decimal::operator+=(const signed int rhs)
+{
 	if(scale == 0) {
 		value += rhs;
 		return *this;
@@ -255,7 +266,8 @@ cob_decimal & cob_decimal::operator+=(const signed int rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator+=(const unsigned int rhs) {
+cob_decimal & cob_decimal::operator+=(const unsigned int rhs)
+{
 	if(scale == 0) {
 		value += rhs;
 		return *this;
@@ -276,7 +288,8 @@ cob_decimal & cob_decimal::operator+=(const unsigned int rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator+=(const cob_s64_t rhs) {
+cob_decimal & cob_decimal::operator+=(const cob_s64_t rhs)
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	if(scale == 0) {
 		value += rhs;
@@ -298,7 +311,8 @@ cob_decimal & cob_decimal::operator+=(const cob_s64_t rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator+=(const cob_u64_t rhs) {
+cob_decimal & cob_decimal::operator+=(const cob_u64_t rhs)
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	if(scale == 0) {
 		value += rhs;
@@ -323,7 +337,8 @@ cob_decimal & cob_decimal::operator+=(const cob_u64_t rhs) {
 /////////////////////////////////////////////////////////////////////////////
 // operator -
 
-cob_decimal cob_decimal::operator-(const unsigned int rhs) const {
+cob_decimal cob_decimal::operator-(const unsigned int rhs) const
+{
 	cob_decimal res;
 	if(scale < 0) {
 		mpz_ui_pow_ui(res.value.get_mpz_t(), 10, -scale);
@@ -342,7 +357,8 @@ cob_decimal cob_decimal::operator-(const unsigned int rhs) const {
 	return res;
 }
 
-cob_decimal cob_decimal::operator-(const cob_u64_t rhs) const {
+cob_decimal cob_decimal::operator-(const cob_u64_t rhs) const
+{
 	cob_decimal res = rhs;
 	if(scale < 0) {
 		mpz_class temp;
@@ -364,7 +380,8 @@ cob_decimal cob_decimal::operator-(const cob_u64_t rhs) const {
 /////////////////////////////////////////////////////////////////////////////
 // operator -=
 
-cob_decimal & cob_decimal::operator-=(const unsigned int rhs) {
+cob_decimal & cob_decimal::operator-=(const unsigned int rhs)
+{
 	if(scale == 0) {
 		value -= rhs;
 		return *this;
@@ -385,7 +402,8 @@ cob_decimal & cob_decimal::operator-=(const unsigned int rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator-=(const cob_u64_t rhs) {
+cob_decimal & cob_decimal::operator-=(const cob_u64_t rhs)
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	if(scale == 0) {
 		value -= rhs;
@@ -410,7 +428,8 @@ cob_decimal & cob_decimal::operator-=(const cob_u64_t rhs) {
 /////////////////////////////////////////////////////////////////////////////
 // operator *
 
-cob_decimal cob_decimal::operator*(const cob_s64_t rhs) const {
+cob_decimal cob_decimal::operator*(const cob_s64_t rhs) const
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	cob_decimal res = *this;
 	res.value *= rhs;
@@ -423,7 +442,8 @@ cob_decimal cob_decimal::operator*(const cob_s64_t rhs) const {
 #endif
 }
 
-cob_decimal cob_decimal::operator*(const cob_u64_t rhs) const {
+cob_decimal cob_decimal::operator*(const cob_u64_t rhs) const
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	cob_decimal res = *this;
 	res.value *= rhs;
@@ -439,7 +459,8 @@ cob_decimal cob_decimal::operator*(const cob_u64_t rhs) const {
 /////////////////////////////////////////////////////////////////////////////
 // operator *=
 
-cob_decimal & cob_decimal::operator*=(const cob_s64_t rhs) {
+cob_decimal & cob_decimal::operator*=(const cob_s64_t rhs)
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	value *= rhs;
 #else
@@ -449,7 +470,8 @@ cob_decimal & cob_decimal::operator*=(const cob_s64_t rhs) {
 	return *this;
 }
 
-cob_decimal & cob_decimal::operator*=(const cob_u64_t rhs) {
+cob_decimal & cob_decimal::operator*=(const cob_u64_t rhs)
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	value *= rhs;
 #else
@@ -461,7 +483,8 @@ cob_decimal & cob_decimal::operator*=(const cob_u64_t rhs) {
 
 /////////////////////////////////////////////////////////////////////////////
 // operator /
-cob_decimal cob_decimal::operator/(const cob_decimal & rhs) const {
+cob_decimal cob_decimal::operator/(const cob_decimal & rhs) const
+{
 	cob_decimal res;
 	res.scale = scale - rhs.scale;
 	int sc = (res.scale < 0) ? -res.scale : 0;
@@ -475,7 +498,8 @@ cob_decimal cob_decimal::operator/(const cob_decimal & rhs) const {
 
 /////////////////////////////////////////////////////////////////////////////
 // operator /=
-cob_decimal & cob_decimal::operator/=(const cob_decimal & rhs) {
+cob_decimal & cob_decimal::operator/=(const cob_decimal & rhs)
+{
 	cob_decimal res;
 	res.scale = scale - rhs.scale;
 	int sc = (res.scale < 0) ? -res.scale : 0;
@@ -490,7 +514,8 @@ cob_decimal & cob_decimal::operator/=(const cob_decimal & rhs) {
 /////////////////////////////////////////////////////////////////////////////
 // cast functions
 
-cob_decimal::operator signed int() {
+cob_decimal::operator signed int()
+{
 	if(scale < 0) {
 		mpz_class temp;
 		mpz_ui_pow_ui(temp.get_mpz_t(), 10, -scale);
@@ -506,7 +531,8 @@ cob_decimal::operator signed int() {
 	return (signed int) value.get_si();
 }
 
-cob_decimal::operator unsigned int() {
+cob_decimal::operator unsigned int()
+{
 	if(scale < 0) {
 		mpz_class temp;
 		mpz_ui_pow_ui(temp.get_mpz_t(), 10, -scale);
@@ -522,7 +548,8 @@ cob_decimal::operator unsigned int() {
 	return (unsigned int) value.get_ui();
 }
 
-cob_decimal::operator cob_s64_t() {
+cob_decimal::operator cob_s64_t()
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	if(scale < 0) {
 		mpz_class temp;
@@ -557,7 +584,8 @@ cob_decimal::operator cob_s64_t() {
 #endif
 }
 
-cob_decimal::operator cob_u64_t() {
+cob_decimal::operator cob_u64_t()
+{
 #if defined(COB_LI_IS_LL) || defined(_WIN64)
 	if(scale < 0) {
 		mpz_class temp;
@@ -592,7 +620,8 @@ cob_decimal::operator cob_u64_t() {
 #endif
 }
 
-cob_decimal::operator double() {
+cob_decimal::operator double()
+{
 	double ret = value.get_d();
 	if(!finite(ret)) {
 		return 0.;
@@ -608,7 +637,8 @@ cob_decimal::operator double() {
 /////////////////////////////////////////////////////////////////////////////
 // helper functions
 
-void cob_decimal::print(FILE * f) {
+void cob_decimal::print(FILE * f)
+{
 	std::string s = value.get_str();
 	if(scale < 0) {
 		int n = scale;
@@ -622,8 +652,12 @@ void cob_decimal::print(FILE * f) {
 			sign = true;
 			s = s.substr(1);
 		}
-		while(((int)s.length()) <= scale) s = '0' + s;
-		if(sign) s = '-' + s;
+		while(((int)s.length()) <= scale) {
+			s = '0' + s;
+		}
+		if(sign) {
+			s = '-' + s;
+		}
 		s = s.substr(0, s.length() - scale) + '.' + s.substr(s.length() - scale);
 	}
 	fprintf(f, "%s\n", s.c_str());

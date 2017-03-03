@@ -1,30 +1,32 @@
 /*
- * Copyright (C) 2006-2016 Sergey Kashyrin <ska@kiska.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 3, or (at your option)
- * any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this software; see the file COPYING.  If not, write to
- * the Free Software Foundation, Inc., 59 Temple Place, Suite 330,
- * Boston, MA 02111-1307 USA
+   Copyright (C) 2005-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Sergey Kashyrin
+
+   This file is part of GnuCOBOL C++.
+
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
+   and/or modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #if !defined(_INC_VCACHE)
 #define _INC_VCACHE
 
 template <class T>
-class vvector {
+class vvector
+{
 
 private:
-	T *		data;
+	T 	*	data;
 	int		SZ;
 	int		count;
 
@@ -54,19 +56,25 @@ public:
 
 	T & get(int i)
 	{
-		if(i < 0 || i >= count) throw "vvector Index violation";
+		if(i < 0 || i >= count) {
+			throw "vvector Index violation";
+		}
 		return data[i];
 	}
 
 	T & operator [](int i)
 	{
-		if(i < 0 || i >= count) throw "vvector Index violation";
+		if(i < 0 || i >= count) {
+			throw "vvector Index violation";
+		}
 		return data[i];
 	}
 
 	T remove(int i)
 	{
-		if(i < 0 || i >= count) throw "vvector Index violation";
+		if(i < 0 || i >= count) {
+			throw "vvector Index violation";
+		}
 		T t = data[i];
 		if(i != count - 1) {
 			memcpy(data + i, data + i + 1, (count - i - 1) * sizeof(T));
@@ -90,16 +98,19 @@ public:
 
 	void set(int i, T t)
 	{
-		if(i < 0 || i >= count) throw "vvector Index violation";
+		if(i < 0 || i >= count) {
+			throw "vvector Index violation";
+		}
 		data[i] = t;
 	}
 };
 
 template <class T>
-class vholder {
+class vholder
+{
 public:
 	vholder *	next;
-	char *		name;
+	char 	*	name;
 	T			obj;
 public:
 	vholder(const char * nm, T val)
@@ -118,7 +129,8 @@ public:
 };
 
 template <class T>
-class vcache {
+class vcache
+{
 
 private:
 	vholder<T> **	data;
@@ -131,8 +143,10 @@ public:
 	vcache(int sz = 1009)
 	{
 		SZ = sz;
-		data = new vholder<T> *[SZ];
-		for(int i = 0; i < SZ; ++i) data[i] = NULL;
+		data = new vholder<T> * [SZ];
+		for(int i = 0; i < SZ; ++i) {
+			data[i] = NULL;
+		}
 		count = 0;
 	}
 	~vcache()
@@ -169,36 +183,54 @@ public:
 	vholder<T> * getFirstHolder()
 	{
 		for(lastIx = 0; lastIx < SZ; ++lastIx) {
-			if(data[lastIx] != NULL) break;
+			if(data[lastIx] != NULL) {
+				break;
+			}
 		}
-		if(lastIx >= SZ) return NULL;
+		if(lastIx >= SZ) {
+			return NULL;
+		}
 		lastH = data[lastIx];
 		return lastH;
 	}
 
 	vholder<T> * getNextHolder()
 	{
-		if(lastH == NULL) return NULL;
-		lastH = lastH->next;
-		if(lastH != NULL) return lastH;
-		for(lastIx = lastIx+1; lastIx < SZ; ++lastIx) {
-			if(data[lastIx] != NULL) break;
+		if(lastH == NULL) {
+			return NULL;
 		}
-		if(lastIx >= SZ) return NULL;
+		lastH = lastH->next;
+		if(lastH != NULL) {
+			return lastH;
+		}
+		for(lastIx = lastIx + 1; lastIx < SZ; ++lastIx) {
+			if(data[lastIx] != NULL) {
+				break;
+			}
+		}
+		if(lastIx >= SZ) {
+			return NULL;
+		}
 		lastH = data[lastIx];
 		return lastH;
 	}
 
 	T getFirstElement()
 	{
-		if(getFirstHolder() == NULL) return NULL;
+		if(getFirstHolder() == NULL) {
+			return NULL;
+		}
 		return lastH->obj;
 	}
 
 	T getNextElement()
 	{
-		if(lastH == NULL) return NULL;
-		if(getNextHolder() == NULL) return NULL;
+		if(lastH == NULL) {
+			return NULL;
+		}
+		if(getNextHolder() == NULL) {
+			return NULL;
+		}
 		return lastH->obj;
 	}
 
@@ -219,12 +251,15 @@ public:
 	{
 		int i = hash(s);
 		for(vholder<T> * h = data[i]; h != NULL; h = h->next) {
-			if(0 == strcmp(s, h->name)) return h->obj;
+			if(0 == strcmp(s, h->name)) {
+				return h->obj;
+			}
 		}
 		return NULL;
 	}
 
-	T operator [](const char * s) {
+	T operator [](const char * s)
+	{
 		return get(s);
 	}
 
@@ -255,8 +290,11 @@ public:
 					h->obj = o;
 					return;
 				}
-				if(p == NULL) data[i] = h->next;
-				else p->next = h->next;
+				if(p == NULL) {
+					data[i] = h->next;
+				} else {
+					p->next = h->next;
+				}
 				delete h;
 				--count;
 				return;

@@ -1,20 +1,21 @@
-      *>  Copyright (C) 2008-2012 Roger While
+      *>  Copyright (C) 2008-2012, 2015-2016  Free Software Foundation, Inc.
+      *>  Written by Roger While
       *>
-      *>  This file is part of GNU Cobol C++.
+      *>  This file is part of GnuCOBOL.
       *>
-      *>  The GNU Cobol C++ compiler is free software: you can
-      *>  redistribute it and/or modify it under the terms of the GNU
-      *>  General Public License as published by the Free Software
-      *>  Foundation, either version 3 of the License, or (at your
-      *>  option) any later version.
+      *>  The GnuCOBOL compiler is free software: you can redistribute
+      *>  it and/or modify it under the terms of the GNU General Public
+      *>  License as published by the Free Software Foundation, either
+      *>  version 3 of the License, or (at your option) any later
+      *>  version.
       *>
-      *>  GNU Cobol C++ is distributed in the hope that it will be
-      *>  useful, but WITHOUT ANY WARRANTY; without even the implied
-      *>  warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-      *>  PURPOSE. See the GNU General Public License for more details.
+      *>  GnuCOBOL is distributed in the hope that it will be useful,
+      *>  but WITHOUT ANY WARRANTY; without even the implied warranty of
+      *>  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+      *>  GNU General Public License for more details.
       *>
       *>  You should have received a copy of the GNU General Public
-      *>  License along with GNU Cobol C++.
+      *>  License along with GnuCOBOL.
       *>  If not, see <http://www.gnu.org/licenses/>.
 
 
@@ -99,12 +100,23 @@
        78  COB-SCR-F63         VALUE 1063.
        78  COB-SCR-F64         VALUE 1064.
       *>  Exception keys - Values 2xxx
-       78  COB-SCR-PAGE_UP     VALUE 2001.
-       78  COB-SCR-PAGE_DOWN   VALUE 2002.
+       78  COB-SCR-PAGE-UP     VALUE 2001.
+       78  COB-SCR-PAGE-DOWN   VALUE 2002.
        78  COB-SCR-KEY-UP      VALUE 2003.
        78  COB-SCR-KEY-DOWN    VALUE 2004.
        78  COB-SCR-ESC         VALUE 2005.
        78  COB-SCR-PRINT       VALUE 2006.
+       78  COB-SCR-TAB         VALUE 2007.
+       78  COB-SCR-BACK-TAB    VALUE 2008.
+       78  COB-SCR-KEY-LEFT    VALUE 2009.
+       78  COB-SCR-KEY-RIGHT   VALUE 2010.
+      *>  The following exception keys are currently *only* returned
+      *>  on ACCEPT OMITTED
+       78  COB-SCR-INSERT      VALUE 2011.
+       78  COB-SCR-DELETE      VALUE 2012.
+       78  COB-SCR-BACKSPACE   VALUE 2013.
+       78  COB-SCR-KEY-HOME    VALUE 2014.
+       78  COB-SCR-KEY-END     VALUE 2015.      
       *>  Input validation - Values 8xxx
        78  COB-SCR-NO-FIELD    VALUE 8000.
        78  COB-SCR-TIME-OUT    VALUE 8001.

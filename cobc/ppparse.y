@@ -1,22 +1,22 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2001-2012, 2015-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ compiler is free software: you can redistribute it
+   The GnuCOBOL C++ compiler is free software: you can redistribute it
+
    and/or modify it under the terms of the GNU General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -25,7 +25,7 @@
 %defines
 %error-verbose
 %verbose
-%name-prefix "pp"
+%name-prefix="pp" // recent versions want %api.prefix "pp", older cannot compile this
 
 %{
 #include "config.h"
@@ -38,6 +38,7 @@
 
 #define	COB_IN_PPPARSE	1
 #include "cobc.h"
+#include "tree.h"
 
 #ifndef	_STDLIB_H
 #define	_STDLIB_H 1
@@ -45,7 +46,7 @@
 
 #define YYINCLUDED_STDLIB_H 1
 
-#define pperror cb_error
+#define pperror(x)	cb_error("%s", x)
 
 #define COND_EQ		0
 #define COND_LT		1U
@@ -53,6 +54,10 @@
 #define COND_LE		3U
 #define COND_GE		4U
 #define COND_NE		5U
+
+/* Global variables */
+
+int		current_call_convention;
 
 /* Local variables */
 
@@ -126,6 +131,7 @@ ppp_replace_list_add(cb_replace_list * list,
 				     const unsigned int lead_or_trail)
 {
 	cb_replace_list * p = (cb_replace_list *) cobc_plex_malloc(sizeof(cb_replace_list));
+	p->line_num = cb_source_line;
 	p->old_text = old_text;
 	p->new_text = new_text;
 	p->lead_trail = lead_or_trail;
@@ -231,7 +237,7 @@ ppp_compare_vals(const cb_define_struct * p1,
 		return 0;
 	}
 	if(p1->deftype != p2->deftype) {
-		cb_warning(_("Directive comparison on different types"));
+		cb_warning(_("directive comparison on different types"));
 		return 0;
 	}
 	if(p1->deftype == PLEX_DEF_LIT) {
@@ -296,14 +302,14 @@ ppp_define_add(cb_define_struct * list, const char * name,
 	for(cb_define_struct * l = list; l; l = l->next) {
 		if(!strcasecmp(name, l->name)) {
 			if(!override && l->deftype != PLEX_DEF_DEL) {
-				cb_error(_("Duplicate define"));
+				cb_error(_("duplicate define"));
 				return NULL;
 			}
 			if(l->value) {
 				l->value = NULL;
 			}
 			if(ppp_set_value(l, text)) {
-				cb_error(_("Invalid constant"));
+				cb_error(_("invalid constant"));
 				return NULL;
 			}
 			return list;
@@ -313,7 +319,7 @@ ppp_define_add(cb_define_struct * list, const char * name,
 	cb_define_struct * p = (cb_define_struct *) cobc_plex_malloc(sizeof(cb_define_struct));
 	p->name = cobc_plex_strdup(name);
 	if(ppp_set_value(p, text)) {
-		cb_error(_("Invalid constant"));
+		cb_error(_("invalid constant"));
 		return NULL;
 	}
 
@@ -466,6 +472,8 @@ ppparse_clear_vars(const cb_define_struct * p)
 	for(const cb_define_struct * q = p; q; q = q->next) {
 		ppp_setvar_list = ppp_define_add(ppp_setvar_list, q->name, q->value, 0);
 	}
+	/* reset CALL CONVENTION */
+	current_call_convention = CB_CONV_COBOL;
 }
 
 %}
@@ -499,11 +507,21 @@ ppparse_clear_vars(const cb_define_struct * p)
 
 %token GARBAGE		"word"
 
+%token PAGE_DIRECTIVE
+%token LISTING_DIRECTIVE
+
 %token SOURCE_DIRECTIVE
 %token FORMAT
 %token IS
 %token FIXED
 %token FREE
+%token VARIABLE
+
+%token CALL_DIRECTIVE
+%token COBOL
+%token TOK_EXTERN		"EXTERN"
+%token STDCALL
+%token STATIC
 
 %token DEFINE_DIRECTIVE
 %token AS
@@ -546,7 +564,7 @@ ppparse_clear_vars(const cb_define_struct * p)
 %token TERMINATOR	"end of line"
 
 %token <s> TOKEN	"Identifier or Literal"
-%token <s> VARIABLE	"Variable"
+%token <s> VARIABLE_NAME	"Variable"
 %token <s> LITERAL	"Literal"
 
 %type <s>	copy_in
@@ -588,6 +606,8 @@ directive:
 | DEFINE_DIRECTIVE define_directive
 | SET_DIRECTIVE set_directive
 | TURN_DIRECTIVE turn_directive
+| PAGE_DIRECTIVE page_directive
+| LISTING_DIRECTIVE listing_directive
 | IF_DIRECTIVE
   {
 	current_cmd = PLEX_ACT_IF;
@@ -606,6 +626,16 @@ directive:
   {
 	plex_action_directive(PLEX_ACT_END, 0);
   }
+| CALL_DIRECTIVE
+  {
+	current_call_convention = 0;
+  }
+  call_directive
+  {
+	if (current_call_convention == CB_CONV_STATIC_LINK) {
+		current_call_convention |= CB_CONV_COBOL;
+	};
+  }
 ;
 
 set_directive:
@@ -614,7 +644,7 @@ set_directive:
 ;
 
 set_choice:
-  CONSTANT VARIABLE _as LITERAL
+  CONSTANT VARIABLE_NAME _as LITERAL
   {
 	cb_define_struct * p = ppp_define_add(ppp_setvar_list, $2, $4, 1);
 	if(p) {
@@ -622,7 +652,7 @@ set_choice:
 		fprintf(ppout, "#DEFLIT %s %s\n", $2, $4);
 	}
   }
-| VARIABLE set_options
+| VARIABLE_NAME set_options
 | SOURCEFORMAT _as LITERAL
   {
 	char * p = $3;
@@ -631,16 +661,24 @@ set_choice:
 		p++;
 		size_t size = strlen(p) - 1;
 		if(p[size] != quote) {
-			cb_error(_("Invalid SOURCEFORMAT directive"));
+			cb_error(_("invalid %s directive"), "SOURCEFORMAT");
 		}
 		p[size] = 0;
 	}
 	if(!strcasecmp(p, "FIXED")) {
 		cb_source_format = CB_FORMAT_FIXED;
+		cb_text_column = cb_config_text_column;
 	} else if(!strcasecmp(p, "FREE")) {
 		cb_source_format = CB_FORMAT_FREE;
+	} else if(!strcasecmp(p, "VARIABLE")) {
+		cb_source_format = CB_FORMAT_FIXED;
+		/* This is an arbitrary value; perhaps change later? */
+		cb_text_column = 500;
 	} else {
-		cb_error(_("Invalid SOURCEFORMAT directive"));
+		cb_error(_("invalid %s directive"), "SOURCEFORMAT");
+	}
+	if(cb_src_list_file) {
+		cb_current_file->source_format = cb_source_format;
 	}
   }
 | NOFOLDCOPYNAME
@@ -655,7 +693,7 @@ set_choice:
 		p++;
 		size_t size = strlen(p) - 1;
 		if(p[size] != quote) {
-			cb_error(_("Invalid FOLD-COPY-NAME directive"));
+			cb_error(_("invalid %s directive"), "FOLD-COPY-NAME");
 		}
 		p[size] = 0;
 	}
@@ -664,7 +702,7 @@ set_choice:
 	} else if(!strcasecmp(p, "LOWER")) {
 		cb_fold_copy = COB_FOLD_LOWER;
 	} else {
-		cb_error(_("Invalid FOLD-COPY-NAME directive"));
+		cb_error(_("invalid %s directive"), "FOLD-COPY-NAME");
 	}
   }
 ;
@@ -682,30 +720,41 @@ set_options:
 
 source_directive:
   _format _is format_type
+  {
+	  if (cb_src_list_file) {
+		  cb_current_file->source_format = cb_source_format;
+	  }
+  }
 ;
 
 format_type:
   FIXED
   {
 	cb_source_format = CB_FORMAT_FIXED;
+	cb_text_column = cb_config_text_column;
   }
 | FREE
   {
 	cb_source_format = CB_FORMAT_FREE;
   }
+| VARIABLE
+  {
+	cb_source_format = CB_FORMAT_FIXED;
+	cb_text_column = 500;
+  }
 | GARBAGE
   {
-	cb_error(_("Invalid SOURCE directive"));
+	cb_error(_("invalid %s directive"), "SOURCE");
 	YYERROR;
   }
 ;
 
 define_directive:
-  VARIABLE _as OFF
+  VARIABLE_NAME _as OFF
   {
 	ppp_define_del($1);
   }
-| VARIABLE _as PARAMETER _override
+| VARIABLE_NAME _as PARAMETER _override
   {
 	char * s = getenv($1);
 	char * q = NULL;
@@ -734,14 +783,14 @@ define_directive:
 		}
 	}
   }
-| VARIABLE _as LITERAL _override
+| VARIABLE_NAME _as LITERAL _override
   {
 	cb_define_struct * p = ppp_define_add(ppp_setvar_list, $1, $3, $4);
 	if(p) {
 		ppp_setvar_list = p;
 	}
   }
-| CONSTANT VARIABLE _as LITERAL _override
+| CONSTANT VARIABLE_NAME _as LITERAL _override
   {
 	cb_define_struct * p = ppp_define_add(ppp_setvar_list, $2, $4, $5);
 	if(p) {
@@ -751,21 +800,32 @@ define_directive:
   }
 | variable_or_literal
   {
-	cb_error(_("Invalid DEFINE/SET directive"));
+	cb_error(_("invalid %s directive"), "DEFINE/SET");
   }
 ;
 
+
+page_directive:
+  {
+	CB_PENDING(_("PAGE directive"));
+  }
+;
+
+listing_directive:
+  ON
+| OFF
+;
 
 turn_directive:
   ec_list CHECKING on_or_off
   {
-	cb_warning(_("TURN directive not yet implemented"));
+	CB_PENDING(_("TURN directive"));
   }
 ;
 
 ec_list:
-  VARIABLE
-| ec_list VARIABLE
+  VARIABLE_NAME
+| ec_list VARIABLE_NAME
 ;
 
 on_or_off:
@@ -780,18 +840,45 @@ with_loc:
 | LOCATION
 ;
 
+call_directive:
+  call_choice
+| call_directive call_choice
+;
+
+call_choice:
+  COBOL
+  {
+	current_call_convention |= CB_CONV_COBOL;
+	current_call_convention &= ~CB_CONV_STDCALL;
+  }
+| TOK_EXTERN
+  {
+	current_call_convention &= ~CB_CONV_STDCALL;
+	current_call_convention &= ~CB_CONV_COBOL;
+  }
+| STDCALL
+  {
+	current_call_convention |= CB_CONV_STDCALL;
+	current_call_convention &= ~CB_CONV_COBOL;
+  }
+| STATIC
+  {
+	current_call_convention |= CB_CONV_STATIC_LINK;
+  }
+;
+
 if_directive:
-  VARIABLE _is _not DEFINED
+  VARIABLE_NAME _is _not DEFINED
   {
 	unsigned int found = (ppp_search_lists($1) != NULL);
 	plex_action_directive(current_cmd, found ^ $3);
   }
-| VARIABLE _is _not SET
+| VARIABLE_NAME _is _not SET
   {
 	unsigned int found = ppp_search_comp_vars($1);
 	plex_action_directive(current_cmd, found ^ $3);
   }
-| VARIABLE _is _not condition_clause object_id
+| VARIABLE_NAME _is _not condition_clause object_id
   {
 	unsigned int found = 0;
 	cb_define_struct * p = ppp_search_lists($1);
@@ -812,12 +899,12 @@ if_directive:
   }
 | variable_or_literal
   {
-	cb_error(_("Invalid IF/ELIF directive"));
+	cb_error(_("invalid %s directive"), "IF/ELIF");
   }
 ;
 
 variable_or_literal:
-  VARIABLE
+  VARIABLE_NAME
 | LITERAL
 ;
 
@@ -827,13 +914,13 @@ object_id:
 	cb_define_struct * p = (cb_define_struct *) cobc_plex_malloc(sizeof(cb_define_struct));
 	p->next = NULL;
 	if(ppp_set_value(p, $1)) {
-		cb_error(_("Invalid constant"));
+		cb_error(_("invalid constant"));
 		$$ = NULL;
 	} else {
 		$$ = p;
 	}
   }
-| VARIABLE
+| VARIABLE_NAME
   {
 	cb_define_struct * p = ppp_search_lists($1);
 	if(p != NULL && p->deftype != PLEX_DEF_NONE) {

@@ -1,9 +1,8 @@
 #
-# Makefile gnu-cobol-cpp/lib
+# Makefile gnucobolcpp/lib
 #
-# Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-# Copyright (C) 2008-2012 Roger While
-# Copyright (C) 2012 Simon Sobisch
+# Copyright (C) 2003-2012, Free Software Foundation, Inc.
+# Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GNU Cobol C++.
 #

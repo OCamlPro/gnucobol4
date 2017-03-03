@@ -1,22 +1,22 @@
 /*
-   Copyright (C) 2001,2002,2003,2004,2005,2006,2007 Keisuke Nishida
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ runtime library is free software: you can redistribute it
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
+
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -29,7 +29,7 @@
 #include <stdarg.h>
 #include <errno.h>
 #ifdef	HAVE_UNISTD_H
-#include <unistd.h>
+	#include <unistd.h>
 #endif
 #include <time.h>
 
@@ -42,6 +42,7 @@
 /* Local variables */
 
 static cob_global	*	cobglobptr;
+static cob_settings *	cobsetptr;
 
 static const unsigned short	bin_digits[] =
 { 1, 3, 5, 8, 10, 13, 15, 17, 20 };
@@ -79,7 +80,7 @@ display_numeric(cob_field * f, FILE * fp)
 static void
 pretty_display_numeric(cob_field * f, FILE * fp)
 {
-	unsigned char pic[32];
+	cob_pic_symbol pic[6] = {cob_pic_symbol(0, 0), cob_pic_symbol(0, 0), cob_pic_symbol(0, 0), cob_pic_symbol(0, 0), cob_pic_symbol(0, 0), cob_pic_symbol(0, 0)};
 	int digits = COB_FIELD_DIGITS(f);
 	int scale = COB_FIELD_SCALE(f);
 	int size = (digits + (COB_FIELD_HAVE_SIGN(f) ? 1 : 0)
@@ -89,41 +90,32 @@ pretty_display_numeric(cob_field * f, FILE * fp)
 		return;
 	}
 	unsigned char * q = COB_TERM_BUFF;
-	cob_field_attr attr(COB_TYPE_NUMERIC_EDITED, digits, scale, 0, (const char *)pic);
+	cob_field_attr attr(COB_TYPE_NUMERIC_EDITED, digits, scale, 0, pic);
 	cob_field temp(size, q, &attr);
-	unsigned char * p = pic;
-#if	0	/* RXWRXW - memset */
-	memset(pic, 0, sizeof(pic));
-	memset(q, 0, 256);
-#endif
+	cob_pic_symbol * p = pic;
 	if(COB_FIELD_HAVE_SIGN(f)) {
-		*p++ = '+';
-		int i = 1;
-		memcpy(p, (unsigned char *)&i, sizeof(int));
-		p += sizeof(int);
+		p->symbol = '+';
+		p->times_repeated = 1;
+		++p;
 	}
 	if(scale > 0) {
-		int i = digits - scale;
-		if(i > 0) {
-			*p++ = '9';
-			memcpy(p, (unsigned char *)&i, sizeof(int));
-			p += sizeof(int);
+		if(digits - scale > 0) {
+			p->symbol = '9';
+			p->times_repeated = digits - scale;
+			++p;
 		}
-		*p++ = COB_MODULE_PTR->decimal_point;
-		i = 1;
-		memcpy(p, (unsigned char *)&i, sizeof(int));
-		p += sizeof(int);
-		*p++ = '9';
-		i = scale;
-		memcpy(p, (unsigned char *)&i, sizeof(int));
-		p += sizeof(int);
+		p->symbol = COB_MODULE_PTR->decimal_point;
+		p->times_repeated = 1;
+		++p;
+		p->symbol = '9';
+		p->times_repeated = scale;
+		++p;
 	} else {
-		*p++ = '9';
-		int i = digits;
-		memcpy(p, (unsigned char *)&i, sizeof(int));
-		p += sizeof(int);
+		p->symbol = '9';
+		p->times_repeated = digits;
+		++p;
 	}
-	*p = 0;
+	p->symbol = 0;
 
 	cob_move(f, &temp);
 	for(int i = 0; i < size; ++i) {
@@ -146,20 +138,18 @@ display_common(cob_field * f, FILE * fp)
 		return;
 	}
 	switch(COB_FIELD_TYPE(f)) {
-	case COB_TYPE_NUMERIC_DOUBLE:
-		{
-			double f1doub;
-			memcpy(&f1doub, f->data, sizeof(double));
-			fprintf(fp, "%-.16G", f1doub);
-			return;
-		}
-	case COB_TYPE_NUMERIC_FLOAT:
-		{
-			float f1float;
-			memcpy(&f1float, f->data, sizeof(float));
-			fprintf(fp, "%-.8G", (double)f1float);
-			return;
-		}
+	case COB_TYPE_NUMERIC_DOUBLE: {
+		double f1doub;
+		memcpy(&f1doub, f->data, sizeof(double));
+		fprintf(fp, "%-.16G", f1doub);
+		return;
+	}
+	case COB_TYPE_NUMERIC_FLOAT: {
+		float f1float;
+		memcpy(&f1float, f->data, sizeof(float));
+		fprintf(fp, "%-.8G", (double)f1float);
+		return;
+	}
 	case COB_TYPE_NUMERIC_FP_DEC64:
 	case COB_TYPE_NUMERIC_FP_DEC128:
 		cob_print_ieeedec(f, fp);
@@ -182,15 +172,13 @@ display_common(cob_field * f, FILE * fp)
 	}
 	if(COB_FIELD_REAL_BINARY(f) ||
 			(COB_FIELD_TYPE(f) == COB_TYPE_NUMERIC_BINARY &&
-			 !COB_MODULE_PTR->flag_pretty_display))
-	{
+			 !COB_MODULE_PTR->flag_pretty_display)) {
 		cob_print_realbin(f, fp, bin_digits[f->size]);
 		return;
 	}
 #if	0	/* RXWRXW - print bin */
 	if(COB_FIELD_TYPE(f) == COB_TYPE_NUMERIC_BINARY &&
-			  !COB_MODULE_PTR->flag_pretty_display)
-	{
+			!COB_MODULE_PTR->flag_pretty_display) {
 		cob_field_attr attr = *f->attr;
 		cob_field temp = *f;
 		attr.digits = bin_digits[f->size];
@@ -235,8 +223,8 @@ cob_display(const int to_stderr, const int newline, const int varcnt, ...)
 	for(int i = 0; i < varcnt; ++i) {
 		cob_field * f = va_arg(args, cob_field *);
 		if(unlikely(disp_redirect)) {
-			cob_field_display(f, NULL, NULL, NULL, NULL,
-							  NULL, nlattr);
+			cob_field_display2(f, NULL, NULL, NULL, NULL,
+							   NULL, NULL, nlattr);
 		} else {
 			display_common(f, fp);
 		}
@@ -255,8 +243,9 @@ void
 cob_accept(cob_field * f)
 {
 	if(cobglobptr->cob_screen_initialized) {
-		cob_field_accept(f, NULL, NULL, NULL, NULL,
-						 NULL, NULL, NULL, COB_SCREEN_PROMPT);
+		cob_field_accept2(f, NULL, NULL, NULL, NULL,
+						  NULL, NULL, NULL, NULL,
+						  COB_SCREEN_PROMPT);
 		return;
 	}
 	if(COB_MODULE_PTR->crt_status) {
@@ -266,11 +255,14 @@ cob_accept(cob_field * f)
 			memset(COB_MODULE_PTR->crt_status->data, '0', (size_t)4);
 		}
 	}
-	if(!f) {
+	/* extension: ACCEPT OMITTED */
+	if(unlikely(!f)) {
 		for(; ;) {
 			int ipchr = getchar();
 			if(ipchr == '\n' || ipchr == EOF) {
 				break;
+			} else if(ipchr == 03) {
+				cob_raise(2);
 			}
 		}
 		return;
@@ -288,6 +280,8 @@ cob_accept(cob_field * f)
 				p[1] = 0;
 			}
 			break;
+		} else if(ipchr == 03) {
+			cob_raise(2);
 		} else if(ipchr == '\n') {
 			break;
 		}
@@ -303,7 +297,8 @@ cob_accept(cob_field * f)
 }
 
 void
-cob_init_termio(cob_global * lptr)
+cob_init_termio(cob_global * lptr, cob_settings * sptr)
 {
 	cobglobptr = lptr;
+	cobsetptr = sptr;
 }

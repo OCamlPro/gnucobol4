@@ -1,21 +1,21 @@
 /*
-   Copyright (C) 2007-2012 Roger While
-   Copyright (C) 2013 Sergey Kashyrin
+   Copyright (C) 2007-2012, 2014-2016 Free Software Foundation, Inc.
+   Written by Roger While, Simon Sobisch, Ron Norman, Sergey Kashyrin
 
-   This file is part of GNU Cobol C++.
+   This file is part of GnuCOBOL C++.
 
-   The GNU Cobol C++ runtime library is free software: you can redistribute it
+   The GnuCOBOL C++ runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
    as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
-   GNU Cobol C++ is distributed in the hope that it will be useful,
+   GnuCOBOL C++ is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL C++.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 
@@ -23,7 +23,7 @@
 #define COB_LOCAL_H
 
 #ifdef	HAVE_STRINGS_H
-#include <strings.h>
+	#include <strings.h>
 #endif
 
 /* We use this file to define/prototype things that should not be
@@ -31,51 +31,51 @@
 */
 
 #if	defined(_MSC_VER) || defined(__BORLANDC__) || defined(__WATCOMC__)
-#include <float.h>
-#define	finite		_finite
+	#include <float.h>
+	#define	finite		_finite
 #endif
 
 #ifdef __hpux
-#define	finite		isfinite
+	#define	finite		isfinite
 #endif
 
 #if	defined(ENABLE_NLS) && defined(COB_NLS_RUNTIME)
-#include "lib/gettext.h"
-#define _(s)		gettext(s)
-#define N_(s)		gettext_noop(s)
+	#include "lib/gettext.h"
+	#define _(s)		gettext(s)
+	#define N_(s)		gettext_noop(s)
 #else
-#define _(s)		s
-#define N_(s)		s
+	#define _(s)		s
+	#define N_(s)		s
 #endif
 
 
 #if	defined(_WIN32) || defined(__CYGWIN__) || defined(__HP_aCC)
-#define COB_HIDDEN
+	#define COB_HIDDEN
 #elif	defined(__GNUC__) && __GNUC__ >= 4
-/* Also OK for icc which defines __GNUC__ */
-#define COB_HIDDEN	__attribute__ ((visibility("hidden")))
+	/* Also OK for icc which defines __GNUC__ */
+	#define COB_HIDDEN	__attribute__ ((visibility("hidden")))
 #elif	defined(__SUNPRO_CC) && (__SUNPRO_CC >= 0x550)
-#include <ieeefp.h>
-/* Note - >= 0x590 supports gcc syntax */
-#define COB_HIDDEN	__hidden
+	#include <ieeefp.h>
+	/* Note - >= 0x590 supports gcc syntax */
+	#define COB_HIDDEN	__hidden
 #else
-#define COB_HIDDEN
+	#define COB_HIDDEN
 #endif
 
 #ifndef	F_OK
-#define	F_OK		0
+	#define	F_OK		0
 #endif
 
 #ifndef	X_OK
-#define	X_OK		1
+	#define	X_OK		1
 #endif
 
 #ifndef	W_OK
-#define	W_OK		2
+	#define	W_OK		2
 #endif
 
 #ifndef	R_OK
-#define	R_OK		4
+	#define	R_OK		4
 #endif
 
 /* Stacked field depth */
@@ -100,13 +100,13 @@
 
 /* Floating-decimal */
 #ifdef	WORDS_BIGENDIAN
-#define	COB_128_MSW(x)		x[0]
-#define	COB_128_LSW(x)		x[1]
-#define	COB_MPZ_ENDIAN		1
+	#define	COB_128_MSW(x)		x[0]
+	#define	COB_128_LSW(x)		x[1]
+	#define	COB_MPZ_ENDIAN		1
 #else
-#define	COB_128_MSW(x)		x[1]
-#define	COB_128_LSW(x)		x[0]
-#define	COB_MPZ_ENDIAN		-1
+	#define	COB_128_MSW(x)		x[1]
+	#define	COB_128_LSW(x)		x[0]
+	#define	COB_MPZ_ENDIAN		-1
 #endif
 
 /* Mask for inf/nan */
@@ -145,27 +145,27 @@
 /* Extended or bit */
 #define	COB_128_OR_EXTEND	COB_U64_C(0x0002000000000000)
 
-#define COB_ATTR_INIT(u,v,x,y,z)	do { \
-	attr.type = u; \
-	attr.digits = v; \
-	attr.scale = x; \
-	attr.flags = y; \
-	attr.pic = z; \
-	} while(0)
-
-#define COB_GET_SIGN(f)		(COB_FIELD_HAVE_SIGN (f) ? cob_real_get_sign (f) : 0)
-#define COB_PUT_SIGN(f,s)	do { if (COB_FIELD_HAVE_SIGN (f)) cob_real_put_sign (f, s); } while(0)
+#define COB_GET_SIGN(f)		\
+	(COB_FIELD_HAVE_SIGN(f) ? cob_real_get_sign(f) : 0)
+#define COB_PUT_SIGN(f,s)	\
+	do { if(COB_FIELD_HAVE_SIGN(f)) cob_real_put_sign(f, s); } ONCE_COB
 
 #ifdef	COB_PARAM_CHECK
-#define	COB_CHK_PARMS(x,z)	cob_parameter_check (#x, z)
+	#define	COB_CHK_PARMS(x,z)	cob_parameter_check (#x, z)
 #else
-#define	COB_CHK_PARMS(x,z)
+	#define	COB_CHK_PARMS(x,z)
+#endif
+
+/* byte offset to structure member */
+#if !defined(_OFFSET_OF_) && !defined(offsetof)
+	#define _OFFSET_OF_
+	#define offsetof(s_name,m_name) (int)(long)&(((s_name*)0))->m_name
 #endif
 
 /* Convert a digit (e.g., '0') into an integer (e.g., 0) */
 #define COB_D2I(x)		((x) & 0x0F)
 #if	0	/* RXWRXW - D2I */
-#define COB_D2I(x)		((x) - '0')
+	#define COB_D2I(x)		((x) - '0')
 #endif
 
 /* Convert an integer (e.g., 0) into a digit (e.g., '0') */
@@ -173,14 +173,118 @@
 
 #define	COB_MODULE_PTR		cobglobptr->cob_current_module
 #define	COB_TERM_BUFF		cobglobptr->cob_term_buff
-#define	COB_DISP_TO_STDERR	cobglobptr->cob_disp_to_stderr
-#define	COB_BEEP_VALUE		cobglobptr->cob_beep_value
 #define	COB_ACCEPT_STATUS	cobglobptr->cob_accept_status
-#define	COB_TIMEOUT_SCALE	cobglobptr->cob_timeout_scale
-#define	COB_EXTENDED_STATUS	cobglobptr->cob_extended_status
-#define	COB_USE_ESC			cobglobptr->cob_use_esc
 #define	COB_MAX_Y_COORD		cobglobptr->cob_max_y
 #define	COB_MAX_X_COORD		cobglobptr->cob_max_x
+
+#define	COB_DISP_TO_STDERR	cobsetptr->cob_disp_to_stderr
+#define	COB_BEEP_VALUE		cobsetptr->cob_beep_value
+#define	COB_TIMEOUT_SCALE	cobsetptr->cob_timeout_scale
+#define	COB_EXTENDED_STATUS	cobsetptr->cob_extended_status
+#define	COB_USE_ESC			cobsetptr->cob_use_esc
+
+/* Global settings structure */
+
+struct cob_settings {
+	unsigned int	cob_display_warn;	/* Display warnings */
+	unsigned int	cob_env_mangle;		/* Mangle env names */
+	unsigned int	cob_line_trace;
+	unsigned int	cob_config_cur;		/* Current runtime.cfg file being processed */
+	unsigned int	cob_config_num;		/* Number of different runtime.cfg files read */
+	char 	**		cob_config_file;	/* Keep all file names for later reporting */
+	char 	*		cob_trace_filename;
+	char 	*		cob_user_name;
+	char 	*		cob_sys_lang;		/* LANG setting from env */
+	char 	*		cob_sys_term;		/* TERM setting from env */
+	char 	*		cob_sys_type;		/* OSTYPE setting from env */
+	char 	*		cob_debug_log;
+
+	/* call.c */
+	unsigned int	cob_physical_cancel;
+	unsigned int	name_convert;
+	char 	*		cob_preload_str;
+	char 	*		cob_library_path;
+
+	size_t 	*	resolve_size;		/* Array size of resolve_path*/
+	char 	*		cob_preload_resolved;
+	char 	*		cob_preload_env;
+
+	/* fileio.c */
+	unsigned int	cob_unix_lf;		/* Use POSIX LF */
+	unsigned int	cob_do_sync;
+	unsigned int	cob_ls_uses_cr;
+	unsigned int	cob_ls_nulls;
+	unsigned int	cob_ls_fixed;
+	unsigned int	cob_varseq_type;
+	char 	*		cob_file_path;
+	char 	*		bdb_home;
+	size_t			cob_sort_memory;
+	size_t			cob_sort_chunk;
+
+	/* move.c */
+	unsigned int	cob_local_edit;
+
+	/* screenio.c */
+	unsigned int 	cob_legacy;
+	unsigned int	cob_disp_to_stderr;	/* Redirect to stderr */
+	unsigned int	cob_beep_value;		/* Bell disposition */
+	unsigned int	cob_extended_status;/* Extended status */
+	unsigned int	cob_use_esc;		/* Check ESC key */
+	unsigned int	cob_timeout_scale;	/* timeout scale */
+	unsigned int	cob_insert_mode;	/* insert toggle, 0=off, 1=on */
+	unsigned int	cob_exit_wait;		/* wait on program exit if no ACCEPT came after last DISPLAY */
+	char 	*		cob_exit_msg;		/* message for cob_exit_wait */
+
+};
+
+
+struct config_enum {
+	const char *	match;			/* Alternate word that could be used */
+	const char *	value;			/* Internal value for this 'word' */
+};
+
+/* Format of table for capturing run-time config information */
+struct config_tbl {
+	const char 	*	env_name;		/* Env Var name */
+	const char 	*	conf_name;		/* Name used in run-time config file */
+	const char 	*	default_val;	/* Default value */
+	config_enum 	*	enums;			/* Table of Alternate values */
+	unsigned int		env_group;		/* Grouping for display of run-time options */
+	unsigned int		data_type;		/* Data type */
+	unsigned int		data_loc;		/* Location within structure */
+	unsigned int		data_len;		/* Length of referenced field */
+	unsigned int		config_num;		/* Set by which runtime.cfg file */
+	unsigned int		set_by;			/* value set by a different keyword */
+	unsigned long		min_value;		/* Minimum accepted value */
+	unsigned long		max_value;		/* Maximum accepted value */
+};
+
+#define ENV_NOT		(1 << 1)		/* Negate True/False value setting */
+#define ENV_INT		(1 << 2)		/* an 'int' */
+#define ENV_SIZE	(1 << 3)		/* size; number with K - kb, M - mb, G - GB */
+#define ENV_BOOL	(1 << 4)		/* int boolean; Yes, True, 1, No, False, 0, ... */
+#define ENV_CHAR	(1 << 5)		/* inline 'char[]' field */
+#define ENV_STR		(1 << 6)		/* a pointer to a string */
+#define ENV_PATH	(1 << 7)		/* a pointer to one or more file system paths [fp1:fp2:fp3] */
+#define ENV_ENUM	(1 << 8)		/* Value must in 'enum' list as match */
+#define ENV_ENUMVAL	(1 << 9)		/* Value must in 'enum' list as match or value */
+#define ENV_FILE 	(1 << 10)		/* a pointer to a directory/file [single path] */
+
+#define STS_ENVSET	(1 << 15)		/* value set via Env Var */
+#define STS_CNFSET	(1 << 16)		/* value set via config file */
+#define STS_ENVCLR	(1 << 17)		/* value removed from Env Var */
+#define STS_RESET	(1 << 18)		/* value was reset back to default */
+#define STS_FNCSET	(1 << 19)		/* value set via function call */
+
+#define GRP_HIDE	0
+#define GRP_CALL	1
+#define GRP_FILE	2
+#define GRP_SCREEN	3
+#define GRP_MISC	4
+#define GRP_SYSENV	5
+#define GRP_MAX 	6
+
+#define SETPOS(member)	offsetof(cob_settings,member),sizeof(cobsetptr->member),0,0
 
 #ifdef __cplusplus
 extern "C" {
@@ -188,13 +292,13 @@ extern "C" {
 
 /* Local function prototypes */
 COB_HIDDEN void		cob_init_numeric(cob_global *);
-COB_HIDDEN void		cob_init_termio(cob_global *);
-COB_HIDDEN void		cob_init_fileio(cob_global *);
-COB_HIDDEN void		cob_init_call(cob_global *);
+COB_HIDDEN void		cob_init_termio(cob_global *, cob_settings *);
+COB_HIDDEN void		cob_init_fileio(cob_global *, cob_settings *);
+COB_HIDDEN void		cob_init_call(cob_global *, cob_settings *);
 COB_HIDDEN void		cob_init_intrinsic(cob_global *);
 COB_HIDDEN void		cob_init_strings(void);
-COB_HIDDEN void		cob_init_move(cob_global *);
-COB_HIDDEN void		cob_init_screenio(cob_global *);
+COB_HIDDEN void		cob_init_move(cob_global *, cob_settings *);
+COB_HIDDEN void		cob_init_screenio(cob_global *, cob_settings *);
 
 COB_HIDDEN void		cob_exit_screen(void);
 
@@ -215,12 +319,42 @@ COB_HIDDEN void		cob_print_ieeedec(const cob_field *, FILE *);
 COB_HIDDEN void		cob_print_realbin(const cob_field *, FILE *, const int);
 
 COB_HIDDEN void		cob_screen_set_mode(const cob_u32_t);
-COB_HIDDEN void		cob_set_exception(const int);
 COB_HIDDEN int		cob_get_exception_code(void);
+COB_HIDDEN int		cob_check_env_true(char *);
+COB_HIDDEN int		cob_check_env_false(char *);
 COB_HIDDEN const char * cob_get_exception_name(void);
 COB_HIDDEN void		cob_field_to_string(const cob_field *, void *, const size_t);
 COB_HIDDEN void		cob_parameter_check(const char *, const int);
 COB_HIDDEN void		cob_runtime_error(const char *, ...) COB_A_FORMAT12;
+COB_HIDDEN void		cob_runtime_warning(const char *, ...) COB_A_FORMAT12;
+
+COB_HIDDEN char *	cob_save_env_value(char *, char *);
+COB_HIDDEN cob_settings * cob_get_settings_ptr(void);
+
+COB_HIDDEN int		cob_ctoi(const char);
+
+#if 0 /* currently not used */
+COB_HIDDEN char *	cob_int_to_string(int, char *);
+COB_HIDDEN char *	cob_int_to_formatted_bytestring(int, char *);
+#endif
+COB_HIDDEN char *	cob_strcat(char *, char *, int);
+COB_HIDDEN char *	cob_strjoin(char **, int, char *);
+
+COB_HIDDEN COB_INLINE int cob_min_int(const int x, const int y)
+{
+	if(x < y) {
+		return x;
+	}
+	return y;
+}
+
+COB_HIDDEN COB_INLINE int cob_max_int(const int x, const int y)
+{
+	if(x > y) {
+		return x;
+	}
+	return y;
+}
 
 #ifdef __cplusplus
 }
