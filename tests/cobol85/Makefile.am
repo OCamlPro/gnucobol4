@@ -1,23 +1,23 @@
 #
-# Makefile gnu-cobol-cpp/tests/cobol85
+# Makefile gnucobol/tests/cobol85
 #
-# Copyright (C) 2003,2004,2005,2006,2007 Keisuke Nishida
-# Copyright (C) 2008-2012 Roger While
+# Copyright (C) 2003-2012, 2015-2016 Free Software Foundation, Inc.
+# Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
-# This file is part of GNU Cobol C++.
+# This file is part of GnuCOBOL.
 #
-# The GNU Cobol C++ compiler is free software: you can redistribute it
+# The GnuCOBOL compiler is free software: you can redistribute it
 # and/or modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation, either version 3 of the
 # License, or (at your option) any later version.
 #
-# GNU Cobol C++ is distributed in the hope that it will be useful,
+# GnuCOBOL is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with GNU Cobol C++.  If not, see <http://www.gnu.org/licenses/>.
+# along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
 #
 #MODULES = CM DB IC IF IX NC OB RL RW SG SM SQ ST
@@ -46,6 +46,7 @@ COB85DIR = "`cd $(srcdir) && pwd`"
 #
 
 test: $(MODULES)
+# $(MAKE) would abort after the first fail!
 	@for m in $(MODULES); do \
 	  (cd $$m && make test) \
 	done
@@ -69,32 +70,47 @@ else
 	diff $(srcdir)/summarynoix.txt summary.log
 endif
 
+newcob.val:
+	if ! test -f "newcob.val"; then \
+	   if ! test -f "newcob.val.Z"; then \
+	      wget "http://www.itl.nist.gov/div897/ctg/suites/newcob.val.Z"; \
+	   fi; \
+	   if test -f "newcob.val.Z"; then \
+	      gunzip newcob.val.Z || gzip -d newcob.val.Z || uncompress newcob.val.Z; \
+	   fi; \
+	   if ! test -f "newcob.val"; then \
+	      echo "newcob.val missing, automatic download and uncompress did not work"; \
+	      exit 1; \
+	   fi; \
+	fi
+
 clean-local:
 	rm -rf copy copyalt $(MODULES) EXEC85 summary.log EXEC85.cob
 
 $(MODULES): newcob.val EXEC85 $(srcdir)/EXEC85.conf.in
-	@echo -n "Building module directory $@ ..."
-	@echo "*SELECT-MODULE `echo $@ | sed 's/\(..\).*/\1/'`" > EXEC85.conf
-	@cat $(srcdir)/EXEC85.conf.in >> EXEC85.conf
-	@. ../atconfig; . ../atlocal; ./EXEC85
-	@perl $(srcdir)/expand.pl newcob.tmp $@
-	@rm -f newcob.tmp newcob.log EXEC85.conf
+	@echo "Building module directory $@ ..."
+	@mkdir -p ./$@
+	@echo "*SELECT-MODULE `echo $@ | sed 's/\(..\).*/\1/'`" > ./$@/EXEC85.conf
+	@cat $(srcdir)/EXEC85.conf.in >> ./$@/EXEC85.conf
+	@. ../atconfig && . ../atlocal && cd $@ && ../EXEC85
+	@perl $(srcdir)/expand.pl $@/newcob.tmp $@
+#	@rm -f ./$@/newcob.tmp ./$@/newcob.log ./$@/EXEC85.conf
 	@echo "test:" > $@/Makefile
 	@echo "	@echo" >> $@/Makefile
 	@echo "	@echo \"Performing tests for module directory $@\"" >> $@/Makefile
-	@echo "	@. ../../atconfig; . ../../atlocal; perl $(COB85DIR)/report.pl" >> $@/Makefile
+	@echo "	@. ../../atconfig && . ../../atlocal && perl $(COB85DIR)/report.pl" >> $@/Makefile
 	@echo "	@echo" >> $@/Makefile
 	@echo "	@echo \"Comparing test results for module directory $@\"" >> $@/Makefile
-	@echo "	diff $(COB85DIR)/$@.txt report.txt" >> $@/Makefile
+	@echo "	diff $(COB85DIR)/$@.txt report.txt || true" >> $@/Makefile
 	@echo "	@echo" >> $@/Makefile
-#	@echo "	. ../../atconfig; . ../../atlocal; perl $(COB85DIR)/report.pl -O" >> $@/Makefile
-#	@echo "	diff $(COB85DIR)/$@.txt report.txt" >> $@/Makefile
-	@echo " done"
+#	@echo "	. ../../atconfig && . ../../atlocal && perl $(COB85DIR)/report.pl -O" >> $@/Makefile
+#	@echo "	diff $(COB85DIR)/$@.txt report.txt || true" >> $@/Makefile
+	@echo "Finished module directory $@."
 
 EXEC85: newcob.val
 	@echo "Extracting EXEC85 program"
 	@sed -e '/^\*END/,$$d' -e '1,/^\*HEADER/d' \
-	-e 's/^002700.*/           "newcob.val" ORGANIZATION LINE SEQUENTIAL./' \
+	-e 's/^002700.*/           "..\/newcob.val" ORGANIZATION LINE SEQUENTIAL./' \
 	-e 's/^003000.*/           "newcob.tmp" ORGANIZATION LINE SEQUENTIAL./' \
 	-e 's/^003100.*//' \
 	-e 's/^003400.*/           "unused"./' \
