@@ -2,8 +2,9 @@
 # Configure template for GnuCOBOL
 # Process this file with autoconf to produce a configure script.
 #
-# Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
-# Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch
+# Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
+# Written by Keisuke Nishida, Roger While
+#            Ron Norman, Simon Sobisch, Brian Tiffin
 #
 # This file is part of GnuCOBOL.
 #
@@ -96,6 +97,7 @@ AH_TEMPLATE([HAVE_MP_GET_MEMORY_FUNCTIONS], [Do we have mp_get_memory_functions 
 #AH_TEMPLATE([HAVE_RAISE], [Has raise function])
 AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 	[Declaration of finite function in ieeefp.h instead of math.h])
+AH_TEMPLATE([WITH_REXX], [Allow embedded REXX])
 
 save_libs="$LIBS"
 
@@ -470,6 +472,20 @@ AC_ARG_WITH([varseq],
   [with_varseq=0])
 
 AC_DEFINE_UNQUOTED([WITH_VARSEQ], [$with_varseq])
+
+# Optional embedding extensions
+AC_ARG_WITH([rexx],
+[AS_HELP_STRING([--with-rexx],
+  [(GnuCOBOL) Allow embedded REXX])],
+[ if test "$with_rexx" = "yes"; then
+  AC_CHECK_HEADERS([rexxsaa.h], [],
+  	AC_MSG_ERROR([rexxsaa.h is required for embedded REXX]))
+  AC_CHECK_LIB([regina], [RexxStart],
+  	[AC_DEFINE([WITH_REXX], [1])
+  	LIBCOB_LIBS="$LIBCOB_LIBS -lregina"],
+  	AC_MSG_ERROR([libregina is required for embedded REXX]), [])
+  fi ],
+[])
 
 
 # Checks for gmp.
@@ -1355,4 +1371,7 @@ unset DEFINE_DL
 if test "$COB_HAS_UTC_OFFSET" = "no"; then
   AC_MSG_WARN([ Could not find strftime or timezone. FORMATTED-CURRENT-DATE, FORMATTED-DATE])
   AC_MSG_WARN([and FORMATTED-DATETIME may not work.])
+fi
+if test "$with_rexx" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded REXX                          yes])
 fi

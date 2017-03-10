@@ -4283,27 +4283,25 @@ emit_move_corresponding (cb_tree x1, cb_tree x2)
 }
 
 void
-cb_emit_move_corresponding (cb_tree source, cb_tree target_list)
+cb_emit_move_corresponding (cb_tree x1, cb_tree x2)
 {
 	cb_tree		l;
-	cb_tree		target;
+	cb_tree		v;
 
-	source = cb_check_group_name (source);
-	if (cb_validate_one (source)) {
+	x1 = cb_check_group_name (x1);
+	if (cb_validate_one (x1)) {
 		return;
 	}
-	for (l = target_list; l; l = CB_CHAIN(l)) {
-		target = CB_VALUE(l);
-		target = cb_check_group_name (target);
-		if (cb_validate_one (target)) {
+	for (l = x2; l; l = CB_CHAIN(l)) {
+		v = CB_VALUE(l);
+		v = cb_check_group_name (v);
+		if (cb_validate_one (v)) {
 			return;
 		}
-		if (!emit_move_corresponding (source, target)) {
+		if (!emit_move_corresponding (x1, v)) {
 			if (cb_warn_corresponding) {
-				cb_warning_x (target, _("no CORRESPONDING items found"));
+				cb_warning_x (v, _("no CORRESPONDING items found"));
 			}
-		} else if (cb_listing_xref) {
-			cobc_xref_set_receiving (target);
 		}
 	}
 }
@@ -4500,9 +4498,6 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 
 	if (attr_ptr) {
 		fgc = attr_ptr->fgc;
@@ -4632,9 +4627,6 @@ cb_emit_accept_line_or_col (cb_tree var, const int l_or_c)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_2 ("cob_screen_line_col", var, cb_int (l_or_c)));
 }
 
@@ -4643,9 +4635,6 @@ cb_emit_accept_escape_key (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_escape_key", var));
 }
@@ -4656,9 +4645,6 @@ cb_emit_accept_exception_status (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_exception_status", var));
 }
 
@@ -4667,9 +4653,6 @@ cb_emit_accept_user_name (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_user_name", var));
 }
@@ -4680,9 +4663,6 @@ cb_emit_accept_date (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_date", var));
 }
 
@@ -4691,9 +4671,6 @@ cb_emit_accept_date_yyyymmdd (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_date_yyyymmdd", var));
 }
@@ -4704,9 +4681,6 @@ cb_emit_accept_day (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_day", var));
 }
 
@@ -4715,9 +4689,6 @@ cb_emit_accept_day_yyyyddd (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_day_yyyyddd", var));
 }
@@ -4728,9 +4699,6 @@ cb_emit_accept_day_of_week (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_day_of_week", var));
 }
 
@@ -4739,9 +4707,6 @@ cb_emit_accept_time (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_time", var));
 }
@@ -4752,9 +4717,6 @@ cb_emit_accept_command_line (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_command_line", var));
 }
 
@@ -4763,9 +4725,6 @@ cb_emit_get_environment (cb_tree envvar, cb_tree envval)
 {
 	if (cb_validate_one (envvar)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (envvar);
 	}
 	if (cb_validate_one (envval)) {
 		return;
@@ -4779,9 +4738,6 @@ cb_emit_accept_environment (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_environment", var));
 }
 
@@ -4791,9 +4747,6 @@ cb_emit_accept_arg_number (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
-	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_arg_number", var));
 }
 
@@ -4802,9 +4755,6 @@ cb_emit_accept_arg_value (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_arg_value", var));
 }
@@ -4837,9 +4787,6 @@ cb_emit_accept_name (cb_tree var, cb_tree name)
 
 	if (cb_validate_one (var)) {
 		return;
-	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (var);
 	}
 
 	/* Allow direct reference to a device name (not defined as mnemonic name) */
@@ -4895,9 +4842,6 @@ cb_emit_allocate (cb_tree target1, cb_tree target2, cb_tree size,
 				_("target of ALLOCATE is not a BASED item"));
 			return;
 		}
-		if (cb_listing_xref) {
-			cobc_xref_set_receiving (target1);
-		}
 	}
 	if (target2) {
 		if (!(CB_REFERENCE_P(target2) &&
@@ -4905,9 +4849,6 @@ cb_emit_allocate (cb_tree target1, cb_tree target2, cb_tree size,
 			cb_error_x (CB_TREE(current_statement),
 				_("target of RETURNING is not a data pointer"));
 			return;
-		}
-		if (cb_listing_xref) {
-			cobc_xref_set_receiving (target2);
 		}
 	}
 	if (size) {
@@ -5222,6 +5163,7 @@ cb_emit_close (cb_tree file, cb_tree opt)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
+	cobc_xref_link (&f->xref, cb_source_line);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -5273,9 +5215,6 @@ cb_emit_delete (cb_tree file)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
-
-	/* add a "receiving" entry for the file */
-	cobc_xref_link (&f->xref, current_statement->common.source_line, 1);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -7830,9 +7769,6 @@ cb_build_move (cb_tree src, cb_tree dst)
 		x->flag_receiving = 1;
 		dst = CB_TREE (x);
 	}
-	if (cb_listing_xref) {
-		cobc_xref_set_receiving (dst);
-	}
 
 	if ((src == cb_space || src == cb_low ||
 	     src == cb_high || src == cb_quote) &&
@@ -7949,7 +7885,6 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 void
 cb_emit_open (cb_tree file, cb_tree mode, cb_tree sharing)
 {
-	cb_tree orig_file = file;
 	struct cb_file	*f;
 
 	if (file == cb_error_node) {
@@ -7961,11 +7896,7 @@ cb_emit_open (cb_tree file, cb_tree mode, cb_tree sharing)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
-
-	if (mode == cb_int (COB_OPEN_OUTPUT)) {
-		/* add a "receiving" entry for the file */
-		cobc_xref_link (&f->xref, CB_REFERENCE (orig_file)->common.source_line, 1);
-	}
+	cobc_xref_link (&f->xref, cb_source_line);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -8107,6 +8038,7 @@ cb_emit_read (cb_tree ref, cb_tree next, cb_tree into,
 		return;
 	}
 	f = CB_FILE (file);
+	cobc_xref_link (&f->xref, current_statement->common.source_line);
 
 	rec = cb_build_field_reference (f->record, ref);
 	if (f->organization == COB_ORG_SORT) {
@@ -8246,9 +8178,6 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 	current_statement->file = file;
 	f = CB_FILE (file);
 	opts = 0;
-
-	/* add a "receiving" entry for the file */
-	cobc_xref_link (&f->xref, current_statement->common.source_line, 1);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -9161,9 +9090,7 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
-
-	/* add a "receiving" entry for the file */
-	cobc_xref_link (&f->xref, current_statement->common.source_line, 1);
+	cobc_xref_link (&f->xref, current_statement->common.source_line);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),

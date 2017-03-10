@@ -778,6 +778,7 @@ infodir
 docdir
 oldincludedir
 includedir
+runstatedir
 localstatedir
 sharedstatedir
 sysconfdir
@@ -826,6 +827,7 @@ with_index_extfh
 with_db
 with_dl
 with_varseq
+with_rexx
 enable_nls
 with_libiconv_prefix
 with_libintl_prefix
@@ -878,6 +880,7 @@ datadir='${datarootdir}'
 sysconfdir='${prefix}/etc'
 sharedstatedir='${prefix}/com'
 localstatedir='${prefix}/var'
+runstatedir='${localstatedir}/run'
 includedir='${prefix}/include'
 oldincludedir='/usr/include'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
@@ -1130,6 +1133,15 @@ do
   | -silent | --silent | --silen | --sile | --sil)
     silent=yes ;;
 
+  -runstatedir | --runstatedir | --runstatedi | --runstated \
+  | --runstate | --runstat | --runsta | --runst | --runs \
+  | --run | --ru | --r)
+    ac_prev=runstatedir ;;
+  -runstatedir=* | --runstatedir=* | --runstatedi=* | --runstated=* \
+  | --runstate=* | --runstat=* | --runsta=* | --runst=* | --runs=* \
+  | --run=* | --ru=* | --r=*)
+    runstatedir=$ac_optarg ;;
+
   -sbindir | --sbindir | --sbindi | --sbind | --sbin | --sbi | --sb)
     ac_prev=sbindir ;;
   -sbindir=* | --sbindir=* | --sbindi=* | --sbind=* | --sbin=* \
@@ -1267,7 +1279,7 @@ fi
 for ac_var in	exec_prefix prefix bindir sbindir libexecdir datarootdir \
 		datadir sysconfdir sharedstatedir localstatedir includedir \
 		oldincludedir docdir infodir htmldir dvidir pdfdir psdir \
-		libdir localedir mandir
+		libdir localedir mandir runstatedir
 do
   eval ac_val=\$$ac_var
   # Remove trailing slashes.
@@ -1420,6 +1432,7 @@ Fine tuning of the installation directories:
   --sysconfdir=DIR        read-only single-machine data [PREFIX/etc]
   --sharedstatedir=DIR    modifiable architecture-independent data [PREFIX/com]
   --localstatedir=DIR     modifiable single-machine data [PREFIX/var]
+  --runstatedir=DIR       modifiable per-process data [LOCALSTATEDIR/run]
   --libdir=DIR            object code libraries [EPREFIX/lib]
   --includedir=DIR        C header files [PREFIX/include]
   --oldincludedir=DIR     C header files for non-gcc [/usr/include]
@@ -1508,6 +1521,7 @@ Optional Packages:
   --with-dl               (GnuCOBOL) Use system dynamic loader (default)
   --with-varseq           (GnuCOBOL) Define variable sequential format
                           (default 0)
+  --with-rexx             (GnuCOBOL) Allow embedded REXX
   --with-libiconv-prefix[=DIR]  search for libiconv in DIR/include and DIR/lib
   --without-libiconv-prefix     don't search for libiconv in includedir and libdir
   --with-libintl-prefix[=DIR]  search for libintl in DIR/include and DIR/lib
@@ -3061,6 +3075,7 @@ fi
 
 
 #AH_TEMPLATE([HAVE_RAISE], [Has raise function])
+
 
 
 save_libs="$LIBS"
@@ -14126,6 +14141,73 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
+# Optional embedding extensions
+
+# Check whether --with-rexx was given.
+if test "${with_rexx+set}" = set; then :
+  withval=$with_rexx;  if test "$with_rexx" = "yes"; then
+  for ac_header in rexxsaa.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "rexxsaa.h" "ac_cv_header_rexxsaa_h" "$ac_includes_default"
+if test "x$ac_cv_header_rexxsaa_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_REXXSAA_H 1
+_ACEOF
+
+else
+  as_fn_error $? "rexxsaa.h is required for embedded REXX" "$LINENO" 5
+fi
+
+done
+
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for RexxStart in -lregina" >&5
+$as_echo_n "checking for RexxStart in -lregina... " >&6; }
+if ${ac_cv_lib_regina_RexxStart+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lregina  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char RexxStart ();
+int
+main ()
+{
+return RexxStart ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_regina_RexxStart=yes
+else
+  ac_cv_lib_regina_RexxStart=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_regina_RexxStart" >&5
+$as_echo "$ac_cv_lib_regina_RexxStart" >&6; }
+if test "x$ac_cv_lib_regina_RexxStart" = xyes; then :
+  $as_echo "#define WITH_REXX 1" >>confdefs.h
+
+  	LIBCOB_LIBS="$LIBCOB_LIBS -lregina"
+else
+  as_fn_error $? "libregina is required for embedded REXX" "$LINENO" 5
+fi
+
+  fi
+fi
+
+
 
 # Checks for gmp.
 { $as_echo "$as_me:${as_lineno-$LINENO}: Checks for GMP ..." >&5
@@ -20656,4 +20738,8 @@ if test "$COB_HAS_UTC_OFFSET" = "no"; then
 $as_echo "$as_me: WARNING:  Could not find strftime or timezone. FORMATTED-CURRENT-DATE, FORMATTED-DATE" >&2;}
   { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: and FORMATTED-DATETIME may not work." >&5
 $as_echo "$as_me: WARNING: and FORMATTED-DATETIME may not work." >&2;}
+fi
+if test "$with_rexx" = "yes"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}:  Allow embedded REXX                          yes" >&5
+$as_echo "$as_me:  Allow embedded REXX                          yes" >&6;}
 fi

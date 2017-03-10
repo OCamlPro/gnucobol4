@@ -205,6 +205,9 @@
 /* Define to 1 if you have the `realpath' function. */
 #undef HAVE_REALPATH
 
+/* Define to 1 if you have the <rexxsaa.h> header file. */
+#undef HAVE_REXXSAA_H
+
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
 
@@ -370,6 +373,9 @@
 
 /* Compile with an external ISAM handler */
 #undef WITH_INDEX_EXTFH
+
+/* Allow embedded REXX */
+#undef WITH_REXX
 
 /* Compile with an external SEQ/RAN handler */
 #undef WITH_SEQRA_EXTFH

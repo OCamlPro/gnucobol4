@@ -2,7 +2,7 @@
 # Makefile gnucobol/libcob
 #
 # Copyright (C) 2003-2012, 2014 Free Software Foundation, Inc.
-# Written by Keisuke Nishida, Roger While, Simon Sobisch
+# Written by Keisuke Nishida, Roger While, Simon Sobisch, Brian Tiffin
 #
 # This file is part of GnuCOBOL.
 #
