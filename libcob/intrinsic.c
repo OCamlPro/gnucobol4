@@ -6578,7 +6578,7 @@ cob_embed_rexx (const int offset, const int length,
 		instore[0].strptr = (char*)srcfield->data;
 		instore[0].strlength = (ULONG)srcfield->size;
 	
-		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "GNUCOBOL",
+		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "SYSTEM",
 				RXFUNCTION, NULL, (PSHORT)&rc, (PRXSTRING)&result);
 		if (ret != 0) {
 			/* set generic IMPLEMENTOR exception */
