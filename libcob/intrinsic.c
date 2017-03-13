@@ -6531,13 +6531,8 @@ cob_embed_rexx (const int offset, const int length,
 		     const int params, ...)
 {
 	va_list		args;
-	/* LONG		argc; */
 	PRXSTRING	argv = NULL;
-	/* PSZ		progname; */
 	RXSTRING	instore[2];
-	/* PSZ		envname; */
-	/* LONG		calltype; */
-	/* PRXSYSEXIT	exits; */
 	SHORT		rc;
 	RXSTRING	result;
 	APIRET		ret;
@@ -6566,6 +6561,7 @@ cob_embed_rexx (const int offset, const int length,
 	}
 	va_end (args);
 
+	/* Dont use any tokenized byte code */
 	instore[1].strptr = NULL;
 	instore[1].strlength = 0;
 
@@ -6578,7 +6574,7 @@ cob_embed_rexx (const int offset, const int length,
 		instore[0].strptr = (char*)srcfield->data;
 		instore[0].strlength = (ULONG)srcfield->size;
 	
-		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "SYSTEM",
+		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "GNUCOBOL",
 				RXFUNCTION, NULL, (PSHORT)&rc, (PRXSTRING)&result);
 		if (ret != 0) {
 			/* set generic IMPLEMENTOR exception */
@@ -6602,6 +6598,7 @@ cob_embed_rexx (const int offset, const int length,
 		curr_field->size = 0;
 		curr_field->data[0] = ' ';
 	}
+	/* clean up tokenized byte code copy */
 	if (instore[1].strptr) {
 		RexxFreeMemory (instore[1].strptr);
 	}
