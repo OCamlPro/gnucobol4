@@ -503,7 +503,7 @@ cob_sig_handler_ex (int sig)
 }
 
 
-DECLNORET static void COB_A_NORETURN
+DECLNORET void COB_A_NORETURN
 cob_sig_handler (int sig)
 {
 	const char *signal_name;

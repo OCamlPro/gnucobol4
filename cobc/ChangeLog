@@ -1,6 +1,10 @@
 
 2017-03-08  Brian Tiffin <btiffin@gnu.org>
 
+	* tree.h, tree.c, reserved.c, parser.y: Adding REXX-SAFE intrinsic function
+
+2017-03-08  Brian Tiffin <btiffin@gnu.org>
+
 	* tree.h, tree.c, reserved.c, parser.y: Adding REXX intrinsic function
 
 2017-03-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>

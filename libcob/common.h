@@ -1333,7 +1333,9 @@ COB_EXPIMP void	cob_module_enter		(cob_module **, cob_global **,
 						 const int);
 COB_EXPIMP void	cob_module_leave		(cob_module *);
 
-COB_EXPIMP void	cob_module_free(cob_module **);
+COB_EXPIMP void	cob_module_free			(cob_module **);
+
+COB_EXPIMP void	cob_sig_handler			(int);
 
 DECLNORET COB_EXPIMP void	cob_stop_run	(const int) COB_A_NORETURN;
 DECLNORET COB_EXPIMP void	cob_fatal_error	(const int) COB_A_NORETURN;
@@ -1914,6 +1916,8 @@ COB_EXPIMP cob_field *cob_intr_integer_of_formatted_date	(cob_field *,
 
 /* Optional embedded extensions */
 COB_EXPIMP cob_field *cob_embed_rexx			(const int, const int,
+							 const int, ...);
+COB_EXPIMP cob_field *cob_embed_rexx_safe		(const int, const int,
 							 const int, ...);
 
 /*******************************/

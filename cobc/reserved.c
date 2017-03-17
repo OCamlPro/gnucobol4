@@ -2437,6 +2437,11 @@ static const struct cb_intrinsic_table function_list[] = {
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
+  { "REXX-SAFE",			"cob_embed_rexx_safe",
+					CB_EMBED_REXX_SAFE, REXX_SAFE_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
 #endif
   { "SECONDS-FROM-FORMATTED-TIME",	"cob_intr_seconds_from_formatted_time",
 					CB_INTR_SECONDS_FROM_FORMATTED_TIME, FUNCTION_NAME, 1,

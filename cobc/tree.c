@@ -4228,6 +4228,7 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 	case CB_INTR_FORMATTED_TIME:
 	case CB_INTR_NATIONAL_OF:
 	case CB_EMBED_REXX:
+	case CB_EMBED_REXX_SAFE:
 		return make_intrinsic (name, cbp, args, cb_int1, refmod, 0);
 
 	case CB_INTR_DATE_TO_YYYYMMDD:
