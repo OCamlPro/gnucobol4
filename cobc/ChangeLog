@@ -1,5 +1,9 @@
 
-2017-03-08  Brian Tiffin <btiffin@gnu.org>
+2017-03-19  Brian Tiffin <btiffin@gnu.org>
+
+	* tree.h, tree.c, reserved.c, parser.y: Rename REXX-SAFE to REXX-RESTRICTED
+
+2017-03-17  Brian Tiffin <btiffin@gnu.org>
 
 	* tree.h, tree.c, reserved.c, parser.y: Adding REXX-SAFE intrinsic function
 

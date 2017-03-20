@@ -6526,13 +6526,13 @@ cob_intr_standard_compare (const int params, ...)
 #ifdef WITH_REXX
 #include <rexxsaa.h>
 
-cob_field *
-cob_embed_rexx (const int offset, const int length,
-		     const int params, ...)
+static cob_field *
+cob_embed_vrexx (const int mode, const int offset, const int length,
+		const int params, va_list args)
 {
-	va_list		args;
 	PRXSTRING	argv = NULL;
 	RXSTRING	instore[2];
+	LONG		calltype;
 	SHORT		rc;
 	RXSTRING	result;
 	APIRET		ret;
@@ -6550,7 +6550,6 @@ cob_embed_rexx (const int offset, const int length,
 	}
 
         /* First parameter is text to evaluate */
-	va_start (args, params);
 	srcfield = va_arg (args, cob_field *);
 
 	/* Extract any other args to pass to Rexx */
@@ -6559,7 +6558,6 @@ cob_embed_rexx (const int offset, const int length,
 		argv[i-1].strptr = (char *)f[i-1]->data;
 		argv[i-1].strlength = f[i-1]->size;
 	}
-	va_end (args);
 
 	/* Dont use any tokenized byte code */
 	instore[1].strptr = NULL;
@@ -6573,9 +6571,13 @@ cob_embed_rexx (const int offset, const int length,
 		/* set up the source text, not using any pre-tokens */
 		instore[0].strptr = (char*)srcfield->data;
 		instore[0].strlength = (ULONG)srcfield->size;
-	
+
+		calltype = RXFUNCTION;
+		if (mode) {
+			calltype |= RXRESTRICTED;
+		}	
 		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "GNUCOBOL",
-				RXFUNCTION, NULL, (PSHORT)&rc, (PRXSTRING)&result);
+				calltype, NULL, (PSHORT)&rc, (PRXSTRING)&result);
 		if (ret != 0) {
 			/* set generic IMPLEMENTOR exception */
 			cob_set_exception (COB_EC_IMP);
@@ -6616,93 +6618,29 @@ cob_embed_rexx (const int offset, const int length,
 }
 
 cob_field *
-cob_embed_rexx_safe (const int offset, const int length,
-		     const int params, ...)
+cob_embed_rexx (const int offset, const int length,
+		const int params, ...)
 {
-	va_list		args;
-	PRXSTRING	argv = NULL;
-	RXSTRING	instore[2];
-	SHORT		rc;
-	RXSTRING	result;
-	APIRET		ret;
+	va_list args;
+	cob_field *pass_field;
 
-	cob_field	field;
-	cob_field	**f = NULL;
-	cob_field	*srcfield;
+	va_start(args, params);
+	pass_field = cob_embed_vrexx(0, offset, length, params, args);
+	va_end(args);
+	return pass_field;
+}
 
-	int		i;
+cob_field *
+cob_embed_rexx_restricted (const int offset, const int length,
+		const int params, ...)
+{
+	va_list args;
+	cob_field *pass_field;
 
-	cob_set_exception (0);
-	if (params > 1) {
-		f = cob_malloc ((size_t)(params - 1) * sizeof (cob_field *));
-		argv = cob_malloc ((size_t)(params - 1) * sizeof (RXSTRING));
-	}
-
-        /* First parameter is text to evaluate */
-	va_start (args, params);
-	srcfield = va_arg (args, cob_field *);
-
-	/* Extract any other args to pass to Rexx */
-	for (i = 1; i < params; ++i) {
-		f[i-1] = va_arg (args, cob_field *);
-		argv[i-1].strptr = (char *)f[i-1]->data;
-		argv[i-1].strlength = f[i-1]->size;
-	}
-	va_end (args);
-
-	/* Dont use any tokenized byte code */
-	instore[1].strptr = NULL;
-	instore[1].strlength = 0;
-
-	/* let Rexx allocate the result space */
-	result.strptr = NULL;
-	result.strlength = 0;
-
-	if (COB_FIELD_IS_ALNUM(srcfield)) {
-		/* set up the source text, not using any pre-tokens */
-		instore[0].strptr = (char*)srcfield->data;
-		instore[0].strlength = (ULONG)srcfield->size;
-	
-		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore,
-				 "GNUCOBOL", RXFUNCTION|RXRESTRICTED, NULL,
-				 (PSHORT)&rc, (PRXSTRING)&result);
-		if (ret != 0) {
-			/* set generic IMPLEMENTOR exception */
-			cob_set_exception (COB_EC_IMP);
-		}
-	} else {
-		cob_set_exception (COB_EC_ARGUMENT_FUNCTION);
-	}
-
-	if (result.strlength > 0) {
-		COB_FIELD_INIT (result.strlength, NULL, &const_alpha_attr);
-	} else {
-		COB_FIELD_INIT (1, NULL, &const_alpha_attr);
-	}
-	make_field_entry (&field);
-
-	if (result.strptr) {
-		memcpy (curr_field->data, result.strptr, result.strlength);
-		RexxFreeMemory (result.strptr);
-	} else {
-		curr_field->size = 0;
-		curr_field->data[0] = ' ';
-	}
-	/* clean up tokenized byte code copy */
-	if (instore[1].strptr) {
-		RexxFreeMemory (instore[1].strptr);
-	}
-
-	if (params > 1) {
-		cob_free (argv);
-		cob_free (f);
-	}
-
-	if (unlikely (offset > 0)) {
-		calc_ref_mod (curr_field, offset, length);
-	}
-
-	return curr_field;
+	va_start(args, params);
+	pass_field = cob_embed_vrexx(1, offset, length, params, args);
+	va_end(args);
+	return pass_field;
 }
 #endif
 

@@ -2437,8 +2437,8 @@ static const struct cb_intrinsic_table function_list[] = {
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
-  { "REXX-SAFE",			"cob_embed_rexx_safe",
-					CB_EMBED_REXX_SAFE, REXX_SAFE_FUNC, 1,
+  { "REXX-RESTRICTED",			"cob_embed_rexx_restricted",
+					CB_EMBED_REXX_RESTRICTED, REXX_RESTRICTED_FUNC, 1,
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },

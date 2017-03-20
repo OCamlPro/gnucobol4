@@ -1,4 +1,8 @@
 
+2017-03-19  Brian Tiffin <btiffin@gnu.org>
+
+	* intrinsic.c, common.h: cob_embed_rexx_safe renamed to cob_embed_rexx_restricted
+
 2017-03-17  Brian Tiffin <btiffin@gnu.org>
 
 	* intrinsic.c, common.h: adding cob_embed_rexx_safe
