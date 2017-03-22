@@ -1,4 +1,12 @@
 
+2017-03-22  Brian Tiffin <btiffin@gnu.org>
+
+	* intrinsic.c: add SCRIPT-RETURN-CODE to cob_embed_vrexx
+
+2017-03-20  Brian Tiffin <btiffin@gnu.org>
+
+	* intrinsic.c: Refactor rexx vararg handling into cob_embed_vrexx
+
 2017-03-19  Brian Tiffin <btiffin@gnu.org>
 
 	* intrinsic.c, common.h: cob_embed_rexx_safe renamed to cob_embed_rexx_restricted

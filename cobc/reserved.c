@@ -3220,6 +3220,12 @@ cb_list_reserved (void)
 	printf ("%-32s%s\n", "COB-CRT-STATUS", "PIC 9(4)");
 	printf ("%-32s%s\n", "TALLY", "GLOBAL PIC 9(5) USAGE BINARY VALUE ZERO");
 	printf ("%-32s%s\n", _("'LENGTH OF' phrase"), "USAGE BINARY-LONG");
+#ifdef WITH_REXX
+	putchar ('\n');
+	printf ("%-32s%s\n", _("REXX scripting"), _("Definition"));
+	printf ("%-32s%s\n", "SCRIPT-RETURN-CODE",
+		 "USAGE BINARY-SHORT EXTERNAL AS \"SCRIPT_RETURN_CODE\"");
+#endif
 }
 
 void

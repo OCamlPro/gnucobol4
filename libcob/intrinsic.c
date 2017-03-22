@@ -6526,6 +6526,8 @@ cob_intr_standard_compare (const int params, ...)
 #ifdef WITH_REXX
 #include <rexxsaa.h>
 
+static void *script_rc;
+
 static cob_field *
 cob_embed_vrexx (const int mode, const int offset, const int length,
 		const int params, va_list args)
@@ -6533,9 +6535,9 @@ cob_embed_vrexx (const int mode, const int offset, const int length,
 	PRXSTRING	argv = NULL;
 	RXSTRING	instore[2];
 	LONG		calltype;
-	SHORT		rc;
+	SHORT		rc = 0;
 	RXSTRING	result;
-	APIRET		ret;
+	APIRET		ret = 0;
 
 	cob_field	field;
 	cob_field	**f = NULL;
@@ -6578,12 +6580,19 @@ cob_embed_vrexx (const int mode, const int offset, const int length,
 		}	
 		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "GNUCOBOL",
 				calltype, NULL, (PSHORT)&rc, (PRXSTRING)&result);
-		if (ret != 0) {
+		if (ret) {
 			/* set generic IMPLEMENTOR exception */
 			cob_set_exception (COB_EC_IMP);
 		}
 	} else {
 		cob_set_exception (COB_EC_ARGUMENT_FUNCTION);
+	}
+
+	/* If the rc set is meaningful, use it, otherwise take the APIRET */
+	if (rc) {
+		*(SHORT *)script_rc = rc;
+	} else {
+		*(SHORT *)script_rc = (SHORT)ret;
 	}
 
 	if (result.strlength > 0) {
@@ -6724,6 +6733,10 @@ cob_init_intrinsic (cob_global *lptr)
 
 	mpf_init2 (cob_log_half, COB_LOG_HALF_LEN);
 	mpf_set_str (cob_log_half, cob_log_half_str, 10);
+
+#ifdef WITH_REXX
+	script_rc = cob_external_addr("SCRIPT_RETURN_CODE", sizeof(SHORT));
+#endif
 }
 
 #undef COB_DATETIMESTR_LEN

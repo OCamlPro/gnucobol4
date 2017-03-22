@@ -20,6 +20,6 @@
 # along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
 copydir = @COB_COPY_DIR@
-copy_DATA = screenio.cpy sqlca.cpy sqlda.cpy
+copy_DATA = screenio.cpy sqlca.cpy sqlda.cpy rexxapi.cpy
 
 EXTRA_DIST = $(copy_DATA)
