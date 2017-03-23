@@ -1,4 +1,7 @@
 
+2017-03-22  Brian Tiffin <btiffin@gnu.org>
+	* configure.ac: Pass COB_HAS_REXX to autotest
+
 2017-03-08  Brian Tiffin <btiffin@gnu.org>
 	* configure.ac: Adding --with-rexx
 

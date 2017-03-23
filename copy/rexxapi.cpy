@@ -18,13 +18,13 @@
       *>  License along with GnuCOBOL.
       *>  If not, see <http://www.gnu.org/licenses/>.
 
-      *> The ReturnCode or APIRET from RexxStart
-       77 SCRIPT-RETURN-CODE USAGE BINARY-SHORT EXTERNAL
+      *> The APIRET return value from RexxStart
+       77 SCRIPT-RETURN-CODE USAGE BINARY-C-LONG  EXTERNAL
                                                 AS "SCRIPT_RETURN_CODE".
 
-      *> Values set in the ReturnCode field of RexxStart
        01 REXX-API-OK                  CONSTANT AS 0.
 
+      *> Positive values, script not evaluated due to problem
        01 REXX-API-DEFINED             CONSTANT AS 10.
        01 REXX-API-NOMEM               CONSTANT AS 20.
        01 REXX-API-NOTREG              CONSTANT AS 30.
@@ -34,7 +34,7 @@
        01 REXX-API-BADTYPE             CONSTANT AS 70.
        01 REXX-API-NOEMEM              CONSTANT AS 1002.
 
-      *> Values set in the APIRET returCONSTANT n value
+      *> Interpreter error status values
        01 REXX-ERR-PROG-UNREADABLE     CONSTANT AS -3.
        01 REXX-ERR-PROG-INTERRUPT      CONSTANT AS -4.
        01 REXX-ERR-STORAGE-EXHAUSTED   CONSTANT AS -5.

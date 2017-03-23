@@ -3897,3 +3897,40 @@ AT_CHECK([./prog], [0],
 ])
 
 AT_CLEANUP
+
+AT_SETUP([REXX scripting])
+AT_KEYWORDS([functions REXX extensions])
+
+AT_SKIP_IF([test "$COB_WITH_REXX" = "no"])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       COPY rexxapi.
+       01  str         PIC X(30).
+       77  val         pic 9(02).
+       
+       PROCEDURE DIVISION.
+           DISPLAY FUNCTION REXX("return abc")
+           END-DISPLAY
+           
+           COMPUTE val = FUNCTION NUMVAL(
+                         FUNCTION REXX("return 6 * arg(1)", 6)) + 6
+           END-COMPUTE
+           DISPLAY val
+           END-DISPLAY
+
+           DISPLAY SCRIPT-RETURN-CODE
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [ABC
+42
++00000000000000000000
+], [])
+
+AT_CLEANUP

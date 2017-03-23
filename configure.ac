@@ -1250,6 +1250,12 @@ else
 	COB_HAS_CURSES=yes
 fi
 
+if test "$with_rexx" = "yes"; then
+    COB_WITH_REXX=yes
+else
+    COB_WITH_REXX=no
+fi
+
 unset COB_USES_GCC
 unset COB_USES_GCC_NO_ICC
 unset COB_USES_ICC_ONLY
@@ -1296,6 +1302,7 @@ AC_SUBST([COB_KEYWORD_INLINE])
 AC_SUBST([COB_HAS_ISAM])
 AC_SUBST([COB_HAS_CURSES])
 AC_SUBST([COB_HAS_UTC_OFFSET])
+AC_SUBST([COB_WITH_REXX])
 AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level]) # needed for bin/cob-config
 
 AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
