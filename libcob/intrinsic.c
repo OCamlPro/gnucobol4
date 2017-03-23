@@ -6580,9 +6580,8 @@ cob_embed_vrexx (const int mode, const int offset, const int length,
 		}	
 		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore, "GNUCOBOL",
 				calltype, NULL, (PSHORT)&rc, (PRXSTRING)&result);
-		if (ret) {
-			/* set generic IMPLEMENTOR exception */
-			cob_set_exception (COB_EC_IMP);
+		if (ret || rc) {
+			cob_set_exception (COB_EC_IMP_SCRIPT);
 		}
 	} else {
 		cob_set_exception (COB_EC_ARGUMENT_FUNCTION);

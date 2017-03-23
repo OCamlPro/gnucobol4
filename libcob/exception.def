@@ -202,6 +202,9 @@ COB_EXCEPTION  (0602, COB_EC_IMP_DISPLAY,
 COB_EXCEPTION  (0603, COB_EC_IMP_UTC_UNKNOWN,
 		"EC-IMP-UTC-UNKNOWN", 1)
 
+/* Implementation-define REXX status condition */
+COB_EXCEPTION  (0604, COB_EC_IMP_SCRIPT,
+		"EC-IMP-SCRIPT", 0)
 
 /* Any locale related exception */
 COB_EXCEPTION  (0700, COB_EC_LOCALE,
