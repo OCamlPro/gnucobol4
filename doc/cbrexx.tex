@@ -1,0 +1,58 @@
+@section REXX scripting
+
+@*
+REXX scripting is an optional build feature of GnuCOBOL.
+@*
+Requires Regina REXX and @code{./configure --with-rexx} during build.
+@*
+Adds new Intrinsics functions, @code{FUNCTION REXX(script [,arg,...])} and
+@code{FUNCTION REXX-RESTRICTED(...)}.
+
+These functions accept character data as the script, and unlimited arguments
+(also character data), and returns an ALPHANUMERIC field from the REXX
+interpreter.  Reference modification is allowed.
+
+@* 
+Includes a @code{rexxapi.cpy} copybook that defines error number constants and
+an @code{EXTERNAL} variable, @code{SCRIPT-RETURN-CODE} that provides status
+values along with a definition of the EXTERNAL status code identifier.
+@code{rexxapi.cpy} will be installed to a system specific location that is part
+of the default search path for the @code{COPY} directive.
+
+@section REXX examples
+
+Example:
+
+@verbatim
+    move rexx("variable = arg(1) * arg(2); return variable", 6, 7)
+      to answer
+@end verbatim
+
+Parameter 1 is the script, all other arguments (unlimited) are passed to REXX
+as ARG values. Return value is ALPHANUMERIC.
+
+Reference modification is allowed.
+
+    @code{display rexx("return xrange(0,a)")(1:10)}
+
+As this is defined as an alphanumeric function, use @code{FUNCTION NUMVAL} to
+use any REXX results in computations.
+
+    @code{compute answer = numval(rexx("return 6 * arg(1)", 6)) + 6}
+
+Regina REXX RESTRICTED mode can be used with @code{FUNCTION REXX-RESTRICTED}
+
+    @code{display rexx-restricted("lineout('file', 'string')")}
+
+The line above will return an error code from REXX as the @code{LINEOUT}
+feature is disabled in RESTRICTED mode. 
+
+@section Optional build feature
+
+This is an optional build feature.
+
+@code{./configure --with-rexx} to build a compiler with Regina REXX
+scripting.
+
+Requires Regina REXX with the @code{libregina} dynamic shared library in the
+linker search path.
