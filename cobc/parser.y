@@ -329,9 +329,6 @@ emit_entry(const char * name, const int encode, cb_tree using_list, cb_tree conv
 		cb_tree x = CB_VALUE(l);
 		if(CB_VALID_TREE(x) && cb_ref(x) != cb_error_node) {
 			cb_field * f = CB_FIELD(cb_ref(x));
-			if(f->level != 01 && f->level != 77) {
-				cb_error_x(x, _("'%s' not level 01 or 77"), cb_name(x));
-			}
 			if(!current_program->flag_chained) {
 				if(f->storage != CB_STORAGE_LINKAGE) {
 					cb_error_x(x, _("'%s' is not in LINKAGE SECTION"), cb_name(x));
@@ -348,9 +345,14 @@ emit_entry(const char * name, const int encode, cb_tree using_list, cb_tree conv
 				f->param_num = parmnum;
 				parmnum++;
 			}
+			if(f->level != 01 && f->level != 77) {
+				cb_error_x(x, _("'%s' not level 01 or 77"), cb_name(x));
+			}
 			if(f->redefines) {
 				cb_error_x(x, _("'%s' REDEFINES field not allowed here"), cb_name(x));
 			}
+			/* add a "receiving" entry for the USING parameter */
+			cobc_xref_link(&f->xref, CB_REFERENCE(x)->source_line, 1);
 		}
 	}
 
@@ -886,6 +888,12 @@ setup_program_start (void)
 		check_headers_present(COBC_HD_PROCEDURE_DIVISION, 0, 0, 0);
 	}
 	first_nested_program = 1;
+}
+
+static int
+setup_program(cb_tree id, cb_tree as_literal, const unsigned char type)
+{
+	setup_program_start();
 
 	if(first_prog) {
 		first_prog = 0;
@@ -900,12 +908,6 @@ setup_program_start (void)
 		build_nested_special(depth);
 		cb_build_registers();
 	}
-}
-
-static int
-setup_program(cb_tree id, cb_tree as_literal, const unsigned char type)
-{
-	setup_program_start();
 
 	if(CB_LITERAL_P(id)) {
 		stack_progid[depth] = (char *)(CB_LITERAL(id)->data);
@@ -3582,19 +3584,24 @@ file_control_entry:
 		/* Add file to current program list */
 		CB_ADD_TO_CHAIN (current_file,
 				 current_program->file_list);
-	} else {
-		current_file = NULL;
-		if (current_program->file_list) {
-			current_program->file_list
-				= CB_CHAIN (current_program->file_list);
-		}
+	} else if(current_program->file_list) {
+		current_program->file_list
+			= CB_CHAIN (current_program->file_list);
 	}
   }
-  _select_clause_sequence TOK_DOT
+  _select_clauses_or_error
   {
 	if(CB_VALID_TREE ($3)) {
 		validate_file(current_file, $3);
 	}
+  }
+;
+
+_select_clauses_or_error:
+  _select_clause_sequence TOK_DOT
+| error TOK_DOT
+  {
+	yyerrok;
   }
 ;
 
@@ -6398,6 +6405,9 @@ _procedure_division:
 	/* Thereafter, sections/paragraphs may be used */
 	check_pic_duplicate = 0;
 	check_duplicate = 0;
+	if(!current_program->entry_convention) {
+		current_program->entry_convention = cb_int(CB_CONV_COBOL);
+	}
 	cobc_in_procedure = 1U;
 	cb_tree label = cb_build_reference("MAIN SECTION");
 	current_section = CB_LABEL(cb_build_label(label, NULL));

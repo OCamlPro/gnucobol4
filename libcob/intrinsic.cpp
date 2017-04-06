@@ -1900,13 +1900,10 @@ valid_day_and_format(const int day, const char * format)
 	return valid_integer_date(day) && cob_valid_date_format(format);
 }
 
-/* FIXME: unlikely but may return a size_t, leading to a possible overflow */
-static int
-num_leading_nonspace(const char * str)
+static size_t
+num_leading_nonspace(const char * str, const size_t str_len)
 {
-	size_t str_len = strlen(str);
-
-	int i;
+	size_t i;
 	for(i = 0; i < str_len && !isspace((int) str[i]); ++i);
 	return i;
 }
@@ -2264,6 +2261,19 @@ format_time(const struct time_format format, int time,
 	}
 
 	return date_overflow;
+}
+
+/*
+  Copies as many character as possible from before the first space
+  from f->data into out_str and add a null terminator to out_str.
+*/
+static void
+copy_data_to_null_terminated_str(cob_field * f, char * const out_str, const size_t out_str_max)
+{
+	size_t	chars_before_space = num_leading_nonspace((char *)f->data, f->size);
+	size_t	length = (chars_before_space < out_str_max) ? chars_before_space : out_str_max;
+	strncpy(out_str, (char *)f->data, length);
+	out_str[length] = '\0';
 }
 
 static void
@@ -4973,7 +4983,8 @@ cob_intr_seconds_from_formatted_time(cob_field * format_field, cob_field * time_
 	cob_decimal	* seconds = &d1;
 	time_format time_fmt;
 
-	size_t str_length = num_leading_nonspace((char *) format_field->data);
+	size_t str_length = num_leading_nonspace((char *) format_field->data,
+						format_field->size);
 	memcpy(format_str, format_field->data, str_length);
 
 	cob_set_exception(0);
@@ -5601,12 +5612,12 @@ cob_field *
 cob_intr_formatted_date(const int offset, const int length,
 						cob_field * format_field, cob_field * days_field)
 {
-	size_t field_length = num_leading_nonspace((char *) format_field->data);
 	char format_str[COB_DATESTR_LEN] = { '\0' };
 	date_format format;
 	char buff[COB_DATESTR_LEN] = { '\0' };
 
-	memcpy(format_str, format_field->data, field_length);
+	copy_data_to_null_terminated_str(format_field, format_str, COB_DATESTR_MAX);
+	size_t field_length = strlen(format_str);
 
 	cob_field field(field_length, NULL, &const_alpha_attr);
 	make_field_entry(&field);
@@ -5664,9 +5675,9 @@ cob_intr_formatted_time(const int offset, const int length,
 
 	va_end(args);
 
-	/* Initialise buffers */
-	size_t field_length = num_leading_nonspace((char *) format_field->data);
-	memcpy(format_str, format_field->data, field_length);
+	/* Initialize buffers */
+	copy_data_to_null_terminated_str(format_field, format_str, COB_TIMESTR_MAX);
+	size_t field_length = strlen(format_str);
 
 	cob_field field(field_length, NULL, &const_alpha_attr);
 	make_field_entry(&field);
@@ -5742,8 +5753,8 @@ cob_intr_formatted_datetime(const int offset, const int length,
 
 	va_end(args);
 
-	size_t field_length = num_leading_nonspace((char *) fmt_field->data);
-	memcpy(fmt_str, fmt_field->data, field_length);
+	copy_data_to_null_terminated_str(fmt_field, fmt_str, COB_DATETIMESTR_MAX);
+	size_t field_length = strlen(fmt_str);
 
 	cob_field field(field_length, NULL, &const_alpha_attr);
 	make_field_entry(&field);
@@ -5796,18 +5807,22 @@ cob_field *
 cob_intr_test_formatted_datetime(cob_field * format_field,
 								 cob_field * datetime_field)
 {
-	char	* datetime_format_str = (char *)format_field->data;
+	char	datetime_format_str[COB_DATETIMESTR_LEN] = { '\0' };
 	char	date_format_str[COB_DATESTR_LEN] = { '\0' };
 	char	time_format_str[COB_TIMESTR_LEN] = { '\0' };
 	int	date_present;
 	int	time_present;
-	char	* formatted_datetime = (char *)datetime_field->data;
+	char	formatted_datetime[COB_DATETIMESTR_LEN] = { '\0' };
 	char	formatted_date[COB_DATESTR_LEN] = { '\0' };
 	char	formatted_time[COB_TIMESTR_LEN] = { '\0' };
 	int	time_part_offset;
 	int	error_pos;
 
 	cob_set_exception(0);
+
+	/* Copy to null-terminated strings */
+	copy_data_to_null_terminated_str(format_field, datetime_format_str, COB_DATETIMESTR_MAX);
+	copy_data_to_null_terminated_str(datetime_field, formatted_datetime, COB_DATETIMESTR_MAX);
 
 	/* Check whether date or time is present. */
 	if(cob_valid_date_format(datetime_format_str)) {
@@ -5860,6 +5875,11 @@ cob_intr_test_formatted_datetime(cob_field * format_field,
 			goto end_of_func;
 		}
 	}
+	if(date_present && time_present
+			&& formatted_datetime[strlen(formatted_date)] != 'T') {
+		cob_alloc_set_field_uint((unsigned int) strlen(formatted_date) + 1U);
+		goto end_of_func;
+	}
 	if(time_present) {
 		error_pos = test_formatted_time(parse_time_format_string(time_format_str),
 										formatted_time, COB_MODULE_PTR->decimal_point);
@@ -5884,22 +5904,24 @@ cob_field *
 cob_intr_integer_of_formatted_date(cob_field * format_field,
 								   cob_field * date_field)
 {
-	char	* format_field_data = (char *) format_field->data;
+	char	original_format_str[COB_DATETIMESTR_LEN] = { '\0' };
+	char	original_date_str[COB_DATETIMESTR_LEN] = { '\0' };
 	char	format_str[COB_DATESTR_LEN] = { '\0' };
-	char	* date_field_data = (char *) date_field->data;
 	char	date_str[COB_DATESTR_LEN] = { '\0' };
-	int	is_date;
-	struct date_format date_fmt;
+	date_format date_fmt;
 
 	cob_set_exception(0);
 
+	copy_data_to_null_terminated_str(format_field, original_format_str, COB_DATETIMESTR_MAX);
+	copy_data_to_null_terminated_str(date_field, original_date_str, COB_DATETIMESTR_MAX);
+
 	/* Get date format string and parse it */
-	is_date = cob_valid_date_format(format_field_data);
+	int is_date = cob_valid_date_format(original_format_str);
 	if(is_date) {
-		strncpy(format_str, format_field_data, COB_DATESTR_MAX);
-	} else if(cob_valid_datetime_format(format_field_data,
+		strcpy(format_str, original_format_str);
+	} else if(cob_valid_datetime_format(original_format_str,
 										COB_MODULE_PTR->decimal_point)) { /* Datetime */
-		split_around_t (format_field_data, format_str, NULL);
+		split_around_t(original_format_str, format_str, NULL);
 	} else { /* Invalid format string */
 		goto invalid_args;
 	}
@@ -5907,9 +5929,9 @@ cob_intr_integer_of_formatted_date(cob_field * format_field,
 
 	/* Get formatted date and validate it */
 	if(is_date) {
-		strncpy(date_str, date_field_data, COB_DATESTR_MAX);
+		strcpy(date_str, original_date_str);
 	} else { /* Datetime */
-		split_around_t (date_field_data, date_str, NULL);
+		split_around_t(original_date_str, date_str, NULL);
 	}
 	if(test_formatted_date(date_fmt, date_str, 1) != 0) {
 		goto invalid_args;
@@ -5930,8 +5952,6 @@ cob_field *
 cob_intr_formatted_current_date(const int offset, const int length,
 								cob_field * format_field)
 {
-	size_t		field_length =
-	num_leading_nonspace((char *) format_field->data);
 	char		format_str[COB_DATETIMESTR_LEN] = { '\0' };
 	char		date_format_str[COB_DATESTR_LEN] = { '\0' };
 	char		time_format_str[COB_TIMESTR_LEN] = { '\0' };
@@ -5939,7 +5959,8 @@ cob_intr_formatted_current_date(const int offset, const int length,
 	struct time_format	time_fmt;
 	char		formatted_date[COB_DATETIMESTR_LEN] = { '\0' };
 
-	strncpy(format_str, (char *) format_field->data, field_length);
+	copy_data_to_null_terminated_str(format_field, format_str, COB_DATETIMESTR_MAX);
+	size_t field_length = strlen(format_str);
 
 	cob_field field(field_length, NULL, &const_alpha_attr);
 	make_field_entry(&field);

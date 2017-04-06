@@ -28,17 +28,22 @@ AT_DATA([dump.cpp], [
 #include <stdio.h>
 #define COB_LIB_EXPIMP
 #include <libcob.h>
-COB_EXPIMP int dump (unsigned char *, int *);
-int dump (unsigned char *data, int *p)
+COB_EXPIMP
+int dump (unsigned char *data, char *p)
 {
   int i;
-  if ( *p == 1 ) {
-     for (i = 0; i < 4; i++)
-       printf ("%02x", data[[i]]);
+  if(*p == 0) ++p;
+  if(*p == 0) ++p; // for big-endian
+  if(*p == 0) ++p;
+  if(*p == 1) {
+     for(int i = 0; i < 4; i++)
+       printf("%02x", data[[i]]);
+  } else if(*p == 2) {
+       printf("%8.8d", *((int *)data));
   } else {
-       printf ("%8.8d", *((int *)data));
+       printf("ERROR");
   }
-  puts ("");
+  puts("");
   return 0;
 }
 ])
@@ -925,7 +930,7 @@ AT_CHECK([test -e TESTFILE], [0], [], [])
 
 AT_CLEANUP
 
-AT_SETUP([CALL unusual PROGRAM-ID.])
+AT_SETUP([CALL unusual PROGRAM-ID])
 AT_KEYWORDS([extensions])
 
 AT_DATA([A@B.cob], [
@@ -996,37 +1001,37 @@ AT_KEYWORDS([extensions])
 # Will fail if memory is freed which was
 # allocated by mpir/gmp.
 AT_DATA([prog_a.cob], [
-		IDENTIFICATION DIVISION.
-		PROGRAM-ID. prog_a.
-		DATA DIVISION.
-		WORKING-STORAGE SECTION.
-		77  WS-STRINGA   PIC X(10).
-		PROCEDURE DIVISION.
-		    MOVE  "hi there"   TO WS-STRINGA
-		    CALL  "prog_b"  USING WS-STRINGA
-		    DISPLAY "back in prog_a"
-		    GOBACK.
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog_a.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+           77  WS-STRINGA   PIC X(10).
+       PROCEDURE DIVISION.
+           MOVE  "hi there"   TO WS-STRINGA
+           CALL  "prog_b"  USING WS-STRINGA
+           DISPLAY "back in prog_a"
+           GOBACK.
 ])
 
 AT_DATA([prog_b.cob], [
-		IDENTIFICATION DIVISION.
-		PROGRAM-ID. prog_b.
-		DATA DIVISION.
-		WORKING-STORAGE SECTION.
-		77  WS-STRINGB   PIC X(10).
-		77  WS-CALLSB    PIC 9(03).
-		LOCAL-STORAGE SECTION.
-		77  LS-STRING  PIC X(10).
-		LINKAGE SECTION.
-		77  LK-STRING  PIC X(10).
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog_b.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+           77  WS-STRINGB   PIC X(10).
+           77  WS-CALLSB    PIC 9(03).
+       LOCAL-STORAGE SECTION.
+           77  LS-STRING  PIC X(10).
+       LINKAGE SECTION.
+           77  LK-STRING  PIC X(10).
 
-		PROCEDURE DIVISION  USING  LK-STRING.
-		    DISPLAY "entered prog_b"
-		    ADD   1  TO  WS-CALLSB
-		    MOVE  LK-STRING TO WS-STRINGB
-		    MOVE  LK-STRING TO LS-STRING
-		    DISPLAY "exiting prog_b"
-		    GOBACK.
+       PROCEDURE DIVISION  USING  LK-STRING.
+           DISPLAY "entered prog_b"
+           ADD   1  TO  WS-CALLSB
+           MOVE  LK-STRING TO WS-STRINGB
+           MOVE  LK-STRING TO LS-STRING
+           DISPLAY "exiting prog_b"
+           GOBACK.
 ])
 
 AT_CHECK([$COMPILE prog_a.cob], [0], [], [])
@@ -1548,8 +1553,8 @@ AT_CHECK([./caller], [0], [], [])
 
 AT_CLEANUP
 
-AT_SETUP([PROCEDURE DIVISION CHAINING ...])
-AT_KEYWORDS([extensions])
+AT_SETUP([PROCEDURE DIVISION CHAINING])
+AT_KEYWORDS([extensions CALL INITIALIZE])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1558,19 +1563,110 @@ AT_DATA([prog.cob], [
        WORKING-STORAGE  SECTION.
        01  X            PIC X.
        01  ABCD         PIC X(4).
+       01  NUM          PIC 9 VALUE 7.
        PROCEDURE        DIVISION
-                        CHAINING X ABCD.
-           IF X    NOT = "X" OR
+                        CHAINING X ABCD NUM.
+           IF X    NOT = "X"    OR
               ABCD NOT = "ABCD"
               DISPLAY "X = " X " ABCD = " ABCD
               END-DISPLAY
-           END-IF.
+           END-IF
+           IF NUM  NOT = 7
+              DISPLAY "NUM not INITIALIZED: " NUM
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog2.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  VAR.
+           03  X            PIC X VALUE 'a'.
+           03  ABCD         PIC X(4).
+           03  NUM          PIC 9 VALUE 7.
+       PROCEDURE        DIVISION
+                        CHAINING VAR.
+           DISPLAY '-' VAR '-' WITH NO ADVANCING
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_DATA([prog3.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog3.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  X            PIC X.
+       01  ABCD         PIC X(4).
+       01  NUM          PIC 9 VALUE 7.
+       PROCEDURE        DIVISION
+                        CHAINING X ABCD NUM.
+           IF X    NOT = "X"    OR
+              ABCD NOT = "ABCD"
+              DISPLAY "X = " X " ABCD = " ABCD
+              END-DISPLAY
+           END-IF
+           IF NUM  NOT = 7
+              DISPLAY "NUM not INITIALIZED: " NUM
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_DATA([caller.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      caller.
+       DATA             DIVISION.
+       PROCEDURE        DIVISION.
+           CALL "prog3" USING "X ABCD" END-CALL
+           STOP RUN.
+])
+
+AT_DATA([init.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      init.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  VAR.
+           03  X            PIC X VALUE 'a'.
+           03  ABCD         PIC X(4).
+           03  NUM          PIC 9  VALUE 7.
+       77  NUM2             PIC 99 VALUE 2.
+       PROCEDURE        DIVISION
+                        CHAINING VAR.
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
+           END-DISPLAY
+           INITIALIZE  VAR NUM2
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
+           MOVE 'XXXX' TO ABCD
+           INITIALIZE  VAR NUM2 ALL TO VALUE
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
+           MOVE ALL 'b' TO ABCD
+           INITIALIZE  VAR NUM2 ALL TO VALUE THEN TO DEFAULT
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-
 AT_CHECK([./prog X ABCD], [0], [], [])
+
+AT_CHECK([$COMPILE prog2.cob], [0], [], [])
+AT_CHECK([./prog2 X], [0], [-X     -], [])
+AT_CHECK([./prog2], [0], [-a    7-], [])
+
+AT_CHECK([$COMPILE_MODULE prog3.cob], [0], [], [])
+AT_CHECK([$COBCRUN prog3 X ABCD], [0], [], [])
+
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([./caller X ABCD], [1], [],
+[libcob: caller.cob: 6: CALL of program with CHAINING clause
+])
+
+AT_CHECK([$COMPILE init.cob], [0], [], [])
+AT_CHECK([./init X], [0], [-X     02--     000--aXXXX702--a    702-], [])
 
 AT_CLEANUP
 
@@ -2376,7 +2472,7 @@ AT_DATA([prog.cob], [
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
        01  SWITCH       PIC 99 VALUE 12.
-	   78  Z            VALUE 11.
+           78  Z            VALUE 11.
        PROCEDURE        DIVISION.
            ADD SWITCH 1 GIVING SWITCH
            END-ADD.
@@ -2603,7 +2699,7 @@ AT_CLEANUP
 
 
 AT_SETUP([System routine C$NARG])
-AT_KEYWORDS([extensions])
+AT_KEYWORDS([extensions narg])
 
 AT_DATA([callee.cob], [
        IDENTIFICATION   DIVISION.
@@ -2615,11 +2711,11 @@ AT_DATA([callee.cob], [
        01  Y            PIC   X.
        PROCEDURE        DIVISION USING Y.
            CALL "C$NARG" USING X
-           END-CALL.
+           END-CALL
            IF X NOT = 1
-              DISPLAY "NOTOK"  X
+              DISPLAY "NOTOK callee " X
               END-DISPLAY
-           END-IF.
+           END-IF
            EXIT PROGRAM.
 ])
 
@@ -2629,15 +2725,52 @@ AT_DATA([caller.cob], [
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
        01  X            PIC X VALUE "X".
+       01  N            PIC 9 USAGE BINARY.
+       LINKAGE SECTION.
+       77  Y            PIC X.
+       77  Z            PIC X.
        PROCEDURE        DIVISION.
+           CALL "C$NARG" USING N
+           END-CALL
+           IF N NOT = 2
+              DISPLAY "NOTOK caller (1) " N
+              END-DISPLAY
+           END-IF
            CALL "callee" USING X
-           END-CALL.
+           END-CALL
+           CALL "C$NARG" USING N
+           END-CALL
+           IF N NOT = 2
+              DISPLAY "NOTOK caller (2) " N
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  N            PIC 9 USAGE BINARY.
+       LINKAGE SECTION.
+       77  X            PIC X.
+       77  Y            PIC X.
+       77  Z            PIC X.
+       PROCEDURE        DIVISION.
+           CALL "C$NARG" USING N
+           END-CALL
+           DISPLAY N WITH NO ADVANCING
+           END-DISPLAY
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([./caller 1 2], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog "1 2"], [0], [1], [])
+AT_CHECK([./prog 1 2 3], [0], [3], [])
 
 AT_CLEANUP
 
@@ -3466,19 +3599,29 @@ AT_DATA([prog5.cob], [
             STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [],
+[prog.cob: 22: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
+])
 AT_CHECK([./prog --version --verbose -jkl], [0], [])
-AT_CHECK([$COMPILE_MODULE prog2.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE prog2.cob], [0], [],
+[prog2.cob: 25: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
+])
 AT_CHECK([$COBCRUN prog2 --ver --vers], [0], [],
 [prog2: option '--ver' is ambiguous; possibilities: '--version' '--verbose'
 ])
-AT_CHECK([$COMPILE prog3.cob], [0], [], [])
+AT_CHECK([$COMPILE prog3.cob], [0], [],
+[prog3.cob: 21: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
+])
 AT_CHECK([./prog3 --version=lang --verbose=k --usage -j 5 -k6 -l], [0], [])
-AT_CHECK([$COMPILE prog4.cob --free], [0], [], [])
+AT_CHECK([$COMPILE prog4.cob --free], [0], [],
+[prog4.cob: 23: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
+])
 AT_CHECK([./prog4 --static --dynamic --usage=boringandtoolongtext], [0], [])
 # Again a long and system specific error message which we ignore.
 # Return code 1 is sufficient as proof of hard return (as wanted).
-AT_CHECK([$COMPILE prog5.cob], [0], [], [])
+AT_CHECK([$COMPILE prog5.cob], [0], [],
+[prog5.cob: 23: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
+])
 AT_CHECK([./prog5 --static], [1], [],
 [libcob: prog5.cob: 37: Call to CBL_GC_GETOPT with wrong longoption size.
 ])
@@ -3695,9 +3838,9 @@ AT_DATA([prog.cob], [
        STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE test_errno.cpp], [0], [], [])
-AT_CHECK([$COMPILE_MODULE test_stdio.cpp], [0], [], [])
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE -g test_errno.cpp], [0], [], [])
+AT_CHECK([$COMPILE_MODULE -g test_stdio.cpp], [0], [], [])
+AT_CHECK([$COMPILE -g prog.cob], [0], [], [])
 AT_CHECK([./prog 1ARG], [3], [OUT], [ERR])
 
 AT_CLEANUP
@@ -3755,21 +3898,27 @@ AT_DATA([prog.cob], [
         DATA DIVISION.
         WORKING-STORAGE SECTION.
         01 FNAME PIC X(256) VALUE 'testtext.txt'.
-        01 ACCESS-MODE PIC X USAGE COMP-X VALUE 2.
+        01 ACCESS-MODE PIC X USAGE COMP-X.
         01 HANDLE PIC X(4) USAGE COMP-X.
 
         01 OFFSET PIC X(8) USAGE COMP-X.
         01 NBYTES PIC X(4) USAGE COMP-X.
+        01 deny-mode    pic x comp-x.
+        01 device       pic x comp-x.
         01 WRITE-BUFFER PIC X(20).
 
         PROCEDURE DIVISION.
+        MOVE 55 TO ACCESS-MODE
+        MOVE 11 TO deny-mode
+        MOVE 22 TO device
         CALL 'CBL_CREATE_FILE' USING
-        FNAME 55 11 22 HANDLE
+        FNAME ACCESS-MODE deny-mode device HANDLE
         END-CALL
         IF RETURN-CODE NOT = -1
             DISPLAY 'Wrong return codes ...' END-DISPLAY
         END-IF
 
+        MOVE 2 TO ACCESS-MODE
         CALL 'CBL_CREATE_FILE' USING
         FNAME ACCESS-MODE 0 0 HANDLE
         END-CALL
@@ -3804,17 +3953,20 @@ AT_DATA([prog2.cob], [
         01 FNAME PIC X(256) VALUE 'testtext.txt'.
         01 RET PIC -9.
         01 HANDLE PIC X(4) USAGE COMP-X.
+        01 ACCESS-MODE PIC X USAGE COMP-X.
 
         01 OFFSET PIC X(8) USAGE COMP-X.
         01 NBYTES PIC X(4) USAGE COMP-X.
         01 READ-BUFFER PIC X(10).
 
         PROCEDURE DIVISION.
+        MOVE 1 TO ACCESS-MODE
         CALL 'CBL_OPEN_FILE' USING
-        FNAME 1 0 0 HANDLE
+        FNAME ACCESS-MODE 0 0 HANDLE
         END-CALL
         IF RETURN-CODE NOT = 0
             DISPLAY 'error opening file ...' END-DISPLAY
+            GOBACK
         END-IF
 
         MOVE SPACES TO READ-BUFFER.
@@ -3853,9 +4005,9 @@ AT_DATA([prog2.cob], [
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COMPILE prog2.cob], [0], [], [])
 AT_CHECK([./prog], [0], [],
-[libcob: prog.cob: 15: warning: call to CBL_CREATE_FILE with wrong file_lock: 11
-libcob: prog.cob: 15: warning: call to CBL_CREATE_FILE with wrong file_dev: 22
-libcob: prog.cob: 15: warning: call to CBL_OPEN_FILE with wrong access mode: 55
+[libcob: prog.cob: 20: warning: call to CBL_CREATE_FILE with wrong file_lock: 11
+libcob: prog.cob: 20: warning: call to CBL_CREATE_FILE with wrong file_dev: 22
+libcob: prog.cob: 20: warning: call to CBL_OPEN_FILE with wrong access mode: 55
 ])
 AT_CHECK([./prog2], [0], [], [])
 

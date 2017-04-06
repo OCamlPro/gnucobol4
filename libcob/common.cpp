@@ -1555,10 +1555,12 @@ cob_module_enter(cob_module ** module, cob_global ** mglobal,
 		*module = (cob_module *) cob_cache_malloc(sizeof(cob_module));
 	}
 
-#if	1	/* RXWRXW - Params */
-	/* Save parameter count */
+	/* Save parameter count, get number from argc if main program */
+	if(!COB_MODULE_PTR) {
+		cobglobptr->cob_call_params = cob_argc - 1;
+	}
+
 	(*module)->module_num_params = cobglobptr->cob_call_params;
-#endif
 
 	/* Push module pointer */
 	(*module)->next = COB_MODULE_PTR;
@@ -2423,6 +2425,7 @@ cob_get_current_date_and_time()
 	if(!time_as_filetime_func) {
 		get_function_ptr_for_precise_time();
 	}
+#pragma warning(suppress: 6011) // the function pointer is always set by get_function_ptr_for_precise_time
 	(time_as_filetime_func)(&filetime);
 	/* use fallback to GetLocalTime if one of the following does not work */
 	if(!(FileTimeToSystemTime(&filetime, &utc_time) &&
@@ -2788,18 +2791,16 @@ cob_accept_environment(cob_field * f)
 void
 cob_chain_setup(void * data, const size_t parm, const size_t size)
 {
-	memset(data, ' ', size);
+	/* only set if given on command-line, otherwise use normal
+	   program internal initialization */
 	if(parm <= (size_t)cob_argc - 1) {
-		size_t len = strlen(cob_argv[parm]);
-		if(len <= size) {
-			memcpy(data, cob_argv[parm], len);
-		} else {
-			memcpy(data, cob_argv[parm], size);
-		}
-	} else {
 		memset(data, ' ', size);
+		size_t len = strlen(cob_argv[parm]);
+		if(len > size) {
+			len = size;
+		}
+		memcpy(data, cob_argv[parm], len);
 	}
-	cobglobptr->cob_call_params = cob_argc - 1;
 }
 
 void
@@ -3371,7 +3372,10 @@ cob_sys_x91(void * p1, const void * p2, void * p3)
 		*result = 0;
 		break;
 	case 16:
-		/* Return number of call parameters */
+		/* Return number of call parameters
+		   according to the docs this is only set for programs CALLed from COBOL
+		   NOT for main programs in contrast to C$NARG (cob_sys_return_args)
+		*/
 		*parm = (unsigned char)COB_MODULE_PTR->module_num_params;
 		*result = 0;
 		break;
@@ -3575,6 +3579,10 @@ cob_sys_waitpid(const void * p_id)
 #endif
 }
 
+/* set the number of parameters passed to the current program;
+   works both for main programs and called sub programs
+   Implemented according to ACUCOBOL-GT -> returns the number of parameters that were passed,
+   not like in MF implementation the number of parameters that were received */
 int
 cob_sys_return_args(void * data)
 {
@@ -4359,6 +4367,7 @@ set_config_val(char * value, int pos)
 				&& strchr(str, PATHSEP_CHAR) != NULL) {
 			conf_runtime_error_value(value, pos);
 			conf_runtime_error(1, _("should not contain '%c'"), PATHSEP_CHAR);
+			cob_free(str);
 			return 1;
 		}
 		memcpy(data, &str, sizeof(char *));
@@ -4592,9 +4601,13 @@ cb_config_entry(char * buf, int line)
 		}
 		/* check additional value for inline env vars ${varname:-default} */
 		str = cob_expand_env_string(value2);
+#if HAVE_SETENV
+		(void)setenv(value, str, 1);
+#else
 		env = cob_malloc(strlen(value) + strlen(str) + 2);
 		sprintf(env, "%s=%s", value, str);
 		(void)putenv(env);
+#endif
 		cob_free(str);
 		for(i = 0; i < NUM_CONFIG; i++) {		/* Set value from config file */
 			if(gc_conf[i].env_name
@@ -4834,9 +4847,9 @@ cob_load_config_file(const char * config_file, int isoptional)
 int
 cob_load_config(void)
 {
-	char	*	env;
-	char		conf_file[COB_MEDIUM_BUFF];
-	int		isoptional = 1, sts, i, j;
+	char *	env;
+	char	conf_file[COB_MEDIUM_BUFF];
+	int		isoptional;
 
 
 	/* Get the name for the configuration file */
@@ -4865,19 +4878,23 @@ cob_load_config(void)
 	}
 
 	sprintf(varseq_dflt, "%d", WITH_VARSEQ);		/* Default comes from config.h */
-	for(i = 0; i < NUM_CONFIG; i++) {
+	for(int i = 0; i < NUM_CONFIG; i++) {
 		gc_conf[i].data_type &= ~(STS_ENVSET | STS_CNFSET | STS_ENVCLR);	/* Clear status */
 	}
 
-	sts = cob_load_config_file(conf_file, isoptional);
+	int sts = cob_load_config_file(conf_file, isoptional);
+	if(sts < 0) {
+		return sts;
+	}
 
 	cob_rescan_env_vals(); 			/* Check for possible environment variables */
 
 	/* Set with default value if present and not set otherwise */
-	for(i = 0; i < NUM_CONFIG; i++) {
+	for(int i = 0; i < NUM_CONFIG; i++) {
 		if(gc_conf[i].default_val
 				&& !(gc_conf[i].data_type & STS_CNFSET)
 				&& !(gc_conf[i].data_type & STS_ENVSET)) {
+			int j;
 			for(j = 0; j < NUM_CONFIG; j++) {	/* Any alias present? */
 				if(j != i
 						&& gc_conf[i].data_loc == gc_conf[j].data_loc) {
@@ -4895,7 +4912,7 @@ cob_load_config(void)
 		}
 	}
 
-	return sts;
+	return 0;
 }
 
 void
@@ -5019,7 +5036,7 @@ cob_fatal_error(const int fatal_error)
 		cob_runtime_error(_("codegen error - Please report this"));
 		break;
 	case COB_FERROR_CHAINING:
-		cob_runtime_error(_("recursive call of chained program"));
+		cob_runtime_error(_("CALL of program with CHAINING clause"));
 		break;
 	case COB_FERROR_STACK:
 		cob_runtime_error(_("stack overflow, possible PERFORM depth exceeded"));
@@ -5224,7 +5241,7 @@ print_info(void)
 	char	* s;
 	int major, minor, patch;
 #if defined(mpir_version)
-	char	versbuff2[111] = { '\0' };
+	char	versbuff2[115] = { '\0' };
 #endif
 
 	print_version();
@@ -5331,6 +5348,7 @@ print_info(void)
 		snprintf(versbuff2, 55, "%s, version %d.%d%d (compiled with %d.%d)",
 				 "MPIR", major, minor, patch, __MPIR_VERSION, __MPIR_VERSION_MINOR);
 	}
+	versbuff[55] = versbuff2[55] = 0; /* silence VS analyzer */
 	strncat(versbuff2, " - ", 3);
 	strncat(versbuff2, versbuff, 55);
 	var_print(_("mathematical library"),		versbuff2, "", 0);

@@ -138,7 +138,7 @@ static cob_u64_t	last_packed_val;
 static void
 mpz_set_ull(mpz_ptr dest, const cob_u64_t val)
 {
-	size_t size = (val != 0);
+	int size = (val != 0) ? 1 : 0;
 	dest->_mp_d[0] = val & GMP_NUMB_MASK;
 #if	GMP_LIMB_BITS < 64
 	if(val > GMP_NUMB_MAX) {
@@ -153,7 +153,7 @@ static void
 mpz_set_sll(mpz_ptr dest, const cob_s64_t val)
 {
 	cob_u64_t vtmp = (cob_u64_t)(val >= 0 ? (cob_u64_t)val : -(cob_u64_t)val);
-	size_t size = (vtmp != 0);
+	size_t size = (vtmp != 0) ? 1 : 0;
 	dest->_mp_d[0] = vtmp & GMP_NUMB_MASK;
 #if	GMP_LIMB_BITS < 64
 	if(vtmp > GMP_NUMB_MAX) {
@@ -161,7 +161,7 @@ mpz_set_sll(mpz_ptr dest, const cob_s64_t val)
 		size = 2;
 	}
 #endif
-	dest->_mp_size = (val >= 0) ? size : -size;
+	dest->_mp_size = (val >= 0) ? (int)size : -(int)size;
 }
 
 static cob_u64_t

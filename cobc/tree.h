@@ -519,6 +519,7 @@ inline bool CB_INVALID_TREE(cb_tree x)
 struct cb_xref_elem {
 	struct cb_xref_elem	* next;
 	int			line;
+	int			receive;
 };
 
 struct cb_xref {
@@ -2022,8 +2023,9 @@ cb_program * cb_find_defined_program_by_name(const char *);
 cb_program * cb_find_defined_program_by_id(const char *);
 
 /* cobc.c */
-void		cobc_xref_link(cb_xref *, const int);
+void		cobc_xref_link(cb_xref *, const int, const int);
 void		cobc_xref_link_parent(const cb_field *);
+void		cobc_xref_set_receiving(const cb_tree);
 
 /* Function defines */
 

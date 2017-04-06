@@ -1356,6 +1356,41 @@ lookup_literal(cb_tree x)
 	return cb_literal_id++;
 }
 
+/*
+ * Should numeric literal for truncated into a PIC S9(9) BINARY field, ignoring scale?
+ *  (This is the way that Micro Focus COBOL works; RJN Nov 2016)
+ * - I don't want to have different behaviour for big and little endian
+ */
+static int
+cb_fit_to_int(const cb_tree x)
+{
+	/*
+	#ifndef WORDS_BIGENDIAN
+	if (cb_binary_byteorder == CB_BYTEORDER_BIG_ENDIAN) {
+		gen_num_lit_big_end = 1;
+	} else {
+		gen_num_lit_big_end = 0;
+	}
+	#else
+	gen_num_lit_big_end = 1;
+	#endif
+	*/
+
+	if(CB_NUMERIC_LITERAL_P(x)) {
+		//if(gen_num_lit_big_end) return 1;
+		cb_literal * l = CB_LITERAL(x);
+		if(l->scale > 0) {
+			int scale = l->scale;
+			l->scale = 0;
+			int sts = cb_fits_int(x);
+			l->scale = scale;
+			return sts;
+		}
+	}
+
+	return cb_fits_int(x);
+}
+
 /* Integer */
 
 static string
@@ -2543,10 +2578,6 @@ initialize_type(cb_initialize * p, cb_field * f, const int topfield)
 		COBC_ABORT();
 	}
 
-	if(f->flag_chained) {
-		return INITIALIZE_ONE;
-	}
-
 	if(f->flag_external && !p->flag_init_statement) {
 		return INITIALIZE_NONE;
 	}
@@ -2799,18 +2830,29 @@ output_initialize_uniform(cb_tree x, const int c, const int size)
 }
 
 static string
+output_initialize_chaining(cb_field * f, cb_initialize * p)
+{
+	/* only handle CHAINING for program initialization*/
+	if(p->flag_init_statement) {
+		return "";
+	}
+	/* Note: CHAINING must be an extra initialization step as parameters not passed
+	         must have standard initialization */
+	if(f->flag_chained) {
+		string str = output_prefix();
+		str += output("cob_chain_setup(");
+		str += output_data(p->var);
+		str += output(", %d, %d);\n", f->param_num, f->size);
+		return str;
+	}
+	return "";
+}
+
+static string
 output_initialize_one(cb_initialize * p, cb_tree x)
 {
 	cb_field * f = cb_code_field(x);
 
-	/* CHAINING */
-	if(f->flag_chained) {
-		string str = output_prefix();
-		str += output("cob_chain_setup(");
-		str += output_data(x);
-		str += output(", %d, %d);\n", f->param_num, f->size);
-		return str;
-	}
 	/* Initialize by value */
 	if(p->val && f->values) {
 		cb_tree value = CB_VALUE(f->values);
@@ -3125,11 +3167,15 @@ output_initialize(cb_initialize * p)
 		case INITIALIZE_NONE:
 			return "";
 		case INITIALIZE_ONE:
-			return output_initialize_one(p, p->var);
+			str = output_initialize_one(p, p->var);
+			str += output_initialize_chaining(f, p);
+			return str;
 		case INITIALIZE_DEFAULT:
 			c = initialize_uniform_char(f, p);
 			if(c != -1) {
-				return output_initialize_uniform(p->var, c, f->occurs_max);
+				str = output_initialize_uniform(p->var, c, f->occurs_max);
+				str += output_initialize_chaining(f, p);
+				return str;
 			}
 		/* Fall through */
 		case INITIALIZE_COMPOUND:
@@ -3146,6 +3192,7 @@ output_initialize(cb_initialize * p)
 			CB_REFERENCE(x)->subs =
 			CB_CHAIN(CB_REFERENCE(x)->subs);
 			str += output_indent("}");
+			str += output_initialize_chaining(f, p);
 #ifdef _MSC_VER
 			str += output_indent("}");
 #endif
@@ -3159,16 +3206,19 @@ output_initialize(cb_initialize * p)
 		return str;
 	case INITIALIZE_ONE:
 		str += output_initialize_one(p, p->var);
+		str += output_initialize_chaining(f, p);
 		return str;
 	case INITIALIZE_DEFAULT:
 		c = initialize_uniform_char(f, p);
 		if(c != -1) {
 			str += output_initialize_uniform(p->var, c, f->size);
+			str += output_initialize_chaining(f, p);
 			return str;
 		}
 	/* Fall through */
 	case INITIALIZE_COMPOUND:
 		str += output_initialize_compound(p, p->var);
+		str += output_initialize_chaining(f, p);
 		return str;
 	default:
 		break;
@@ -3745,13 +3795,18 @@ output_bin_field(const cb_tree x, const cob_u32_t id)
 	if(!CB_NUMERIC_LITERAL_P(x)) {
 		return "";
 	}
-	cob_u32_t aflags = COB_FLAG_REAL_BINARY;
+	cob_u32_t aflags = 0;
 	cob_u32_t size;
 	cob_u32_t digits;
-	if(cb_fits_int(x)) {
+	if(cb_fit_to_int(x)) {
 		size = 4;
 		digits = 9;
-		aflags = COB_FLAG_HAVE_SIGN;	/* Drop: COB_FLAG_REAL_BINARY */
+		aflags = COB_FLAG_HAVE_SIGN;
+#ifndef WORDS_BIGENDIAN
+		if(cb_binary_byteorder == CB_BYTEORDER_BIG_ENDIAN) {
+			aflags |= COB_FLAG_BINARY_SWAP;
+		}
+#endif
 	} else {
 		size = 8;
 		digits = 18;
@@ -3759,7 +3814,7 @@ output_bin_field(const cb_tree x, const cob_u32_t id)
 			aflags |= COB_FLAG_HAVE_SIGN;
 		}
 	}
-	aflags |= COB_FLAG_CONSTANT;
+	aflags |= COB_FLAG_CONSTANT | COB_FLAG_REAL_BINARY;
 	int i = lookup_attr(COB_TYPE_NUMERIC_BINARY, digits, 0, aflags, NULL, 0);
 	return output_line("cob_field\tcontent_fb_%u(%u, content_%u.data, &%s%d);",
 					   id, size, id, CB_PREFIX_ATTR, i);
@@ -3873,8 +3928,23 @@ output_call(cb_call * p)
 		dynamic_link = 0;
 	}
 
-	/* Set up arguments */
+	/*
+	 * Check for LENGTH OF as BY REFERENCE and change to BY CONTENT
+	 * as LENGTH OF is effectively a numeric literal
+	 */
 	cob_u32_t n = 1;
+	for(cb_tree l = p->args; l; l = CB_CHAIN(l), n++) {
+		cb_tree x = CB_VALUE(l);
+		if(CB_PURPOSE_INT(l) == CB_CALL_BY_REFERENCE
+				&& CB_REF_OR_FIELD_P(x)
+				&& CB_TREE_CATEGORY(x) == CB_CATEGORY_NUMERIC
+				&& cb_code_field(x)->usage == CB_USAGE_LENGTH) {
+			CB_INTEGER(CB_PURPOSE(l))->val = CB_CALL_BY_CONTENT;
+		}
+	}
+
+	/* Set up arguments */
+	n = 1;
 	for(cb_tree l = p->args; l; l = CB_CHAIN(l), n++) {
 		cb_tree x = CB_VALUE(l);
 		switch(CB_PURPOSE_INT(l)) {
@@ -3925,8 +3995,51 @@ output_call(cb_call * p)
 				str += output_line("\tcob_u64_t     dataull;");
 				str += output_line("\tint           dataint;");
 				str += output_line("} content_%u;", n);
+#if defined(__xlC__) || defined(__SUNPRO_CC)
 				str += output_line("char content_%s%u[sizeof(cob_field)];", CB_PREFIX_FIELD, n);
 				str += output_line("char content_%s%u[sizeof(cob_field_attr)];", CB_PREFIX_ATTR, n);
+#else
+				str += output_line("cob_field content_%s%u(0,0,0);", CB_PREFIX_FIELD, n);
+				str += output_line("cob_field_attr content_%s%u(0,0,0,0,0);", CB_PREFIX_ATTR, n);
+#endif
+				str += output_bin_field(x, n);
+			}
+			break;
+		case CB_CALL_BY_VALUE:
+			if(CB_TREE_TAG(x) == CB_TAG_REFERENCE
+					&& CB_TREE_TAG(CB_REFERENCE(x)->value) == CB_TAG_FIELD
+					&& CB_TREE_CATEGORY(x) == CB_CATEGORY_NUMERIC
+					&& cb_code_field(x)->usage == CB_USAGE_LENGTH) {
+				if(!need_brace) {
+					need_brace = 1;
+					str += output_indent("{");
+				}
+				str += output_line("union {");
+				str += output_prefix();
+				str += output("\tunsigned char data[");
+				if(CB_NUMERIC_LITERAL_P(x)
+						|| CB_BINARY_OP_P(x)
+						|| CB_CAST_P(x)) {
+					str += output("8");
+				} else {
+					if(CB_REF_OR_FIELD_P(x)) {
+						str += output("%u", (cob_u32_t)cb_code_field(x)->size);
+					} else {
+						str += output_size(x);
+					}
+				}
+				str += output("];\n");
+				str += output_line("\tcob_s64_t     datall;");
+				str += output_line("\tcob_u64_t     dataull;");
+				str += output_line("\tint           dataint;");
+				str += output_line("} content_%u;", n);
+#if defined(__xlC__) || defined(__SUNPRO_CC)
+				str += output_line("char content_%s%u[sizeof(cob_field)];", CB_PREFIX_FIELD, n);
+				str += output_line("char content_%s%u[sizeof(cob_field_attr)];", CB_PREFIX_ATTR, n);
+#else
+				str += output_line("cob_field content_%s%u(0,0,0);", CB_PREFIX_FIELD, n);
+				str += output_line("cob_field_attr content_%s%u(0,0,0,0,0);", CB_PREFIX_ATTR, n);
+#endif
 				str += output_bin_field(x, n);
 			}
 			break;
@@ -3945,9 +4058,11 @@ output_call(cb_call * p)
 		case CB_CALL_BY_REFERENCE:
 			if(CB_NUMERIC_LITERAL_P(x)) {
 				str += output_prefix();
-				if(cb_fits_int(x)) {
-					str += output("content_%u.dataint = ", n);
-					str += output("%d", cb_get_int(x));
+				if(cb_fit_to_int(x)) {
+					//str += output("content_%u.dataint = ", n);
+					//str += output("%d", cb_get_int(x));
+					unsigned int pval = (unsigned int) cb_get_int(x);
+					str += output("cob_set_int(&content_fb_%d, %d)", n, pval);
 				} else {
 					if(CB_LITERAL(x)->sign >= 0) {
 						str += output("content_%u.dataull = ", n);
@@ -3981,9 +4096,11 @@ output_call(cb_call * p)
 			} else if(CB_TREE_TAG(x) != CB_TAG_INTRINSIC) {
 				if(CB_NUMERIC_LITERAL_P(x)) {
 					str += output_prefix();
-					if(cb_fits_int(x)) {
-						str += output("content_%u.dataint = ", n);
-						str += output("%d", cb_get_int(x));
+					if(cb_fit_to_int(x)) {
+						//str += output("content_%u.dataint = ", n);
+						//str += output("%d", cb_get_int(x));
+						unsigned int pval = (unsigned int) cb_get_int(x);
+						str += output("cob_set_int(&content_fb_%d, %d)", n, pval);
 					} else if(CB_LITERAL(x)->sign >= 0) {
 						str += output("content_%u.dataull = ", n);
 						str += output(CB_FMT_LLU_F, cb_get_u_long_long(x));
@@ -3996,9 +4113,36 @@ output_call(cb_call * p)
 						  CB_TREE_CATEGORY(x) == CB_CATEGORY_NUMERIC &&
 						  cb_code_field(x)->usage == CB_USAGE_LENGTH) {
 					str += output_prefix();
-					str += output("content_%u.dataint = ", n);
-					str += output_integer(x);
-					str += output(";\n");
+					//str += output("content_%u.dataint = ", n);
+					//str += output_integer(x);
+					//str += output(";\n");
+					str += output("cob_field_constant (");
+					str += output_param(x, -1);
+#if defined(__xlC__) || defined(__SUNPRO_CC)
+					str += output(", (cob_field *)content_%s%u ", CB_PREFIX_FIELD, n);
+					str += output(", (cob_field_attr *)content_%s%u ", CB_PREFIX_ATTR, n);
+#else
+					str += output(", &content_%s%u ", CB_PREFIX_FIELD, n);
+					str += output(", &content_%s%u ", CB_PREFIX_ATTR, n);
+#endif
+					str += output(", &content_%u);\n", n);
+#ifndef WORDS_BIGENDIAN
+					if(cb_binary_byteorder == CB_BYTEORDER_BIG_ENDIAN) {
+						str += output_prefix();
+#if defined(__xlC__) || defined(__SUNPRO_CC)
+						str += output("((cob_field_attr *)content_%s%u)->flags |= COB_FLAG_BINARY_SWAP;\n",
+									  CB_PREFIX_ATTR, n);
+#else
+						str += output("content_%s%u.flags |= COB_FLAG_BINARY_SWAP;\n",
+									  CB_PREFIX_ATTR, n);
+#endif
+						str += output_prefix();
+						str += output("content_%u.dataint = ", n);
+						str += output("(unsigned int)COB_BSWAP_32(");
+						str += output_integer(x);
+						str += output(");\n");
+					}
+#endif
 				} else if(x != cb_null && !(CB_CAST_P(x))) {
 					/*
 					 * Create copy of cob_field&attr pointing to local copy of data
@@ -4007,10 +4151,33 @@ output_call(cb_call * p)
 					str += output_prefix();
 					str += output("cob_field_constant(");
 					str += output_param(x, -1);
+#if defined(__xlC__) || defined(__SUNPRO_CC)
 					str += output(", (cob_field *)content_%s%u ", CB_PREFIX_FIELD, n);
 					str += output(", (cob_field_attr *)content_%s%u ", CB_PREFIX_ATTR, n);
+#else
+					str += output(", &content_%s%u ", CB_PREFIX_FIELD, n);
+					str += output(", &content_%s%u ", CB_PREFIX_ATTR, n);
+#endif
 					str += output(", &content_%u);\n", n);
 				}
+			}
+			break;
+		case CB_CALL_BY_VALUE:
+			if(CB_TREE_TAG(x) == CB_TAG_REFERENCE
+					&& CB_TREE_TAG(CB_REFERENCE(x)->value) == CB_TAG_FIELD
+					&& CB_TREE_CATEGORY(x) == CB_CATEGORY_NUMERIC
+					&& cb_code_field(x)->usage == CB_USAGE_LENGTH) {
+				str += output_prefix();
+				str += output("cob_field_constant (");
+				str += output_param(x, -1);
+#if defined(__xlC__) || defined(__SUNPRO_CC)
+				str += output(", (cob_field *)content_%s%u ", CB_PREFIX_FIELD, n);
+				str += output(", (cob_field_attr *)content_%s%u ", CB_PREFIX_ATTR, n);
+#else
+				str += output(", &content_%s%u ", CB_PREFIX_FIELD, n);
+				str += output(", &content_%s%u ", CB_PREFIX_ATTR, n);
+#endif
+				str += output(", &content_%u);\n", n);
 			}
 			break;
 		default:
@@ -4034,20 +4201,41 @@ output_call(cb_call * p)
 			}
 		/* Fall through */
 		case CB_TAG_FIELD:
-		case CB_TAG_INTRINSIC:
 			if(CB_PURPOSE_INT(l) == CB_CALL_BY_CONTENT) {
+#if defined(__xlC__) || defined(__SUNPRO_CC)
 				str += output("(cob_field *)content_%s%u", CB_PREFIX_FIELD, n + 1);
+#else
+				str += output("&content_%s%u", CB_PREFIX_FIELD, n + 1);
+#endif
 				break;
 			}
+		/* Fall through */
+		case CB_TAG_INTRINSIC:
 			str += output_param(x, -1);
 			break;
 		case CB_TAG_REFERENCE:
 			switch(CB_TREE_TAG(CB_REFERENCE(x)->value)) {
 			case CB_TAG_LITERAL:
-			case CB_TAG_FIELD:
 			case CB_TAG_INTRINSIC:
 				if(CB_PURPOSE_INT(l) == CB_CALL_BY_CONTENT) {
+#if defined(__xlC__) || defined(__SUNPRO_CC)
 					str += output("(cob_field *)content_%s%u", CB_PREFIX_FIELD, n + 1);
+#else
+					str += output("&content_%s%u", CB_PREFIX_FIELD, n + 1);
+#endif
+					break;
+				}
+				str += output_param(x, -1);
+				break;
+			case CB_TAG_FIELD:
+				if(CB_PURPOSE_INT(l) == CB_CALL_BY_CONTENT
+						|| (CB_TREE_CATEGORY(x) == CB_CATEGORY_NUMERIC
+							&& cb_code_field(x)->usage == CB_USAGE_LENGTH)) {
+#if defined(__xlC__) || defined(__SUNPRO_CC)
+					str += output("(cob_field *)content_%s%u", CB_PREFIX_FIELD, n + 1);
+#else
+					str += output("&content_%s%u", CB_PREFIX_FIELD, n + 1);
+#endif
 					break;
 				}
 				str += output_param(x, -1);
@@ -6698,6 +6886,14 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 					   cb_flag_implicit_init);
 	str += output_newline();
 
+	if(prog->flag_chained) {
+		str += output_line("/* Check program with CHAINING being main program */");
+		str += output_line("if(cob_glob_ptr->cob_current_module->next) {");
+		str += output_line("\tcob_fatal_error(COB_FERROR_CHAINING);");
+		str += output_line("}");
+		str += output_newline();
+	}
+
 	/* Check INITIAL programms being non-recursive */
 	if(CB_EXCEPTION_ENABLE(COB_EC_PROGRAM_RECURSIVE_CALL)
 			&& prog->flag_initial) {
@@ -6815,10 +7011,6 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 	str += output_line("/* Initialize program */");
 	str += output_line("if(unlikely(initialized == 0)) {");
 	str += output_line("\tgoto P_initialize;");
-	if(prog->flag_chained) {
-		str += output_line("} else {");
-		str += output_line("\tcob_fatal_error(COB_FERROR_CHAINING);");
-	}
 	str += output_line("}");
 	str += output_line("P_ret_initialize:");
 	str += output_newline();
@@ -7685,7 +7877,7 @@ output_entry_function(cb_program * prog, cb_tree entry,
 	int entry_convention = 0;
 	cb_tree l = CB_PURPOSE(CB_VALUE(entry));
 	if(!l || !(CB_INTEGER(l) || CB_NUMERIC_LITERAL_P(l))) {
-		/* not translated as it is a fatal abort, remove the check later */
+		/* not translated as it is an unlikely internal abort, remove the check later */
 		cobc_err_msg("Missing /wrong internal entry convention!");
 		cobc_err_msg(_("Please report this!"));
 		COBC_ABORT();

@@ -889,9 +889,12 @@ AT_DATA([dump.cpp], [
 #include <stdio.h>
 #define COB_LIB_EXPIMP
 #include <libcob.h>
-COB_EXPIMP int dump (int *);
-int dump (int *p)
+COB_EXPIMP
+int dump (unsigned char *p)
 {
+  if(*p == 0) p++;
+  if(*p == 0) p++;	/* Skip leading bytes for BIG Endian value */
+  if(*p == 0) p++;
   printf ("%8.8d\n", *p);
   return 0;
 }
@@ -930,6 +933,45 @@ AT_CHECK([./prog], [0],
 00000009
 00000004
 ])
+
+AT_CLEANUP
+
+AT_SETUP([CALL binary literal])
+AT_KEYWORDS([CALL])
+
+AT_DATA([prog.cob], [       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       
+       PROCEDURE DIVISION.
+           CALL "SUB" USING 1280 BY VALUE 15.
+           CALL "SUB" USING 2560 BY VALUE 16.
+           STOP RUN.
+       END PROGRAM prog.
+       
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. "SUB".
+       
+       DATA DIVISION.
+       LINKAGE SECTION.
+       01  x  PIC 9(9) COMP.
+       01  y  PIC 9(9) COMP.
+       
+       PROCEDURE DIVISION USING x, VALUE y.
+            DISPLAY "COBOL: X is " x " and Y is " y.
+       END PROGRAM "SUB".
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [],
+[prog.cob: 21: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
+])
+
+AT_CHECK([./prog], [0],
+[COBOL: X is 000001280 and Y is 000000015
+COBOL: X is 000002560 and Y is 000000016
+], [])
 
 AT_CLEANUP
 
@@ -2602,7 +2644,7 @@ AT_DATA([caller.cpp], [[
 #include <libcob.h>
 
 
-extern "C" int callee (char *, char *);
+extern "C" int callee(const char *, const char *);
   
 #ifndef NULL
 #define NULL (void*)0
@@ -2612,7 +2654,7 @@ int
 main (int argc, char **argv)
 {
 	cob_global *cobol_global;
-	char *p1 = (char *) "A";
+	const char *p1 = "A";
 
 	cob_init(argc, argv);
 	cobol_global = cob_get_global_ptr ();
@@ -2655,13 +2697,13 @@ AT_DATA([callee.cob], [
 AT_DATA([caller.cpp], [[
 #include <libcob.h>
 
-extern "C" int callee (char *, char *);
+extern "C" int callee (const char *, const char *);
 
 int
 main (int argc, char **argv)
 {
-	char *p1 = (char *) "A";
-	char *p2 = (char *) "FROM C";
+	const char *p1 = "A";
+	const char *p2 = "FROM C";
 
 	cob_init(argc, argv);
 	return callee (p1, p2);
@@ -2719,17 +2761,18 @@ AT_DATA([prog.cob], [
 ])
 
 AT_DATA([cprog.cpp], [[
+#define COB_LIB_EXPIMP
 #include <libcob.h>
 
-extern "C" int
+COB_EXPIMP int
 cprog(void *cb)
 {
-    char *p1;
+    const char *p1;
     int p2 = 42;
-    char *p3 = (char *) "CALLBACK";
+    const char *p3 = "CALLBACK";
 
     p1 = p3;
-    ((int (*)(char *, int, char *))cb)(p1, p2, p3);
+    ((int (*)(const char *, int, const char *))cb)(p1, p2, p3);
 	return 0;
 }
 ]])
@@ -2785,17 +2828,18 @@ AT_DATA([prog.cob], [
 ])
 
 AT_DATA([cprog.cpp], [[
+#define COB_LIB_EXPIMP
 #include <libcob.h>
 
-extern "C" int
+COB_EXPIMP int
 cprog(void *cb)
 {
-    char *p1;
+    const char *p1;
     int p2 = 42;
-    char *p3 = (char *) "CALLBACK";
+    const char *p3 = "CALLBACK";
 
     p1 = p3;
-    ((int (*)(char *, int, char *))cb)(p1, p2, p3);
+    ((int (*)(const char *, int, const char *))cb)(p1, p2, p3);
 	return 0;
 }
 ]])
@@ -2832,14 +2876,14 @@ AT_DATA([callee.cob], [
 ])
 
 AT_DATA([caller.cpp], [[
-extern "C" int callee (char *, char *);
+extern "C" int callee (const char *, const char *);
 
 int
 main (int argc, char **argv)
 {
 
-	char *p1 = (char *) "A";
-	char *p2 = (char *) "FROM C";
+	const char *p1 = "A";
+	const char *p2 = "FROM C";
 
 	return callee (p1, p2);
 }
@@ -2893,8 +2937,10 @@ AT_DATA([caller.cob], [
 
 AT_DATA([callee.cpp], [[
 #include <string.h>
+#define COB_LIB_EXPIMP
+#include <libcob.h>
 
-extern "C" int
+COB_EXPIMP int
 callee (char *p1, char *p2)
 {
 	if (p1[0] == 'A') {
@@ -5411,7 +5457,7 @@ AT_SETUP([C API Test])
 AT_KEYWORDS([CALL])
 
 # CHECKME - returns COMP-4 instead of COMP-5
-AT_XFAIL_IF(true)
+#AT_XFAIL_IF(true)
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -5461,31 +5507,32 @@ AT_DATA([prog.cob], [
 AT_DATA([cmod.cpp], [[
 #include <stdio.h>
 #include <string.h>
+#define COB_LIB_EXPIMP
 #include <libcob.h>
 
-static char *
+static const char *
 getType(int type)
 {
    static char wrk[24];
    switch (type) {
-   case COB_TYPE_GROUP:    return (char *) "Group";
+   case COB_TYPE_GROUP:    return "Group";
    case COB_TYPE_NUMERIC_COMP5:
        /* fall through as the test will have different results
           on bigendian systems otherwise
           return "COMP-5"; */
-   case COB_TYPE_NUMERIC_BINARY: return (char *) "COMP-4";
-   case COB_TYPE_NUMERIC_PACKED: return (char *) "COMP-3";
-   case COB_TYPE_NUMERIC_FLOAT:  return (char *) "COMP-1";
-   case COB_TYPE_NUMERIC_DOUBLE: return (char *) "COMP-2";
-   case COB_TYPE_NUMERIC_DISPLAY:   return (char *) "DISPLAY";
-   case COB_TYPE_ALPHANUMERIC:   return (char *) "X";
-   case COB_TYPE_NUMERIC_EDITED: return (char *) "EDITED";
+   case COB_TYPE_NUMERIC_BINARY: return "COMP-4";
+   case COB_TYPE_NUMERIC_PACKED: return "COMP-3";
+   case COB_TYPE_NUMERIC_FLOAT:  return "COMP-1";
+   case COB_TYPE_NUMERIC_DOUBLE: return "COMP-2";
+   case COB_TYPE_NUMERIC_DISPLAY:   return "DISPLAY";
+   case COB_TYPE_ALPHANUMERIC:   return "X";
+   case COB_TYPE_NUMERIC_EDITED: return "EDITED";
    }
    sprintf(wrk,"Type %04X",type);
    return wrk;
 }
 
-extern "C" int
+COB_EXPIMP int
 CAPI(void *p1, ...)
 {
    int      k,nargs,type,digits,scale,size,sign;
@@ -5507,10 +5554,10 @@ CAPI(void *p1, ...)
          printf("BY REFERENCE ");
       if (type == COB_TYPE_ALPHANUMERIC) {
          sprintf(pic,"X(%d)",size);
-         str = (char *) cob_get_picx_param (k, NULL, 0);
+         str = cob_get_picx_param (k, NULL, 0);
          printf("%-11s '%s'",pic,str);
          cob_free ((void*)str);
-         cob_put_picx_param (k, (void *) "Bye!");
+         cob_put_picx_param (k, (void *)"Bye!");
       } else if (type == COB_TYPE_GROUP) {
          sprintf(pic,"(%d)",size);
          str = (char *) cob_get_grp_param (k, NULL, 0);
@@ -5543,8 +5590,8 @@ CAPI(void *p1, ...)
          cob_put_s64_param (k, val + 3);
       }
       printf(";\n");
-      fflush(stdout);
    }
+   fflush(stdout);
    if (nargs > 2)
       cob_put_s64_param (7, val + 3);
    return 0;
@@ -5561,7 +5608,7 @@ AT_CHECK([./prog], [0], [CAPI called with 2 parameters
  1: COMP-4   BY VALUE     S9(9)       2560;
  2: DISPLAY  BY VALUE     9(2)        16;
 CAPI called with 2 parameters
- 1: COMP-5   BY REFERENCE 9(5)        1280;
+ 1: COMP-4   BY REFERENCE 9(5)        1280;
  2: EDITED   BY REFERENCE S9(5)V9(2)  -51277  to   511.47 ;
 CAPI called with 1 parameters
  1: COMP-4   BY REFERENCE S9(5)       1024;
@@ -5580,13 +5627,13 @@ CAPI called with 3 parameters
  2: EDITED   BY REFERENCE S9(5)V9(2)  -51407  to   512.77 ;
  3: X        BY REFERENCE X(9)        'Bye!';
 CAPI called with 2 parameters
- 1: COMP-5   BY REFERENCE 9(5)        1283;
+ 1: COMP-4   BY REFERENCE 9(5)        1283;
  2: EDITED   BY REFERENCE S9(5)V9(2)  51277  to   514.07-;
 CAPI called with 2 parameters
- 1: COMP-5   BY REFERENCE 9(5)        1286;
+ 1: COMP-4   BY REFERENCE 9(5)        1286;
  2: X        BY VALUE     X(9)        'Hello!';
 CAPI called with 2 parameters
- 1: COMP-5   BY REFERENCE 9(5)        1289;
+ 1: COMP-4   BY REFERENCE 9(5)        1289;
  2: X        BY VALUE     X(9)        'Hello!';
 CAPI called with 1 parameters
  1: COMP-4   BY VALUE     S9(9)       18;

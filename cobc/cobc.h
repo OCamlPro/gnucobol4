@@ -250,7 +250,8 @@ enum cobc_name_type {
 struct list_error {
 	list_error *	next;
 	int				line;		/* Line number for error */
-	char 	*		prefix;	/* Error prefix */
+	char      *     file;		/* File name */
+	char 	*		prefix;		/* Error prefix */
 	char 	*		msg;		/* Error Message text */
 };
 
@@ -274,6 +275,7 @@ struct list_skip {
 struct list_files {
 	list_files *	next;
 	list_files *	copy_head;		/* COPY book list head */
+	list_files *	copy_tail;		/* COPY book list tail */
 	list_error *	err_head;		/* Error message list head */
 	list_replace *	replace_head;	/* REPLACE list head */
 	list_replace *	replace_tail;	/* REPLACE list tail */

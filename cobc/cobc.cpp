@@ -66,7 +66,7 @@
 
 #include "libcob/cobgetopt.h"
 
-#if defined (COB_EXPERIMENTAL)
+#if defined(COB_EXPERIMENTAL)
 #define COB_INTERNAL_XREF
 enum xref_type {
 	XREF_FIELD,
@@ -347,6 +347,8 @@ static char		cb_listing_filename[FILENAME_MAX];
 static char *	cb_listing_outputfile = NULL;
 static char		cb_listing_title[133];	/* Listing subtitle */
 static list_files *	cb_listing_file_struct = NULL;
+static list_error * cb_listing_error_head = NULL;
+static list_error * cb_listing_error_tail = NULL;
 
 #ifdef	_MSC_VER
 	static const char	* manicmd;
@@ -1543,10 +1545,10 @@ cobc_abort_msg(void)
 		}
 		if(!cb_source_line) {
 			cobc_err_msg(_("aborting codegen for %s (%s: %s)"),
-				cb_source_file, prog_type, prog_id);
+						 cb_source_file, prog_type, prog_id);
 		} else {
 			cobc_err_msg(_("aborting compile of %s at line %d (%s: %s)"),
-				cb_source_file, cb_source_line, prog_type, prog_id);
+						 cb_source_file, cb_source_line, prog_type, prog_id);
 		}
 	} else {
 		cobc_err_msg(_("aborting"));
@@ -2447,8 +2449,7 @@ process_command_line(const int argc, char ** argv)
 			cobc_gen_listing = 2;
 			/* temporary: check if we run the testsuite and skip
 			   the run if we don't have the internal xref */
-			cb_listing_outputfile = getenv("COB_IS_RUNNING_IN_TESTMODE");
-			if(cb_listing_outputfile) {
+			if(getenv("COB_IS_RUNNING_IN_TESTMODE")) {
 				cobc_free_mem();
 				exit(77);
 			}
@@ -2821,8 +2822,8 @@ file_basename(const char * filename)
 		basename_len = len + 16;
 		basename_buffer = (char *) cobc_main_realloc(basename_buffer, basename_len);
 	}
-	/* Copy base name */
-	memcpy(basename_buffer, startp, len);
+	/* Copy base name (possiby done before -> memmove) */
+	memmove(basename_buffer, startp, len);
 	basename_buffer[len] = 0;
 	return basename_buffer;
 }
@@ -3507,6 +3508,12 @@ process(const char * cmd)
 }
 #endif
 
+static COB_INLINE COB_A_INLINE void
+force_new_page_for_next_line(void)
+{
+	cb_listing_linecount = cb_lines_per_page;
+}
+
 /* Preprocess source */
 
 static int
@@ -3608,6 +3615,10 @@ preprocess(filename * fn)
 		}
 #ifndef COB_INTERNAL_XREF
 		if(cobc_gen_listing > 1) {
+			if(cb_src_list_file) {
+				fclose(cb_src_list_file);
+			}
+
 			snprintf(cobc_buffer, cobc_buffer_size,
 					 "cobxref %s -R", fn->listing_file);
 			cobc_buffer[cobc_buffer_size] = 0;
@@ -3630,6 +3641,18 @@ preprocess(filename * fn)
 					  stderr);
 				putc('\n', stderr);
 				fflush(stderr);
+			}
+			if(cb_listing_outputfile) {
+				if(cb_unix_lf) {
+					cb_src_list_file = fopen(cb_listing_outputfile, "ab");
+				} else {
+					cb_src_list_file = fopen(cb_listing_outputfile, "a");
+				}
+				if(!cb_src_list_file) {
+					cobc_terminate(cb_listing_outputfile);
+				}
+				cb_listing_eject = 1;
+				force_new_page_for_next_line();
 			}
 			unlink(fn->listing_file);
 		}
@@ -3947,13 +3970,10 @@ terminate_str_at_first_trailing_space(char * const str)
 static void
 print_88_values(int lvl, struct cb_field * field)
 {
-	struct cb_field * f;
 	char lcl_name[80];
 
-	for(f = field->validation; f; f = f->sister) {
-		memset(lcl_name, 0, sizeof(lcl_name));
-		memset(lcl_name, ' ', lvl * 2);
-		strncat(lcl_name, (char *)f->name, sizeof(lcl_name) - lvl * 2 - 1);
+	for(cb_field * f = field->validation; f; f = f->sister) {
+		strcpy(lcl_name, (char *)f->name);
 		snprintf(print_data, CB_PRINT_LEN,
 				 "      %-14.14s %02d   %s",
 				 "CONDITIONAL", f->level, lcl_name);
@@ -3981,9 +4001,7 @@ print_fields(int indent, struct cb_field * top)
 		}
 		found = 1;
 
-		memset(lcl_name, 0, sizeof(lcl_name));
-		memset(lcl_name, ' ', indent * 2);
-		strcat(lcl_name, check_filler_name((char *)top->name));
+		strcpy(lcl_name, check_filler_name((char *)top->name));
 		get_cat = 1;
 		got_picture = 1;
 
@@ -4009,9 +4027,6 @@ print_fields(int indent, struct cb_field * top)
 				picture[0] = 0;
 			}
 			got_picture = set_picture(top, picture, picture_len);
-			if(top->redefines) {
-				strcat(type, "-R");
-			}
 		}
 
 		if(top->flag_any_length || top->flag_unbounded) {
@@ -4039,6 +4054,9 @@ print_fields(int indent, struct cb_field * top)
 			} else {
 				pd_off += sprintf(print_data + pd_off, "OCCURS %d", top->occurs_max);
 			}
+		}
+		if(top->redefines && !top->file) {
+			pd_off += sprintf(print_data + pd_off, ", REDEFINES %s", top->redefines->name);
 		}
 		print_program_data(print_data);
 
@@ -4087,19 +4105,23 @@ print_fields_in_section(struct cb_field * first_field_in_section)
 
 /* create xref_elem with line number for existing xref entry */
 void
-cobc_xref_link(struct cb_xref * list, const int line)
+cobc_xref_link(struct cb_xref * list, const int line, const int receiving)
 {
 #ifdef COB_INTERNAL_XREF
 	struct cb_xref_elem * elem;
 
 	for(elem = list->head; elem; elem = elem->next) {
 		if(elem->line == line) {
+			if(receiving) {
+				elem->receive = 1;
+			}
 			return;
 		}
 	}
 
-	elem = cobc_parse_malloc(sizeof(struct cb_xref_elem));
+	elem = (cb_xref_elem *) cobc_parse_malloc(sizeof(struct cb_xref_elem));
 	elem->line = line;
+	elem->receive = receiving;
 
 	/* add xref_elem to head/tail
 	   remark: if head == NULL, then tail may contain reference to child's
@@ -4114,6 +4136,7 @@ cobc_xref_link(struct cb_xref * list, const int line)
 #else
 	COB_UNUSED(list);
 	COB_UNUSED(line);
+	COB_UNUSED(receiving);
 #endif
 }
 
@@ -4137,6 +4160,32 @@ cobc_xref_link_parent(const struct cb_field * field)
 #else
 	COB_UNUSED(field);
 #endif
+}
+
+/* add a "receiving" entry for a given field reference */
+void
+cobc_xref_set_receiving(const cb_tree target_ext)
+{
+	cb_tree	target = target_ext;
+	struct cb_field * target_fld;
+	int xref_line;
+
+	if(CB_CAST_P(target)) {
+		target = CB_CAST(target)->val;
+	}
+	if(CB_REF_OR_FIELD_P(target)) {
+		target_fld = CB_FIELD_PTR(target);
+	} else {
+		return;
+	}
+	if(CB_REFERENCE_P(target)) {
+		xref_line = CB_REFERENCE(target)->source_line;
+	} else if(current_statement) {
+		xref_line = current_statement->source_line;
+	} else {
+		xref_line = cb_source_line;
+	}
+	cobc_xref_link(&target_fld->xref, xref_line, 1);
 }
 
 #ifdef COB_INTERNAL_XREF
@@ -4199,7 +4248,7 @@ xref_88_values(struct cb_field * field)
 		strcpy(lcl_name, (char *)f->name);
 		pd_off = sprintf(print_data,
 						 "%-30.30s %-6d ",
-						 lcl_name, f->common.source_line);
+						 lcl_name, f->source_line);
 		xref_print(&f->xref, XREF_FIELD, NULL);
 
 	}
@@ -4212,7 +4261,10 @@ xref_fields(struct cb_field * top)
 	int			found = 0;
 
 	for(; top; top = top->sister) {
-		if(!top->level) {
+
+		/* no entry for internal generated fields
+		   other than used special indexes */
+		if(!top->level || (top->special_index && !top->count)) {
 			continue;
 		}
 
@@ -4225,7 +4277,7 @@ xref_fields(struct cb_field * top)
 		}
 		found = 1;
 		pd_off = sprintf(print_data, "%-30.30s %-6d ",
-						 lcl_name, top->common.source_line);
+						 lcl_name, top->source_line);
 
 		/* print xref for field */
 		if(top->parent) {
@@ -4255,7 +4307,7 @@ xref_files_and_their_records(cb_tree file_list_p)
 	for(l = file_list_p; l; l = CB_CHAIN(l)) {
 		pd_off = sprintf(print_data, "%-30.30s %-6d ",
 						 CB_FILE(CB_VALUE(l))->name,
-						 CB_FILE(CB_VALUE(l))->common.source_line);
+						 CB_FILE(CB_VALUE(l))->source_line);
 		xref_print(&CB_FILE(CB_VALUE(l))->xref, XREF_FILE, NULL);
 		if(CB_FILE(CB_VALUE(l))->record) {
 			(void)xref_fields(CB_FILE(CB_VALUE(l))->record);
@@ -4291,20 +4343,18 @@ xref_labels(cb_tree label_list_p)
 			}
 			if(lab->flag_entry) {
 				label_type = 'E';
+				sprintf(print_data, "E %-28.28s %d",
+						lab->name, lab->source_line);
+				print_program_data(print_data);
+				continue;
 			} else if(lab->flag_section) {
 				label_type = 'S';
 			} else {
 				label_type = 'P';
 			}
-			if(label_type != 'E') {
-				pd_off = sprintf(print_data, "%c %-28.28s %-6d",
-								 label_type, lab->name, lab->common.source_line);
-				xref_print(&lab->xref, XREF_LABEL, NULL);
-			} else {
-				sprintf(print_data, "E %-28.28s %d",
-						lab->name, lab->common.source_line);
-				print_program_data(print_data);
-			}
+			pd_off = sprintf(print_data, "%c %-28.28s %-6d",
+							 label_type, lab->name, lab->source_line);
+			xref_print(&lab->xref, XREF_LABEL, NULL);
 		}
 	}
 	if(label_type == ' ') {
@@ -4315,17 +4365,11 @@ xref_labels(cb_tree label_list_p)
 }
 #endif
 
-static COB_INLINE COB_A_INLINE void
-force_new_page_for_next_line(void)
-{
-	cb_listing_linecount = cb_lines_per_page;
-}
-
 static void
 print_program_trailer(void)
 {
-	struct cb_program	* p;
-	struct cb_program	* q;
+	cb_program	* p;
+	cb_program	* q;
 	int			print_names = 0;
 	int			print_break = 1;
 	int			found;
@@ -4436,6 +4480,31 @@ print_program_trailer(void)
 	set_listing_title_none();
 	print_program_data("");
 	if(print_break) {
+		print_program_data("");
+	}
+
+	/* Print error/warning summary */
+	if(cb_listing_error_head) {
+		force_new_page_for_next_line();
+		print_program_data(_("Error/Warning summary:"));
+		print_program_data("");
+		while(cb_listing_error_head) {
+			list_error * err = cb_listing_error_head;
+			cb_listing_error_head = err->next;
+			char errmsg[BUFSIZ];
+			snprintf(errmsg, BUFSIZ, "%s: %d: %s%s", err->file, err->line, err->prefix, err->msg);
+			print_program_data(errmsg);
+			if(err->file) {
+				delete [] err->file;
+			}
+			if(err->prefix) {
+				delete [] err->prefix;
+			}
+			if(err->msg) {
+				delete [] err->msg;
+			}
+			delete err;
+		}
 		print_program_data("");
 	}
 
@@ -4666,6 +4735,10 @@ print_errors_for_line(const struct list_error * const first_error,
 	for(err = first_error; err; err = err->next) {
 		if(err->line == line_num) {
 			pd_off = snprintf(print_data, max_chars_on_line, "%s%s", err->prefix, err->msg);
+			if(pd_off == -1) {	// snprintf returns -1 in MS and on HPUX if max is reached
+				pd_off = max_chars_on_line;
+				print_data[max_chars_on_line - 1] = 0;
+			}
 			if(pd_off >= max_chars_on_line) {
 				/* trim on last space */
 				pd_off = (int) strlen(print_data) - 1;
@@ -5544,16 +5617,17 @@ print_program_code(struct list_files * cfile, int in_copy)
 		delete rep;
 	}
 
+	/* Put errors on summary list */
 	while(cfile->err_head) {
 		err = cfile->err_head;
 		cfile->err_head = err->next;
-		if(err->prefix) {
-			delete [] err->prefix;
+		if(cb_listing_error_tail) {
+			cb_listing_error_tail->next = err;
 		}
-		if(err->msg) {
-			delete [] err->msg;
+		if(!cb_listing_error_head) {
+			cb_listing_error_head = err;
 		}
-		delete err;
+		cb_listing_error_tail = err;
 	}
 }
 
@@ -5737,7 +5811,14 @@ process_translate(filename * fn)
 	current_paragraph = NULL;
 	current_statement = NULL;
 	cb_source_line = 0;
-	codegen(p, 0);
+	/* Temporarily disable cross-reference during C generation */
+	if(cb_listing_xref) {
+		cb_listing_xref = 0;
+		codegen(p, 0);
+		cb_listing_xref = 1;
+	} else {
+		codegen(p, 0);
+	}
 
 	/* Close files */
 	if(unlikely(fclose(cb_storage_file) != 0)) {

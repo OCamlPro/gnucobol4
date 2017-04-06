@@ -739,14 +739,18 @@ validate_field_1(cb_field * f)
 			case CB_CATEGORY_NUMERIC:
 				/* Reconstruct the picture string */
 				if(f->pic->scale > 0) {
-					/* Enough for genned string */
-					f->pic->str = (cob_pic_symbol *) cobc_parse_malloc(5 * sizeof(cob_pic_symbol));
+					/* Size for genned string */
+					if(f->pic->have_sign) {
+						n = 4;
+					} else {
+						n = 3;
+					}
+					f->pic->str = (cob_pic_symbol *) cobc_parse_malloc(n * sizeof(cob_pic_symbol));
 					cob_pic_symbol * pstr = f->pic->str;
 					if(f->pic->have_sign) {
 						pstr->symbol = '+';
 						pstr->times_repeated = 1;
 						++pstr;
-						n = 5;
 					}
 					pstr->symbol = '9';
 					pstr->times_repeated = (int)f->pic->digits - f->pic->scale;
@@ -761,20 +765,22 @@ validate_field_1(cb_field * f)
 					++pstr;
 
 					f->pic->size++;
-					n += 15;
 				} else {
-					/* Enough for genned string */
-					f->pic->str = (cob_pic_symbol *) cobc_parse_malloc(3 * sizeof(cob_pic_symbol));
+					/* Size for genned string */
+					if(f->pic->have_sign) {
+						n = 2;
+					} else {
+						n = 1;
+					}
+					f->pic->str = (cob_pic_symbol *) cobc_parse_malloc(n * sizeof(cob_pic_symbol));
 					cob_pic_symbol * pstr = f->pic->str;
 					if(f->pic->have_sign) {
 						pstr->symbol = '+';
 						pstr->times_repeated = 1;
 						++pstr;
-						n = 5;
 					}
 					pstr->symbol = '9';
 					pstr->times_repeated = f->pic->digits;
-					n += 5;
 				}
 				f->pic->lenstr = n;
 				f->pic->category = CB_CATEGORY_NUMERIC_EDITED;
@@ -1062,6 +1068,21 @@ compute_binary_size(cb_field * f, const int size)
 	}
 }
 
+static cb_field *
+get_last_child(cb_field * f)
+{
+	do {
+		f = f->children;
+		while(f->sister) {
+			f = f->sister;
+		}
+	} while(f->children);
+
+	return f;
+}
+
+extern int filler_id;
+
 static int
 compute_size(cb_field * f)
 {
@@ -1087,6 +1108,7 @@ compute_size(cb_field * f)
 unbounded_again:
 		cob_u64_t size_check = 0;
 		occur_align_size = 1;
+		cb_field * cprev = NULL;
 		for(cb_field * c = f->children; c; c = c->sister) {
 			if(c->redefines) {
 				c->offset = c->redefines->offset;
@@ -1160,6 +1182,28 @@ unbounded_again:
 					}
 					if(c->offset % align_size != 0) {
 						int pad = align_size - (c->offset % align_size);
+
+						cb_field * p = (cb_field *) cobc_parse_malloc(sizeof(cb_field));
+						p->category = CB_CATEGORY_ALPHABETIC;
+						p->tag = c->tag;
+						p->id = cb_field_id++;
+						char * nm = new char[20];
+						sprintf(nm, "FILLER %d", filler_id++);
+						p->name = nm;
+						p->usage = CB_USAGE_DISPLAY;
+						p->storage = c->storage;
+						p->level = c->level;
+						p->offset = c->offset;
+						p->occurs_max = 1;
+						p->indexes = c->indexes;
+						p->size = pad;
+						p->sister = c;
+						if(cprev == NULL) {
+							f->children = p;
+						} else {
+							cprev->sister = p;
+						}
+
 						c->offset += pad;
 						size_check += pad;
 					}
@@ -1168,11 +1212,42 @@ unbounded_again:
 					}
 				}
 			}
+			cprev = c;
 		}
+		/* Ensure items within OCCURS are aligned correctly. */
 		if(f->occurs_max > 1 && (size_check % occur_align_size) != 0) {
 			int pad = occur_align_size - (size_check % occur_align_size);
 			size_check += pad;
-			f->offset += pad;
+			/* @ska - I am not adding PAD to the last field as I don't want to move its offset */
+			/* Original:
+			  Add padding to last item, which will be (partly)
+			  responsible for misalignment. If the item is not SYNC,
+			  we have no problem. If it is SYNC, then it has been
+			  aligned on a smaller boundary than occur_align_size: a
+			  2-, 4- or 8-byte boundary. The needed padding will
+			  be a multiple of 2, 4 or 8 bytes, so adding extra
+			  padding will not break its alignment.
+			*/
+			if(f->children) {
+				cb_field * c = get_last_child(f);
+				cb_field * p = (cb_field *) cobc_parse_malloc(sizeof(cb_field));
+				p->category = CB_CATEGORY_ALPHABETIC;
+				p->tag = c->tag;
+				p->id = cb_field_id++;
+				char * nm = new char[20];
+				sprintf(nm, "FILLER %d", filler_id++);
+				p->name = nm;
+				p->usage = CB_USAGE_DISPLAY;
+				p->storage = c->storage;
+				p->level = c->level;
+				p->offset = c->offset + pad;
+				p->occurs_max = 1;
+				p->indexes = c->indexes;
+				p->size = pad;
+				c->sister = p;
+			} else {
+				COBC_ABORT();
+			}
 		}
 		/* size check for group items */
 		if(unbounded_items) {
@@ -1318,6 +1393,21 @@ validate_field_value(cb_field * f)
 	return 0;
 }
 
+static void
+check_for_misaligned_pointers(const cb_field * const f)
+{
+	if(f->children) {
+		for(cb_field * c = f->children; c; c = c->sister) {
+			check_for_misaligned_pointers(c);
+		}
+	} else if(f->flag_is_pointer) {
+		if(f->offset % sizeof(void *) != 0) {
+			cb_warning(_("misaligned pointer '%s' may cause undefined behaviour"),
+					   f->name);
+		}
+	}
+}
+
 void
 cb_validate_field(cb_field * f)
 {
@@ -1361,6 +1451,9 @@ cb_validate_field(cb_field * f)
 			c->count++;
 		}
 	}
+
+	check_for_misaligned_pointers(f);
+
 	f->flag_is_verified = 1;
 }
 
@@ -1391,19 +1484,6 @@ cb_validate_78_item(cb_field * f, const cob_u32_t no78add)
 		cb_add_78(f);
 	}
 	return last_real_field;
-}
-
-static const struct cb_field *
-get_last_child(const struct cb_field * f)
-{
-	do {
-		f = f->children;
-		while(f->sister) {
-			f = f->sister;
-		}
-	} while(f->children);
-
-	return f;
 }
 
 static struct cb_field *
