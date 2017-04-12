@@ -6568,23 +6568,19 @@ cob_embed_vrexx (const int mode, const int offset, const int length,
 	result.strptr = NULL;
 	result.strlength = 0;
 
-	if (COB_FIELD_IS_ALNUM(srcfield)) {
-		/* set up the source text, not using any pre-tokens */
-		instore[0].strptr = (char*)srcfield->data;
-		instore[0].strlength = (ULONG)srcfield->size;
+	/* set up the source text, not using any pre-tokens */
+	instore[0].strptr = (char*)srcfield->data;
+	instore[0].strlength = (ULONG)srcfield->size;
 
-		calltype = RXFUNCTION;
-		if (mode) {
-			calltype |= RXRESTRICTED;
-		}	
-		ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore,
-				 "GNUCOBOL", calltype, NULL /* sysexits */,
-				 NULL /* rc */, (PRXSTRING)&result);
-		if (ret) {
-			cob_set_exception (COB_EC_IMP_SCRIPT);
-		}
-	} else {
-		cob_set_exception (COB_EC_ARGUMENT_FUNCTION);
+	calltype = RXFUNCTION;
+	if (mode) {
+		calltype |= RXRESTRICTED;
+	}	
+	ret = RexxStart ((LONG)params - 1, argv, "gnucobol", instore,
+			 "GNUCOBOL", calltype, NULL /* sysexits */,
+			 NULL /* rc */, (PRXSTRING)&result);
+	if (ret) {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
 	}
 
 	/* Stash the APIRET value in SCRIPT-RETURN-CODE, rc is not used */

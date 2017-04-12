@@ -1,4 +1,9 @@
 
+2017-04-12  Brian Tiffin <btiffin@gnu.org>
+
+	* intrinsic.c: remove COB_FIELD_IS_ALNUM test, REXX script may be
+	  group item
+
 2017-03-22  Brian Tiffin <btiffin@gnu.org>
 
 	* exception.def: add EC-IMP-SCRIPT exception
@@ -10,7 +15,8 @@
 
 2017-03-19  Brian Tiffin <btiffin@gnu.org>
 
-	* intrinsic.c, common.h: cob_embed_rexx_safe renamed to cob_embed_rexx_restricted
+	* intrinsic.c, common.h: cob_embed_rexx_safe renamed to
+	  cob_embed_rexx_restricted
 
 2017-03-17  Brian Tiffin <btiffin@gnu.org>
 
