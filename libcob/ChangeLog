@@ -1,4 +1,8 @@
 
+2017-04-23  Brian Tiffin <btiffin@gnu.org>
+
+	* intrinsic.c: adding Python
+
 2017-04-12  Brian Tiffin <btiffin@gnu.org>
 
 	* intrinsic.c: remove COB_FIELD_IS_ALNUM test, REXX script may be

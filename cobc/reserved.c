@@ -2411,6 +2411,13 @@ static const struct cb_intrinsic_table function_list[] = {
 					-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
+#ifdef WITH_PYTHON
+  { "PYTHON",				"cob_embed_python",
+					CB_EMBED_PYTHON, PYTHON_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
+#endif
   { "RANDOM",				"cob_intr_random",
 					CB_INTR_RANDOM, FUNCTION_NAME, 1,
 					-1, 0,
@@ -2432,12 +2439,12 @@ static const struct cb_intrinsic_table function_list[] = {
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
 #ifdef WITH_REXX
-  { "REXX",				"cob_embed_rexx",
+  { "REXX",				"cob_embed_rexx_restricted",
 					CB_EMBED_REXX, REXX_FUNC, 1,
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
-  { "REXX-RESTRICTED",			"cob_embed_rexx_restricted",
+  { "REXX-UNRESTRICTED",		"cob_embed_rexx",
 					CB_EMBED_REXX_RESTRICTED, REXX_RESTRICTED_FUNC, 1,
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
@@ -3220,9 +3227,9 @@ cb_list_reserved (void)
 	printf ("%-32s%s\n", "COB-CRT-STATUS", "PIC 9(4)");
 	printf ("%-32s%s\n", "TALLY", "GLOBAL PIC 9(5) USAGE BINARY VALUE ZERO");
 	printf ("%-32s%s\n", _("'LENGTH OF' phrase"), "USAGE BINARY-LONG");
-#ifdef WITH_REXX
+#if defined(WITH_REXX) || defined(WITH_PYTHON)
 	putchar ('\n');
-	printf ("%-32s%s\n", _("REXX scripting"), _("Definition"));
+	printf ("%-32s%s\n", _("Embedded scripting"), _("Definition"));
 	printf ("%-32s%s\n", "SCRIPT-RETURN-CODE",
 		 "USAGE BINARY-SHORT EXTERNAL AS \"SCRIPT_RETURN_CODE\"");
 #endif

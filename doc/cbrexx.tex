@@ -1,4 +1,4 @@
-@section REXX scripting
+@section Intrinsic REXX scripting
 
 @*
 REXX scripting is an optional build feature of GnuCOBOL.
@@ -6,7 +6,7 @@ REXX scripting is an optional build feature of GnuCOBOL.
 Requires Regina REXX and @code{./configure --with-rexx} during build.
 @*
 Adds new Intrinsics functions, @code{FUNCTION REXX(script [,arg,...])} and
-@code{FUNCTION REXX-RESTRICTED(...)}.
+@code{FUNCTION REXX-UNRESTRICTED(...)}.
 
 These functions accept character data as the script, and unlimited arguments
 (also character data), and returns an ALPHANUMERIC field from the REXX
@@ -40,12 +40,13 @@ use any REXX results in computations.
 
     @code{compute answer = numval(rexx("return 6 * arg(1)", 6)) + 6}
 
-Regina REXX RESTRICTED mode can be used with @code{FUNCTION REXX-RESTRICTED}
+Regina REXX RESTRICTED mode can be disabled with @code{FUNCTION REXX-UNRESTRICTED}
 
-    @code{display rexx-restricted("lineout('file', 'string')")}
+    @code{display rexx-unrestricted("lineout('file', 'string')")}
 
-The line above will return an error code from REXX as the @code{LINEOUT}
-feature is disabled in RESTRICTED mode. 
+The line above will allow a script to write to file. Normally IO will return an
+error code from REXX as the @code{LINEOUT} feature is disabled in the default
+RESTRICTED mode. 
 
 @section Optional build feature
 

@@ -86,3 +86,6 @@ CB_NOWARNDEF (cb_warn_linkage, "linkage",
 
 CB_NOWARNDEF (cb_warn_unreachable, "unreachable",
 	    _("warn unreachable statements"))
+
+CB_NOWARNDEF (cb_warn_redundant, "redundant-stop",
+	    _("warn redundant period"))

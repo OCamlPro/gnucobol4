@@ -98,6 +98,7 @@ AH_TEMPLATE([HAVE_MP_GET_MEMORY_FUNCTIONS], [Do we have mp_get_memory_functions 
 AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 	[Declaration of finite function in ieeefp.h instead of math.h])
 AH_TEMPLATE([WITH_REXX], [Allow embedded REXX])
+AH_TEMPLATE([WITH_PYTHON], [Allow embedded Python])
 
 save_libs="$LIBS"
 
@@ -474,6 +475,7 @@ AC_ARG_WITH([varseq],
 AC_DEFINE_UNQUOTED([WITH_VARSEQ], [$with_varseq])
 
 # Optional embedding extensions
+# Optional REXX
 AC_ARG_WITH([rexx],
 [AS_HELP_STRING([--with-rexx],
   [(GnuCOBOL) Allow embedded REXX])],
@@ -487,6 +489,20 @@ AC_ARG_WITH([rexx],
   fi ],
 [])
 
+# Optional Python
+AC_ARG_WITH([python],
+[AS_HELP_STRING([--with-python],
+  [(GnuCOBOL) Allow embedded Python])],
+[ if test "$with_python" = "yes"; then
+  AC_CHECK_HEADERS([python3.5m/Python.h], [],
+  	AC_MSG_ERROR([Python.h is required for embedded Python]))
+  AC_CHECK_LIB([python3.5m], [Py_Initialize],
+  	[AC_DEFINE([WITH_PYTHON], [1])
+    CFLAGS="$CFLAGS -I/usr/include/python3.5m"
+  	LIBCOB_LIBS="$LIBCOB_LIBS -lpython3.5m"],
+  	AC_MSG_ERROR([libpython3.5m is required for embedded Python]), [])
+  fi ],
+[])
 
 # Checks for gmp.
 AC_MSG_NOTICE([Checks for GMP ...])
@@ -1256,6 +1272,12 @@ else
     COB_WITH_REXX=no
 fi
 
+if test "$with_python" = "yes"; then
+    COB_WITH_PYTHON=yes
+else
+    COB_WITH_PYTHON=no
+fi
+
 unset COB_USES_GCC
 unset COB_USES_GCC_NO_ICC
 unset COB_USES_ICC_ONLY
@@ -1303,6 +1325,7 @@ AC_SUBST([COB_HAS_ISAM])
 AC_SUBST([COB_HAS_CURSES])
 AC_SUBST([COB_HAS_UTC_OFFSET])
 AC_SUBST([COB_WITH_REXX])
+AC_SUBST([COB_WITH_PYTHON])
 AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level]) # needed for bin/cob-config
 
 AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
@@ -1382,3 +1405,7 @@ fi
 if test "$with_rexx" = "yes"; then
   AC_MSG_NOTICE([ Allow embedded REXX                          yes])
 fi
+if test "$with_python" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded Python                        yes])
+fi
+

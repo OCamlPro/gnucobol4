@@ -906,7 +906,9 @@ H#[0-9A-Za-z]* {
 
 "."([ \n]*".")* {
 	if (last_token_is_dot || strlen (yytext) > 1) {
-		cb_warning (_("ignoring redundant ."));
+		if (cb_warn_redundant) {
+			cb_warning (_("ignoring redundant ."));
+		}
 	}
 
 	if (!last_token_is_dot) {

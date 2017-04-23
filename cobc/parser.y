@@ -349,7 +349,7 @@ emit_entry (const char *name, const int encode, cb_tree using_list, cb_tree conv
 				cb_error_x (x, _("'%s' REDEFINES field not allowed here"), cb_name (x));
 			}
 			/* add a "receiving" entry for the USING parameter */
-			cobc_xref_link (&f->xref, CB_REFERENCE (x)->common.source_line);
+			cobc_xref_link (&f->xref, CB_REFERENCE (x)->common.source_line, 1);
 		}
 	}
 
@@ -2032,6 +2032,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token PROHIBITED
 %token PROMPT
 %token PROTECTED		"PROTECTED"
+%token PYTHON_FUNC		"FUNCTION PYTHON"
 %token QUEUE
 %token QUOTE
 %token RANDOM
@@ -2070,8 +2071,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token REVERSE_VIDEO		"REVERSE-VIDEO"
 %token REVERSED
 %token REWIND
-%token REXX_FUNC		"FUNCTION REXX"
-%token REXX_RESTRICTED_FUNC	"FUNCTION REXX-RESTRICTED"
+%token REXX_FUNC		"FUNCTION REXX-UNRESTRICTED"
+%token REXX_RESTRICTED_FUNC	"FUNCTION REXX"
 %token REWRITE
 %token RF
 %token RH
@@ -12599,6 +12600,7 @@ func_one_parm:
 func_multi_parm:
   CONCATENATE_FUNC
 | FORMATTED_DATE_FUNC
+| PYTHON_FUNC
 | REXX_FUNC
 | REXX_RESTRICTED_FUNC
 | SUBSTITUTE_FUNC

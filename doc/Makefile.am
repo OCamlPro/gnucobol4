@@ -42,9 +42,6 @@ cbrunt.tex: $(top_srcdir)/config/runtime.cfg \
 	$(top_srcdir)/doc/cobcinfo.sh
 	$(COBCINFOSH) $@
 
-cbrexx.tex: $(top_srcdir)/doc/cobcinfo.sh
-	$(COBCINFOSH) $@
-
 cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex: \
 	$(top_srcdir)/cobc/cobc.c $(top_srcdir)/cobc/reserved.c \
 	$(top_srcdir)/doc/cobcinfo.sh

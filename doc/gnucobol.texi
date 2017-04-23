@@ -95,7 +95,7 @@ Welcome to the GnuCOBOL 2.0 manual.
 * Appendix F::                  Compiler Configuration
 * Appendix G::                  @code{cobcrun --help}
 * Appendix H::                  Runtime configuration
-* Appendix I::                  REXX scripting
+* Appendix I::                  Intrinsic REXX scripting
 * Appendix J::                  GNU Free Documentation License
 * Index::                       Index
 
@@ -1934,7 +1934,7 @@ The following list was extracted from @file{config/runtime.cfg}.
 @include cbrunt.tex
 
 @node Appendix I, Appendix J, Appendix H, Top
-@appendix REXX scripting
+@appendix Intrinsic REXX scripting
 
 @include cbrexx.tex
 

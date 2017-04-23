@@ -6523,6 +6523,96 @@ cob_intr_standard_compare (const int params, ...)
 
 /* Embedded extensions */
 
+#ifdef WITH_PYTHON
+#include <Python.h>
+
+static int cob_python_initialized = 0;
+
+cob_field *
+cob_embed_python (const int offset, const int length,
+		const int params, ...)
+{
+	va_list		args;
+	cob_field	field;
+	cob_field	**f = NULL;
+	cob_field	*srcfield;
+	int		i;
+	char		*cobol_result;
+	size_t		cobol_length;
+
+	PyObject	*python_status = NULL;
+	PyObject	*python_globals = NULL;
+	/* Not using python_locals */
+
+	PyObject	*python_object = NULL;
+	PyObject	*python_result = NULL;
+
+	cob_set_exception (0);
+	if (params > 1) {
+		f = cob_malloc ((size_t)(params - 1) * sizeof (cob_field *));
+	}
+
+	/* First parameter is the Python script text */
+	va_start(args, params);
+	srcfield = va_arg (args, cob_field *);
+
+        /* Other arguments are passed to Python */
+	for (i = 1; i < params; ++i) {
+		f[i-1] = va_arg (args, cob_field *);
+	}
+	va_end(args);
+
+	if (!cob_python_initialized) {
+		Py_Initialize ();
+		python_globals = PyDict_New ();
+
+		PyDict_SetItemString (python_globals, "__builtins__",
+					PyEval_GetBuiltins ());
+		cob_python_initialized = 0;
+        }
+
+	cobol_result = (char *)" ";
+	cobol_length = 0;
+
+	python_status = PyRun_String ((const char*)srcfield->data,
+			Py_file_input, python_globals, python_globals);
+	if (python_status) {
+		python_result = PyDict_GetItemString (python_globals, "result");
+		if (python_result) {
+			python_object = PyObject_Repr (python_result);
+			cobol_result = PyUnicode_AsUTF8 (python_object);
+			cobol_length = strlen (cobol_result);
+			Py_DECREF (python_object);
+		}
+	} else {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+	}
+
+	//python_module = PyImport_AddModule((char *)"__main__");
+	//python_dict = PyModule_GetDict(python_module);
+
+	COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+	make_field_entry (&field);
+
+	curr_field->size = cobol_length;
+	if (cobol_length) {
+		memcpy (curr_field->data, cobol_result, cobol_length);
+	}
+
+	Py_Finalize();
+
+	if (params > 1) {
+		cob_free( f);
+	}
+	
+	if (unlikely (offset > 0)) {
+		calc_ref_mod (curr_field, offset, length);
+	}
+
+	return curr_field;
+}
+#endif
+
 #ifdef WITH_REXX
 #include <rexxsaa.h>
 
@@ -6617,6 +6707,7 @@ cob_embed_vrexx (const int mode, const int offset, const int length,
 	return curr_field;
 }
 
+/* the REXX-UNRESTRICTED function */
 cob_field *
 cob_embed_rexx (const int offset, const int length,
 		const int params, ...)
@@ -6630,6 +6721,7 @@ cob_embed_rexx (const int offset, const int length,
 	return pass_field;
 }
 
+/* the normal REXX function */
 cob_field *
 cob_embed_rexx_restricted (const int offset, const int length,
 		const int params, ...)
@@ -6725,7 +6817,7 @@ cob_init_intrinsic (cob_global *lptr)
 	mpf_init2 (cob_log_half, COB_LOG_HALF_LEN);
 	mpf_set_str (cob_log_half, cob_log_half_str, 10);
 
-#ifdef WITH_REXX
+#if defined(WITH_REXX) || defined(WITH_PYTHON)
 	script_ret = cob_external_addr("SCRIPT_RETURN_CODE", sizeof(APIRET));
 #endif
 }
