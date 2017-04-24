@@ -1491,7 +1491,7 @@ output_integer(cb_tree x)
 
 		case CB_USAGE_POINTER:
 #ifdef	COB_NON_ALIGNED
-			str += output("(cob_get_pointer(");
+			str += output("((unsigned char *)cob_get_pointer(");
 			str += output_data(x);
 			str += output("))");
 #else
@@ -1503,7 +1503,7 @@ output_integer(cb_tree x)
 
 		case CB_USAGE_PROGRAM_POINTER:
 #ifdef	COB_NON_ALIGNED
-			str += output("(cob_get_prog_pointer(");
+			str += output("((unsigned char *)cob_get_prog_pointer(");
 			str += output_data(x);
 			str += output("))");
 #else
@@ -1760,7 +1760,7 @@ output_long_integer(cb_tree x)
 
 		case CB_USAGE_POINTER:
 #ifdef	COB_NON_ALIGNED
-			str += output("(cob_get_pointer(");
+			str += output("((unsigned char *)cob_get_pointer(");
 			str += output_data(x);
 			str += output("))");
 #else
@@ -1772,7 +1772,7 @@ output_long_integer(cb_tree x)
 
 		case CB_USAGE_PROGRAM_POINTER:
 #ifdef	COB_NON_ALIGNED
-			str += output("(cob_get_prog_pointer(");
+			str += output("((unsigned char *)cob_get_prog_pointer(");
 			str += output_data(x);
 			str += output("))");
 #else
@@ -6349,6 +6349,7 @@ output_class_names(cb_program * prog)
 			str += output_class_name_definition(CB_CLASS_NAME(CB_VALUE(l)));
 		}
 	}
+	return str;
 }
 
 static string

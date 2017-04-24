@@ -523,7 +523,8 @@
 #endif
 
 #if !defined(__i386__) && !defined(__x86_64__) && !defined(__powerpc__) && !defined(__powerpc64__) && \
-	!defined(__ppc__) && !defined(__amd64__) && (!defined(__SUNPRO_CC) || __SUNPRO_CC < 0x590) && !defined(__hpux)
+	!defined(__ppc__) && !defined(__amd64__) && (!defined(__SUNPRO_CC) || __SUNPRO_CC < 0x590) && \
+	!defined(__hpux) && !defined(__zarch__)
 
 	#define	COB_NON_ALIGNED
 	/* Some DEC Alphas can only load shorts at 4-byte aligned addresses */

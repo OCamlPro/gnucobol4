@@ -1,3 +1,8 @@
+2017-04-24 Sergey Kashyrin <ska@kiska.net>
+
+	* All fixes/updates of 2.0 main branch up to 2017-03-31 are retrofited.
+	* It does not make sense to repeat all of that here, as the dates are different
+	* Please refer to the ChangeLog of the main 2.0 branch
 
 2016-12-20 Sergey Kashyrin <ska@kiska.net>
 
