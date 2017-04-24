@@ -336,6 +336,7 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[COB_USES_WATCOMC_ONLY=yes],
 	[],
 	[])
+
                                       
 COB_CC="$CC"
 if test "$COB_USES_ICC_ONLY" = "yes"; then
@@ -490,19 +491,28 @@ AC_ARG_WITH([rexx],
 [])
 
 # Optional Python
-AC_ARG_WITH([python],
-[AS_HELP_STRING([--with-python],
-  [(GnuCOBOL) Allow embedded Python])],
-[ if test "$with_python" = "yes"; then
-  AC_CHECK_HEADERS([python3.5m/Python.h], [],
-  	AC_MSG_ERROR([Python.h is required for embedded Python]))
-  AC_CHECK_LIB([python3.5m], [Py_Initialize],
-  	[AC_DEFINE([WITH_PYTHON], [1])
-    CFLAGS="$CFLAGS -I/usr/include/python3.5m"
-  	LIBCOB_LIBS="$LIBCOB_LIBS -lpython3.5m"],
-  	AC_MSG_ERROR([libpython3.5m is required for embedded Python]), [])
-  fi ],
-[])
+AX_PYTHON_WITH
+AX_PYTHON_CSPEC
+AX_PYTHON_LSPEC
+CFLAGS="$CFLAGS $PYTHON_CSPEC"
+LIBCOB_LIBS="$LIBCOB_LIBS $PYTHON_LSPEC"
+if test "$PYTHON" != ""; then
+    AC_DEFINE([WITH_PYTHON], [1])
+fi
+# TO BE REMOVED, BWT April 2017    
+#AC_ARG_WITH([python],
+#[AS_HELP_STRING([--with-python],
+#  [(GnuCOBOL) Allow embedded Python])],
+#[ if test "$with_python" = "yes"; then
+#  AC_CHECK_HEADERS([python3.5m/Python.h], [],
+#  	AC_MSG_ERROR([Python.h is required for embedded Python]))
+#  AC_CHECK_LIB([python3.5m], [Py_Initialize],
+#  	[AC_DEFINE([WITH_PYTHON], [1])
+#    CFLAGS="$CFLAGS -I/usr/include/python3.5m"
+#  	LIBCOB_LIBS="$LIBCOB_LIBS -lpython3.5m"],
+#  	AC_MSG_ERROR([libpython3.5m is required for embedded Python]), [])
+#  fi ],
+#[])
 
 # Checks for gmp.
 AC_MSG_NOTICE([Checks for GMP ...])
@@ -1405,7 +1415,9 @@ fi
 if test "$with_rexx" = "yes"; then
   AC_MSG_NOTICE([ Allow embedded REXX                          yes])
 fi
-if test "$with_python" = "yes"; then
-  AC_MSG_NOTICE([ Allow embedded Python                        yes])
+#if test "$with_python" = "yes"; then
+#  AC_MSG_NOTICE([ Allow embedded Python                        yes])
+#fi
+if test "$PYTHON" != ""; then
+  AC_MSG_NOTICE([ Allow embedded Python                        yes ${PYTHON}])
 fi
-

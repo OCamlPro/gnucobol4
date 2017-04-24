@@ -1,8 +1,14 @@
 
+2017-04-23  Brian Tiffin <btiffin@gnu.org>
+
+	* configure.ac: add --with-python with m4/ax_python_embed.m4
+
 2017-03-22  Brian Tiffin <btiffin@gnu.org>
+
 	* configure.ac: Pass COB_HAS_REXX to autotest
 
 2017-03-08  Brian Tiffin <btiffin@gnu.org>
+
 	* configure.ac: Adding --with-rexx
 
 2017-02-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>

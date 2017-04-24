@@ -3934,3 +3934,40 @@ AT_CHECK([./prog], [0], [ABC
 ], [])
 
 AT_CLEANUP
+
+AT_SETUP([Python scripting])
+AT_KEYWORDS([functions Python extensions])
+
+AT_SKIP_IF([test "$COB_WITH_PYTHON" = "no"])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       COPY rexxapi.
+       01  str         PIC X(30).
+       77  val         pic 9(02).
+       
+       PROCEDURE DIVISION.
+           DISPLAY FUNCTION PYTHON("result = 'abc'")
+           END-DISPLAY
+           
+           COMPUTE val = FUNCTION NUMVAL(
+                         FUNCTION PYTHON("result = 6 * 7"))
+           END-COMPUTE
+           DISPLAY val
+           END-DISPLAY
+
+           DISPLAY SCRIPT-RETURN-CODE
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [abc
+42
++00000000000000000000
+], [])
+
+AT_CLEANUP

@@ -6522,11 +6522,16 @@ cob_intr_standard_compare (const int params, ...)
 }
 
 /* Embedded extensions */
+#if defined(WITH_REXX) || defined(WITH_PYTHON)
+static void *script_ret;
+#endif
 
 #ifdef WITH_PYTHON
 #include <Python.h>
 
-static int cob_python_initialized = 0;
+static int	cob_python_initialized = 0;
+/* Not using python_locals yet */
+static PyObject	*python_globals = NULL;
 
 cob_field *
 cob_embed_python (const int offset, const int length,
@@ -6541,8 +6546,6 @@ cob_embed_python (const int offset, const int length,
 	size_t		cobol_length;
 
 	PyObject	*python_status = NULL;
-	PyObject	*python_globals = NULL;
-	/* Not using python_locals */
 
 	PyObject	*python_object = NULL;
 	PyObject	*python_result = NULL;
@@ -6556,7 +6559,7 @@ cob_embed_python (const int offset, const int length,
 	va_start(args, params);
 	srcfield = va_arg (args, cob_field *);
 
-        /* Other arguments are passed to Python */
+	/* Other arguments will be passed to Python, not yet implemented */
 	for (i = 1; i < params; ++i) {
 		f[i-1] = va_arg (args, cob_field *);
 	}
@@ -6564,27 +6567,44 @@ cob_embed_python (const int offset, const int length,
 
 	if (!cob_python_initialized) {
 		Py_Initialize ();
-		python_globals = PyDict_New ();
 
+		/* Load in default built ins */
+		python_globals = PyDict_New ();
 		PyDict_SetItemString (python_globals, "__builtins__",
 					PyEval_GetBuiltins ());
-		cob_python_initialized = 0;
+
+		/* keeping a single init of Python needs testing */
+		cob_python_initialized = 1;
         }
 
+	/* default return value is a zero length space */
 	cobol_result = (char *)" ";
 	cobol_length = 0;
 
+	/* set SCRIPT-RETURN-CODE to 0 */
+	*(int *)script_ret = 0;
+
+	/* keep references until a new one needed */
+	Py_XDECREF (python_status);
 	python_status = PyRun_String ((const char*)srcfield->data,
 			Py_file_input, python_globals, python_globals);
+
 	if (python_status) {
+		Py_XDECREF (python_result);
 		python_result = PyDict_GetItemString (python_globals, "result");
 		if (python_result) {
-			python_object = PyObject_Repr (python_result);
+			Py_XDECREF (python_object);
+			python_object = PyObject_Str (python_result);
+#if PY_VERSION_HEX > 0x03000000
 			cobol_result = PyUnicode_AsUTF8 (python_object);
+#else
+			cobol_result = PyString_AsString(python_object);
+#endif
 			cobol_length = strlen (cobol_result);
-			Py_DECREF (python_object);
+			//Py_DECREF (python_object);
 		}
 	} else {
+		*(int *)script_ret = 1;
 		cob_set_exception (COB_EC_IMP_SCRIPT);
 	}
 
@@ -6598,11 +6618,14 @@ cob_embed_python (const int offset, const int length,
 	if (cobol_length) {
 		memcpy (curr_field->data, cobol_result, cobol_length);
 	}
+	//Py_DECREF (python_object);
+	//Py_DECREF (python_status);
 
-	Py_Finalize();
+	/* keeping a single init of Python needs testing */
+	//Py_Finalize();
 
 	if (params > 1) {
-		cob_free( f);
+		cob_free (f);
 	}
 	
 	if (unlikely (offset > 0)) {
@@ -6615,8 +6638,6 @@ cob_embed_python (const int offset, const int length,
 
 #ifdef WITH_REXX
 #include <rexxsaa.h>
-
-static void *script_ret;
 
 static cob_field *
 cob_embed_vrexx (const int mode, const int offset, const int length,

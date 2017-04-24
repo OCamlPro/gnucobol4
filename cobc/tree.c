@@ -4227,9 +4227,13 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 	case CB_INTR_FORMATTED_DATETIME:
 	case CB_INTR_FORMATTED_TIME:
 	case CB_INTR_NATIONAL_OF:
+#ifdef WITH_PYTHON
 	case CB_EMBED_PYTHON:
+#endif
+#ifdef WITH_REXX
 	case CB_EMBED_REXX:
 	case CB_EMBED_REXX_RESTRICTED:
+#endif
 		return make_intrinsic (name, cbp, args, cb_int1, refmod, 0);
 
 	case CB_INTR_DATE_TO_YYYYMMDD:
