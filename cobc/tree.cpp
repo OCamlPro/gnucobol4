@@ -613,7 +613,7 @@ valid_const_date_time_args(const cb_tree tree, const struct cb_intrinsic_table *
 			error_found = 1;
 		}
 	} else {
-		cb_warning_x(tree, _("FUNCTION '%s' has format in variable"),
+		cb_warning_x(COBC_WARN_FILLER, tree, _("FUNCTION '%s' has format in variable"),
 					 intr->name);
 	}
 
@@ -654,7 +654,7 @@ warn_cannot_get_utc(const cb_tree tree, const enum cb_intr_enum intr,
 	   for a different system */
 
 	if(is_variable_format) {
-		cb_warning_x(tree, _("cannot find the UTC offset on this system"));
+		cb_warning_x(tree, _(COBC_WARN_FILLER, "cannot find the UTC offset on this system"));
 	} else if(is_constant_utc_format) {
 		cb_error_x(tree, _("cannot find the UTC offset on this system"));
 	}
@@ -1415,6 +1415,7 @@ cb_build_program(cb_program * last_program, const int nest_level)
 	cb_clear_real_field();
 
 	cb_program * p = (cb_program *) cobc_parse_malloc(sizeof(cb_program));
+	memset(p, 0, sizeof(cb_program));
 	p->word_table = (cb_word **) cobc_parse_malloc(CB_WORD_TABLE_SIZE);
 
 	p->tag = CB_TAG_PROGRAM;
@@ -3701,7 +3702,7 @@ warn_if_no_definition_seen_for_prototype(cb_prototype * proto)
 			} else { /* PROGRAM_TYPE */
 				error_msg = _("no definition/prototype seen for program '%s'");
 			}
-			cb_warning_x(proto, error_msg, proto->name);
+			cb_warning_x(cb_warn_prototypes, proto, error_msg, proto->name);
 		} else {
 			/*
 			  Warn if no definition seen for element with given
@@ -3712,7 +3713,7 @@ warn_if_no_definition_seen_for_prototype(cb_prototype * proto)
 			} else { /* PROGRAM_TYPE */
 				error_msg = _("no definition/prototype seen for program with external name '%s'");
 			}
-			cb_warning_x(proto, error_msg, proto->ext_name);
+			cb_warning_x(cb_warn_prototypes, proto, error_msg, proto->ext_name);
 		}
 	}
 }

@@ -1834,7 +1834,7 @@ void		cb_list_system(void);
 void		cb_list_map(cb_tree(*)(cb_tree), cb_tree);
 
 /* error.c */
-void		cb_warning_x(const cb_tree, const char *, ...) COB_A_FORMAT23;
+void		cb_warning_x(int, cb_tree, const char *, ...) COB_A_FORMAT34;
 void		cb_error_x(const cb_tree, const char *, ...) COB_A_FORMAT23;
 unsigned int cb_verify_x(cb_tree, const enum cb_support, const char *);
 void		listprint_suppress(void);

@@ -237,7 +237,7 @@ ppp_compare_vals(const cb_define_struct * p1,
 		return 0;
 	}
 	if(p1->deftype != p2->deftype) {
-		cb_warning(_("directive comparison on different types"));
+		cb_warning(COBC_WARN_FILLER, _("directive comparison on different types"));
 		return 0;
 	}
 	if(p1->deftype == PLEX_DEF_LIT) {
@@ -632,7 +632,7 @@ directive:
   }
   call_directive
   {
-	if (current_call_convention == CB_CONV_STATIC_LINK) {
+	if(current_call_convention == CB_CONV_STATIC_LINK) {
 		current_call_convention |= CB_CONV_COBOL;
 	};
   }
@@ -721,7 +721,7 @@ set_options:
 source_directive:
   _format _is format_type
   {
-	  if (cb_src_list_file) {
+	  if(cb_src_list_file) {
 		  cb_current_file->source_format = cb_source_format;
 	  }
   }

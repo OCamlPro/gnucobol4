@@ -72,7 +72,9 @@
 		#define	close		_close
 		#define	unlink		_unlink
 		#define	fdopen		_fdopen
-		#define lseek		_lseeki64
+		#ifndef lseek
+			#define lseek		_lseeki64
+		#endif
 	#endif
 	#define off_t		cob_s64_t
 
@@ -2992,6 +2994,7 @@ indexed_open(cob_file * f, char * filename, const int mode, const int sharing)
 			delete [] p->db;
 			delete [] p->last_readkey;
 			delete [] p->last_dupno;
+			delete [] p->rewrite_sec_key;
 			delete [] p->cursor;
 			if(bdb_env != NULL) {
 				bdb_env->lock_put(bdb_env, &p->bdb_file_lock);

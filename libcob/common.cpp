@@ -4202,57 +4202,48 @@ cob_expand_env_string(char * strval)
 
 /* Store 'integer' value in field for correct length */
 static void
-set_value(char * data, int len, long val)
+set_value(char * data, int len, cob_s64_t val)
 {
-	if(len == 1) {
-		*data = (char)val;
-	} else if(len == sizeof(short)) {
+	if(len == sizeof(short)) {
 		*(short *)data = (short)val;
 	} else if(len == sizeof(int)) {
 		*(int *)data = (int)val;
 	} else if(len == sizeof(cob_s64_t)) {
 		*(cob_s64_t *)data = val;
 	} else {
-		*(char *)data = (char)val;
+		*data = (char)val;
 	}
 }
 
 /* Get 'integer' value from field */
-static long
+static cob_s64_t
 get_value(char * data, int len)
 {
-	if(len == sizeof(int)) {
-		return (long) * (int *)data;
-	}
 	if(len == sizeof(short)) {
-		return (long) * (short *)data;
+		return *(short *)data;
 	}
-	if(len == sizeof(long)) {
-		return (long) * (long *)data;
+	if(len == sizeof(int)) {
+		return *(int *)data;
 	}
 	if(len == sizeof(cob_s64_t)) {
-		return (long) * (cob_s64_t *)data;
+		return *(cob_s64_t *)data;
 	}
-	return (long) * (char *)data;
+	return *data;
 }
 
 /* Set runtime setting with given value */
 static int					/* returns 1 if any error, else 0 */
 set_config_val(char * value, int pos)
 {
-	void *	data;
-	char	* ptr = value, *str;
-	unsigned long	numval = 0;
-	int	i, data_type, data_loc, data_len, slen;
-
-	data_type = gc_conf[pos].data_type;
-	data_loc  = gc_conf[pos].data_loc;
-	data_len  = gc_conf[pos].data_len;
-
-	data = (void *)((char *)cobsetptr + data_loc);
+	char	* ptr	= value;
+	cob_s64_t numval = 0;
+	int data_type	= gc_conf[pos].data_type;
+	int data_loc	= gc_conf[pos].data_loc;
+	int data_len	= gc_conf[pos].data_len;
+	char * data		= ((char *)cobsetptr) + data_loc;
 
 	if(gc_conf[pos].enums) {		/* Translate 'word' into alternate 'value' */
-
+		int i;
 		for(i = 0; gc_conf[pos].enums[i].match != NULL; i++) {
 			if(strcasecmp(value, gc_conf[pos].enums[i].match) == 0) {
 				ptr = value = (char *)gc_conf[pos].enums[i].value;
@@ -4323,7 +4314,7 @@ set_config_val(char * value, int pos)
 			conf_runtime_error(1, _("maximum value: %lu"), gc_conf[pos].max_value);
 			return 1;
 		}
-		set_value((char *)data, data_len, numval);
+		set_value(data, data_len, numval);
 
 	} else if((data_type & ENV_BOOL)) {	/* Boolean: Yes/No,True/False,... */
 		numval = 2;
@@ -4352,12 +4343,12 @@ set_config_val(char * value, int pos)
 			if((data_type & ENV_NOT)) {	/* Negate logic for actual setting */
 				numval = !numval;
 			}
-			set_value((char *)data, data_len, numval);
+			set_value(data, data_len, numval);
 		}
 
-	} else if((data_type & ENV_STR)
-			  || (data_type & ENV_FILE)
-			  || (data_type & ENV_PATH)) {	/* String/Path to be stored as a string */
+	} else if((data_type & ENV_STR) || (data_type & ENV_FILE) || (data_type & ENV_PATH)) {
+		/* String/Path to be stored as a string */
+		char * str;
 		memcpy(&str, data, sizeof(char *));
 		if(str != NULL) {
 			cob_free((void *)str);
@@ -4374,7 +4365,7 @@ set_config_val(char * value, int pos)
 
 	} else if((data_type & ENV_CHAR)) {	/* 'char' field inline */
 		memset(data, 0, data_len);
-		slen = (int)strlen(value);
+		int slen = (int)strlen(value);
 		if(slen > data_len) {
 			slen = data_len;
 		}
@@ -4408,27 +4399,20 @@ set_config_val_by_name(char * value, const char * name, const char * func)
 static char *
 get_config_val(char * value, int pos, char * orgvalue)
 {
-	void *	data;
-	char	* str;
-	double	dval;
-	long	numval = 0;
-	int	i, data_type, data_loc, data_len;
-
-	data_type	= gc_conf[pos].data_type;
-	data_loc	= gc_conf[pos].data_loc;
-	data_len	= gc_conf[pos].data_len;
-
-	data = (void *)((char *)cobsetptr + data_loc);
+	int data_type	= gc_conf[pos].data_type;
+	int data_loc	= gc_conf[pos].data_loc;
+	int data_len	= gc_conf[pos].data_len;
+	char * data		= ((char *)cobsetptr) + data_loc;
 
 	strcpy(value, "Unknown");
 	strcpy(orgvalue, "");
 	if((data_type & ENV_INT)) {				/* Integer data */
-		numval = get_value((char *)data, data_len);
+		cob_s64_t numval = get_value(data, data_len);
 		sprintf(value, "%ld", numval);
 
 	} else if((data_type & ENV_SIZE)) {			/* Size: integer with K, M, G */
-		numval = get_value((char *)data, data_len);
-		dval = numval;
+		cob_s64_t numval = get_value(data, data_len);
+		double dval = (double) numval;
 		if(numval > (1024 * 1024 * 1024)) {
 			if((numval % (1024 * 1024 * 1024)) == 0) {
 				sprintf(value, "%ld GB", numval / (1024 * 1024 * 1024));
@@ -4452,7 +4436,7 @@ get_config_val(char * value, int pos, char * orgvalue)
 		}
 
 	} else if((data_type & ENV_BOOL)) {	/* Boolean: Yes/No,True/False,... */
-		numval = get_value((char *)data, data_len);
+		cob_s64_t numval = get_value(data, data_len);
 		if((data_type & ENV_NOT)) {
 			numval = !numval;
 		}
@@ -4464,6 +4448,7 @@ get_config_val(char * value, int pos, char * orgvalue)
 
 		/* TO-DO: Consolidate copy-and-pasted code! */
 	} else if((data_type & ENV_STR)) {	/* String stored as a string */
+		char * str;
 		memcpy(&str, data, sizeof(char *));
 		if(str == NULL) {
 			sprintf(value, "%s", "not set");
@@ -4472,6 +4457,7 @@ get_config_val(char * value, int pos, char * orgvalue)
 		}
 
 	} else if((data_type & ENV_FILE)) {	/* File/path stored as a string */
+		char * str;
 		memcpy(&str, data, sizeof(char *));
 		/* TODO: add special cases here on merging rw-branch */
 		if(str == NULL) {
@@ -4481,6 +4467,7 @@ get_config_val(char * value, int pos, char * orgvalue)
 		}
 
 	} else if((data_type & ENV_PATH)) {	/* Path stored as a string */
+		char * str;
 		memcpy(&str, data, sizeof(char *));
 		if(str == NULL) {
 			sprintf(value, "%s", "not set");
@@ -4499,7 +4486,7 @@ get_config_val(char * value, int pos, char * orgvalue)
 	}
 
 	if(gc_conf[pos].enums) {		/* Translate 'word' into alternate 'value' */
-		for(i = 0; gc_conf[pos].enums[i].match != NULL; i++) {
+		for(int i = 0; gc_conf[pos].enums[i].match != NULL; i++) {
 			if(strcasecmp(value, gc_conf[pos].enums[i].value) == 0) {
 				if(strcmp(value, "0") != 0
 						&& strcmp(value, gc_conf[pos].default_val) != 0) {

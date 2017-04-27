@@ -152,6 +152,11 @@ enum cb_support {
 	CB_UNCONFORMABLE
 };
 
+#define COBC_WARN_FILLER  -1
+#define COBC_WARN_DISABLED 0
+#define COBC_WARN_ENABLED  1
+#define COBC_WARN_AS_ERROR 2
+
 /* Config dialect support types */
 enum cb_std_def {
 	CB_STD_OC = 0,
@@ -250,9 +255,28 @@ enum cobc_name_type {
 struct list_error {
 	list_error *	next;
 	int				line;		/* Line number for error */
-	char      *     file;		/* File name */
+	char		*	file;		/* File name */
 	char 	*		prefix;		/* Error prefix */
 	char 	*		msg;		/* Error Message text */
+	list_error()
+	{
+		memset(this, 0, sizeof(list_error));
+	}
+	~list_error()
+	{
+		if(file) {
+			delete [] file;
+		}
+		if(prefix) {
+			delete [] prefix;
+		}
+		if(msg) {
+			delete [] msg;
+		}
+		if(next) {
+			delete next;
+		}
+	}
 };
 
 /* List of REPLACE text blocks */
@@ -263,12 +287,35 @@ struct list_replace {
 	int				lead_trail;	/* LEADING/TRAILING flag */
 	char 	*		from;		/* Old (from) text */
 	char 	*		to;			/* New (to) text */
+	list_replace()
+	{
+		memset(this, 0, sizeof(list_replace));
+	}
+	~list_replace()
+	{
+		if(from) {
+			delete [] from;
+		}
+		if(to) {
+			delete [] to;
+		}
+		if(next) {
+			delete next;
+		}
+	}
 };
 
 /* List of skipped lines (conditional compilation) */
 struct list_skip {
 	list_skip *	next;
 	int			skipline;	/* line number of skipped line */
+	list_skip() : next(NULL), skipline(0) {}
+	~list_skip()
+	{
+		if(next) {
+			delete next;
+		}
+	}
 };
 
 /* Listing file control structure */
@@ -285,6 +332,31 @@ struct list_files {
 	int 			listing_on;		/* Listing flag for this file */
 	enum cb_format	source_format;	/* source format for file */
 	const char *	name;			/* Name of this file */
+	list_files()
+	{
+		memset(this, 0, sizeof(list_files));
+	}
+	~list_files()
+	{
+		if(copy_head) {
+			delete copy_head;
+		}
+		if(err_head) {
+			delete err_head;
+		}
+		if(replace_head) {
+			delete replace_head;
+		}
+		if(skip_head) {
+			delete skip_head;
+		}
+		if(name) {
+			delete [] name;
+		}
+		if(next) {
+			delete next;
+		}
+	}
 };
 
 extern list_files *	cb_listing_files;
@@ -505,29 +577,21 @@ void			naming_init();
 #define CB_MSG_STYLE_MSC	1U
 
 #define CB_PENDING(x) \
-	do {if (cb_warn_pending) { \
-			cb_warning (_("%s is not implemented"), x); \
-		}} ONCE_COB
+	cb_warning(cb_warn_pending, _("%s is not implemented"), x)
 #define CB_PENDING_X(x,y) \
-	do {if (cb_warn_pending) { \
-			cb_warning_x (x, _("%s is not implemented"), y); \
-		}} ONCE_COB
+	cb_warning_x(cb_warn_pending, x, _("%s is not implemented"), y)
 #define CB_UNFINISHED(x) \
-	do {if (cb_warn_unfinished) { \
-			cb_warning (_("handling of %s is unfinished; implementation is likely to be changed"), x); \
-		}} ONCE_COB
+	cb_warning(cb_warn_unfinished, _("handling of %s is unfinished; implementation is likely to be changed"), x)
 #define CB_UNFINISHED_X(x,y) \
-	do {if (cb_warn_unfinished) { \
-			cb_warning_x (x, _("handling of %s is unfinished; implementation is likely to be changed"), y); \
-		}} ONCE_COB
+	cb_warning_x(cb_warn_unfinished, x, _("handling of %s is unfinished; implementation is likely to be changed"), y)
 
 extern size_t		cb_msg_style;
 
-void		cb_warning(const char *, ...) COB_A_FORMAT12;
+void		cb_warning(int, const char *, ...) COB_A_FORMAT23;
 void		cb_error(const char *, ...) COB_A_FORMAT12;
 void		cb_perror(const int, const char *, ...) COB_A_FORMAT23;
-void		cb_plex_warning(const size_t,
-							const char *, ...) COB_A_FORMAT23;
+void		cb_plex_warning(int, const size_t,
+							const char *, ...) COB_A_FORMAT34;
 void		cb_plex_error(const size_t,
 						  const char *, ...) COB_A_FORMAT23;
 unsigned int	cb_plex_verify(const size_t, const enum cb_support,
