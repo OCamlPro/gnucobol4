@@ -5694,3 +5694,165 @@ AT_CHECK([./prog], [0],
 ])
 
 AT_CLEANUP
+
+
+AT_SETUP([OCCURS INDEXED ASCENDING])
+AT_KEYWORDS([occurs extension])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       01  DBI-RECORD-NAMEST.
+           05  FILLER.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ACM            0315 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-MGL            0303 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZBL            0304 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZCC            0308 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZGL            0305 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZOO            0306 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZTR            0307 '.  
+       01  DBI-RECORD-NAMESR REDEFINES DBI-RECORD-NAMEST.
+           05  DBI-RECORD-NAMES
+                  OCCURS 7 TIMES
+                  INDEXED BY REC-NAME-IDX
+                  ASCENDING KEY IS DBI-RECORD-NAME
+                  .
+             10  DBI-RECORD-NAME PIC X(30).
+             10  DBI-RECORD-CODE PIC 9(4).
+             10  DBI-RECORD-DIR  PIC X.
+       01  REC-NAME   PIC X(30).
+       01  DBX-RECORD-NAMEST.
+           05  FILLER.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ACM            0315 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-MGL            0303 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZBL            0304 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZCC            0308 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZGL            0305 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZOO            0306 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZTR            0307 '.
+       01  DBX-RECORD-NAMESR REDEFINES DBX-RECORD-NAMEST.
+           05  DBX-RECORD-NAMES
+                  OCCURS 7 TIMES
+                  ASCENDING KEY IS DBX-RECORD-NAME
+                  INDEXED BY REC-NAME-DBX
+                  .
+             10  DBX-RECORD-NAME PIC X(30).
+             10  DBX-RECORD-CODE PIC 9(4).
+             10  DBX-RECORD-DIR  PIC X.
+
+       PROCEDURE DIVISION.
+       MAIN.
+           MOVE 'A-F-GEN-LEDGER-ZGL' TO REC-NAME.
+           PERFORM FINDIT.
+           MOVE 'JUNK' TO REC-NAME.
+           PERFORM FINDIT.
+           STOP RUN.
+
+       FINDIT. 
+           SEARCH DBI-RECORD-NAMES
+           AT END
+               DISPLAY 'A ' REC-NAME ' is invalid.' 
+           WHEN REC-NAME = DBI-RECORD-NAME (REC-NAME-IDX)
+               DISPLAY 'A ' REC-NAME ' is code '
+                         DBI-RECORD-CODE (REC-NAME-IDX) '.'.
+
+           SEARCH DBX-RECORD-NAMES
+           AT END
+               DISPLAY 'B ' REC-NAME ' is invalid.'
+           WHEN REC-NAME = DBX-RECORD-NAME (REC-NAME-DBX)
+               DISPLAY 'B ' REC-NAME ' is code '
+                         DBX-RECORD-CODE (REC-NAME-DBX) '.'.
+])
+
+AT_CHECK([$COMPILE -frelax-syntax-checks prog.cob ], [0], [],
+[prog.cob: 26: warning: INDEXED should follow ASCENDING/DESCENDING
+])
+
+AT_CHECK([./prog], [0],
+[A A-F-GEN-LEDGER-ZGL             is code 0305.
+B A-F-GEN-LEDGER-ZGL             is code 0305.
+A JUNK                           is invalid.
+B JUNK                           is invalid.
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([ZERO unsigned and negative binary subscript])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       77  UBIN        PIC  9(8) BINARY.
+       77  SBIN        PIC S9(8) BINARY.
+       77  UNUP        PIC  9(8).
+       77  SNUP        PIC S9(8).
+
+       01  TSTREC.
+           05  TSTX PIC X(4) OCCURS 3 TIMES.
+           05  TSTY PIC X(4) OCCURS 3 TIMES.
+
+       PROCEDURE DIVISION.
+           MOVE ALL 'A' TO TSTX(1).
+           MOVE ALL 'B' TO TSTX(2).
+           MOVE ALL 'C' TO TSTX(3).
+           MOVE ALL '1' TO TSTY(1).
+           MOVE ALL '2' TO TSTY(2).
+           MOVE ALL '3' TO TSTY(3).
+           MOVE 0  TO UNUP.
+           DISPLAY "UNUP: " UNUP " is :" TSTY(UNUP) ":" UPON CONSOLE.
+           MOVE 0  TO SNUP.
+           DISPLAY "SNUP: " SNUP " is :" TSTY(SNUP) ":" UPON CONSOLE.
+           MOVE 0  TO SBIN.
+           DISPLAY "SBIN: " SBIN " is :" TSTY(SBIN) ":" UPON CONSOLE.
+           MOVE -1 TO SBIN.
+           DISPLAY "SBIN: " SBIN " is :" TSTY(SBIN) ":" UPON CONSOLE.
+           MOVE 'xxx'   TO TSTY(SBIN).
+           DISPLAY "SBIN: " SBIN " is :" TSTY(SBIN) ":" UPON CONSOLE.
+      * The following would often core dump
+           MOVE 0 TO UBIN.
+           DISPLAY "UBIN: " UBIN " is :" TSTY(UBIN) ":" UPON CONSOLE.
+           MOVE 'xxx'   TO TSTY(UBIN).
+           MOVE 1 TO UBIN.
+           DISPLAY "UBIN: " UBIN " is :" TSTY(UBIN) ":" UPON CONSOLE.
+           STOP RUN.
+])
+
+# Safe run with runtime checks
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [1], [], [libcob: prog.cob: 23: subscript of 'TSTY' out of bounds: 0
+])
+
+# Runtime checks disable, subscript may be zero or even negative
+AT_CHECK([$COBC -x prog.cob -o prog_unsafe], [0], [], [])
+AT_CHECK([./prog_unsafe], [0],
+[UNUP: 00000000 is :CCCC:
+SNUP: +00000000 is :CCCC:
+SBIN: +00000000 is :CCCC:
+SBIN: -00000001 is :BBBB:
+SBIN: -00000001 is :xxx :
+UBIN: 00000000 is :CCCC:
+UBIN: 00000001 is :1111:
+], [])
+
+AT_CLEANUP
+

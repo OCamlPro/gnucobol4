@@ -930,7 +930,7 @@ AT_CHECK([test -e TESTFILE], [0], [], [])
 
 AT_CLEANUP
 
-AT_SETUP([CALL unusual PROGRAM-ID])
+AT_SETUP([CALL unusual PROGRAM-ID.])
 AT_KEYWORDS([extensions])
 
 AT_DATA([A@B.cob], [
@@ -3599,29 +3599,19 @@ AT_DATA([prog5.cob], [
             STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 22: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
-])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog --version --verbose -jkl], [0], [])
-AT_CHECK([$COMPILE_MODULE prog2.cob], [0], [],
-[prog2.cob: 25: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
-])
+AT_CHECK([$COMPILE_MODULE prog2.cob], [0], [], [])
 AT_CHECK([$COBCRUN prog2 --ver --vers], [0], [],
 [prog2: option '--ver' is ambiguous; possibilities: '--version' '--verbose'
 ])
-AT_CHECK([$COMPILE prog3.cob], [0], [],
-[prog3.cob: 21: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
-])
+AT_CHECK([$COMPILE prog3.cob], [0], [], [])
 AT_CHECK([./prog3 --version=lang --verbose=k --usage -j 5 -k6 -l], [0], [])
-AT_CHECK([$COMPILE prog4.cob --free], [0], [],
-[prog4.cob: 23: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
-])
+AT_CHECK([$COMPILE prog4.cob --free], [0], [], [])
 AT_CHECK([./prog4 --static --dynamic --usage=boringandtoolongtext], [0], [])
 # Again a long and system specific error message which we ignore.
 # Return code 1 is sufficient as proof of hard return (as wanted).
-AT_CHECK([$COMPILE prog5.cob], [0], [],
-[prog5.cob: 23: warning: misaligned pointer 'VALPOINT' may cause undefined behaviour
-])
+AT_CHECK([$COMPILE prog5.cob], [0], [], [])
 AT_CHECK([./prog5 --static], [1], [],
 [libcob: prog5.cob: 37: Call to CBL_GC_GETOPT with wrong longoption size.
 ])
@@ -3777,8 +3767,8 @@ AT_DATA([prog.cob], [
        01 CELL     USAGE BINARY-LONG.
        01 ARGC     USAGE BINARY-LONG.
        01 ARGV     USAGE POINTER.
-       01 ERRNO    USAGE POINTER.
-       01 ERR      USAGE BINARY-LONG BASED.
+       01 ERRPTR   USAGE POINTER.
+       01 ERRNO    USAGE BINARY-LONG BASED.
        01 TZNAME   USAGE POINTER.
        01 TZNAMES  USAGE POINTER BASED.
           05 TZS      USAGE POINTER OCCURS 2 TIMES.
@@ -3792,18 +3782,18 @@ AT_DATA([prog.cob], [
        CALL "CBL_GC_HOSTED" USING ARGC "argc" END-CALL
        CALL "CBL_GC_HOSTED" USING ARGV "argv" END-CALL
        CALL "CBL_GC_HOSTED" USING CELL "cell" END-CALL
-       CALL "CBL_GC_HOSTED" USING ERRNO "errno" END-CALL
+       CALL "CBL_GC_HOSTED" USING ERRPTR "errno" END-CALL
        CALL "CBL_GC_HOSTED" USING ARGC "arg" END-CALL
        CALL "CBL_GC_HOSTED" USING NULL "argc" END-CALL
-       SET ADDRESS OF ERR TO ERRNO
+       SET ADDRESS OF ERRNO TO ERRPTR
        CALL "CBL_GC_HOSTED" USING TZNAME "tzname" END-CALL
        CALL "CBL_GC_HOSTED" USING TIMEZONE "timezone" END-CALL
        CALL "CBL_GC_HOSTED" USING DAYLIGHT "daylight" END-CALL
 
        CALL "test_errno"
        END-CALL
-       IF ERR NOT EQUAL 2 THEN
-           DISPLAY "BAD ERRNO " ERR END-DISPLAY
+       IF ERRNO NOT EQUAL 2 THEN
+           DISPLAY "BAD ERRNO " ERRNO END-DISPLAY
        END-IF
 
        IF ARGC NOT EQUAL 2 THEN
@@ -3826,9 +3816,6 @@ AT_DATA([prog.cob], [
            IF TZS(1) EQUAL NULL THEN
                DISPLAY "BAD TZNAME" END-DISPLAY
            END-IF
-       END-IF
-       IF DAYLIGHT NOT EQUAL 0 AND 1 THEN
-           DISPLAY "BAD DAYLIGHT" DAYLIGHT END-DISPLAY
        END-IF
 
        *> Test assumes return-code will be 3, chars output by last fprintf
