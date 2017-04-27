@@ -1,10 +1,14 @@
 2017-04-27 Sergey Kashyrin <ska@kiska.net>
 
-	* All fixes/updates of 2.0 main branch up to 2017-04-27 are retrofited.
+	* All fixes/updates of 2.0 main branch up to 2017-04-27 are retrofitted.
+	* parser.y: Fix for CALL-CONVENTION (was broken)
+	* codegen.cpp: Using CB_CONV_OPT_LINK if we want to suppress generation of the prototype
+	  (as it could conflict with a system headers). Also we might use that on AS400 for
+	  extern "OS" call convention.
 
 2017-04-24 Sergey Kashyrin <ska@kiska.net>
 
-	* All fixes/updates of 2.0 main branch up to 2017-03-31 are retrofited.
+	* All fixes/updates of 2.0 main branch up to 2017-03-31 are retrofitted.
 	* It does not make sense to repeat all of that here, as the dates are different
 	* Please refer to the ChangeLog of the main 2.0 branch
 

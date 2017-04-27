@@ -4316,7 +4316,7 @@ output_call(cb_call * p)
 				str += output("%s_%d__", name_str,
 							  nlp->nested_prog->toplev_count);
 			} else {
-				if(!(p->convention & CB_CONV_STDCALL)) {
+				if(!(p->convention & CB_CONV_OPT_LINK)) {
 					const char * declared = declpgms.get(name_str);
 					if(declared == 0) {
 						if(retptr) {
