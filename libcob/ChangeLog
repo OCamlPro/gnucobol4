@@ -1,4 +1,8 @@
 
+2017-05-22  Brian Tiffin <btiffin@gnu.org>
+
+	* common.h, intrinsic.c: adding JVM
+
 2017-04-23  Brian Tiffin <btiffin@gnu.org>
 
 	* intrinsic.c: adding Python

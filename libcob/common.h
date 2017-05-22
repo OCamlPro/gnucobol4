@@ -1915,6 +1915,10 @@ COB_EXPIMP cob_field *cob_intr_integer_of_formatted_date	(cob_field *,
 								 cob_field *);
 
 /* Optional embedded extensions */
+COB_EXPIMP cob_field *cob_embed_jvm			(const int, const int,
+							 const int, ...);
+COB_EXPIMP cob_field *cob_embed_jvm_create		(const int, const int,
+							 const int, ...);
 COB_EXPIMP cob_field *cob_embed_python			(const int, const int,
 							 const int, ...);
 COB_EXPIMP cob_field *cob_embed_rexx			(const int, const int,

@@ -1,4 +1,8 @@
 
+2017-05-22  Brian Tiffin <btiffin@gnu.org>
+
+	* configure.ac: add --with-jvm for embedded Java 
+
 2017-04-23  Brian Tiffin <btiffin@gnu.org>
 
 	* configure.ac: add --with-python with m4/ax_python_embed.m4

@@ -1,4 +1,8 @@
 
+2017-05-22  Brian Tiffin <btiffin@gnu.org>
+
+	* cobc.c, parser.y, reserved.c, tree.c, tree.h: Add JVM and JVM-CREATE intrinsics
+
 2017-03-22  Brian Tiffin <btiffin@gnu.org>
 
 	* reserved.c: Add SCRIPT-RETURN-CODE to --list-reserved

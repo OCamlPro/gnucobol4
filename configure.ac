@@ -99,6 +99,7 @@ AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 	[Declaration of finite function in ieeefp.h instead of math.h])
 AH_TEMPLATE([WITH_REXX], [Allow embedded REXX])
 AH_TEMPLATE([WITH_PYTHON], [Allow embedded Python])
+AH_TEMPLATE([WITH_JVM], [Allow embedded JVM])
 
 save_libs="$LIBS"
 
@@ -513,6 +514,58 @@ fi
 #  	AC_MSG_ERROR([libpython3.5m is required for embedded Python]), [])
 #  fi ],
 #[])
+
+# Optional JVM
+AC_ARG_WITH([jvm],
+[AS_HELP_STRING([--with-jvm],
+  [(GnuCOBOL) Allow embedded Java Virtual Machine])],
+[ if test "$with_jvm" = "yes"; then
+  CFLAGS="$CFLAGS -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux"
+  echo "JVM: $CFLAGS"
+  AC_CHECK_HEADERS([jni.h], [],
+  	AC_MSG_ERROR([jni.h is required for embedded JVM]))
+  LDFLAGS="$LDFLAGS -L/usr/lib/jvm/default-java/jre/lib/amd64/server"
+  echo "JVM: $LDFLAGS"
+  AC_CHECK_LIB([jvm], [JNI_CreateJavaVM],
+  	[AC_DEFINE([WITH_JVM], [1])
+  	LIBCOB_LIBS="$LIBCOB_LIBS -L/usr/lib/jvm/default-java/jre/lib/amd64/server -ljvm"],
+  	AC_MSG_ERROR([libjvm is required for embedded JVM]), [])
+  fi ],
+[])
+
+# TO BE REMOVED, BWT May 2017    
+#AC_PROG_JAVAC
+#AC_PROG_JAVA
+#
+#AX_JNI_INCLUDE_DIR
+#for JNI_INCLUDE_DIR in $JNI_INCLUDE_DIRS
+#do    
+#    CFLAGS="$CFLAGS -I$JNI_INCLUDE_DIR"
+#done
+
+
+# AC_CHECK_HEADER([jni.h], [have_jni=yes])
+# AC_ARG_VAR([JAVA_HOME], [Java Runtime Environment (JRE) location])
+# AC_ARG_ENABLE([java-feature],
+#               [AC_HELP_STRING([--disable-java-feature],
+#                               [disable Java feature])])
+# case $target_cpu in
+#      x86_64) JVM_ARCH=amd64 ;;
+#      i?86)   JVM_ARCH=i386 ;;
+#      *)      JVM_ARCH=$target_cpu ;;
+# esac
+# AC_SUBST([JVM_ARCH])
+# AS_IF([test X$enable_java_feature != Xno],
+# [AS_IF([test X$have_jni != Xyes],
+#        [AC_MSG_FAILURE([The Java Native Interface is required for Java feature.])])
+# AS_IF([test -z "$JAVA_HOME"],
+# [AC_MSG_WARN([JAVA_HOME has not been set.  JAVA_HOME must be set at run time to locate libjvm.])],
+# [save_LDFLAGS=$LDFLAGS
+# LDFLAGS="-L$JAVA_HOME/lib/$JVM_ARCH/client -L$JAVA_HOME/lib/$JVM_ARCH/server $LDFLAGS"
+# AC_CHECK_LIB([jvm], [JNI_CreateJavaVM], [LIBS=$LIBS],
+#              [AC_MSG_WARN([no libjvm found at JAVA_HOME])])
+# LDFLAGS=$save_LDFLAGS
+# ])])
 
 # Checks for gmp.
 AC_MSG_NOTICE([Checks for GMP ...])
@@ -1288,6 +1341,12 @@ else
     COB_WITH_PYTHON=no
 fi
 
+if test "$with_jvm" = "yes"; then
+    COB_WITH_JVM=yes
+else
+    COB_WITH_JVM=no
+fi
+
 unset COB_USES_GCC
 unset COB_USES_GCC_NO_ICC
 unset COB_USES_ICC_ONLY
@@ -1336,6 +1395,7 @@ AC_SUBST([COB_HAS_CURSES])
 AC_SUBST([COB_HAS_UTC_OFFSET])
 AC_SUBST([COB_WITH_REXX])
 AC_SUBST([COB_WITH_PYTHON])
+AC_SUBST([COB_WITH_JVM])
 AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level]) # needed for bin/cob-config
 
 AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
@@ -1420,4 +1480,7 @@ fi
 #fi
 if test "$PYTHON" != ""; then
   AC_MSG_NOTICE([ Allow embedded Python                        yes ${PYTHON}])
+fi
+if test "$with_jvm" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded Java Virtual Machine          yes])
 fi

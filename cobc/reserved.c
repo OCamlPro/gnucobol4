@@ -2231,6 +2231,18 @@ static const struct cb_intrinsic_table function_list[] = {
 					1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
+#ifdef WITH_JVM
+  { "JVM",				"cob_embed_jvm",
+					CB_EMBED_JVM, JVM_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
+  { "JVM-CREATE",			"cob_embed_jvm_create",
+					CB_EMBED_JVM_CREATE, JVM_CREATE_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
+#endif
   { "LENGTH",				"cob_intr_length",
 					CB_INTR_LENGTH, LENGTH_FUNC, 1,
 					1, 1,

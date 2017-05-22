@@ -23,7 +23,7 @@ COBCINFOSH = . $(top_builddir)/tests/atconfig && . $(top_builddir)/tests/atlocal
 	$(top_srcdir)/doc/cobcinfo.sh
 info_TEXINFOS = gnucobol.texi
 gnucobol_TEXINFOS = cbhelp.tex cbrese.tex cbintr.tex cbsyst.tex cbmnem.tex \
-	 cbconf.tex cbchelp.tex cbrunt.tex cbrexx.tex fdl.texi
+	 cbconf.tex cbchelp.tex cbrunt.tex cbrexx.tex cbpython.tex fdl.texi
 
 cbhelp.tex: $(top_srcdir)/cobc/cobc.c $(top_srcdir)/configure.ac \
 	$(top_srcdir)/cobc/flag.def $(top_srcdir)/cobc/warning.def \

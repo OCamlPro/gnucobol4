@@ -3066,6 +3066,8 @@ process_filename (const char *filename)
 #if	defined(_WIN32)
 			|| strcmp(extension, "asm") == 0
 #endif
+			|| strcmp (extension, "S") == 0
+			|| strcmp (extension, "sx") == 0
 			|| strcmp (extension, "s") == 0) {
 		/* Already compiled */
 		fn->need_preprocess = 0;

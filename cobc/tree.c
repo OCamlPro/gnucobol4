@@ -4227,6 +4227,10 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 	case CB_INTR_FORMATTED_DATETIME:
 	case CB_INTR_FORMATTED_TIME:
 	case CB_INTR_NATIONAL_OF:
+#ifdef WITH_JVM
+	case CB_EMBED_JVM:
+	case CB_EMBED_JVM_CREATE:
+#endif
 #ifdef WITH_PYTHON
 	case CB_EMBED_PYTHON:
 #endif

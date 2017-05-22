@@ -6526,12 +6526,565 @@ cob_intr_standard_compare (const int params, ...)
 static void *script_ret;
 #endif
 
+#ifdef WITH_JVM
+#include <jni.h>
+//#include <ffi.h>
+
+static int jvm_initialized = 0;
+static JavaVM	*jvm = NULL;
+static JNIEnv	*env = NULL;
+
+/* BWT: test, delete this */
+void trial(int);
+void trial(int i) {fprintf(stderr, "got %d\n", i); return;}
+
+/* Invoke JVM.  class, method, spec, args */
+cob_field *
+cob_embed_jvm (const int offset, const int length,
+		const int params, ...)
+{
+	va_list		args;
+
+	cob_field	field;
+	cob_field	*cf, *mf, *sf;
+	char		*cn, *mn, *sn;
+	cob_field	*f;
+
+	char		*cobol_result;
+	size_t		cobol_length;
+
+	unsigned char	*spec;
+	int		speclen;
+	//int		specoff;
+	unsigned char	specret;
+
+	//int		ffi_stat;
+	//jvalue		ffi_return_value;
+	//void		*ffi_retval = &ffi_return_value;
+	//void		*ffi_rettype;
+	//ffi_cif		cif;
+	//ffi_arg		result;
+	//ffi_type	*jvm_types[MAX_CALL_FIELD_PARAMS];
+	//void		*jvm_values[MAX_CALL_FIELD_PARAMS];
+	jstring		newJstrings[MAX_CALL_FIELD_PARAMS];
+
+	// without libffi
+	jvalue		jvalues[MAX_CALL_FIELD_PARAMS];
+	jvalue		jret;
+	jclass		jcls = NULL;
+	jmethodID	jmid = NULL;
+	jstring		jstr;
+
+	//void		(*func)();
+
+	//int		intSlot = 0;
+	//float		floatSlot = 1.1;
+	//double		doubleSlot = 2.2;
+	//jstring		stringSlot = NULL;
+
+	//fprintf(stderr, "In JVM with %d\n", params);
+
+	//COB_FIELD_INIT (1, NULL, &const_alpha_attr);
+	//make_field_entry (&field);
+	//curr_field->size = 0;
+	//curr_field->data[0] = ' ';
+
+	/* default return value is a zero length space */
+	cobol_result = (char *)" ";
+	cobol_length = 0;
+
+	if (!jvm_initialized || (params < 2)) {
+		fprintf(stderr, "jvm not initialized or wrong param count\n");
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		goto deliver;
+	}
+
+	va_start (args, params);
+
+	/* class */
+        cf = va_arg (args, cob_field *);
+	cn = cob_malloc (cf->size + 1U);
+	memcpy (cn, cf->data, cf->size);
+	//fprintf(stderr, "Calling JVM FindClass %p %p %.*s\n", jvm, env, (int)cf->size, cn);
+	jclass cls = (*env)->FindClass(env, cn);
+
+	cob_free (cn);
+	if (!cls) {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		goto dropout;
+	}
+
+	/* method */
+        mf = va_arg (args, cob_field *);
+	mn = cob_malloc (mf->size + 1U);
+	memcpy (mn, mf->data, mf->size);
+
+	/* spec */
+        sf = va_arg (args, cob_field *);
+	sn = cob_malloc (sf->size + 1U);
+	memcpy (sn, sf->data, sf->size);
+
+	//fprintf(stderr, "Calling JVM GetStaticMethodID %p %p %.*s %.*s\n", env, cls, (int)mf->size, (char *)mf->data, (int)sf->size, sf->data);
+	//jmethodID mid = (*env)->GetStaticMethodID(env, cls, "test", "(I)V");
+	jmethodID mid = (*env)->GetStaticMethodID(env, cls, (char *)mf->data, (char *)sf->data);
+
+	cob_free (sn);
+	cob_free (mn);
+	if (!mid) {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		goto dropout;
+	}
+
+	/* the actual arguments */
+	//f = va_arg(args, cob_field *);
+
+	/* Parsing spec, building libffi call frame */
+	spec = sf->data;
+	speclen = sf->size;
+
+	/* validate - skipped */
+
+	specret = spec[speclen - 1];
+	//fprintf(stderr, "jvm spec: %.*s with %c\n", speclen, spec, specret);
+#if 0
+	switch (specret) {
+	case 'V':
+		//ffi_rettype = &ffi_type_void;
+		//func = FFI_FN((*env)->CallStaticVoidMethod);
+		//ffi_retval = NULL;
+		break;
+	case 'I':
+		//ffi_rettype = &ffi_type_uint;
+		//func = FFI_FN((*env)->CallStaticIntMethod);
+		//ffi_retval = &intSlot;
+		break;
+	case 'F':
+		//ffi_rettype = &ffi_type_float;
+		//func = FFI_FN((*env)->CallStaticFloatMethod);
+		//ffi_retval = &floatSlot;
+		break;
+	case 'D':
+		//ffi_rettype = &ffi_type_double;
+		//func = FFI_FN((*env)->CallStaticDoubleMethod);
+		//ffi_retval = &doubleSlot;
+		break;
+	case ';':
+		/* BWT cheating, need to scan backwards for the L */
+		//fprintf(stderr, "Java String return\n");
+		//ffi_rettype = &ffi_type_pointer;
+		//func = FFI_FN((*env)->CallStaticObjectMethod);
+		//ffi_retval = &stringSlot;
+		break;
+	default:
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		goto dropout;
+	}
+#endif
+	/* prep ffi frame */
+	//jvm_types[0] = &ffi_type_pointer;
+	//jvm_types[1] = &ffi_type_pointer;
+	//jvm_types[2] = &ffi_type_pointer;
+
+	//jvm_values[0] = &env;
+	//jvm_values[1] = &cls;
+	//jvm_values[2] = &mid;
+
+	for (int i = 3, so = 1; i < params; i++, so++) {
+		f = va_arg(args, cob_field *);
+		//jvalues[i] = f->data;
+		//jvm_values[i] = f->data; //&jvalues[i];
+		//fprintf(stderr, "marshalling %p %d\n", f->data, (int)f->size);
+		switch (spec[so]) {
+		case 'Z':
+			//jvm_types[i] = &ffi_type_uchar;
+			jvalues[i-3].z = *((jboolean *)f->data);
+			break;
+		case 'B':
+			//jvm_types[i] = &ffi_type_schar;
+			jvalues[i-3].b = *((jbyte *)f->data);
+			break;
+		case 'C':
+			//jvm_types[i] = &ffi_type_ushort;
+			jvalues[i-3].c = *((jchar *)f->data);
+			break;
+		case 'S':
+			//jvm_types[i] = &ffi_type_sshort;
+			jvalues[i-3].s = *((jshort *)f->data);
+			break;
+		case 'I':
+			//jvm_types[i] = &ffi_type_sint;
+			jvalues[i-3].i = *((jint *)f->data);
+			break;
+		case 'J':
+			//jvm_types[i] = &ffi_type_slong;
+			jvalues[i-3].j = *((jlong *)f->data);
+			break;
+		case 'F':
+			//jvm_types[i] = &ffi_type_float;
+			jvalues[i-3].f = *((float *)f->data);
+			break;
+		case 'D':
+			//jvm_types[i] = &ffi_type_double;
+			jvalues[i-3].d = *((double *)f->data);
+			break;
+		case 'L':
+			//fprintf(stderr, "Java String parameter\n");
+			//jvm_types[i] = &ffi_type_pointer;
+			while (spec[so] != ';') {
+				so++;
+				if (so > speclen) {
+					/* invalid spec */
+					fprintf(stderr, "GOT INVALID SPEC class %d\n", so);
+					cob_set_exception (COB_EC_IMP_SCRIPT);
+					goto dropout;
+				}
+			}
+			//newJstring = (*env)->NewStringUTF (env, (char *)f->data);
+			newJstrings[i] = (*env)->NewStringUTF (env, (char *)f->data);
+			const char *str = (*env)->GetStringUTFChars(env, newJstrings[i], 0);
+			//fprintf(stderr, "GetString: %s\n", str);
+			(*env)->ReleaseStringUTFChars(env, newJstrings[i], str);
+			//jmid midInit = (*env)->GetMethodID (env, cls, "initialize", "(Ljava/lang/String;)V");
+			//(*env)->CallVoidMethod(env, cls, midInit, buffer);
+			//(*env)->DeleteLocalRef(env, name);
+			//fprintf(stderr, "Made %p from %s %d\n", newJstrings[i], f->data, (int)f->size);
+			//newJObject = (*env)->NewObjectArray(env, (*env)->FindClass(env, "java/lang/String"), newJstring);
+			//jvm_values[i] = &newJstrings[i];
+			jvalues[i-3].l = newJstrings[i]; 
+			break;
+		case '[':
+			//jvm_types[i] = &ffi_type_pointer;
+			so++;
+			switch (spec[so]) {
+			case 'Z':
+			case 'B':
+			case 'C':
+			case 'S':
+			case 'I':
+			case 'J':
+			case 'F':
+			case 'D':
+				break;
+			case 'L':
+				while (spec[so] != ';') {
+					so++;
+					if (so > speclen) {
+						/* invalid spec */
+						fprintf(stderr, "GOT INVALID SPEC, array, class %d\n", so);
+						cob_set_exception (COB_EC_IMP_SCRIPT);
+						goto dropout;
+					}
+				}
+				break;
+			default:
+				fprintf(stderr, "GOT INVALID SPEC array\n");
+				cob_set_exception (COB_EC_IMP_SCRIPT);
+				goto dropout;
+			}
+			jvalues[i-3].l = *((jarray *)f->data);
+			break;
+		default:
+			/* invalid spec */
+			fprintf(stderr, "GOT INVALID SPEC\n");
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+	}
+	//fprintf(stderr, "arg: %d\n", *(int *)(f->data));
+	//sscanf(f->data, "%d", &intSlot);
+	//jvm_values[3] = f->data;
+
+#if 0
+	fprintf(stderr, "Call ffi_prep_cif with %d params\n", params);
+	ffi_stat = ffi_prep_cif (&cif, FFI_DEFAULT_ABI, params,
+			ffi_rettype, jvm_types);
+	fprintf(stderr, "ffi_prep_cif: %d\n", ffi_stat);
+
+	//func = (*env)->CallStaticVoidMethod;
+	fprintf(stderr, "Input value (float): %g\n", *(float *)jvm_values[3]);
+	fprintf(stderr, "Input value (double): %g\n", *(double *)jvm_values[3]);
+	if (ffi_stat == FFI_OK) {
+		ffi_call (&cif, *func, ffi_retval, jvm_values);
+		//ffi_call (&cif, (*env)->CallStaticVoidMethod, ffi_retval, jvm_values);
+		//ffi_call (&cif, (*(void **)((*env)->CallStaticVoidMethod)), ffi_retval, jvm_values);
+		//ffi_call (&cif, trial, ffi_retval, jvm_values);
+	} else {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+	}
+	fprintf(stderr, "Return value: %d %g %p\n", intSlot, doubleSlot, stringSlot);
+	if (stringSlot) {
+		const char *str = (*env)->GetStringUTFChars(env, stringSlot, 0);
+		fprintf(stderr, "GetString from return value: %s\n", str);
+		(*env)->ReleaseStringUTFChars(env, stringSlot, str);
+	}
+#endif
+
+	//fprintf(stderr, "Calling JVM Method %p %p %p %p with %d\n", jvm, env, cls, mid, 42);
+	//(*env)->CallStaticVoidMethod(env, cls, mid, 42);
+
+	//fprintf(stderr, "Calling JVM MethodA %p %p %p %p with %p\n", jvm, env, cls, mid, jvalues);
+	//fprintf(stderr, "first Input value (float): %g\n", jvalues[0].f);
+	//fprintf(stderr, "first Input value (double): %g\n", jvalues[0].d);
+
+	switch (specret) {
+	case 'V':
+		//ffi_rettype = &ffi_type_void;
+		//func = FFI_FN((*env)->CallStaticVoidMethod);
+		//ffi_retval = NULL;
+		(*env)->CallStaticVoidMethodA(env, cls, mid, jvalues);
+		//fprintf(stderr, "void return value\n");
+		break;
+	case 'I':
+		//ffi_rettype = &ffi_type_uint;
+		//func = FFI_FN((*env)->CallStaticIntMethod);
+		//ffi_retval = &intSlot;
+		jret.i = (*env)->CallStaticIntMethodA(env, cls, mid, jvalues);
+		//fprintf(stderr, "Return value: %d\n", jret.i);
+
+		jcls = (*env)->FindClass (env, "java/lang/Integer");
+		if (!jcls) {
+			fprintf(stderr, "in I jcls: %p\n", jcls);
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+		jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(I)Ljava/lang/String;");
+		if (!jmid) {
+			fprintf(stderr, "in I jmid: %p\n", jmid);
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+		jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.i);
+		const char *str = (*env)->GetStringUTFChars(env, jstr, 0);
+		cobol_result = (char *)str;
+		cobol_length = strlen (str);
+		if (cobol_length > 0) {
+			COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+			make_field_entry (&field);
+		}
+
+		curr_field->size = cobol_length;
+		if (cobol_length && cobol_result) {
+			memcpy (curr_field->data, cobol_result, cobol_length);
+		}
+		//fprintf(stderr, "GetString from return value: %s\n", str);
+		(*env)->ReleaseStringUTFChars(env, jstr, str);
+		break;
+	case 'F':
+		//ffi_rettype = &ffi_type_float;
+		//func = FFI_FN((*env)->CallStaticFloatMethod);
+		//ffi_retval = &floatSlot;
+		jret.f = (*env)->CallStaticFloatMethodA(env, cls, mid, jvalues);
+		//fprintf(stderr, "Return value: %f\n", jret.f);
+
+		jcls = (*env)->FindClass (env, "java/lang/Float");
+		if (!jcls) {
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+		jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(F)Ljava/lang/String;");
+		if (!jmid) {
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+		jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.f);
+		str = (*env)->GetStringUTFChars(env, jstr, 0);
+		cobol_result = (char *)str;
+		cobol_length = strlen (str);
+		if (cobol_length > 0) {
+			COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+			make_field_entry (&field);
+		}
+
+		curr_field->size = cobol_length;
+		if (cobol_length && cobol_result) {
+			memcpy (curr_field->data, cobol_result, cobol_length);
+		}
+		//fprintf(stderr, "GetString from return value: %s\n", str);
+		(*env)->ReleaseStringUTFChars(env, jstr, str);
+		break;
+	case 'D':
+		//ffi_rettype = &ffi_type_double;
+		//func = FFI_FN((*env)->CallStaticDoubleMethod);
+		//ffi_retval = &doubleSlot;
+		jret.d = (*env)->CallStaticDoubleMethodA(env, cls, mid, jvalues);
+		//fprintf(stderr, "Return value: %g\n", jret.d);
+
+		jcls = (*env)->FindClass (env, "java/lang/Double");
+		if (!jcls) {
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+		jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(D)Ljava/lang/String;");
+		if (!jmid) {
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto dropout;
+		}
+		jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.d);
+		str = (*env)->GetStringUTFChars(env, jstr, 0);
+		cobol_result = (char *)str;
+		cobol_length = strlen (str);
+		if (cobol_length > 0) {
+			COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+			make_field_entry (&field);
+		}
+
+		curr_field->size = cobol_length;
+		if (cobol_length && cobol_result) {
+			memcpy (curr_field->data, cobol_result, cobol_length);
+		}
+		//fprintf(stderr, "GetString from return value: %s\n", str);
+		(*env)->ReleaseStringUTFChars(env, jstr, str);
+		break;
+	case ';':
+		/* BWT cheating, need to scan backwards for the L */
+		//fprintf(stderr, "Java String return\n");
+		//ffi_rettype = &ffi_type_pointer;
+		//func = FFI_FN((*env)->CallStaticObjectMethod);
+		//ffi_retval = &stringSlot;
+		jret.l = (*env)->CallStaticObjectMethodA(env, cls, mid, jvalues);
+		//fprintf(stderr, "Return value: %p\n", jret.l);
+		if (jret.l) {
+			const char *str = (*env)->GetStringUTFChars(env, jret.l, 0);
+			cobol_result = (char *)str;
+			cobol_length = strlen (str);
+			if (cobol_length > 0) {
+				COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+				make_field_entry (&field);
+			}
+
+			curr_field->size = cobol_length;
+			if (cobol_length && cobol_result) {
+				memcpy (curr_field->data, cobol_result, cobol_length);
+			}
+			//fprintf(stderr, "GetString from return value: %s\n", str);
+			(*env)->ReleaseStringUTFChars(env, jret.l, str);
+		}
+		break;
+	default:
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		goto dropout;
+	}
+
+	//fprintf(stderr, "Return value: %d %f %g %p\n\n", jret.i, jret.f, jret.d, jret.l);
+	//if (jret.l) {
+	//	const char *str = (*env)->GetStringUTFChars(env, jret.l, 0);
+	//	fprintf(stderr, "GetString from return value: %s\n", str);
+	//	(*env)->ReleaseStringUTFChars(env, jret.l, str);
+	//}
+
+dropout:
+	va_end(args);
+	
+	(*env)->ExceptionDescribe(env);
+
+deliver:
+	if (cobol_length == 0) {
+		COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+		make_field_entry (&field);
+		curr_field->size = cobol_length;
+		if (cobol_length && cobol_result) {
+			memcpy (curr_field->data, cobol_result, cobol_length);
+		}
+        }
+
+	if (unlikely (offset > 0)) {
+		calc_ref_mod (curr_field, offset, length);
+	}
+	return curr_field;
+}
+
+/* Create JVM, args are options or single arg magic number */
+/* 0 to shutdown */
+cob_field *
+cob_embed_jvm_create (const int offset, const int length,
+		const int params, ...)
+{
+	va_list		args;
+	int		rc;
+
+	JavaVMInitArgs	vm_args;
+	JavaVMOption	options[32];
+
+	cob_field	field;
+	cob_field	*f;
+
+	/* reset any exception state */
+	cob_set_exception (0);
+
+	/* Default options */
+	options[0].optionString = (char *)"-Djava.class.path=.:/usr/share/groovy/embeddable/groovy-all-1.8.6.jar";
+	vm_args.version = JNI_VERSION_1_8;
+	vm_args.nOptions = 1;
+	vm_args.options = options;
+	vm_args.ignoreUnrecognized = JNI_FALSE;
+
+	//fprintf(stderr, "In JVM-CREATE with %d\n", params);
+
+	/* Default result field is a zero length space */
+	COB_FIELD_INIT (1, NULL, &const_alpha_attr);
+	make_field_entry (&field);
+	curr_field->size = 0;
+	curr_field->data[0] = ' ';
+
+	/* If there is already a JVM then this is the rundown call */
+	if (jvm_initialized) {
+		rc = (*jvm)->DestroyJavaVM(jvm);
+		if (rc) {
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+		}
+		jvm_initialized = 0;
+		goto deliver;
+	}
+	if (params < 1) {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		goto deliver;
+	}
+
+	/* Pull option value */
+	vm_args.version = JNI_VERSION_1_8;
+	vm_args.ignoreUnrecognized = JNI_FALSE;
+
+	va_start (args, params);
+	for (int i = 1; i <= params; i++) {
+		f = va_arg(args, cob_field *);
+		//fprintf(stderr, "arg %d %s\n", i, f->data);
+		options[i].optionString = (char *)f->data;
+	}
+	vm_args.nOptions = params + 1;
+	vm_args.options = options;
+
+	/* Try and start it up */		
+	//fprintf(stderr, "Calling JNI_CreateJavaVM with %p %p\n", jvm, env);
+	rc = JNI_CreateJavaVM(&jvm, (void **)&env, &vm_args);
+	if (rc) {
+		cob_set_exception (COB_EC_IMP_SCRIPT);
+		fprintf(stderr, "JNI_CreateJavaVM failed: %d\n", rc);
+	} else {
+		jvm_initialized = 1;
+	}
+	//fprintf(stderr, "JNI_CreateJavaVM rc: %d\n", rc);
+
+	va_end (args);
+
+deliver:
+	if (unlikely (offset > 0)) {
+		calc_ref_mod (curr_field, offset, length);
+	}
+	return curr_field;
+}
+#endif
+
+
 #ifdef WITH_PYTHON
 #include <Python.h>
 
 static int	cob_python_initialized = 0;
-/* Not using python_locals yet */
+static int	cob_python_flags = 0;
 static PyObject	*python_globals = NULL;
+
+#define PYAPI_REPORT 4
+
+/* NOTE TO SELF: Py_BuildValue */
 
 cob_field *
 cob_embed_python (const int offset, const int length,
@@ -6539,43 +7092,22 @@ cob_embed_python (const int offset, const int length,
 {
 	va_list		args;
 	cob_field	field;
-	cob_field	**f = NULL;
 	cob_field	*srcfield;
-	int		i;
+	cob_field	**f = NULL;
+#if PY_VERSION_HEX > 0x03000000
+	char 		*decoder;
+	wchar_t		**argv = NULL;
+#else
+	char		**argv = NULL;
+#endif
 	char		*cobol_result;
 	size_t		cobol_length;
+	int		i;
+	const char	argv0[] = "GnuCOBOL";
 
 	PyObject	*python_status = NULL;
-
 	PyObject	*python_object = NULL;
 	PyObject	*python_result = NULL;
-
-	cob_set_exception (0);
-	if (params > 1) {
-		f = cob_malloc ((size_t)(params - 1) * sizeof (cob_field *));
-	}
-
-	/* First parameter is the Python script text */
-	va_start(args, params);
-	srcfield = va_arg (args, cob_field *);
-
-	/* Other arguments will be passed to Python, not yet implemented */
-	for (i = 1; i < params; ++i) {
-		f[i-1] = va_arg (args, cob_field *);
-	}
-	va_end(args);
-
-	if (!cob_python_initialized) {
-		Py_Initialize ();
-
-		/* Load in default built ins */
-		python_globals = PyDict_New ();
-		PyDict_SetItemString (python_globals, "__builtins__",
-					PyEval_GetBuiltins ());
-
-		/* keeping a single init of Python needs testing */
-		cob_python_initialized = 1;
-        }
 
 	/* default return value is a zero length space */
 	cobol_result = (char *)" ";
@@ -6583,6 +7115,79 @@ cob_embed_python (const int offset, const int length,
 
 	/* set SCRIPT-RETURN-CODE to 0 */
 	*(int *)script_ret = 0;
+	cob_set_exception (0);
+
+	/* arguments to be passed to Python */
+#if PY_VERSION_HEX > 0x03000000
+	argv = cob_malloc ((size_t)(params) * sizeof (wchar_t *));
+	argv[0] = Py_DecodeLocale(argv0, NULL);
+#else
+	argv = cob_malloc ((size_t)(params) * sizeof (char *));
+	//argv[0] = cob_malloc(strlen("GnuCOBOL")+1);
+	argv[0] = cob_malloc(sizeof(argv0));
+	//memcpy(argv[0], "GnuCOBOL", strlen("GnuCOBOL")+1);
+	memcpy(argv[0], argv0, sizeof(argv0));
+#endif
+
+	/* First parameter is the Python script text */
+	va_start (args, params);
+	srcfield = va_arg (args, cob_field *);
+
+	/* on python(0), close Python */
+	if ((srcfield->size == 1) && (srcfield->data[0] == '0')) {
+		va_end (args);
+		if (cob_python_initialized) {
+			Py_Finalize ();
+			cob_python_initialized = 0;
+		}
+		goto deliver;
+	}
+	/* with python(4), toggle report on exception mode */
+	if ((srcfield->size == 1) && (srcfield->data[0] == '4')) {
+		va_end (args);
+		cob_python_flags ^= PYAPI_REPORT;
+		goto deliver;
+	}
+
+	if (params > 1) {
+		f = cob_malloc ((size_t)(params - 1) * sizeof (cob_field *));
+		for (i = 1; i < params; ++i) {
+			f[i-1] = va_arg (args, cob_field *);
+			
+#if PY_VERSION_HEX > 0x03000000
+			decoder = cob_malloc (f[i-1]->size + 1);
+			memcpy (decoder, f[i-1]->data, f[i-1]->size + 1);
+			argv[i] = Py_DecodeLocale ((const char *)decoder, NULL);
+			cob_free (decoder);
+#else
+			argv[i] = cob_malloc (f[i-1]->size + 1);
+			memcpy (argv[i], f[i-1]->data, f[i-1]->size);
+			argv[i][f[i-1]->size] = '\0';
+#endif
+		}
+	}
+	va_end (args);
+
+	if (!cob_python_initialized) {
+		Py_Initialize ();
+
+		/* Load default built ins */
+		Py_XDECREF (python_globals);
+		python_globals = PyDict_New ();
+		if (!python_globals) {
+			*(int *)script_ret = 1;
+			cob_set_exception (COB_EC_IMP_SCRIPT);
+			goto deliver;
+		}
+		PyDict_SetItemString (python_globals, "__builtins__",
+	         			PyEval_GetBuiltins ());
+
+		/* keeping a single init of Python needs testing */
+		cob_python_initialized = 1;
+        }
+
+	/* Load up argc, argv */
+	PySys_SetArgvEx (params, argv, 1);
 
 	/* keep references until a new one needed */
 	Py_XDECREF (python_status);
@@ -6590,40 +7195,55 @@ cob_embed_python (const int offset, const int length,
 			Py_file_input, python_globals, python_globals);
 
 	if (python_status) {
-		Py_XDECREF (python_result);
 		python_result = PyDict_GetItemString (python_globals, "result");
 		if (python_result) {
 			Py_XDECREF (python_object);
 			python_object = PyObject_Str (python_result);
+			if (!python_object) {
+				*(int *)script_ret = 1;
+				cob_set_exception (COB_EC_IMP_SCRIPT);
+				goto deliver;
+			}
+			if (python_result != Py_None) {
 #if PY_VERSION_HEX > 0x03000000
-			cobol_result = PyUnicode_AsUTF8 (python_object);
+				cobol_result = PyUnicode_AsUTF8 (python_object);
 #else
-			cobol_result = PyString_AsString(python_object);
+				cobol_result = PyString_AsString (python_object);
 #endif
-			cobol_length = strlen (cobol_result);
-			//Py_DECREF (python_object);
+				cobol_length = strlen (cobol_result);
+			}
+			PyDict_SetItemString (python_globals, "_",
+						python_result);
+			PyDict_DelItemString (python_globals, "result");
 		}
 	} else {
 		*(int *)script_ret = 1;
 		cob_set_exception (COB_EC_IMP_SCRIPT);
+		if (cob_python_flags & PYAPI_REPORT) {
+			PyErr_PrintEx (1);
+		}
+		PyErr_Clear ();
 	}
 
-	//python_module = PyImport_AddModule((char *)"__main__");
-	//python_dict = PyModule_GetDict(python_module);
-
+deliver:
 	COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
 	make_field_entry (&field);
 
 	curr_field->size = cobol_length;
-	if (cobol_length) {
+	if (cobol_length && cobol_result) {
 		memcpy (curr_field->data, cobol_result, cobol_length);
 	}
-	//Py_DECREF (python_object);
-	//Py_DECREF (python_status);
 
 	/* keeping a single init of Python needs testing */
 	//Py_Finalize();
 
+	for (i=0; i < params; ++i) {
+#if PY_VERSION_HEX > 0x03000000
+		PyMem_RawFree (argv[i]);
+#else
+		cob_free (argv[i]);
+#endif
+	}
 	if (params > 1) {
 		cob_free (f);
 	}
@@ -6631,7 +7251,6 @@ cob_embed_python (const int offset, const int length,
 	if (unlikely (offset > 0)) {
 		calc_ref_mod (curr_field, offset, length);
 	}
-
 	return curr_field;
 }
 #endif

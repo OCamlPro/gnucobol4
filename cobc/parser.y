@@ -1911,6 +1911,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token I_O			"I-O"
 %token I_O_CONTROL		"I-O-CONTROL"
 %token JUSTIFIED
+%token JVM_FUNC			"FUNCTION JVM"
+%token JVM_CREATE_FUNC		"FUNCTION JVM-CREATE"
 %token KEPT
 %token KEY
 %token KEYBOARD
@@ -12600,6 +12602,8 @@ func_one_parm:
 func_multi_parm:
   CONCATENATE_FUNC
 | FORMATTED_DATE_FUNC
+| JVM_FUNC
+| JVM_CREATE_FUNC
 | PYTHON_FUNC
 | REXX_FUNC
 | REXX_RESTRICTED_FUNC
