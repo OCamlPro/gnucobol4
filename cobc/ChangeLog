@@ -1,3 +1,8 @@
+2017-06-14 Sergey Kashyrin <ska@kiska.net>
+
+	* scanner.l: small declaration rearrangement as some g++ version (zLinux Red Hat) are barking.
+	* cobc.cpp: fixed some weird listing bugs.
+
 2017-04-27 Sergey Kashyrin <ska@kiska.net>
 
 	* All fixes/updates of 2.0 main branch up to 2017-04-27 are retrofitted.

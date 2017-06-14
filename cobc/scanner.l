@@ -1484,6 +1484,7 @@ static int
 scan_o(const char *text, const char *type)
 {
 	cob_u64_t	val = 0;
+	size_t currlen = strlen(text);
 
 	literal_error = 0;
 
@@ -1491,7 +1492,6 @@ scan_o(const char *text, const char *type)
 		goto error; /* early exit possible as complete literal is consumed */
 	}
 
-	size_t currlen = strlen(text);
 	memcpy(plexbuff, text, currlen + 1);
 	if(unlikely(currlen > 22)) {
 		snprintf(err_msg, COB_MINI_MAX,

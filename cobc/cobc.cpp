@@ -5521,7 +5521,7 @@ print_replace_main(list_files * cfile, FILE * fd,
 #endif
 
 	compare_prepare(cmp_line, pline, 0, pline_cnt, first_col,
-					cfile->source_format);
+					cfile->source_format != CB_FORMAT_FREE);
 
 	/* Check whether we're given a COPY or REPLACE statement. */
 	to_ptr = get_next_token(cmp_line, ttoken, tterm);
@@ -5697,7 +5697,7 @@ print_program_code(list_files * cfile, int in_copy)
 				/* Print each line except the last. */
 				for(i = 0; i < pline_cnt; i++) {
 					if(pline[i][0]) {
-						if(pline[i][CB_INDICATOR] == '&') {
+						if(fixed && pline[i][CB_INDICATOR] == '&') {
 							print_line(cfile, pline[i], line_num, in_copy);
 						} else {
 							print_line(cfile, pline[i], line_num + i, in_copy);
