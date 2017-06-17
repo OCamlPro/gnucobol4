@@ -502,15 +502,15 @@ static const option long_options[] = {
 	{"no-symbols", 		CB_NO_ARG, NULL, '@'},
 
 #define	CB_FLAG(var,pdok,name,doc)			\
-	{"f"name,			CB_NO_ARG, &var, 1},	\
-	{"fno-"name,		CB_NO_ARG, &var, 0},
+	{"f" name,			CB_NO_ARG, &var, 1},	\
+	{"fno-" name,		CB_NO_ARG, &var, 0},
 #define	CB_FLAG_ON(var,pdok,name,doc)		\
-	{"f"name,			CB_NO_ARG, &var, 1},	\
-	{"fno-"name,		CB_NO_ARG, &var, 0},
+	{"f" name,			CB_NO_ARG, &var, 1},	\
+	{"fno-" name,		CB_NO_ARG, &var, 0},
 #define	CB_FLAG_RQ(var,pdok,name,def,opt,doc,vdoc,ddoc)		\
-	{"f"name,			CB_RQ_ARG, NULL, opt},
+	{"f" name,			CB_RQ_ARG, NULL, opt},
 #define	CB_FLAG_NQ(pdok,name,opt,doc,vdoc)			\
-	{"f"name,			CB_RQ_ARG, NULL, opt},
+	{"f" name,			CB_RQ_ARG, NULL, opt},
 #include "flag.def"
 #undef	CB_FLAG
 #undef	CB_FLAG_ON
@@ -518,34 +518,34 @@ static const option long_options[] = {
 #undef	CB_FLAG_NQ
 
 #define	CB_CONFIG_ANY(type,var,name,doc)	\
-	{"f"name,		CB_RQ_ARG, NULL, '%'},
+	{"f" name,		CB_RQ_ARG, NULL, '%'},
 #define	CB_CONFIG_INT(var,name,min,max,odoc,doc)	\
-	{"f"name,		CB_RQ_ARG, NULL, '%'},
+	{"f" name,		CB_RQ_ARG, NULL, '%'},
 #define	CB_CONFIG_STRING(var,name,doc)		\
-	{"f"name,		CB_RQ_ARG, NULL, '%'},
+	{"f" name,		CB_RQ_ARG, NULL, '%'},
 #define	CB_CONFIG_BOOLEAN(var,name,doc)		\
-	{"f"name,		CB_NO_ARG, &var, 1},	\
-	{"fno-"name,		CB_NO_ARG, &var, 0},
+	{"f" name,		CB_NO_ARG, &var, 1},	\
+	{"fno-" name,		CB_NO_ARG, &var, 0},
 #define	CB_CONFIG_SUPPORT(var,name,doc)		\
-	{"f"name,		CB_RQ_ARG, NULL, '%'},
+	{"f" name,		CB_RQ_ARG, NULL, '%'},
 #include "config.def"
-	{"freserved",	CB_RQ_ARG, NULL, '%'},
-	{"fnot-reserved",	CB_RQ_ARG, NULL, '%'},
 #undef	CB_CONFIG_ANY
 #undef	CB_CONFIG_INT
 #undef	CB_CONFIG_STRING
 #undef	CB_CONFIG_BOOLEAN
 #undef	CB_CONFIG_SUPPORT
+	{"freserved",	CB_RQ_ARG, NULL, '%'},
+	{"fnot-reserved",	CB_RQ_ARG, NULL, '%'},
 
 #define	CB_WARNDEF(var,name,doc)			\
-	{"W"name,			CB_NO_ARG, &var, 1},	\
-	{"Wno-"name,		CB_NO_ARG, &var, 0},
+	{"W" name,			CB_NO_ARG, &var, 1},	\
+	{"Wno-" name,		CB_NO_ARG, &var, 0},
 #define	CB_ONWARNDEF(var,name,doc)			\
-	{"W"name,		CB_NO_ARG, &var, 1},	\
-	{"Wno-"name,		CB_NO_ARG, &var, 0},
+	{"W" name,		CB_NO_ARG, &var, 1},	\
+	{"Wno-" name,		CB_NO_ARG, &var, 0},
 #define	CB_NOWARNDEF(var,name,doc)			\
-	{"W"name,			CB_NO_ARG, &var, 1},	\
-	{"Wno-"name,		CB_NO_ARG, &var, 0},
+	{"W" name,			CB_NO_ARG, &var, 1},	\
+	{"Wno-" name,		CB_NO_ARG, &var, 0},
 #include "warning.def"
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
