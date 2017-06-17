@@ -25427,9 +25427,9 @@ fi
 echo "Creating libcob.h..."
 if test "$with_mpir" = "yes"
 then
-  sed -e "s/gmp/mpir/" libcob.h.in > libcob.h
+  sed -e "s/gmp/mpir/" $ac_top_srcdir/libcob.h.in > "$ac_top_build_prefix"libcob.h
 else
-  cp -p libcob.h.in libcob.h
+  cp -p $ac_top_srcdir/libcob.h.in "$ac_top_build_prefix"libcob.h
 fi
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: GnuCOBOL C++ Configuration:" >&5
@@ -25438,6 +25438,8 @@ $as_echo "$as_me: GnuCOBOL C++ Configuration:" >&6;}
 $as_echo "$as_me:  CC                ${CC}" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}:  CFLAGS            ${CFLAGS}" >&5
 $as_echo "$as_me:  CFLAGS            ${CFLAGS}" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}:  CXXFLAGS          ${CXXFLAGS}" >&5
+$as_echo "$as_me:  CXXFLAGS          ${CXXFLAGS}" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}:  COB_CFLAGS        ${COB_CFLAGS}" >&5
 $as_echo "$as_me:  COB_CFLAGS        ${COB_CFLAGS}" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}:  LDFLAGS           ${LDFLAGS}" >&5

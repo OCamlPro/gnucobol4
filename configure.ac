@@ -2,7 +2,7 @@
 # Configure template for GnuCOBOL C++
 # Process this file with autoconf to produce a configure script.
 #
-# Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+# Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Sergey Kashyrin
 #
 # This file is part of GnuCOBOL.
@@ -1184,14 +1184,15 @@ AC_OUTPUT
 echo "Creating libcob.h..."
 if test "$with_mpir" = "yes"
 then
-  sed -e "s/gmp/mpir/" libcob.h.in > libcob.h
+  sed -e "s/gmp/mpir/" $ac_top_srcdir/libcob.h.in > "$ac_top_build_prefix"libcob.h
 else
-  cp -p libcob.h.in libcob.h
+  cp -p $ac_top_srcdir/libcob.h.in "$ac_top_build_prefix"libcob.h
 fi
 
 AC_MSG_NOTICE([GnuCOBOL C++ Configuration:])
 AC_MSG_NOTICE([ CC                ${CC}])
 AC_MSG_NOTICE([ CFLAGS            ${CFLAGS}])
+AC_MSG_NOTICE([ CXXFLAGS          ${CXXFLAGS}])
 AC_MSG_NOTICE([ COB_CFLAGS        ${COB_CFLAGS}])
 AC_MSG_NOTICE([ LDFLAGS           ${LDFLAGS}])
 AC_MSG_NOTICE([ COB_LDFLAGS       ${COB_LDFLAGS}])
