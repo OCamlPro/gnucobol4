@@ -8,11 +8,11 @@ cobc/config.cpp
 cobc/error.cpp
 cobc/field.cpp
 cobc/flag.def
-cobc/parser.c
-cobc/pplex.c
-cobc/ppparse.c
+cobc/parser.y
+cobc/pplex.l
+cobc/ppparse.y
 cobc/reserved.cpp
-cobc/scanner.c
+cobc/scanner.l
 cobc/tree.cpp
 cobc/typeck.cpp
 cobc/warning.def
