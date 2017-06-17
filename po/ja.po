@@ -937,11 +937,6 @@ msgstr "`%s' は PICTURE 句を持つことが出来ません"
 msgid "'%s' COMP-6 with sign - changing to COMP-3"
 msgstr ""
 
-#: cobc/field.cpp:688
-#, c-format
-msgid "'%s' COMP-6 with sign - changing to COMP-3"
-msgstr ""
-
 #: cobc/field.cpp:730
 #, fuzzy, c-format
 msgid "'%s' cannot have JUSTIFIED RIGHT"

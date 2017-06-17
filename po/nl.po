@@ -630,11 +630,6 @@ msgstr "Ongeldige optie gevonden"
 msgid "all runtime checks are enabled"
 msgstr ""
 
-#: cobc/cobc.c:2688 cobc/cobc.c:5459 cobc/cobc.c:5575 cobc/codegen.c:3541
-#, fuzzy, c-format
-msgid "call to '%s' with invalid parameter '%s'"
-msgstr "FUNCTION '%s' heeft een ongeldige parameter"
-
 #: cobc/cobc.c:2753
 msgid "only one stdin input allowed"
 msgstr ""
@@ -4245,96 +4240,6 @@ msgstr "Onbekende storing : %d"
 
 #: libcob/common.c:5199
 msgid "environment variables"
-msgstr ""
-
-#: libcob/common.c:1919
-#, fuzzy
-msgid "error: version mismatch"
-msgstr "Fout - Versie conflict"
-
-#: libcob/common.c:1920
-#, c-format
-msgid "%s has version/patch level %s/%d"
-msgstr "%s heeft versie/patch nivo %s/%d"
-
-#: libcob/common.c:1922
-#, fuzzy, c-format
-msgid "libcob has version/patch level %s/%d"
-msgstr "%s heeft versie/patch nivo %s/%d"
-
-#: libcob/common.c:1932
-#, c-format
-msgid "CALL to %s requires %d parameters"
-msgstr "CALL naar %s vereist %d parameters"
-
-#: libcob/common.c:2554
-#, fuzzy, c-format
-msgid "BASED/LINKAGE item %s has NULL address"
-msgstr "BASED/LINKAGE item '%s' heeft een NULL adres"
-
-#: libcob/common.c:2566 libcob/common.c:2569
-#, c-format
-msgid "LINKAGE item %s not passed by caller"
-msgstr ""
-
-#: libcob/common.c:2596
-#, c-format
-msgid "'%s' not numeric: '%s'"
-msgstr "'%s' niet numeriek: '%s'"
-
-#: libcob/common.c:2609
-#, c-format
-msgid "OCCURS DEPENDING ON '%s' out of bounds: %d"
-msgstr "OCCURS DEPENDING ON '%s' buiten grens: %d"
-
-#: libcob/common.c:2654
-#, c-format
-msgid ""
-"EXTERNAL item '%s' previously allocated with size %d, requested size is %d"
-msgstr ""
-"EXTERNAL item '%s' eerder gemaakt met grootte %d, gevraagde grootte is %d"
-
-#: libcob/common.c:3465
-#, fuzzy, c-format
-msgid "parameter to SYSTEM call is larger than %d characters"
-msgstr "Parameter voor SYSTEM call is groter dan 8192 karakters"
-
-#: libcob/common.c:3970
-msgid "Call to CBL_OC_GETOPT with wrong longoption size."
-msgstr ""
-
-#: libcob/common.c:3975
-msgid "Call to CBL_OC_GETOPT with missing longind."
-msgstr ""
-
-#: libcob/common.c:4409
-msgid " (default)"
-msgstr ""
-
-#: libcob/common.c:4694 libcob/common.c:5154 libcob/common.c:5167
-#, c-format
-msgid "should not contain '%c'"
-msgstr ""
-
-#: libcob/common.c:4901
-#, c-format
-msgid "WARNING - '%s %s' without a value - ignored!"
-msgstr ""
-
-#: libcob/common.c:4922 libcob/common.c:4994
-#, c-format
-msgid "WARNING - '%s' without a value - ignored!"
-msgstr ""
-
-#: libcob/common.c:4948
-#, fuzzy, c-format
-msgid "'%s' without a value!"
-msgstr "'%s' is geen numerieke waarde"
-
-#: libcob/common.c:5230
-msgid ""
-"License LGPLv3+: GNU LGPL version 3 or later <http://gnu.org/licenses/lgpl."
-"html>"
 msgstr ""
 
 #: libcob/common.c:5249
