@@ -103,15 +103,13 @@ AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 save_libs="$LIBS"
 
 enable_cflags_setting=no
-if test "$enable_debug" = "yes"; then
-	AC_MSG_CHECKING([whether CXXFLAGS can be modified])
-	# Enable setting if the user has not specified the optimisation in CFLAGS.
-	echo "$CXXFLAGS" | grep "\-O.*\( \|$\)" 1>/dev/null 2>/dev/null
-	if test $? != 0; then
-		enable_cflags_setting=yes
-	fi
-	AC_MSG_RESULT([$enable_cflags_setting])
+AC_MSG_CHECKING([whether CFLAGS can be modified])
+# Enable setting if the user has not specified the optimisation in CFLAGS.
+echo "$CFLAGS" | grep "\-O.*\( \|$\)" 1>/dev/null 2>/dev/null
+if test $? != 0; then
+	enable_cflags_setting=yes
 fi
+AC_MSG_RESULT([$enable_cflags_setting])
 
 # Configure options part I (not needing any compilation)
 
@@ -284,6 +282,14 @@ then
 else
 	LIBCOB_LIBS="-lm"
 fi
+
+# Add --enable-code-coverage and test for code-coverage tools if enabled
+AX_CODE_COVERAGE
+
+if test "$COB_USES_GCC_ONLY" != yes -a "$enable_code_coverage" = "yes"; then
+	AC_MSG_ERROR([Code coverage checks are only usable with GCC!])
+fi
+
 
 # Configure options part II (needing compilation)
 
@@ -924,6 +930,33 @@ AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],
 
 # GnuCOBOL C++ Configuration
 
+
+if test "$enable_cflags_setting" = "yes"; then
+
+	# Remove -O2 option added by AC_PROG_CC and add -O0
+	if test "$enable_debug" = "yes" -o "$enable_code_coverage" = "yes"; then
+		CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-O@<:@0-9a-zA-Z@:>@* */ /g' -e 's/ $//' -e 's/^ //'`
+		if test "$COB_USES_GCC" = "yes"; then
+			CFLAGS="$CFLAGS -O0"
+		fi
+	fi
+
+	# For debugging: add -g3 if using GCC.
+	if test "$enable_debug" = "yes" -a "$COB_USES_GCC" = "yes"; then
+		MYOLDCFLAGS="$CFLAGS"
+		CFLAGS="$CFLAGS -g3"
+		AC_MSG_CHECKING([for gcc -g3 option])
+		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
+			[AC_MSG_RESULT([yes])],
+			[CFLAGS="$MYOLDCFLAGS"; AC_MSG_RESULT([no])])
+		unset MYOLDCFLAGS
+	fi
+fi
+
+unset enable_cflags_setting
+
+# include directory (install dir)
+
 if test "x$prefix" = "xNONE"; then
   if test "x$includedir" = "x\${prefix}/include"; then
     COB_CFLAGS="-I${ac_default_prefix}/include"
@@ -1184,9 +1217,9 @@ AC_OUTPUT
 echo "Creating libcob.h..."
 if test "$with_mpir" = "yes"
 then
-  sed -e "s/gmp/mpir/" $ac_top_srcdir/libcob.h.in > "$ac_top_build_prefix"libcob.h
+  sed -e "s/gmp/mpir/" $srcdir/libcob.h.in > "$ac_top_build_prefix"libcob.h
 else
-  cp -p $ac_top_srcdir/libcob.h.in "$ac_top_build_prefix"libcob.h
+  cp -p $srcdir/libcob.h.in "$ac_top_build_prefix"libcob.h
 fi
 
 AC_MSG_NOTICE([GnuCOBOL C++ Configuration:])

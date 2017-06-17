@@ -1,3 +1,8 @@
+
+017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE
+
 2017-04-27 Sergey Kashyrin <ska@kiska.net>
 
 	* All fixes/updates of 2.0 main branch up to 2017-04-27 are retrofited.

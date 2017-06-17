@@ -1,8 +1,18 @@
 
-2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2017-06-17  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* configure.ac: fixed out-of-tree-builds by using correct path for
 	  libcob.h.in and libcob.h
+
+2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: added --enable-code-coverage and test for code-coverage
+	  tools if enabled by AX_CODE_COVERAGE,
+	  always check if user specified optimization options in CFLAGS,
+	  not only when --enable-debug is active,
+	  compile with -O0 for both --enable-debug and --enable-code-coverage
+	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE
+	   which provides new target `make check-code-coverage`
 
 2017-02-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

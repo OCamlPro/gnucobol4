@@ -25,8 +25,9 @@ cobc_SOURCES = cobc.cpp cobc.h config.cpp tree.cpp tree.h reserved.cpp error.cpp
 	ppparse.hpp pplex.cpp config.def flag.def warning.def codeoptim.def \
 	ppparse.def codeoptim.cpp naming.cpp utils.cpp vcache.h
 
-cobc_CXXFLAGS = -I$(top_srcdir)
-cobc_LDADD = $(COBC_LIBS) $(top_builddir)/libcob/libcob.la $(top_builddir)/lib/libsupport.a
+cobc_CXXFLAGS = -I$(top_srcdir) $(CODE_COVERAGE_CXXFLAGS)
+cobc_LDADD = $(COBC_LIBS) $(top_builddir)/libcob/libcob.la $(top_builddir)/lib/libsupport.a \
+	$(CODE_COVERAGE_LIBS)
 
 dist_man_MANS = cobc.1
 
@@ -34,6 +35,11 @@ dist_man_MANS = cobc.1
 BUILT_SOURCES = parser.cpp parser.hpp scanner.cpp ppparse.cpp ppparse.hpp pplex.cpp
 EXTRA_DIST = ppparse.y pplex.l parser.y scanner.l
 CLEANFILES = parser.output ppparse.output
+
+# Add rules for code-coverage testing, as provided by AX_CODE_COVERAGE
+@CODE_COVERAGE_RULES@
+CODE_COVERAGE_BRANCH_COVERAGE=1
+CODE_COVERAGE_LCOV_OPTIONS =  --no-external
 
 cobc.1: cobc.cpp config.def flag.def warning.def $(top_srcdir)/configure.ac
 	$(MAKE) $(AM_MAKEFLAGS) cobc$(EXEEXT)

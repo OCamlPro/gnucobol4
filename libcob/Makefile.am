@@ -24,8 +24,8 @@ libcob_la_SOURCES = common.cpp move.cpp numeric.cpp strings.cpp cobdecimal.cpp \
 	fileio.cpp call.cpp intrinsic.cpp termio.cpp screenio.cpp btmsadd.cpp \
 	cobgetopt.cpp
 
-libcob_la_CXXFLAGS = $(AM_CFLAGS) -I$(top_srcdir)
-libcob_la_LIBADD = $(LIBCOB_LIBS)
+libcob_la_CXXFLAGS = $(AM_CFLAGS) -I$(top_srcdir) $(CODE_COVERAGE_CXXFLAGS)
+libcob_la_LIBADD = $(LIBCOB_LIBS) $(CODE_COVERAGE_LIBS)
 libcob_la_LDFLAGS = $(COB_FIX_LIBTOOL) -version-info 4:0:0 -no-undefined
 AM_LDFLAGS = $(COB_FIX_LIB)
 
@@ -33,3 +33,7 @@ EXTRA_DIST = coblocal.h system.def
 pkgincludedir = $(includedir)/libcob
 pkginclude_HEADERS = common.h cobdecimal.h cobgetopt.h exception.def
 
+# Add rules for code-coverage testing, as provided by AX_CODE_COVERAGE
+@CODE_COVERAGE_RULES@
+CODE_COVERAGE_BRANCH_COVERAGE=1
+CODE_COVERAGE_LCOV_OPTIONS =  --no-external
