@@ -597,7 +597,7 @@ output_base(cb_field * f, const cob_u32_t no_output)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected CONSTANT item"));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 
 	cb_field * f01 = real_field_founder(f);
@@ -855,7 +855,7 @@ output_data(cb_tree x)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -930,7 +930,7 @@ again:
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -1142,7 +1142,7 @@ output_attr(const cb_tree x)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 
 	str += output("&%s%d", CB_PREFIX_ATTR, id);
@@ -1476,7 +1476,7 @@ output_integer(cb_tree x)
 			cobc_err_msg(_("unexpected cast type: %d"),
 						 (int)cp->cast_type);
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 	}
 	break;
@@ -1657,7 +1657,7 @@ output_integer(cb_tree x)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -1737,7 +1737,7 @@ output_long_integer(cb_tree x)
 			cobc_err_msg(_("unexpected cast type: %d"),
 						 (int)cp->cast_type);
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 	}
 	break;
@@ -1899,7 +1899,7 @@ output_long_integer(cb_tree x)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -2095,7 +2095,7 @@ output_param(cb_tree x, int id)
 				cobc_err_msg(_("internal statement stack depth exceeded: %d"),
 							 COB_INSIDE_SIZE);
 				COBC_ABORT();
-				/* LCOV_EXCL_END */
+				/* LCOV_EXCL_STOP */
 			}
 			str += output("\n");
 			str += output_prefix();
@@ -2168,7 +2168,7 @@ output_param(cb_tree x, int id)
 			cobc_err_msg(_("%s is not a field"), r->word->name);
 			cobc_err_msg(_("Please report this!"));
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 
 		f = CB_FIELD(r->value);
@@ -2349,7 +2349,7 @@ output_param(cb_tree x, int id)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -2403,7 +2403,7 @@ output_funcall(cb_tree x)
 			/* LCOV_EXCL_START */
 			cobc_err_msg(_("unexpected function: %s"), p->name);
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 		return str;
 	}
@@ -2467,7 +2467,7 @@ output_cond(cb_tree x, const int save_flag)
 			/* LCOV_EXCL_START */
 			cobc_err_msg("invalid constant");
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 		break;
 	case CB_TAG_BINARY_OP:
@@ -2548,7 +2548,7 @@ output_cond(cb_tree x, const int save_flag)
 			cobc_err_msg(_("internal statement stack depth exceeded: %d"),
 						 COB_INSIDE_SIZE);
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 		str += output("(\n");
 		for(; x; x = CB_CHAIN(x)) {
@@ -2566,7 +2566,7 @@ output_cond(cb_tree x, const int save_flag)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -2597,7 +2597,7 @@ initialize_type(cb_initialize * p, cb_field * f, const int topfield)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected CONSTANT item"));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 
 	if(f->flag_external && !p->flag_init_statement) {
@@ -3092,7 +3092,7 @@ output_initialize_one(cb_initialize * p, cb_tree x)
 			cobc_err_msg(_("unexpected tree category: %d"),
 						 (int)CB_TREE_CATEGORY(x));
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 	}
 	return "";
@@ -3272,7 +3272,7 @@ output_search_whens(cb_tree table, cb_field * p, cb_tree stmt, cb_tree var, cb_t
 		cobc_err_msg(_("call to '%s' with invalid parameter '%s'"),
 					 "output_search", "table");
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 
 	/* Determine the index to use */
@@ -3456,7 +3456,7 @@ output_call_protocast(cb_tree x, cb_tree l)
 				/* LCOV_EXCL_START */
 				cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
 				COBC_ABORT();
-				/* LCOV_EXCL_END */
+				/* LCOV_EXCL_STOP */
 			}
 		}
 		cob_s64_t val = cb_get_long_long(x);
@@ -3478,7 +3478,7 @@ output_call_protocast(cb_tree x, cb_tree l)
 			/* LCOV_EXCL_START */
 			cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 		return "";
 	}
@@ -3663,7 +3663,7 @@ output_call_by_value_args(cb_tree x, cb_tree l)
 				/* LCOV_EXCL_START */
 				cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
 				COBC_ABORT();
-				/* LCOV_EXCL_END */
+				/* LCOV_EXCL_STOP */
 			}
 		}
 		val = cb_get_long_long(x);
@@ -3695,7 +3695,7 @@ output_call_by_value_args(cb_tree x, cb_tree l)
 			/* LCOV_EXCL_START */
 			cobc_err_msg(_("unexpected size: %d"), CB_SIZES_INT(l));
 			COBC_ABORT();
-			/* LCOV_EXCL_END */
+			/* LCOV_EXCL_STOP */
 		}
 		return str;
 	default:
@@ -5232,7 +5232,7 @@ get_ec_code_for_handler(const enum cb_handler_type handler_type)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected handler type: %d"), (int) handler_type);
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -5442,7 +5442,7 @@ output_ec_condition_for_handler(const cb_handler_type handler_type)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected handler type: %d"), (int) handler_type);
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return "";
 }
@@ -5500,7 +5500,7 @@ output_stmt(cb_tree x)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected error_node parameter"));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 
 	if(inside_check != 0) {
@@ -5671,7 +5671,7 @@ output_stmt(cb_tree x)
 					cobc_err_msg(_("unexpected cast type: %d"),
 								 cp->cast_type);
 					COBC_ABORT();
-					/* LCOV_EXCL_END */
+					/* LCOV_EXCL_STOP */
 				}
 				str += output(";\n");
 			} else {
@@ -5691,7 +5691,7 @@ output_stmt(cb_tree x)
 					cobc_err_msg(_("unexpected tree type: %d"),
 								 cp->cast_type);
 					COBC_ABORT();
-					/* LCOV_EXCL_END */
+					/* LCOV_EXCL_STOP */
 				}
 				str += output("*((void **)&");
 				str += output_data(cp->val);
@@ -5888,7 +5888,7 @@ output_stmt(cb_tree x)
 		/* LCOV_EXCL_START */
 		cobc_err_msg(_("unexpected tree tag: %d"), (int)CB_TREE_TAG(x));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 	return str;
 }
@@ -7018,7 +7018,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 				/* LCOV_EXCL_START */
 				cobc_err_msg(_("unexpected CONSTANT item"));
 				COBC_ABORT();
-				/* LCOV_EXCL_END */
+				/* LCOV_EXCL_STOP */
 			}
 			f->flag_local_storage = 1;
 			f->flag_local_alloced = 1;
@@ -7461,7 +7461,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 				/* LCOV_EXCL_START */
 				cobc_err_msg(_("unexpected CONSTANT item"));
 				COBC_ABORT();
-				/* LCOV_EXCL_END */
+				/* LCOV_EXCL_STOP */
 			}
 			if(f->flag_is_global) {
 				f->mem_offset = working_mem;
@@ -7935,7 +7935,7 @@ output_entry_function(cb_program * prog, cb_tree entry,
 		cobc_err_msg("Missing /wrong internal entry convention!");
 		cobc_err_msg(_("Please report this!"));
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	} else if(CB_INTEGER_P(l)) {
 		entry_convention = CB_INTEGER(l)->val;
 	} else if(CB_NUMERIC_LITERAL_P(l)) {

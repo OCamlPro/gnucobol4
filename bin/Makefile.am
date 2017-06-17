@@ -31,8 +31,8 @@ cobcrun_LDADD = $(top_builddir)/lib/libsupport.a $(top_builddir)/libcob/libcob.l
 
 # Add rules for code-coverage testing, as provided AX_CODE_COVERAGE
 @CODE_COVERAGE_RULES@
-CODE_COVERAGE_BRANCH_COVERAGE=1
-CODE_COVERAGE_LCOV_OPTIONS =  --no-external
+CODE_COVERAGE_BRANCH_COVERAGE = 1
+CODE_COVERAGE_LCOV_OPTIONS = --no-external
 
 cobcrun.1: cobcrun.cpp $(top_srcdir)/configure.ac
 	$(MAKE) $(AM_MAKEFLAGS) cobcrun$(EXEEXT)

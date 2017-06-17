@@ -33,9 +33,9 @@ EXTRA_DIST = gnucobolcpp.spec libcob.h.in po/en.translate \
 pkgincludedir = $(includedir)
 pkginclude_HEADERS = libcob.h
 
-# Add rules for code-coverage testing, as defined by AX_CODE_COVERAGE
-CODE_COVERAGE_BRANCH_COVERAGE=1
+# Add rules for code-coverage testing, as provided by AX_CODE_COVERAGE
 @CODE_COVERAGE_RULES@
+CODE_COVERAGE_BRANCH_COVERAGE = 1
 
 dist-hook:
 	echo "#define COB_TAR_DATE \"`date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h

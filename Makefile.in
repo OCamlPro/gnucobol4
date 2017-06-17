@@ -458,8 +458,6 @@ EXTRA_DIST = gnucobolcpp.spec libcob.h.in po/en.translate \
 	lib/Makefile.am lib/ChangeLog lib/dummymac.cpp lib/gettext.h
 
 pkginclude_HEADERS = libcob.h
-
-# Add rules for code-coverage testing, as defined by AX_CODE_COVERAGE
 CODE_COVERAGE_BRANCH_COVERAGE = 1
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -998,6 +996,8 @@ uninstall-am: uninstall-includeHEADERS uninstall-pkgincludeHEADERS
 
 .PRECIOUS: Makefile
 
+
+# Add rules for code-coverage testing, as provided by AX_CODE_COVERAGE
 @CODE_COVERAGE_RULES@
 
 dist-hook:
