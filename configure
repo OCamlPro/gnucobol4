@@ -20247,6 +20247,7 @@ main ()
 bindtextdomain ("", "");
 return * gettext ("")$gt_expression_test_code + __GNU_GETTEXT_SYMBOL_EXPRESSION
 
+
   ;
   return 0;
 }
@@ -21018,6 +21019,7 @@ main ()
 bindtextdomain ("", "");
 return * gettext ("")$gt_expression_test_code + __GNU_GETTEXT_SYMBOL_EXPRESSION
 
+
   ;
   return 0;
 }
@@ -21054,6 +21056,7 @@ main ()
 
 bindtextdomain ("", "");
 return * gettext ("")$gt_expression_test_code + __GNU_GETTEXT_SYMBOL_EXPRESSION
+
 
   ;
   return 0;

@@ -20,8 +20,8 @@ msgstr ""
 "X-Poedit-Bookmarks: -1,-1,-1,-1,-1,-1,-1,-1,22,-1\n"
 
 #: cobc/cobc.cpp:83
-#, c-format
-msgid "Invalid %s parameter"
+#, fuzzy, c-format
+msgid "invalid parameter: %s"
 msgstr "Parámetro inválido %s"
 
 #: cobc/cobc.cpp:606
@@ -64,7 +64,12 @@ msgstr "Llamada a cobc_check_string con puntero NULL"
 
 #: cobc/cobc.cpp:927
 #, c-format
-msgid "Warning - Assuming literal for unquoted '%s'"
+msgid "call to %s with invalid pointer, as it is missing in list"
+msgstr ""
+
+#: cobc/cobc.c:1113
+#, fuzzy, c-format
+msgid "assuming literal for unquoted '%s'"
 msgstr ""
 
 #: cobc/cobc.cpp:962
@@ -141,6 +146,11 @@ msgstr "No se puede asignar %d bytes de memoria - Abortando"
 
 #: cobc/cobc.cpp:1385 bin/cobcrun.cpp:81
 msgid ""
+"License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>"
+msgstr ""
+
+#: cobc/cobc.c:1611 libcob/common.c:5250 bin/cobcrun.c:93
+msgid ""
 "This is free software; see the source for copying conditions.  There is NO\n"
 "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
 msgstr ""
@@ -149,6 +159,11 @@ msgstr ""
 "PROPÓSITO PARTICULAR."
 
 #: cobc/cobc.cpp:1387 bin/cobcrun.cpp:83
+#, c-format
+msgid "Written by %s\n"
+msgstr ""
+
+#: cobc/cobc.c:1614 libcob/common.c:5253 bin/cobcrun.c:96
 #, c-format
 msgid "Built     %s"
 msgstr "Construido  %s"
@@ -499,6 +514,16 @@ msgstr "Inválida opción -std=%s"
 #, c-format
 msgid "Warning - '%s' is not a directory, defaulting to current directory"
 msgstr ""
+
+#: cobc/cobc.c:2272
+#, fuzzy
+msgid "invalid output file name"
+msgstr "Nombre de archivo de salida inválido"
+
+#: cobc/cobc.c:2343
+#, fuzzy, c-format
+msgid "warning: '%s' is not a directory, defaulting to current directory"
+msgstr ""
 "Alerta - '%s' no es un directorio, por defectuo en el directorio actual"
 
 #: cobc/cobc.cpp:1916
@@ -712,7 +737,12 @@ msgstr "'%s' previamente definidos aquí"
 
 #: cobc/error.cpp:234 cobc/error.cpp:236
 #, c-format
-msgid "%s is not defined"
+msgid "'%s' is not defined, but is a reserved word in another dialect"
+msgstr ""
+
+#: cobc/error.c:447
+#, fuzzy, c-format
+msgid "'%s' is not defined"
 msgstr "%s no esta definido"
 
 #: cobc/error.cpp:255
@@ -760,12 +790,13 @@ msgid "Level %02d item '%s' can only have a %s clause"
 msgstr "Nivel %02d elemento '%s' solo puede tener una %s cláusula"
 
 #: cobc/field.cpp:81
-#, c-format
-msgid "Invalid level number '%s'"
+#, fuzzy, c-format
+msgid "invalid level number '%s'"
 msgstr "Inválido numero de nivel '%s'"
 
 #: cobc/field.cpp:129 cobc/field.cpp:167
-msgid "Level number must begin with 01 or 77"
+#, fuzzy
+msgid "level number must begin with 01 or 77"
 msgstr "Nivel de numero debe de comenzar con 01 o 77"
 
 #: cobc/field.cpp:205 cobc/field.cpp:221
@@ -815,8 +846,8 @@ msgid "PICTURE clause required for '%s'"
 msgstr "Cláusula de PICTURE requerida para '%s'"
 
 #: cobc/field.cpp:383
-#, c-format
-msgid "A non-numeric literal is expected for '%s'"
+#, fuzzy, c-format
+msgid "a non-numeric literal is expected for '%s'"
 msgstr "Un literal no-numérico es esperado para '%s'"
 
 #: cobc/field.cpp:389
@@ -977,21 +1008,20 @@ msgid "Unexpected usage - %d"
 msgstr "Uso inesperado - %d"
 
 #: cobc/field.cpp:1343
-msgid "Literal type does not match data type"
+#, fuzzy
+msgid "literal type does not match numeric data type"
 msgstr "Tipo literal no coincide con el tipo de datos"
 
 #: cobc/flag.def:38
-msgid ""
-"Define PERFORM stack size\n"
-"\t\t\t- Default : 255"
+#, fuzzy
+msgid "define PERFORM stack size"
 msgstr ""
 "Definir tamaño de montón PERFORM\n"
 "\t\t\t- Por defecto -: 255"
 
 #: cobc/flag.def:41
-msgid ""
-"Define cutoff depth for IF statements\n"
-"\t\t\t- Default : 3"
+#, fuzzy
+msgid "define cutoff depth for IF statements"
 msgstr ""
 "Definir límite de profundidad para declaraciones IF\n"
 "\t\t\t- Por defecto : 3"
@@ -1002,8 +1032,6 @@ msgid ""
 "Define display sign representation\n"
 "\t\t\t- ASCII or EBCDIC(Default : machine native)"
 msgstr ""
-"Definir representación de señal mostrada\n"
-"\t\t\t- ASCII o EBCDIC (Por defecto : nativo a la máquina)"
 
 #: cobc/flag.def:47
 #, fuzzy
@@ -1011,8 +1039,6 @@ msgid ""
 "Fold COPY subject to value\n"
 "\t\t\t- UPPER or LOWER(Default : no transformation)"
 msgstr ""
-"Fold COPY sujeto a valor\n"
-"\t\t\t- UPPER o LOWER (Por defecto : no transformacion)"
 
 #: cobc/flag.def:50
 #, fuzzy
@@ -1042,23 +1068,28 @@ msgstr ""
 "\t\t\t- ALL o nombres de funciones intrinsicas"
 
 #: cobc/flag.def:64
-msgid "Output static function calls for the CALL statement"
+#, fuzzy
+msgid "output static function calls for the CALL statement"
 msgstr "Función estática de salida llama la declaración de CALL "
 
 #: cobc/flag.def:67
-msgid "Generate computed goto C statements"
+#, fuzzy
+msgid "generate computed goto C statements"
 msgstr "Generar declaraciones computadas en C de ir "
 
 #: cobc/flag.def:70
-msgid "Use restricted ASCII to EBCDIC translate"
+#, fuzzy
+msgid "use restricted ASCII to EBCDIC translate"
 msgstr "Use ASCII restringido al traducir EBCDIC"
 
 #: cobc/flag.def:73
-msgid "Generate extra braces in generated C code"
+#, fuzzy
+msgid "generate extra braces in generated C code"
 msgstr "Generar corchetes adicionales en el código C generado "
 
 #: cobc/flag.def:76
-msgid "Attempt correction of invalid numeric display items"
+#, fuzzy
+msgid "attempt correction of invalid numeric display items"
 msgstr "Intentar corrección de los elementos numéricos mostrados inválidos"
 
 #: cobc/flag.def:79
@@ -1066,67 +1097,76 @@ msgid "PERFORM stack allocated on heap"
 msgstr "Montón de PERFORM asignado en pila"
 
 #: cobc/flag.def:83
+#, fuzzy
 msgid ""
-"Generate trace code\n"
-"\t\t\t- Executed SECTION/PARAGRAPH"
+"generate trace code\n"
+"\t\t\t- executed SECTION/PARAGRAPH"
 msgstr ""
 "Generar código de rastreo\n"
 "\t\t\t- Ejecutado SECTION/PARAGRAPH"
 
 #: cobc/flag.def:86
+#, fuzzy
 msgid ""
-"Generate trace code\n"
-"\t\t\t- Executed SECTION/PARAGRAPH/STATEMENTS\n"
-"\t\t\t- Turned on by -debug"
+"generate trace code\n"
+"\t\t\t- executed SECTION/PARAGRAPH/STATEMENTS\n"
+"\t\t\t- turned on by -debug"
 msgstr ""
 "Generar código de rastreo\n"
 "\t\t\t- Ejecutado SECTION/PARAGRAPH/STATEMENTS\n"
 "\t\t\t- Activado por -debug"
 
 #: cobc/flag.def:89
-msgid "Syntax error checking only; don't emit any output"
+#, fuzzy
+msgid "syntax error checking only; don't emit any output"
 msgstr "Solamente revisando error de sintaxis, no emitir ningún resultado"
 
 #: cobc/flag.def:92
+#, fuzzy
 msgid ""
-"Enable debugging lines\n"
+"enable debugging lines\n"
 "\t\t\t- 'D' in indicator column or floating >>D"
 msgstr ""
 "Habilitar la depuración de lineas\n"
 "\t\t\t- ‘D’ en la columna de indicador o flotando >>D"
 
 #: cobc/flag.def:95
+#, fuzzy
 msgid ""
-"Generate source location code\n"
-"\t\t\t- Turned on by -debug/-g/-ftraceall"
+"generate source location code\n"
+"\t\t\t- turned on by -debug/-g/-ftraceall"
 msgstr ""
 "Generar la ubicación del código de fuente\n"
 "\t\t\t- Activado por -debug/-g/-ftraceall"
 
 #: cobc/flag.def:98
-msgid "Automatic initialization of the Cobol runtime system"
+#, fuzzy
+msgid "automatic initialization of the COBOL runtime system"
 msgstr "Inicialización automática del sistema de ejecución COBOL"
 
 #: cobc/flag.def:101
+#, fuzzy
 msgid ""
 "PERFORM stack checking\n"
-"\t\t\t- Turned on by -debug or -g"
+"\t\t\t- turned on by -debug or -g"
 msgstr ""
 "PERFORM revisión de montón\n"
 " \t\t\t- Activado por -debug o -g"
 
 #: cobc/flag.def:104
+#, fuzzy
 msgid ""
-"Allow syntax extensions\n"
-"\t\t\t- eg. Switch name SW1, etc."
+"allow syntax extensions\n"
+"\t\t\t- eg. switch name SW1, etc."
 msgstr ""
 "Perimite extension de sintaxis\n"
 "\t\t\t- (e.g. Nombre de interruptor SW1, etc.)"
 
 #: cobc/flag.def:107
+#, fuzzy
 msgid ""
-"Use AFTER 1 for WRITE of LINE SEQUENTIAL\n"
-"\t\t\t- Default : BEFORE 1"
+"use AFTER 1 for WRITE of LINE SEQUENTIAL\n"
+"\t\t\t- default: BEFORE 1"
 msgstr ""
 "Utilizar AFTER 1 para WRITE de LINE SEQUENTIAL\n"
 "\t\t\t- Por Defecto : BEFORE 1"
@@ -1141,21 +1181,23 @@ msgstr ""
 
 #: cobc/flag.def:113
 msgid ""
-"Allow numeric field overflow\n"
-"\t\t\t- Non-ANSI behaviour"
+"allow numeric field overflow\n"
+"\t\t\t- non-ANSI behaviour"
 msgstr ""
 "Permitir desbordamiento del campo numérico\n"
 "\t\t\t- comportamiento Non-ANSI"
 
 #: cobc/flag.def:116
+#, fuzzy
 msgid ""
-"Adjust items following OCCURS DEPENDING\n"
-"\t\t\t- Requires implicit/explicit relaxed syntax"
+"adjust items following OCCURS DEPENDING\n"
+"\t\t\t- requires implicit/explicit relaxed syntax"
 msgstr ""
 "Ajuste los elementos después de OCCURS DEPENDING\n"
 " \t\t\t- Requiere sintaxis relajado implicito/explicito"
 
 #: cobc/flag.def:119
+#, fuzzy
 #, fuzzy
 msgid ""
 "Use a single quote(apostrophe) for QUOTE\n"
@@ -1165,12 +1207,13 @@ msgstr ""
 "\t\t\t- Por defecto : doble apóstrofe"
 
 #: cobc/flag.def:122
-msgid "Check recursive program call"
+#, fuzzy
+msgid "check recursive program call"
 msgstr "Revise llamada recursiva del programa"
 
 #: cobc/flag.def:125
 msgid ""
-"Relax syntax checking\n"
+"relax syntax checking\n"
 "\t\t\t- eg. REDEFINES position"
 msgstr ""
 "Comprobación de sintaxis relajado\n"
@@ -1178,7 +1221,7 @@ msgstr ""
 
 #: cobc/flag.def:128
 msgid ""
-"Treat all files as OPTIONAL\n"
+"treat all files as OPTIONAL\n"
 "\t\t\t- unless NOT OPTIONAL specified"
 msgstr ""
 "Tratar todos los archivos como OPTIONAL\n"
@@ -1219,17 +1262,17 @@ msgstr "‘%s’ no esta en la WORKING-STORAGE SECTION"
 msgid "'%s' REDEFINES field not allowed here"
 msgstr "‘%s’  Campo de REDEFINES no se permite aquí"
 
-#: cobc/parser.y:342
+#: parser.y:365
 #, c-format
 msgid "LINKAGE item '%s' is not a PROCEDURE USING parameter"
 msgstr "Elemento '%s' LINKAGE no es un parámetro PROCEDURE USING"
 
-#: cobc/parser.y:353
+#: parser.y:376
 #, c-format
 msgid "'%s' USING item duplicates RETURNING item"
 msgstr ""
 
-#: cobc/parser.y:362
+#: parser.y:385
 #, c-format
 msgid "ENTRY '%s' duplicated"
 msgstr "ENTRY '%s' duplicado"
@@ -1239,7 +1282,7 @@ msgstr "ENTRY '%s' duplicado"
 msgid "Maximum nested program depth exceeded(%d)"
 msgstr "Profundidad máxima excedida para programa anidados (%d)"
 
-#: cobc/parser.y:391 cobc/parser.y:404
+#: parser.y:414 parser.y:427
 #, c-format
 msgid "%s statement not terminated by END-%s"
 msgstr "Declaracion %s no terminado por END-%s"
@@ -1279,8 +1322,8 @@ msgstr "END PROGRAM '%s' es diferente a PROGRAMA-ID '%s'"
 
 #: cobc/parser.y:1493
 #, c-format
-msgid "END FUNCTION '%s' is different to FUNCTION-ID '%s'"
-msgstr "END FUNCTION '%s' es diferente a FUNCTION-ID '%s'"
+msgid "duplicate REPOSITORY entries for '%s' do not match"
+msgstr ""
 
 #: cobc/parser.y:1582
 msgid "FUNCTION-ID is not yet implemented"
@@ -1551,6 +1594,11 @@ msgstr "Cláusula RETURNING es requerida para una FUNCTION"
 
 #: cobc/parser.y:5250
 #, fuzzy
+msgid "RETURNING clause cannot be OMITTED for a FUNCTION"
+msgstr "Cláusula RETURNING es requerida para una FUNCTION"
+
+#: parser.y:6344
+#, fuzzy
 msgid "RETURNING item must have level 01"
 msgstr "Elemento RETURNING debe de tener un nivel 01 o 77"
 
@@ -1566,7 +1614,12 @@ msgstr "Elemento RETURNING no esta definido en LINKAGE SECTION"
 
 #: cobc/parser.y:5446
 #, c-format
-msgid "Unknown statement '%s'"
+msgid "unknown statement '%s'; it may exist in another dialect"
+msgstr ""
+
+#: parser.y:6550
+#, fuzzy, c-format
+msgid "unknown statement '%s'"
 msgstr "Declaración desconocida '%s'"
 
 #: cobc/parser.y:5460
@@ -1957,7 +2010,12 @@ msgstr "Desconocido"
 
 #: cobc/reserved.cpp:2531
 #, c-format
-msgid "'%s' reserved word, but not supported"
+msgid "alias target '%s' is not a default reserved word"
+msgstr ""
+
+#: cobc/reserved.c:3031
+#, fuzzy, c-format
+msgid "'%s' is a reserved word, but isn't supported"
 msgstr "'%s' palabra reservada, pero no apoyada"
 
 #: cobc/reserved.cpp:2597
@@ -2059,7 +2117,12 @@ msgstr "Literal de punto flotante inválida"
 
 #: cobc/scanner.l:1428
 #, c-format
-msgid "Invalid CONSTANT - %s"
+msgid "exponent of 0 must be positive"
+msgstr ""
+
+#: scanner.l:1879
+#, fuzzy, c-format
+msgid "invalid CONSTANT: %s"
 msgstr "Invalida CONSTANT - %s"
 
 #: cobc/scanner.l:1438
@@ -2158,8 +2221,8 @@ msgstr "Inválida cláusula ORGANIZATION "
 
 #: cobc/tree.cpp:2024 cobc/tree.cpp:2043
 #, c-format
-msgid "Invalid KEY item '%s'"
-msgstr "Inválido elemeto KEY '%s'"
+msgid "PICTURE string may not contain more than %d characters"
+msgstr ""
 
 #: cobc/tree.cpp:2053
 #, c-format
@@ -2168,8 +2231,8 @@ msgstr "Tamaño de récord demasiado pequeño '%s'"
 
 #: cobc/tree.cpp:2059
 #, c-format
-msgid "Record size too large '%s' (%d)"
-msgstr "Tamaño de récord demasiado grande '%s' (%d)"
+msgid "minimal record length %d can not hold the key item '%s'; needs to be at least %d"
+msgstr ""
 
 #: cobc/tree.cpp:2087
 #, fuzzy, c-format
@@ -2188,6 +2251,26 @@ msgid "Unexpected operator -> %d"
 msgstr "Operador inesperado -> %d"
 
 #: cobc/tree.cpp:2758 cobc/tree.cpp:2764 cobc/tree.cpp:2797 cobc/tree.cpp:2802
+#, c-format
+msgid "no definition/prototype seen for function '%s'"
+msgstr ""
+
+#: cobc/tree.c:3868
+#, c-format
+msgid "no definition/prototype seen for program '%s'"
+msgstr ""
+
+#: cobc/tree.c:3877
+#, c-format
+msgid "no definition/prototype seen for function with external name '%s'"
+msgstr ""
+
+#: cobc/tree.c:3879
+#, c-format
+msgid "no definition/prototype seen for program with external name '%s'"
+msgstr ""
+
+#: cobc/tree.c:3947 cobc/tree.c:3953 cobc/tree.c:3995 cobc/tree.c:4000
 #, c-format
 msgid "FUNCTION '%s' has invalid reference modification"
 msgstr "FUNCTION '%s' tiene modificación por referencia inválida"
@@ -2476,7 +2559,12 @@ msgstr "Dispositivo de entrada '%s' inválido"
 #: cobc/typeck.cpp:4193 cobc/typeck.cpp:4204 cobc/typeck.cpp:4836
 #: cobc/typeck.cpp:4841 cobc/typeck.cpp:4850
 #, c-format
-msgid "'%s' is not defined in SPECIAL-NAMES"
+msgid "unknown device '%s'; it may exist in another dialect"
+msgstr ""
+
+#: cobc/typeck.c:4748 cobc/typeck.c:5673
+#, fuzzy, c-format
+msgid "unknown device '%s'; not defined in SPECIAL-NAMES"
 msgstr "'%s' no esta definido en SPECIAL-NAMES"
 
 #: cobc/typeck.cpp:4230
@@ -2887,47 +2975,67 @@ msgid "LOCK clause invalid here"
 msgstr "Cláusula LOCK inválida aquí"
 
 #: cobc/warning.def:29
-msgid "Warn if obsolete features are used"
+#, fuzzy
+msgid "don't warn if unfinished features are used"
+msgstr "Alerte si prestaciones obsoletas son utilizadas"
+
+#: cobc/warning.def:34
+#, fuzzy
+msgid "warn if obsolete features are used"
 msgstr "Alerte si prestaciones obsoletas son utilizadas"
 
 #: cobc/warning.def:32
-msgid "Warn if archaic features are used"
+#, fuzzy
+msgid "warn if archaic features are used"
 msgstr "Alerte si prestaciones arcaicas son utilizadas"
 
 #: cobc/warning.def:35
-msgid "Warn incompatible redefinition of data items"
+#, fuzzy
+msgid "warn incompatible redefinition of data items"
 msgstr "Alerta incompatible redefinicion de elementos de datos"
 
 #: cobc/warning.def:38
-msgid "Warn inconsistent constant"
+#, fuzzy
+msgid "warn inconsistent constant"
 msgstr "Advertencia constante inconsistente "
 
 #: cobc/warning.def:41
-msgid "Warn overlapping MOVE items"
+#, fuzzy
+msgid "warn overlapping MOVE items"
 msgstr "Alerta elementos MOVE soberpuestos"
 
 #: cobc/warning.def:44
-msgid "Warn lack of parentheses around AND within OR"
+#, fuzzy
+msgid "warn lack of parentheses around AND within OR"
 msgstr "Alerta falta de paréntesis alrededor de AND dentro de OR"
 
 #: cobc/warning.def:47
-msgid "Warn type mismatch strictly"
+#, fuzzy
+msgid "warn type mismatch strictly"
 msgstr "Alerta no coincide el tipo estritamente"
 
 #: cobc/warning.def:50
-msgid "Warn implicitly defined data items"
+#, fuzzy
+msgid "warn implicitly defined data items"
 msgstr "Alerta implicitamente define los elementos de datos"
 
 #: cobc/warning.def:53
-msgid "Warn CORRESPONDING with no matching items"
+#, fuzzy
+msgid "warn CORRESPONDING with no matching items"
 msgstr "Alerta CORRESPONDING con elementos no igualados"
 
 #: cobc/warning.def:56
-msgid "Warn EXTERNAL item with VALUE clause"
+#, fuzzy
+msgid "warn EXTERNAL item with VALUE clause"
 msgstr "Alerta elemento EXTERNAL con cláusula de VALUE"
 
 #: cobc/warning.def:59
-msgid "Warn non 01/77 items for CALL params"
+msgid "warn missing FUNCTION prototypes/definitions"
+msgstr ""
+
+#: cobc/warning.def:70
+#, fuzzy
+msgid "warn non 01/77 items for CALL params"
 msgstr "Alerta elementos no 01/77 para params de CALL "
 
 #: cobc/warning.def:62
@@ -3052,12 +3160,12 @@ msgstr ""
 
 #: libcob/common.cpp:374
 #, fuzzy, c-format
-msgid "Attempt to reference unallocated memory"
+msgid "attempt to reference unallocated memory"
 msgstr "Intento de referencia a memoria sin asignar (Signal SIGSEGV)"
 
 #: libcob/common.cpp:376 libcob/common.cpp:379
 #, c-format
-msgid "Caught Signal"
+msgid "caught signal"
 msgstr ""
 
 #: libcob/common.cpp:382
@@ -3335,6 +3443,8 @@ msgstr "o    : cobcrun --info (-i)"
 #: bin/cobcrun.cpp:98
 msgid "       Print build information"
 msgstr "        Imprimir la información de la generación"
+"  -conf=<file>          Configuración de dialecto definido por usuario - Ver "
+"-std="
 
 #: bin/cobcrun.cpp:111
 msgid "Memory allocation failure"

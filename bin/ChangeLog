@@ -2,7 +2,7 @@
 
 	* Switch to C++
 
-2012-05-09  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+2012-05-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobcrun.c : Added conversion for enabling options in WIN style;
 	  Use getopt for option parsing;

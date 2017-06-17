@@ -99,12 +99,12 @@
 	* typeck.cpp : Bugfix: no exception check for NULL address on FREE statement
 		(as this is explicit allowed)
 
-2014-01-02  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+2014-01-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* codegen.cpp : Fixing Bug #55
 		UDF with no parameters do not compile
 
-2012-05-09  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+2012-05-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.cpp : Added conversion for enabling options in WIN style
 
