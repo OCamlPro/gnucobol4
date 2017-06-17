@@ -1,7 +1,7 @@
 #
 # Makefile gnucobolcpp/cobc
 #
-# Copyright (C) 2003-2012, 2014-2016 Free Software Foundation, Inc.
+# Copyright (C) 2003-2012, 2014-2017 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
 #
 # This file is part of GnuCOBOL C++.
@@ -25,18 +25,19 @@ cobc_SOURCES = cobc.cpp cobc.h config.cpp tree.cpp tree.h reserved.cpp error.cpp
 	ppparse.hpp pplex.cpp config.def flag.def warning.def codeoptim.def \
 	ppparse.def codeoptim.cpp naming.cpp utils.cpp vcache.h
 
-cobc_CFLAGS = -I$(top_srcdir)
+cobc_CXXFLAGS = -I$(top_srcdir)
 cobc_LDADD = $(COBC_LIBS) $(top_builddir)/libcob/libcob.la $(top_builddir)/lib/libsupport.a
 
 dist_man_MANS = cobc.1
 
-cobc.1: cobc.cpp config.def flag.def warning.def $(top_srcdir)/configure.ac
-	$(MAKE) $(AM_MAKEFLAGS) cobc$(EXEEXT)
-	help2man --output=cobc.1  --info-page=gnucobolcpp ./cobc$(EXEEXT)
 
 BUILT_SOURCES = parser.cpp parser.hpp scanner.cpp ppparse.cpp ppparse.hpp pplex.cpp
 EXTRA_DIST = ppparse.y pplex.l parser.y scanner.l
 CLEANFILES = parser.output ppparse.output
+
+cobc.1: cobc.cpp config.def flag.def warning.def $(top_srcdir)/configure.ac
+	$(MAKE) $(AM_MAKEFLAGS) cobc$(EXEEXT)
+	help2man --output=cobc.1  --info-page=gnucobolcpp ./cobc$(EXEEXT)
 
 .l.cpp:
 	LC_CTYPE=C flex -s -o$@ $<

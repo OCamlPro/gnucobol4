@@ -52,7 +52,7 @@ _return_path () {
 
 PATH="${abs_top_builddir}/cobc:${abs_top_builddir}/bin:${abs_top_builddir}/libcob/.libs:${PATH}"
 export PATH
-export COB_CFLAGS="-I${abs_top_srcdir} -I${abs_top_srcdir}/libcob @COB_CFLAGS@"
+export COB_CFLAGS="-I ${abs_top_builddir} -I${abs_top_srcdir} -I${abs_top_srcdir}/libcob @COB_CFLAGS@"
 export COB_LDFLAGS="-L${abs_top_builddir}/libcob/.libs @COB_LDFLAGS@"
 export COB_LIBS="-L${abs_top_builddir}/libcob/.libs -lcob @LIBCOB_LIBS@"
 export COB_CONFIG_DIR="${abs_top_srcdir}/config"

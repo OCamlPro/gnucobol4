@@ -1,4 +1,8 @@
 
+2017-06-17  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in: include builddir in COB_CFLAGS to point to correct libcob.h
+
 2017-04-25  Brian Tiffin <btiffin@gnu.org>
 
 	* testsuite.src/run_extensions.at: Drop daylight value test, zero means no

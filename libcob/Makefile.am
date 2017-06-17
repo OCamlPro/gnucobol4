@@ -1,7 +1,7 @@
 #
 # Makefile gnucobolcpp/libcob
 #
-# Copyright (C) 2003-2012, 2014 Free Software Foundation, Inc.
+# Copyright (C) 2003-2012, 2014, 2017 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
 #
 # This file is part of GnuCOBOL C++.
@@ -24,7 +24,7 @@ libcob_la_SOURCES = common.cpp move.cpp numeric.cpp strings.cpp cobdecimal.cpp \
 	fileio.cpp call.cpp intrinsic.cpp termio.cpp screenio.cpp btmsadd.cpp \
 	cobgetopt.cpp
 
-libcob_la_CFLAGS = $(AM_CFLAGS) -I$(top_srcdir)
+libcob_la_CXXFLAGS = $(AM_CFLAGS) -I$(top_srcdir)
 libcob_la_LIBADD = $(LIBCOB_LIBS)
 libcob_la_LDFLAGS = $(COB_FIX_LIBTOOL) -version-info 4:0:0 -no-undefined
 AM_LDFLAGS = $(COB_FIX_LIB)
