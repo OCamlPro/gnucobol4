@@ -28,7 +28,7 @@ BUILT_SOURCES = defaults.h libcob.h
 DISTCLEANFILES = $(BUILT_SOURCES)
 # CLEANFILES = $(bin_SCRIPTS)
 
-EXTRA_DIST = gnucobolcpp.spec libcob.h.in po/en.translate \
+EXTRA_DIST = gnucobolcpp.spec libcob.h.in \
 	lib/Makefile.am lib/ChangeLog lib/dummymac.cpp lib/gettext.h
 pkgincludedir = $(includedir)
 pkginclude_HEADERS = libcob.h
@@ -36,6 +36,7 @@ pkginclude_HEADERS = libcob.h
 # Add rules for code-coverage testing, as provided by AX_CODE_COVERAGE
 @CODE_COVERAGE_RULES@
 CODE_COVERAGE_BRANCH_COVERAGE = 1
+CODE_COVERAGE_IGNORE_PATTERN = '/usr/include/*' '/usr/local/include/*'
 
 dist-hook:
 	echo "#define COB_TAR_DATE \"`date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h
