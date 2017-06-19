@@ -1,5 +1,9 @@
 
-017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2017-06-19 Sergey Kashyrin <ska@kiska.net>
+
+	* fileio.cpp: fixes for BDB line - small cast issue + small failure while merging C branch.
+
+2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE
 

@@ -2052,9 +2052,9 @@ join_environment(void)
 #endif
 #endif
 	bdb_env->set_cachesize(bdb_env, 0, 2 * 1024 * 1024, 0);
-	bdb_env->set_alloc(bdb_env, cob_malloc, realloc, cob_free);
+	bdb_env->set_alloc(bdb_env, (void *(*)(size_t))cob_malloc, realloc, cob_free);
 	cob_u32_t flags = DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB;
-	ret = bdb_env->open(bdb_env, bdb_home, flags, 0);
+	ret = bdb_env->open(bdb_env, cobsetptr->bdb_home, flags, 0);
 	if(ret) {
 		cob_runtime_error(_("cannot join BDB environment (%s), error: %d %s"),
 						  "env->open", ret, db_strerror(ret));
