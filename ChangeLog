@@ -1,4 +1,8 @@
 
+2017-07-07  Brian Tiffin <btiffin@gnu.org>
+
+	* configure.ac: add --with-lua and --with-tcl 
+
 2017-05-22  Brian Tiffin <btiffin@gnu.org>
 
 	* configure.ac: add --with-jvm for embedded Java 

@@ -1945,6 +1945,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token LOWER_CASE_FUNC		"FUNCTION LOWER-CASE"
 %token LOWLIGHT
 %token LOW_VALUE		"LOW-VALUE"
+%token LUA_FUNC			"FUNCTION LUA"
 %token MANUAL
 %token MAGNETIC_TAPE		"MAGNETIC-TAPE"
 %token MEMORY
@@ -2144,6 +2145,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token TABLE
 %token TALLYING
 %token TAPE
+%token TCL_FUNC			"FUNCTION TCL-UNRESTRICTED"
+%token TCL_RESTRICTED_FUNC	"FUNCTION TCL"
 %token TERMINAL
 %token TERMINATE
 %token TEXT
@@ -12604,11 +12607,14 @@ func_multi_parm:
 | FORMATTED_DATE_FUNC
 | JVM_FUNC
 | JVM_CREATE_FUNC
+| LUA_FUNC
 | PYTHON_FUNC
 | REXX_FUNC
 | REXX_RESTRICTED_FUNC
 | SUBSTITUTE_FUNC
 | SUBSTITUTE_CASE_FUNC
+| TCL_FUNC
+| TCL_RESTRICTED_FUNC
 ;
 
 func_refmod:

@@ -2293,6 +2293,13 @@ static const struct cb_intrinsic_table function_list[] = {
 					1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
+#ifdef WITH_LUA
+  { "LUA",				"cob_embed_lua",
+					CB_EMBED_LUA, LUA_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
+#endif
   { "MAX",				"cob_intr_max",
 					CB_INTR_MAX, FUNCTION_NAME, 1,
 					-1, 1,
@@ -2452,12 +2459,12 @@ static const struct cb_intrinsic_table function_list[] = {
   },
 #ifdef WITH_REXX
   { "REXX",				"cob_embed_rexx_restricted",
-					CB_EMBED_REXX, REXX_FUNC, 1,
+					CB_EMBED_REXX_RESTRICTED, REXX_RESTRICTED_FUNC, 1,
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "REXX-UNRESTRICTED",		"cob_embed_rexx",
-					CB_EMBED_REXX_RESTRICTED, REXX_RESTRICTED_FUNC, 1,
+					CB_EMBED_REXX, REXX_FUNC, 1,
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
@@ -2522,6 +2529,18 @@ static const struct cb_intrinsic_table function_list[] = {
 					1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
+#ifdef WITH_TCL
+  { "TCL",				"cob_embed_tcl_restricted",
+					CB_EMBED_TCL_RESTRICTED, TCL_RESTRICTED_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
+  { "TCL-UNRESTRICTED",			"cob_embed_tcl",
+					CB_EMBED_TCL, TCL_FUNC, 1,
+					-1, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
+#endif
   { "TEST-DATE-YYYYMMDD",		"cob_intr_test_date_yyyymmdd",
 					CB_INTR_TEST_DATE_YYYYMMDD, FUNCTION_NAME, 1,
 					1, 1,
@@ -3239,7 +3258,7 @@ cb_list_reserved (void)
 	printf ("%-32s%s\n", "COB-CRT-STATUS", "PIC 9(4)");
 	printf ("%-32s%s\n", "TALLY", "GLOBAL PIC 9(5) USAGE BINARY VALUE ZERO");
 	printf ("%-32s%s\n", _("'LENGTH OF' phrase"), "USAGE BINARY-LONG");
-#if defined(WITH_REXX) || defined(WITH_PYTHON)
+#if defined(WITH_REXX) || defined(WITH_PYTHON) || defined(WITH_LUA) || defined(WITH_TCL)
 	putchar ('\n');
 	printf ("%-32s%s\n", _("Embedded scripting"), _("Definition"));
 	printf ("%-32s%s\n", "SCRIPT-RETURN-CODE",

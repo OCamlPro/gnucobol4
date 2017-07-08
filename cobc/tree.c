@@ -4231,12 +4231,19 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 	case CB_EMBED_JVM:
 	case CB_EMBED_JVM_CREATE:
 #endif
+#ifdef WITH_LUA
+	case CB_EMBED_LUA:
+#endif
 #ifdef WITH_PYTHON
 	case CB_EMBED_PYTHON:
 #endif
 #ifdef WITH_REXX
 	case CB_EMBED_REXX:
 	case CB_EMBED_REXX_RESTRICTED:
+#endif
+#ifdef WITH_TCL
+	case CB_EMBED_TCL:
+	case CB_EMBED_TCL_RESTRICTED:
 #endif
 		return make_intrinsic (name, cbp, args, cb_int1, refmod, 0);
 

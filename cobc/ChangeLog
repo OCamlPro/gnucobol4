@@ -1,4 +1,12 @@
 
+2017-07-05  Brian Tiffin <btiffin@gnu.org>
+
+	* parser.y, reserved.c, tree.c, tree.h: Add TCL intrinsic
+
+2017-06-24  Brian Tiffin <btiffin@gnu.org>
+
+	* parser.y, reserved.c, tree.c, tree.h: Add LUA intrinsic
+
 2017-05-22  Brian Tiffin <btiffin@gnu.org>
 
 	* cobc.c, parser.y, reserved.c, tree.c, tree.h: Add JVM and JVM-CREATE intrinsics

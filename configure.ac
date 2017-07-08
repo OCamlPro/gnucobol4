@@ -100,6 +100,8 @@ AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 AH_TEMPLATE([WITH_REXX], [Allow embedded REXX])
 AH_TEMPLATE([WITH_PYTHON], [Allow embedded Python])
 AH_TEMPLATE([WITH_JVM], [Allow embedded JVM])
+AH_TEMPLATE([WITH_LUA], [Allow embedded Lua])
+AH_TEMPLATE([WITH_TCL], [Allow embedded Tcl])
 
 save_libs="$LIBS"
 
@@ -566,6 +568,39 @@ AC_ARG_WITH([jvm],
 #              [AC_MSG_WARN([no libjvm found at JAVA_HOME])])
 # LDFLAGS=$save_LDFLAGS
 # ])])
+
+# Optional Lua
+AC_ARG_WITH([lua],
+[AS_HELP_STRING([--with-lua],
+  [(GnuCOBOL) Allow embedded Lua])],
+[ if test "$with_lua" = "yes"; then
+  CFLAGS="$CFLAGS -I/usr/include/lua5.3"
+  AC_CHECK_HEADERS([lua.h], [],
+  	AC_MSG_ERROR([lua.h is required for embedded Lua]))
+  AC_CHECK_LIB([lua5.3], [luaL_newstate],
+  	[AC_DEFINE([WITH_LUA], [1])
+  	LIBCOB_LIBS="$LIBCOB_LIBS -llua5.3"],
+  	AC_MSG_ERROR([liblua5.3 is required for embedded Lua]), [])
+  fi ],
+[])
+
+# Optional Tcl
+AC_ARG_WITH([tcl],
+[AS_HELP_STRING([--with-tcl],
+  [(GnuCOBOL) Allow embedded Tcl])],
+[ if test "$with_tcl" = "yes"; then
+  CFLAGS="$CFLAGS -I/usr/include/tcl8.6"
+  AC_CHECK_HEADERS([tcl.h], [],
+  	AC_MSG_ERROR([tcl.h is required for embedded Tcl]))
+  AC_CHECK_LIB([tcl], [Tcl_CreateInterp],
+  	[AC_DEFINE([WITH_TCL], [1])
+  	LIBCOB_LIBS="$LIBCOB_LIBS -ltcl"],
+  	AC_MSG_ERROR([libtcl is required for embedded Tcl]), [])
+  AC_CHECK_LIB([tk], [Tk_Init],
+  	[LIBCOB_LIBS="$LIBCOB_LIBS -ltk"],
+  	AC_MSG_ERROR([libtk is required for embedded Tk]), [])
+  fi ],
+[])
 
 # Checks for gmp.
 AC_MSG_NOTICE([Checks for GMP ...])
@@ -1347,6 +1382,18 @@ else
     COB_WITH_JVM=no
 fi
 
+if test "$with_lua" = "yes"; then
+    COB_WITH_LUA=yes
+else
+    COB_WITH_LUA=no
+fi
+
+if test "$with_tcl" = "yes"; then
+    COB_WITH_TCL=yes
+else
+    COB_WITH_TCL=no
+fi
+
 unset COB_USES_GCC
 unset COB_USES_GCC_NO_ICC
 unset COB_USES_ICC_ONLY
@@ -1396,6 +1443,8 @@ AC_SUBST([COB_HAS_UTC_OFFSET])
 AC_SUBST([COB_WITH_REXX])
 AC_SUBST([COB_WITH_PYTHON])
 AC_SUBST([COB_WITH_JVM])
+AC_SUBST([COB_WITH_LUA])
+AC_SUBST([COB_WITH_TCL])
 AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level]) # needed for bin/cob-config
 
 AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
@@ -1483,4 +1532,10 @@ if test "$PYTHON" != ""; then
 fi
 if test "$with_jvm" = "yes"; then
   AC_MSG_NOTICE([ Allow embedded Java Virtual Machine          yes])
+fi
+if test "$with_lua" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded Lua                           yes])
+fi
+if test "$with_tcl" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded Tcl/Tk                        yes])
 fi

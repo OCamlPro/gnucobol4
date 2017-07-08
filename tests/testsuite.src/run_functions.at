@@ -3971,3 +3971,119 @@ AT_CHECK([./prog], [0], [abc
 ], [])
 
 AT_CLEANUP
+
+AT_SETUP([Embedded JVM])
+AT_KEYWORDS([functions JVM extensions])
+
+AT_SKIP_IF([test "$COB_WITH_JVM" = "no"])
+
+AT_DATA([TestJVM.java], [
+public class TestJVM {
+    public static String testIntString(int i) {
+        if (i != 42) {
+            return "JVM BAD";
+        } else {
+            return "JVM OK";
+        }
+    }
+}
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       COPY jvmapi.
+       01  str         PIC X(30).
+       77  val         USAGE BINARY-LONG.
+       
+       PROCEDURE DIVISION.
+           MOVE FUNCTION JVM-CREATE("-Djava.class.path=.") TO str
+
+           DISPLAY FUNCTION JVM("TestJVM", "testIntString",                          
+               "(I)Ljava/lang/String;", FUNCTION NUMVAL(42))
+           END-DISPLAY
+
+           STOP RUN.
+])
+
+AT_CHECK([javac TestJVM.java], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [JVM OK
+], [])
+
+AT_CLEANUP
+
+AT_SETUP([Lua scripting])
+AT_KEYWORDS([functions Lua extensions])
+
+AT_SKIP_IF([test "$COB_WITH_LUA" = "no"])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       COPY luaapi.
+       77  val         pic 9(02).
+       
+       PROCEDURE DIVISION.
+           DISPLAY FUNCTION LUA("return ""abc""")
+           END-DISPLAY
+           
+           COMPUTE val = FUNCTION NUMVAL(
+                             FUNCTION LUA("return 6 * 6")) + 6
+           END-COMPUTE
+           DISPLAY val
+           END-DISPLAY
+
+           DISPLAY SCRIPT-RETURN-CODE
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [abc
+42
++00000000000000000000
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Tcl scripting])
+AT_KEYWORDS([functions Tcl extensions])
+
+AT_SKIP_IF([test "$COB_WITH_TCL" = "no"])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       COPY luaapi.
+       77  val         pic 9(02).
+       
+       PROCEDURE DIVISION.
+           DISPLAY FUNCTION TCL("return ""abc""")
+           END-DISPLAY
+           
+           COMPUTE val = FUNCTION NUMVAL(
+                             FUNCTION TCL("expr {6 * 6}")) + 6
+           END-COMPUTE
+           DISPLAY val
+           END-DISPLAY
+
+           DISPLAY SCRIPT-RETURN-CODE
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [abc
+42
++00000000000000000000
+], [])
+
+AT_CLEANUP

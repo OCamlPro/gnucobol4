@@ -1,4 +1,12 @@
 
+2017-07-05  Brian Tiffin <btiffin@gnu.org>
+
+	* common.h, intrinsic.c: adding Tcl, restricted and unrestricted
+
+2017-06-24  Brian Tiffin <btiffin@gnu.org>
+
+	* common.h, intrinsic.c: adding Lua
+
 2017-05-22  Brian Tiffin <btiffin@gnu.org>
 
 	* common.h, intrinsic.c: adding JVM

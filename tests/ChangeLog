@@ -1,4 +1,12 @@
 
+2017-07-07  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_functions.at: Add optional JVM, Lua and Tcl tests
+
+2017-04-28  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_functions.at: Add optional Python tests
+
 2017-03-22  Brian Tiffin <btiffin@gnu.org>
 
 	* testsuite.src/run_functions.at: Add optional REXX tests
