@@ -1,18 +1,18 @@
 ## Copyright (C) 2015-2017 Free Software Foundation, Inc.
 ## Written by Dave Pitts, Simon Sobisch
-## 
+##
 ## This file is part of GnuCOBOL.
-## 
+##
 ## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
-## 
+##
 ## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU General Public License
 ## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -526,6 +526,218 @@ AT_CHECK([diff prog6.lst prog.lis], [0], [], [])
 AT_CLEANUP
 
 
+AT_SETUP([COPY multiple files])
+AT_KEYWORDS([listing])
+
+AT_CAPTURE_FILE([prog.lst])
+
+AT_DATA([copy-fd-1.inc], [
+       FD  TEXTFILE-1        RECORD VARYING 1 TO 999 CHARACTERS
+                                 DEPENDING ON TEXTFILE-1-SIZE.
+       01  TEXTRECD-1.
+           03 FILLER         PIC X(999).
+      *
+])
+
+AT_DATA([copy-fd-2.inc], [
+       FD  TEXTFILE-2        RECORD VARYING 1 TO 999 CHARACTERS
+                                 DEPENDING ON TEXTFILE-2-SIZE.
+       01  TEXTRECD-2.
+           03 FILLER         PIC X(999).
+      *
+])
+
+AT_DATA([copy-ws-1.inc], [
+       01  TEXTFILE-1-NAME          PIC X(080)     VALUE "TEXTFILE.1".
+       01  TEXTFILE-1-OCFG          PIC X(001)     VALUE "C".
+           88 TEXTFILE-1-NOTOPEN    VALUE "C".
+           88 TEXTFILE-1-IS-OPEN    VALUE "I", "O", "U".
+       01  TEXTFILE-1-SIZE          PIC 9(004).
+      *
+])
+
+AT_DATA([copy-ws-2.inc], [
+       01  TEXTFILE-2-NAME          PIC X(080)     VALUE "TEXTFILE.2".
+       01  TEXTFILE-2-OCFG          PIC X(001)     VALUE "C".
+           88 TEXTFILE-2-NOTOPEN    VALUE "C".
+           88 TEXTFILE-2-IS-OPEN    VALUE "I", "O", "U".
+       01  TEXTFILE-2-SIZE          PIC 9(004).
+      *
+])
+
+AT_DATA([copy-sl-1.inc], [
+           SELECT TEXTFILE-1   ASSIGN TO DISK    TEXTFILE-1-NAME
+                               ORGANIZATION      LINE SEQUENTIAL
+                               ACCESS MODE       SEQUENTIAL.
+      *
+])
+
+AT_DATA([copy-sl-2.inc], [
+           SELECT TEXTFILE-2   ASSIGN TO DISK    TEXTFILE-2-NAME
+                               ORGANIZATION      LINE SEQUENTIAL
+                               ACCESS MODE       SEQUENTIAL.
+      *
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. tstcpybk.
+      *
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+      *
+       SOURCE-COMPUTER. LINUX.
+       OBJECT-COMPUTER. LINUX.
+
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           COPY "copy-sl-1.inc".
+           COPY "copy-sl-2.inc".
+
+       DATA DIVISION.
+       FILE SECTION.
+           COPY "copy-fd-1.inc".
+           COPY "copy-fd-2.inc".
+
+       WORKING-STORAGE SECTION.
+       01  FILLER.
+           03 FILLER         PIC X(016)     VALUE 'FCSI CodeWerks:'.
+           03 FILLER         PIC X(064)     VALUE
+              'Name:tstcpybk.cbl  Version:1.7.1  Date:2017-03-15'.
+           03 FILLER         PIC X(002)     VALUE LOW-VALUES.
+      *
+           COPY "copy-ws-1.inc".
+           COPY "copy-ws-2.inc".
+
+       PROCEDURE DIVISION.
+       MAIN-PROCEDURE SECTION.
+       MAIN-PROCEDURE-0000.
+           CONTINUE.
+       MAIN-PROCEDURE-EXIT.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY -t prog.lst -tlines=0 prog.cob], [0], [], [])
+
+AT_DATA([prog3.lst],
+[GnuCOBOL V.R.P               prog.cob                   DDD MMM dd HH:MM:SS YYYY
+
+LINE    PG/LN  A...B............................................................
+
+000001
+000002         IDENTIFICATION DIVISION.
+000003         PROGRAM-ID. tstcpybk.
+000004        *
+000005         ENVIRONMENT DIVISION.
+000006         CONFIGURATION SECTION.
+000007        *
+000008         SOURCE-COMPUTER. LINUX.
+000009         OBJECT-COMPUTER. LINUX.
+000010
+000011         INPUT-OUTPUT SECTION.
+000012         FILE-CONTROL.
+000013             COPY "copy-sl-1.inc".
+000001C
+000002C            SELECT TEXTFILE-1   ASSIGN TO DISK    TEXTFILE-1-NAME
+000003C                                ORGANIZATION      LINE SEQUENTIAL
+000004C                                ACCESS MODE       SEQUENTIAL.
+000005C       *
+000014             COPY "copy-sl-2.inc".
+000001C
+000002C            SELECT TEXTFILE-2   ASSIGN TO DISK    TEXTFILE-2-NAME
+000003C                                ORGANIZATION      LINE SEQUENTIAL
+000004C                                ACCESS MODE       SEQUENTIAL.
+000005C       *
+000015
+000016         DATA DIVISION.
+000017         FILE SECTION.
+000018             COPY "copy-fd-1.inc".
+000001C
+000002C        FD  TEXTFILE-1        RECORD VARYING 1 TO 999 CHARACTERS
+000003C                                  DEPENDING ON TEXTFILE-1-SIZE.
+000004C        01  TEXTRECD-1.
+000005C            03 FILLER         PIC X(999).
+000006C       *
+000019             COPY "copy-fd-2.inc".
+000001C
+000002C        FD  TEXTFILE-2        RECORD VARYING 1 TO 999 CHARACTERS
+000003C                                  DEPENDING ON TEXTFILE-2-SIZE.
+000004C        01  TEXTRECD-2.
+000005C            03 FILLER         PIC X(999).
+000006C       *
+000020
+000021         WORKING-STORAGE SECTION.
+000022         01  FILLER.
+000023             03 FILLER         PIC X(016)     VALUE 'FCSI CodeWerks:'.
+000024             03 FILLER         PIC X(064)     VALUE
+000025                'Name:tstcpybk.cbl  Version:1.7.1  Date:2017-03-15'.
+000026             03 FILLER         PIC X(002)     VALUE LOW-VALUES.
+000027        *
+000028             COPY "copy-ws-1.inc".
+000001C
+000002C        01  TEXTFILE-1-NAME          PIC X(080)     VALUE "TEXTFILE.1".
+000003C        01  TEXTFILE-1-OCFG          PIC X(001)     VALUE "C".
+000004C            88 TEXTFILE-1-NOTOPEN    VALUE "C".
+000005C            88 TEXTFILE-1-IS-OPEN    VALUE "I", "O", "U".
+000006C        01  TEXTFILE-1-SIZE          PIC 9(004).
+000007C       *
+000029             COPY "copy-ws-2.inc".
+000001C
+000002C        01  TEXTFILE-2-NAME          PIC X(080)     VALUE "TEXTFILE.2".
+000003C        01  TEXTFILE-2-OCFG          PIC X(001)     VALUE "C".
+000004C            88 TEXTFILE-2-NOTOPEN    VALUE "C".
+000005C            88 TEXTFILE-2-IS-OPEN    VALUE "I", "O", "U".
+000006C        01  TEXTFILE-2-SIZE          PIC 9(004).
+000007C       *
+000030
+000031         PROCEDURE DIVISION.
+000032         MAIN-PROCEDURE SECTION.
+000033         MAIN-PROCEDURE-0000.
+000034             CONTINUE.
+000035         MAIN-PROCEDURE-EXIT.
+000036             STOP RUN.
+
+SIZE  TYPE           LVL  NAME                           PICTURE
+
+00999 FILE                TEXTFILE-1
+00999 GROUP          01   TEXTRECD-1
+00999 ALPHANUMERIC   03   FILLER                         X(999)
+
+00999 FILE                TEXTFILE-2
+00999 GROUP          01   TEXTRECD-2
+00999 ALPHANUMERIC   03   FILLER                         X(999)
+
+00082 GROUP          01   FILLER
+00016 ALPHANUMERIC   03   FILLER                         X(016)
+00064 ALPHANUMERIC   03   FILLER                         X(064)
+00002 ALPHANUMERIC   03   FILLER                         X(002)
+
+00080 ALPHANUMERIC   01   TEXTFILE-1-NAME                X(080)
+
+00001 ALPHANUMERIC   01   TEXTFILE-1-OCFG                X(001)
+      CONDITIONAL    88   TEXTFILE-1-NOTOPEN
+      CONDITIONAL    88   TEXTFILE-1-IS-OPEN
+
+00004 ALPHANUMERIC   01   TEXTFILE-1-SIZE                9(004)
+
+00080 ALPHANUMERIC   01   TEXTFILE-2-NAME                X(080)
+
+00001 ALPHANUMERIC   01   TEXTFILE-2-OCFG                X(001)
+      CONDITIONAL    88   TEXTFILE-2-NOTOPEN
+      CONDITIONAL    88   TEXTFILE-2-IS-OPEN
+
+00004 ALPHANUMERIC   01   TEXTFILE-2-SIZE                9(004)
+
+
+0 warnings in compilation group
+0 errors in compilation group
+])
+
+AT_CHECK([$UNIFY_LISTING prog.lst prog.lis once], [0], [], [])
+AT_CHECK([diff prog3.lst prog.lis], [0], [], [])
+
+AT_CLEANUP
+
 AT_SETUP([Eject page])
 AT_KEYWORDS([listing])
 
@@ -610,26 +822,26 @@ AT_CHECK([diff prog8.lst prog.lis], [0], [], [])
 
 AT_DATA([prog3.cob], [
        IDENTIFICATION   DIVISION.
-       
+
        PROGRAM-ID.      prog3.
-       
-       
+
+
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
        77 WS-VAR PIC X(2).
       /
        77 WS-VA2 PIC X(2).
-       
-       
+
+
        LOCAL-STORAGE  SECTION.
        77 LS-VAR PIC 9(2).
-       
-       
+
+
        PROCEDURE        DIVISION.
-       
+
            DISPLAY WS-VAR
            MOVE 99 TO LS-VAR
-           
+
            STOP RUN.
 ])
 
@@ -898,7 +1110,7 @@ AT_CLEANUP
 
 
 AT_SETUP([Error/Warning messages])
-AT_KEYWORDS([listing])
+AT_KEYWORDS([listing error warning])
 
 AT_CAPTURE_FILE([prog.lst])
 
@@ -949,6 +1161,13 @@ SIZE  TYPE           LVL  NAME                           PICTURE
       No fields defined.
 
 
+GnuCOBOL V.R.P          prog.cob             DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+Error/Warning summary:
+
+copy.inc: 2: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+prog.cob: 8: error: 'FIRST-MATCH' is not defined
+
 0 warnings in compilation group
 2 errors in compilation group
 ])
@@ -997,6 +1216,13 @@ SIZE  TYPE           LVL  NAME                           PICTURE
       No fields defined.
 
 
+GnuCOBOL V.R.P          prog.cob             DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+Error/Warning summary:
+
+prog.cob: 6: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+prog.cob: 8: error: 'FIRST-MATCH' is not defined
+
 0 warnings in compilation group
 2 errors in compilation group
 ])
@@ -1042,6 +1268,12 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 
 00002 NUMERIC        01   TEST-VAR                       9(2)
 
+
+GnuCOBOL V.R.P          prog.cob             DDD MMM dd HH:MM:SS YYYY  Page 0003
+
+Error/Warning summary:
+
+prog.cob: 6: warning: numeric value is expected
 
 1 warning in compilation group
 0 errors in compilation group
@@ -1130,6 +1362,11 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00002 NUMERIC        01   TEST-VAR                       9(2)
 
 
+
+Error/Warning summary:
+
+prog.cob: 11: warning: numeric value is expected
+
 1 warning in compilation group
 0 errors in compilation group
 ])
@@ -1186,12 +1423,60 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00002 NUMERIC        01   TEST-VAR                       9(2)
 
 
+
+Error/Warning summary:
+
+prog.cob: 7: error: CRUD.CPY: No such file or directory
+prog.cob: 11: warning: numeric value is expected
+
 1 warning in compilation group
 1 error in compilation group
 ])
 
 AT_CHECK([$UNIFY_LISTING prog.lst prog.lis once], [0], [], [])
 AT_CHECK([diff prog16.lst prog.lis], [0], [], [])
+
+AT_CHECK([$COMPILE_ONLY -t prog.lst -tlines=0 -fmax-errors=0 prog.cob], [97], [],
+[prog.cob: 7: error: CRUD.CPY: No such file or directory
+cobc: too many errors
+cobc: aborting compile of prog.cob at line 7 (unknown: unknown)
+])
+
+AT_DATA([prog17.lst],
+[GnuCOBOL V.R.P               prog.cob                   DDD MMM dd HH:MM:SS YYYY
+
+LINE    PG/LN  A...B............................................................
+
+000001
+000002         IDENTIFICATION   DIVISION.
+000003         PROGRAM-ID.      prog.
+000004         DATA             DIVISION.
+000005         WORKING-STORAGE  SECTION.
+000006         01 TEST-VAR PIC 9(2) VALUE 12.
+000007         COPY 'CRUD.CPY'.
+error: CRUD.CPY: No such file or directory
+000008         PROCEDURE        DIVISION.
+000009             DISPLAY TEST-VAR NO ADVANCING
+000010             END-DISPLAY
+000011             MOVE 'AA' TO TEST-VAR
+000012             DISPLAY TEST-VAR NO ADVANCING
+000013             END-DISPLAY
+000014             STOP RUN.
+
+
+
+Error/Warning summary:
+
+prog.cob: 7: error: CRUD.CPY: No such file or directory
+
+0 warnings in compilation group
+1 error in compilation group
+Too many errors in compilation group: 0 maximum errors
+])
+
+AT_CHECK([$UNIFY_LISTING prog.lst prog.lis once], [0], [], [])
+AT_CHECK([diff prog17.lst prog.lis], [0], [], [])
+
 
 AT_CLEANUP
 
@@ -1413,13 +1698,13 @@ AT_DATA([prog3.cob], [
            03  value "WS-Where=" line 23 col  1.
            03  from WS-Where (1:J) pic x(69) col 10.
        01  Display-Message-2 foreground-color 2.
-           03  value "ST004 SQL Err No.=" line 4 col  1. 
+           03  value "ST004 SQL Err No.=" line 4 col  1.
            03  using ws-mysql-error-number pic x(4) col 19.
            03  value " Para=" col 23.
            03  using WS-No-Paragraph pic 9(3) col 29.
            03  value " SQL Cmd=" col 32.
            03  using ws-mysql-command pic x(199) col 41.
-           03  value "SQL Err Msg=" line 7 col  1.   
+           03  value "SQL Err Msg=" line 7 col  1.
            03  using ws-mysql-error-message pic x(67) col 13.
        PROCEDURE        DIVISION.
            STOP RUN.
@@ -1489,41 +1774,41 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00512 ALPHANUMERIC   77   WS-Where                       X(512)
 
 04524 GROUP          01   ws-mysql
-00004 POINTER        02     ws-mysql-cid
-00004 POINTER        02     ws-mysql-result
-00004 POINTER        02     ws-mysql-result-2
-00004 POINTER        02     ws-mysql-result-3
-00004 NUMERIC        02     ws-mysql-count-rows          S9(9) COMP
-00004 ALPHANUMERIC   02     ws-mysql-error-number        X(4)
-00080 ALPHANUMERIC   02     ws-mysql-error-message       X(80)
-00064 ALPHANUMERIC   02     ws-mysql-host-name           X(64)
-00064 ALPHANUMERIC   02     ws-mysql-implementation      X(64)
-00064 ALPHANUMERIC   02     ws-mysql-password            X(64)
-00064 ALPHANUMERIC   02     ws-mysql-base-name           X(64)
-00004 ALPHANUMERIC   02     ws-mysql-port-number         X(4)
-00064 ALPHANUMERIC   02     ws-mysql-socket              X(64)
-04096 ALPHANUMERIC   02     ws-mysql-command             X(4096)
+00004 POINTER        02   ws-mysql-cid
+00004 POINTER        02   ws-mysql-result
+00004 POINTER        02   ws-mysql-result-2
+00004 POINTER        02   ws-mysql-result-3
+00004 NUMERIC        02   ws-mysql-count-rows            S9(9) COMP
+00004 ALPHANUMERIC   02   ws-mysql-error-number          X(4)
+00080 ALPHANUMERIC   02   ws-mysql-error-message         X(80)
+00064 ALPHANUMERIC   02   ws-mysql-host-name             X(64)
+00064 ALPHANUMERIC   02   ws-mysql-implementation        X(64)
+00064 ALPHANUMERIC   02   ws-mysql-password              X(64)
+00064 ALPHANUMERIC   02   ws-mysql-base-name             X(64)
+00004 ALPHANUMERIC   02   ws-mysql-port-number           X(4)
+00064 ALPHANUMERIC   02   ws-mysql-socket                X(64)
+04096 ALPHANUMERIC   02   ws-mysql-command               X(4096)
 
 00004 ALPHANUMERIC   01   ws-No-Paragraph                9(4)
 
 00006 GROUP          01   subscripts
-00002 NUMERIC        12     J                            S9(4) COMP-5
-00002 NUMERIC        12     K                            S9(4) COMP-5
-00002 NUMERIC        12     L                            S9(4) COMP-5
+00002 NUMERIC        12   J                              S9(4) COMP-5
+00002 NUMERIC        12   K                              S9(4) COMP-5
+00002 NUMERIC        12   L                              S9(4) COMP-5
 
 00078 GROUP          01   Display-Message-1
-00009 ALPHANUMERIC   03     FILLER                       X(9)
-00069 ALPHANUMERIC   03     FILLER                       X(69)
+00009 ALPHANUMERIC   03   FILLER                         X(9)
+00069 ALPHANUMERIC   03   FILLER                         X(69)
 
 00318 GROUP          01   Display-Message-2
-00018 ALPHANUMERIC   03     FILLER                       X(18)
-00004 ALPHANUMERIC   03     FILLER                       X(4)
-00006 ALPHANUMERIC   03     FILLER                       X(6)
-00003 ALPHANUMERIC   03     FILLER                       9(3)
-00009 ALPHANUMERIC   03     FILLER                       X(9)
-00199 ALPHANUMERIC   03     FILLER                       X(199)
-00012 ALPHANUMERIC   03     FILLER                       X(12)
-00067 ALPHANUMERIC   03     FILLER                       X(67)
+00018 ALPHANUMERIC   03   FILLER                         X(18)
+00004 ALPHANUMERIC   03   FILLER                         X(4)
+00006 ALPHANUMERIC   03   FILLER                         X(6)
+00003 ALPHANUMERIC   03   FILLER                         9(3)
+00009 ALPHANUMERIC   03   FILLER                         X(9)
+00199 ALPHANUMERIC   03   FILLER                         X(199)
+00012 ALPHANUMERIC   03   FILLER                         X(12)
+00067 ALPHANUMERIC   03   FILLER                         X(67)
 
 
 0 warnings in compilation group
@@ -1592,41 +1877,41 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00512 ALPHANUMERIC   77   WS-Where                       X(512)
 
 04540 GROUP          01   ws-mysql
-00008 POINTER        02     ws-mysql-cid
-00008 POINTER        02     ws-mysql-result
-00008 POINTER        02     ws-mysql-result-2
-00008 POINTER        02     ws-mysql-result-3
-00004 NUMERIC        02     ws-mysql-count-rows          S9(9) COMP
-00004 ALPHANUMERIC   02     ws-mysql-error-number        X(4)
-00080 ALPHANUMERIC   02     ws-mysql-error-message       X(80)
-00064 ALPHANUMERIC   02     ws-mysql-host-name           X(64)
-00064 ALPHANUMERIC   02     ws-mysql-implementation      X(64)
-00064 ALPHANUMERIC   02     ws-mysql-password            X(64)
-00064 ALPHANUMERIC   02     ws-mysql-base-name           X(64)
-00004 ALPHANUMERIC   02     ws-mysql-port-number         X(4)
-00064 ALPHANUMERIC   02     ws-mysql-socket              X(64)
-04096 ALPHANUMERIC   02     ws-mysql-command             X(4096)
+00008 POINTER        02   ws-mysql-cid
+00008 POINTER        02   ws-mysql-result
+00008 POINTER        02   ws-mysql-result-2
+00008 POINTER        02   ws-mysql-result-3
+00004 NUMERIC        02   ws-mysql-count-rows            S9(9) COMP
+00004 ALPHANUMERIC   02   ws-mysql-error-number          X(4)
+00080 ALPHANUMERIC   02   ws-mysql-error-message         X(80)
+00064 ALPHANUMERIC   02   ws-mysql-host-name             X(64)
+00064 ALPHANUMERIC   02   ws-mysql-implementation        X(64)
+00064 ALPHANUMERIC   02   ws-mysql-password              X(64)
+00064 ALPHANUMERIC   02   ws-mysql-base-name             X(64)
+00004 ALPHANUMERIC   02   ws-mysql-port-number           X(4)
+00064 ALPHANUMERIC   02   ws-mysql-socket                X(64)
+04096 ALPHANUMERIC   02   ws-mysql-command               X(4096)
 
 00004 ALPHANUMERIC   01   ws-No-Paragraph                9(4)
 
 00006 GROUP          01   subscripts
-00002 NUMERIC        12     J                            S9(4) COMP-5
-00002 NUMERIC        12     K                            S9(4) COMP-5
-00002 NUMERIC        12     L                            S9(4) COMP-5
+00002 NUMERIC        12   J                              S9(4) COMP-5
+00002 NUMERIC        12   K                              S9(4) COMP-5
+00002 NUMERIC        12   L                              S9(4) COMP-5
 
 00078 GROUP          01   Display-Message-1
-00009 ALPHANUMERIC   03     FILLER                       X(9)
-00069 ALPHANUMERIC   03     FILLER                       X(69)
+00009 ALPHANUMERIC   03   FILLER                         X(9)
+00069 ALPHANUMERIC   03   FILLER                         X(69)
 
 00318 GROUP          01   Display-Message-2
-00018 ALPHANUMERIC   03     FILLER                       X(18)
-00004 ALPHANUMERIC   03     FILLER                       X(4)
-00006 ALPHANUMERIC   03     FILLER                       X(6)
-00003 ALPHANUMERIC   03     FILLER                       9(3)
-00009 ALPHANUMERIC   03     FILLER                       X(9)
-00199 ALPHANUMERIC   03     FILLER                       X(199)
-00012 ALPHANUMERIC   03     FILLER                       X(12)
-00067 ALPHANUMERIC   03     FILLER                       X(67)
+00018 ALPHANUMERIC   03   FILLER                         X(18)
+00004 ALPHANUMERIC   03   FILLER                         X(4)
+00006 ALPHANUMERIC   03   FILLER                         X(6)
+00003 ALPHANUMERIC   03   FILLER                         9(3)
+00009 ALPHANUMERIC   03   FILLER                         X(9)
+00199 ALPHANUMERIC   03   FILLER                         X(199)
+00012 ALPHANUMERIC   03   FILLER                         X(12)
+00067 ALPHANUMERIC   03   FILLER                         X(67)
 
 
 0 warnings in compilation group
@@ -1845,24 +2130,24 @@ LINE    PG/LN  A...B............................................................
 SIZE  TYPE           LVL  NAME                           PICTURE
 
 05204 GROUP          01   SETUP-REC
-00004 ALPHANUMERIC   05     FL1                          X(04)
-00005 ALPHANUMERIC   05     FL2                          ZZZZZ
-00004 ALPHANUMERIC   05     FL3                          9(04)
-00004 NUMERIC        05     FL4                          9(08) COMP
-00002 NUMERIC        05     FL5                          9(04) COMP
-00008 ALPHANUMERIC   05     FL6                          Z,ZZZ.99
-00006 ALPHANUMERIC   05     FL7                          S9(05)
-00004 ALPHANUMERIC   05     FL8                          X(04)
-00004 ALPHANUMERIC-R 05     FL9                          9(04)
-00060 GROUP          05     FLA
-00040 GROUP          10       FLB                        OCCURS 20
-00002 ALPHANUMERIC   15         FLC                      X(02)
-00020 ALPHANUMERIC   10       FLD                        X(20)
-00100 ALPHANUMERIC   05     FLD1                         X(100)
-05000 GROUP          05     FLD2                         OCCURS 5 TO 5000
-00001 ALPHANUMERIC   10       FILLER                     X(01)
-00003 ALPHANUMERIC   05     FLD3                         X(3)
-00004 ALPHANUMERIC   05     FLD4                         X(4)
+00004 ALPHANUMERIC   05   FL1                            X(04)
+00005 ALPHANUMERIC   05   FL2                            ZZZZZ
+00004 ALPHANUMERIC   05   FL3                            9(04)
+00004 NUMERIC        05   FL4                            9(08) COMP
+00002 NUMERIC        05   FL5                            9(04) COMP
+00008 ALPHANUMERIC   05   FL6                            Z,ZZZ.99
+00006 ALPHANUMERIC   05   FL7                            S9(05)
+00004 ALPHANUMERIC   05   FL8                            X(04)
+00004 ALPHANUMERIC   05   FL9                            9(04), REDEFINES FL8
+00060 GROUP          05   FLA
+00040 GROUP          10   FLB                            OCCURS 20
+00002 ALPHANUMERIC   15   FLC                            X(02)
+00020 ALPHANUMERIC   10   FLD                            X(20)
+00100 ALPHANUMERIC   05   FLD1                           X(100)
+05000 GROUP          05   FLD2                           OCCURS 5 TO 5000
+00001 ALPHANUMERIC   10   FILLER                         X(01)
+00003 ALPHANUMERIC   05   FLD3                           X(3)
+00004 ALPHANUMERIC   05   FLD4                           X(4)
 
 
 0 warnings in compilation group
@@ -2278,75 +2563,87 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 
 00080 FILE                OLD-VERSION
 00080 GROUP          01   OLD-RECORD
-00075 ALPHANUMERIC   02     OLD-STATEMENT                X(75)
-00005 ALPHANUMERIC   02     OLD-NUMBER                   X(5)
+00075 ALPHANUMERIC   02   OLD-STATEMENT                  X(75)
+00005 ALPHANUMERIC   02   OLD-NUMBER                     X(5)
 
 00080 FILE                NEW-VERSION
 00080 GROUP          01   NEW-RECORD
-00075 ALPHANUMERIC   02     NEW-STATEMENT                X(75)
-00005 ALPHANUMERIC   02     NEW-NUMBER                   X(5)
+00075 ALPHANUMERIC   02   NEW-STATEMENT                  X(75)
+00005 ALPHANUMERIC   02   NEW-NUMBER                     X(5)
 
 00032 FILE                PRT-VERSION
 
 00080 FILE                MODIFICATION
 00080 GROUP          01   UPDATE-ORDER
-00075 GROUP          02     INSERTION
-00006 ALPHANUMERIC   03       COMMAND                    X(6)
-      CONDITIONAL    88         ENDJOB
-      CONDITIONAL    88         ENDSET
-      CONDITIONAL    88         REMOVE
-      CONDITIONAL    88         ADDNEW
-      CONDITIONAL    88         CHANGE
-      CONDITIONAL    88         DISPLY
-00001 ALPHANUMERIC   03       FILLER                     X
-00005 ALPHANUMERIC   03       A-FIELD                    9(5)
-00005 ALPHANUMERIC-R 03       A-ALPHA                    X(5)
-      CONDITIONAL    88         A-BLANK
-00004 ALPHANUMERIC   03       FILLER                     X(4)
-00005 ALPHANUMERIC   03       B-FIELD                    9(5)
-00005 ALPHANUMERIC-R 03       B-ALPHA                    X(5)
-      CONDITIONAL    88         B-BLANK
-00054 ALPHANUMERIC   03       FILLER                     X(54)
-00005 ALPHANUMERIC   02     FILLER                       X(5)
+00075 GROUP          02   INSERTION
+00006 ALPHANUMERIC   03   COMMAND                        X(6)
+      CONDITIONAL    88   ENDJOB
+      CONDITIONAL    88   ENDSET
+      CONDITIONAL    88   REMOVE
+      CONDITIONAL    88   ADDNEW
+      CONDITIONAL    88   CHANGE
+      CONDITIONAL    88   DISPLY
+00001 ALPHANUMERIC   03   FILLER                         X
+00005 ALPHANUMERIC   03   A-FIELD                        9(5)
+00005 ALPHANUMERIC   03   A-ALPHA                        X(5), REDEFINES A-FIELD
+      CONDITIONAL    88   A-BLANK
+00004 ALPHANUMERIC   03   FILLER                         X(4)
+00005 ALPHANUMERIC   03   B-FIELD                        9(5)
+00005 ALPHANUMERIC   03   B-ALPHA                        X(5), REDEFINES B-FIELD
+      CONDITIONAL    88   B-BLANK
+00054 ALPHANUMERIC   03   FILLER                         X(54)
+00005 ALPHANUMERIC   02   FILLER                         X(5)
 
 00082 FILE                COMMENTARY
 00082 GROUP          01   COMMENT-LINE
-00082 ALPHANUMERIC   02     FILLER                       X(82)
+00082 ALPHANUMERIC   02   FILLER                         X(82)
 
 00080 GROUP          01   HEADINGS-LINE
-00015 ALPHANUMERIC   02     FILLER                       X(15)
-00020 ALPHANUMERIC   02     FILLER                       X(20)
-00017 ALPHANUMERIC   02     PHASE                        X(17)
-00002 ALPHANUMERIC   02     MONTH-RUN                    XX
-00001 ALPHANUMERIC   02     FILLER                       X
-00002 ALPHANUMERIC   02     DAY-RUN                      XX
-00001 ALPHANUMERIC   02     FILLER                       X
-00002 ALPHANUMERIC   02     YEAR-RUN                     XX
-00008 ALPHANUMERIC   02     FILLER                       X(8)
-00008 ALPHANUMERIC   02     FILLER                       X(8)
-00004 NUMERIC        02     PAGE-NUMBER                  9(4)
+00015 ALPHANUMERIC   02   FILLER                         X(15)
+00020 ALPHANUMERIC   02   FILLER                         X(20)
+00017 ALPHANUMERIC   02   PHASE                          X(17)
+00002 ALPHANUMERIC   02   MONTH-RUN                      XX
+00001 ALPHANUMERIC   02   FILLER                         X
+00002 ALPHANUMERIC   02   DAY-RUN                        XX
+00001 ALPHANUMERIC   02   FILLER                         X
+00002 ALPHANUMERIC   02   YEAR-RUN                       XX
+00008 ALPHANUMERIC   02   FILLER                         X(8)
+00008 ALPHANUMERIC   02   FILLER                         X(8)
+00004 NUMERIC        02   PAGE-NUMBER                    9(4)
 
 00082 GROUP          01   COMMAND-LISTING
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00080 ALPHANUMERIC   02     COMMAND-IMAGE                X(80)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00080 ALPHANUMERIC   02   COMMAND-IMAGE                  X(80)
 
 00082 GROUP          01   ACTIVITIES-LISTING
-00002 ALPHANUMERIC   02     DISPOSITION                  X(2)
-00080 ALPHANUMERIC   02     ACTIVE-IMAGE                 X(80)
+00002 ALPHANUMERIC   02   DISPOSITION                    X(2)
+00080 ALPHANUMERIC   02   ACTIVE-IMAGE                   X(80)
 
 00008 GROUP          01   UPSI-BYTE
-00001 ALPHANUMERIC   02     UPSI-BIT                     X, OCCURS 8
+00001 ALPHANUMERIC   02   UPSI-BIT                       X, OCCURS 8
 
 00082 GROUP          01   MESSAGE-LOG
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00080 ALPHANUMERIC   02     MESSAGE-TEXT                 X(80)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00080 ALPHANUMERIC   02   MESSAGE-TEXT                   X(80)
 
 00070 GROUP          01   DISPLAY-MESSAGE
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00006 ALPHANUMERIC   02     DISPLAY-TEMP                 X(6)
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00060 ALPHANUMERIC   02     DISPLAY-TEXT                 X(60)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00006 ALPHANUMERIC   02   DISPLAY-TEMP                   X(6)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00060 ALPHANUMERIC   02   DISPLAY-TEXT                   X(60)
 
+
+
+Error/Warning summary:
+
+prog.cob: 21: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 23: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 30: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 32: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 39: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 41: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 64: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 66: warning: DATA RECORDS is obsolete in GnuCOBOL
 
 8 warnings in compilation group
 0 errors in compilation group
@@ -2573,12 +2870,12 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00000 ALPHANUMERIC   01   too-long-pic2                  INVALID
 
 00000 GROUP          01   mutiple-symbols
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
 
 00000 GROUP          01   non-symbols
-00000 ALPHANUMERIC   03     FILLER                       INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
 
 00050 ALPHANUMERIC   01   too-many-digits                9(50)
 
@@ -2593,35 +2890,79 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00000 ALPHANUMERIC   01   no-digit-in-parens             INVALID
 
 00000 GROUP          01   mutually-exclusive-symbols
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
 
 00000 GROUP          01   non-rightmost-leftmost-symbols
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
-00000 ALPHANUMERIC   03     FILLER                       INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
 
 00000 GROUP          01   missing-symbols
-00000 ALPHANUMERIC   03     FILLER                       INVALID
+00000 ALPHANUMERIC   03   FILLER                         INVALID
 
 00032 GROUP          01   valid-pics
-00002 ALPHANUMERIC   03     FILLER                       VP9B
-00002 ALPHANUMERIC   03     FILLER                       B9P(3)
-00004 ALPHANUMERIC   03     FILLER                       B$$$
-00014 ALPHANUMERIC   03     FILLER                       0000+B0+++0B,+
-00005 ALPHANUMERIC   03     FILLER                       +(5)P(3)
-00005 ALPHANUMERIC   03     FILLER                       ++.++
+00002 ALPHANUMERIC   03   FILLER                         VP9B
+00002 ALPHANUMERIC   03   FILLER                         B9P(3)
+00004 ALPHANUMERIC   03   FILLER                         B$$$
+00014 ALPHANUMERIC   03   FILLER                         0000+B0+++0B,+
+00005 ALPHANUMERIC   03   FILLER                         +(5)P(3)
+00005 ALPHANUMERIC   03   FILLER                         ++.++
 
+
+
+Error/Warning summary:
+
+prog.cob: 9: warning: continuation of COBOL words used
+prog.cob: 11: warning: continuation of COBOL words used
+prog.cob: 12: warning: continuation of COBOL words used
+prog.cob: 13: warning: continuation of COBOL words used
+prog.cob: 14: warning: continuation of COBOL words used
+prog.cob: 7: error: missing PICTURE string
+prog.cob: 10: error: PICTURE string may not contain more than 255 characters; contains 301 characters
+prog.cob: 16: error: CR or DB may only occur once in a PICTURE string
+prog.cob: 17: error: S may only occur once in a PICTURE string
+prog.cob: 17: error: S must be at start of PICTURE string
+prog.cob: 18: error: a leading +/- sign cannot follow a leading currency symbol
+prog.cob: 18: error: a trailing currency symbol cannot follow a leading currency symbol
+prog.cob: 18: error: a trailing +/- sign cannot follow a leading +/- sign
+prog.cob: 20: error: invalid PICTURE character 'K'
+prog.cob: 21: error: numeric field cannot be larger than 38 digits
+prog.cob: 22: error: only up to 9 significant digits are permitted within parentheses
+prog.cob: 23: error: '(100' is not defined
+prog.cob: 23: error: invalid PICTURE character ')'
+prog.cob: 24: error: unbalanced parentheses
+prog.cob: 25: error: only one set of parentheses is permitted
+prog.cob: 26: error: parentheses must contain (a constant-name defined as) a positive integer
+prog.cob: 28: error: . cannot follow V
+prog.cob: 29: error: cannot have both Z and * in PICTURE string
+prog.cob: 30: error: a trailing +/- sign cannot follow a floating +/- string which is before the decimal point
+prog.cob: 30: error: a trailing +/- sign may only occur once in a PICTURE string
+prog.cob: 31: warning: handling of USAGE NATIONAL is unfinished; implementation is likely to be changed
+prog.cob: 31: error: N cannot follow A or X
+prog.cob: 32: error: A or X cannot follow S
+prog.cob: 33: error: a trailing +/- sign cannot follow a floating +/- string which is before the decimal point
+prog.cob: 34: error: CR or DB cannot follow a leading +/- sign
+prog.cob: 36: error: a leading +/- sign cannot follow B, 0 or /
+prog.cob: 37: error: a leading +/- sign cannot follow 9
+prog.cob: 38: error: B, 0 or / cannot follow CR or DB
+prog.cob: 39: error: 9 cannot follow CR or DB
+prog.cob: 40: error: a floating currency symbol string which is before the decimal point cannot follow 9
+prog.cob: 41: error: a leading currency symbol cannot follow 9
+prog.cob: 42: error: a leading currency symbol cannot follow B, 0 or /
+prog.cob: 43: error: P must be at start or end of PICTURE string
+prog.cob: 43: error: V cannot follow a P which is after the decimal point
+prog.cob: 45: error: PICTURE string must contain at least one of the set A, N, X, Z, 1, 9 and *; or at least two of the set +, - and the currency symbol
 
 6 warnings in compilation group
 34 errors in compilation group
@@ -3372,45 +3713,44 @@ warning: ALTER is obsolete in GnuCOBOL
 000324
 000325         END PROGRAM EDITOR.
 
-
 SIZE  TYPE           LVL  NAME                           PICTURE
 
 00080 FILE                OLD-VERSION
 00080 GROUP          01   OLD-RECORD
-00075 ALPHANUMERIC   02     OLD-STATEMENT                X(75)
-00005 ALPHANUMERIC   02     OLD-NUMBER                   X(5)
+00075 ALPHANUMERIC   02   OLD-STATEMENT                  X(75)
+00005 ALPHANUMERIC   02   OLD-NUMBER                     X(5)
 
 00080 FILE                NEW-VERSION
 00080 GROUP          01   NEW-RECORD
-00075 ALPHANUMERIC   02     NEW-STATEMENT                X(75)
-00005 ALPHANUMERIC   02     NEW-NUMBER                   X(5)
+00075 ALPHANUMERIC   02   NEW-STATEMENT                  X(75)
+00005 ALPHANUMERIC   02   NEW-NUMBER                     X(5)
 
 00032 FILE                PRT-VERSION
 
 00080 FILE                MODIFICATION
 00080 GROUP          01   UPDATE-ORDER
-00075 GROUP          02     INSERTION
-00006 ALPHANUMERIC   03       COMMAND                    X(6)
-      CONDITIONAL    88         ENDJOB
-      CONDITIONAL    88         ENDSET
-      CONDITIONAL    88         REMOVE
-      CONDITIONAL    88         ADDNEW
-      CONDITIONAL    88         CHANGE
-      CONDITIONAL    88         DISPLY
-00001 ALPHANUMERIC   03       FILLER                     X
-00005 NUMERIC        03       A-FIELD                    9(5)
-00005 ALPHANUMERIC-R 03       A-ALPHA                    X(5)
-      CONDITIONAL    88         A-BLANK
-00004 ALPHANUMERIC   03       FILLER                     X(4)
-00005 NUMERIC        03       B-FIELD                    9(5)
-00005 ALPHANUMERIC-R 03       B-ALPHA                    X(5)
-      CONDITIONAL    88         B-BLANK
-00054 ALPHANUMERIC   03       FILLER                     X(54)
-00005 ALPHANUMERIC   02     FILLER                       X(5)
+00075 GROUP          02   INSERTION
+00006 ALPHANUMERIC   03   COMMAND                        X(6)
+      CONDITIONAL    88   ENDJOB
+      CONDITIONAL    88   ENDSET
+      CONDITIONAL    88   REMOVE
+      CONDITIONAL    88   ADDNEW
+      CONDITIONAL    88   CHANGE
+      CONDITIONAL    88   DISPLY
+00001 ALPHANUMERIC   03   FILLER                         X
+00005 NUMERIC        03   A-FIELD                        9(5)
+00005 ALPHANUMERIC   03   A-ALPHA                        X(5), REDEFINES A-FIELD
+      CONDITIONAL    88   A-BLANK
+00004 ALPHANUMERIC   03   FILLER                         X(4)
+00005 NUMERIC        03   B-FIELD                        9(5)
+00005 ALPHANUMERIC   03   B-ALPHA                        X(5), REDEFINES B-FIELD
+      CONDITIONAL    88   B-BLANK
+00054 ALPHANUMERIC   03   FILLER                         X(54)
+00005 ALPHANUMERIC   02   FILLER                         X(5)
 
 00082 FILE                COMMENTARY
 00082 GROUP          01   COMMENT-LINE
-00082 ALPHANUMERIC   02     FILLER                       X(82)
+00082 ALPHANUMERIC   02   FILLER                         X(82)
 
 00002 NUMERIC        77   COMMAND-ADDITIONS              9(3) COMP
 00002 NUMERIC        77   COMMAND-SUBTRACTIONS           9(3) COMP
@@ -3423,41 +3763,41 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00082 ALPHANUMERIC   77   BLANK-LINE                     X(82)
 
 00006 GROUP          01   DATE-FROM-SYS
-00002 NUMERIC        02     DFSYS                        99, OCCURS 3
+00002 NUMERIC        02   DFSYS                          99, OCCURS 3
 
 00080 GROUP          01   HEADINGS-LINE
-00015 ALPHANUMERIC   02     FILLER                       X(15)
-00020 ALPHANUMERIC   02     FILLER                       X(20)
-00017 ALPHANUMERIC   02     PHASE                        X(17)
-00002 ALPHANUMERIC   02     MONTH-RUN                    XX
-00001 ALPHANUMERIC   02     FILLER                       X
-00002 ALPHANUMERIC   02     DAY-RUN                      XX
-00001 ALPHANUMERIC   02     FILLER                       X
-00002 ALPHANUMERIC   02     YEAR-RUN                     XX
-00008 ALPHANUMERIC   02     FILLER                       X(8)
-00008 ALPHANUMERIC   02     FILLER                       X(8)
-00004 NUMERIC        02     PAGE-NUMBER                  9(4)
+00015 ALPHANUMERIC   02   FILLER                         X(15)
+00020 ALPHANUMERIC   02   FILLER                         X(20)
+00017 ALPHANUMERIC   02   PHASE                          X(17)
+00002 ALPHANUMERIC   02   MONTH-RUN                      XX
+00001 ALPHANUMERIC   02   FILLER                         X
+00002 ALPHANUMERIC   02   DAY-RUN                        XX
+00001 ALPHANUMERIC   02   FILLER                         X
+00002 ALPHANUMERIC   02   YEAR-RUN                       XX
+00008 ALPHANUMERIC   02   FILLER                         X(8)
+00008 ALPHANUMERIC   02   FILLER                         X(8)
+00004 NUMERIC        02   PAGE-NUMBER                    9(4)
 
 00082 GROUP          01   COMMAND-LISTING
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00080 ALPHANUMERIC   02     COMMAND-IMAGE                X(80)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00080 ALPHANUMERIC   02   COMMAND-IMAGE                  X(80)
 
 00082 GROUP          01   ACTIVITIES-LISTING
-00002 ALPHANUMERIC   02     DISPOSITION                  X(2)
-00080 ALPHANUMERIC   02     ACTIVE-IMAGE                 X(80)
+00002 ALPHANUMERIC   02   DISPOSITION                    X(2)
+00080 ALPHANUMERIC   02   ACTIVE-IMAGE                   X(80)
 
 00008 GROUP          01   UPSI-BYTE
-00001 ALPHANUMERIC   02     UPSI-BIT                     X, OCCURS 8
+00001 ALPHANUMERIC   02   UPSI-BIT                       X, OCCURS 8
 
 00082 GROUP          01   MESSAGE-LOG
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00080 ALPHANUMERIC   02     MESSAGE-TEXT                 X(80)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00080 ALPHANUMERIC   02   MESSAGE-TEXT                   X(80)
 
 00070 GROUP          01   DISPLAY-MESSAGE
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00006 ALPHANUMERIC   02     DISPLAY-TEMP                 X(6)
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00060 ALPHANUMERIC   02     DISPLAY-TEXT                 X(60)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00006 ALPHANUMERIC   02   DISPLAY-TEMP                   X(6)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00060 ALPHANUMERIC   02   DISPLAY-TEXT                   X(60)
 
 00001 NUMERIC        77   END-JOB-PROCESS                9
 00001 NUMERIC        77   DELETE-PROCESS                 9
@@ -3465,89 +3805,90 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00001 NUMERIC        77   WRITE-PROCESS                  9
 
 00002 GROUP          01   SELECTORS
-00001 NUMERIC        02     RETURN-SELECT                9
-00001 NUMERIC        02     NEXT-JOB-SELECT              9
+00001 NUMERIC        02   RETURN-SELECT                  9
+00001 NUMERIC        02   NEXT-JOB-SELECT                9
 
 
 NAME                           DEFINED                REFERENCES
 
-OLD-VERSION                    26       41      154     160     206     272   
-                                        285     322   
-OLD-RECORD                     46       258   
-OLD-STATEMENT                  47       164     212     249     269     286   
-OLD-NUMBER                     48       202     211     264     291   
+OLD-VERSION                    26       41      153     160     206     272
+                                        285     322
+OLD-RECORD                     46       44      258
+OLD-STATEMENT                  47       164     212     249     269     286
+OLD-NUMBER                     48       202     211     264     291
 
-NEW-VERSION                    28       50      154     282     304     305   
-                                        312     322   
-NEW-RECORD                     55       282     313   
-NEW-STATEMENT                  56       164     212     236     249     269   
-                                        286   
-NEW-NUMBER                     57       281   
+NEW-VERSION                    28       50      154     282     304     305
+                                        312     322
+NEW-RECORD                     55       53      282     313
+NEW-STATEMENT                  56       164     212     236     249     269
+                                        286
+NEW-NUMBER                     57       281
 
 PRT-VERSION                    30     not referenced
 
-MODIFICATION                   32       59      154     174     225     322   
-UPDATE-ORDER                   64       178   
-INSERTION                      65       236   
-COMMAND                        66     not referenced
-ENDJOB                         67       191   
-ENDSET                         68       229   
-REMOVE                         69       188   
-ADDNEW                         70       192   
-CHANGE                         71       187   
-DISPLY                         72       189   
-A-FIELD                        74       181     183   
-A-ALPHA                        75     not referenced
-A-BLANK                        76       181   
-B-FIELD                        78       182     184   
-B-ALPHA                        79     not referenced
-B-BLANK                        80       182   
+MODIFICATION                   32       59      153     174     225     322
+UPDATE-ORDER                   64       62      178
+INSERTION                      65       236
+COMMAND                        66     referenced by parent/child
+ENDJOB                         67       191
+ENDSET                         68       229
+REMOVE                         69       188
+ADDNEW                         70       192
+CHANGE                         71       187
+DISPLY                         72       189
+A-FIELD                        74       181     183
+A-ALPHA                        75     referenced by parent/child
+A-BLANK                        76       181
+B-FIELD                        78       182     184
+B-ALPHA                        79     referenced by parent/child
+B-BLANK                        80       182
 
-COMMENTARY                     34       84      154     162     170     171   
-                                        176     179     194     204     209   
-                                        227     232     239     260     267   
-                                        275     293     296     299     302   
-                                        314     321     322   
-COMMENT-LINE                   89       162     170     171     176     179   
-                                        194     204     209     227     232   
-                                        239     260     267     275     293   
-                                        296     299     302     314     321   
+COMMENTARY                     34       84      154     162     170     171
+                                        176     179     194     204     209
+                                        227     232     239     260     267
+                                        275     293     296     299     302
+                                        314     321     322
+COMMENT-LINE                   89       87      162     170     171     176
+                                        179     194     204     209     227
+                                        232     239     260     267     275
+                                        293     296     299     302     314
+                                        321
 
-COMMAND-ADDITIONS              94       230     233     234     240   
-COMMAND-SUBTRACTIONS           95       263     265     268     270   
-TOTAL-INSERTED                 96       233     294   
-TOTAL-DELETED                  97       268     297   
-OUTPUT-COUNT                   98       280     281     300   
-LINE-COUNT                     99       169     180     241     242     261   
-                                        262     315     316   
-FIELDA                         100      183     202     208     211   
-FIELDB                         101      184     264   
-BLANK-LINE                     102      171   
-DATE-FROM-SYS                  104      156   
-DFSYS                          105      157     158     159   
-HEADINGS-LINE                  107      170   
-PHASE                          110      306   
-MONTH-RUN                      111      158   
-DAY-RUN                        113      159   
-YEAR-RUN                       115      157   
-PAGE-NUMBER                    118      168     307   
-COMMAND-LISTING                120      179   
-COMMAND-IMAGE                  122      178   
-ACTIVITIES-LISTING             124      239     260     314   
-DISPOSITION                    125      237     259     309   
-ACTIVE-IMAGE                   126      236     258     313   
-UPSI-BYTE                      128    not referenced
-UPSI-BIT                       129      155     189     303   
-MESSAGE-LOG                    131      162     176     194     204     227   
-                                        321   
-MESSAGE-TEXT                   133      161     175     193     203     226   
-                                        320   
-DISPLAY-MESSAGE                135      209     232     267     275     293   
-                                        296     299     302   
-DISPLAY-TEMP                   137      208     230     265     291     294   
-                                        297     300   
-DISPLAY-TEXT                   139      207     231     266     273     292   
-                                        295     298     301   
+COMMAND-ADDITIONS              94       230     233     234     240
+COMMAND-SUBTRACTIONS           95       263     265     268     270
+TOTAL-INSERTED                 96       233     294
+TOTAL-DELETED                  97       268     297
+OUTPUT-COUNT                   98       280     281     300
+LINE-COUNT                     99       169     180     241     242     261
+                                        262     315     316
+FIELDA                         100      183     202     208     211
+FIELDB                         101      184     264
+BLANK-LINE                     102      171
+DATE-FROM-SYS                  104      156
+DFSYS                          105      157     158     159
+HEADINGS-LINE                  107      170
+PHASE                          110      306
+MONTH-RUN                      111      158
+DAY-RUN                        113      159
+YEAR-RUN                       115      157
+PAGE-NUMBER                    118      168     307
+COMMAND-LISTING                120      179
+COMMAND-IMAGE                  122      178
+ACTIVITIES-LISTING             124      239     260     314
+DISPOSITION                    125      237     259     309
+ACTIVE-IMAGE                   126      236     258     313
+UPSI-BYTE                      128    referenced by child
+UPSI-BIT                       129      155     189     303
+MESSAGE-LOG                    131      162     176     194     204     227
+                                        321
+MESSAGE-TEXT                   133      161     175     193     203     226
+                                        320
+DISPLAY-MESSAGE                135      209     232     267     275     293
+                                        296     299     302
+DISPLAY-TEMP                   137      208     230     265     291     294
+                                        297     300
+DISPLAY-TEXT                   139      207     231     266     274     292
+                                        295     298     301
 END-JOB-PROCESS                141    not referenced
 DELETE-PROCESS                 142    not referenced
 INSERT-PROCESS                 143    not referenced
@@ -3560,26 +3901,42 @@ NEXT-JOB-SELECT                148    not referenced
 LABEL                          DEFINED                REFERENCES
 
 E EDITOR                       152
-P START-SECTION                152   not referenced
-P TOP-OF-PAGE-ROUTINE          167     242     262     290     308     316
-P READ-A-COMMAND               173     195     205     251     271
-P TEST-COMMAND-TYPE            186   not referenced
-P CHANGE-A-RECORD              197     187
-P FIND-FIELDA                  201     214     222     255
-P RETURN-TO-USER               216     198     220     254
-P INSERT-A-RECORD              219     192
-P INSERTION-PROCESS            224     198     220     243
-P NEXT-JOB-STEP                245     199     221     235
-P FORCED-WRITE                 248     221
-P DELETE-A-RECORD              253     188
-P DELETION-PROCESS             257     199     254     277
-P OUTPUT-A-RECORD              279     165     213     238     250     287
-P FINISH-JOB                   284     177     190     191
-P TEST-FOR-LISTING             289     285
-P LISTING-LOOP                 311     317
-P END-JOB                      319     163     210     217     228     246
-                                       276     303     312
+P START-SECTION                152    not referenced
+P TOP-OF-PAGE-ROUTINE          167      242     262     290     308     316
+P READ-A-COMMAND               173      195     205     251     271
+P TEST-COMMAND-TYPE            186    not referenced
+P CHANGE-A-RECORD              197      187
+P FIND-FIELDA                  201      214     222     255
+P RETURN-TO-USER               216      198     220     254
+P INSERT-A-RECORD              219      192
+P INSERTION-PROCESS            224      198     220     243
+P NEXT-JOB-STEP                245      199     221     235
+P FORCED-WRITE                 248      221
+P DELETE-A-RECORD              253      188
+P DELETION-PROCESS             257      199     254     277
+P OUTPUT-A-RECORD              279      165     213     238     250     287
+P FINISH-JOB                   284      177     190     191
+P TEST-FOR-LISTING             289      285
+P LISTING-LOOP                 311      317
+P END-JOB                      319      163     210     217     228     246
+                                        276     303     312
 
+
+Error/Warning summary:
+
+prog.cob: 42: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 44: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 51: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 53: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 60: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 62: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 85: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 87: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 198: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 199: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 220: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 221: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 254: warning: ALTER is obsolete in GnuCOBOL
 
 13 warnings in compilation group
 0 errors in compilation group
@@ -3609,7 +3966,7 @@ prog.cob: 254: warning: ALTER is obsolete in GnuCOBOL
 
 
 AT_DATA([prog19.lst],
-[GnuCOBOL V.R.P          prog.cob                                                      DDD MMM dd HH:MM:SS YYYY  Page 0001
+[GnuCOBOL V.R.P               prog.cob                                                           DDD MMM dd HH:MM:SS YYYY
 
 LINE    PG/LN  A...B............................................................SEQUENCE
 
@@ -3952,45 +4309,44 @@ warning: ALTER is obsolete in GnuCOBOL
 000324                                                                          EDIT0342
 000325         END PROGRAM EDITOR.                                              EDIT0343
 
-
 SIZE  TYPE           LVL  NAME                           PICTURE
 
 00080 FILE                OLD-VERSION
 00080 GROUP          01   OLD-RECORD
-00075 ALPHANUMERIC   02     OLD-STATEMENT                X(75)
-00005 ALPHANUMERIC   02     OLD-NUMBER                   X(5)
+00075 ALPHANUMERIC   02   OLD-STATEMENT                  X(75)
+00005 ALPHANUMERIC   02   OLD-NUMBER                     X(5)
 
 00080 FILE                NEW-VERSION
 00080 GROUP          01   NEW-RECORD
-00075 ALPHANUMERIC   02     NEW-STATEMENT                X(75)
-00005 ALPHANUMERIC   02     NEW-NUMBER                   X(5)
+00075 ALPHANUMERIC   02   NEW-STATEMENT                  X(75)
+00005 ALPHANUMERIC   02   NEW-NUMBER                     X(5)
 
 00032 FILE                PRT-VERSION
 
 00080 FILE                MODIFICATION
 00080 GROUP          01   UPDATE-ORDER
-00075 GROUP          02     INSERTION
-00006 ALPHANUMERIC   03       COMMAND                    X(6)
-      CONDITIONAL    88         ENDJOB
-      CONDITIONAL    88         ENDSET
-      CONDITIONAL    88         REMOVE
-      CONDITIONAL    88         ADDNEW
-      CONDITIONAL    88         CHANGE
-      CONDITIONAL    88         DISPLY
-00001 ALPHANUMERIC   03       FILLER                     X
-00005 NUMERIC        03       A-FIELD                    9(5)
-00005 ALPHANUMERIC-R 03       A-ALPHA                    X(5)
-      CONDITIONAL    88         A-BLANK
-00004 ALPHANUMERIC   03       FILLER                     X(4)
-00005 NUMERIC        03       B-FIELD                    9(5)
-00005 ALPHANUMERIC-R 03       B-ALPHA                    X(5)
-      CONDITIONAL    88         B-BLANK
-00054 ALPHANUMERIC   03       FILLER                     X(54)
-00005 ALPHANUMERIC   02     FILLER                       X(5)
+00075 GROUP          02   INSERTION
+00006 ALPHANUMERIC   03   COMMAND                        X(6)
+      CONDITIONAL    88   ENDJOB
+      CONDITIONAL    88   ENDSET
+      CONDITIONAL    88   REMOVE
+      CONDITIONAL    88   ADDNEW
+      CONDITIONAL    88   CHANGE
+      CONDITIONAL    88   DISPLY
+00001 ALPHANUMERIC   03   FILLER                         X
+00005 NUMERIC        03   A-FIELD                        9(5)
+00005 ALPHANUMERIC   03   A-ALPHA                        X(5), REDEFINES A-FIELD
+      CONDITIONAL    88   A-BLANK
+00004 ALPHANUMERIC   03   FILLER                         X(4)
+00005 NUMERIC        03   B-FIELD                        9(5)
+00005 ALPHANUMERIC   03   B-ALPHA                        X(5), REDEFINES B-FIELD
+      CONDITIONAL    88   B-BLANK
+00054 ALPHANUMERIC   03   FILLER                         X(54)
+00005 ALPHANUMERIC   02   FILLER                         X(5)
 
 00082 FILE                COMMENTARY
 00082 GROUP          01   COMMENT-LINE
-00082 ALPHANUMERIC   02     FILLER                       X(82)
+00082 ALPHANUMERIC   02   FILLER                         X(82)
 
 00002 NUMERIC        77   COMMAND-ADDITIONS              9(3) COMP
 00002 NUMERIC        77   COMMAND-SUBTRACTIONS           9(3) COMP
@@ -4003,41 +4359,41 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00082 ALPHANUMERIC   77   BLANK-LINE                     X(82)
 
 00006 GROUP          01   DATE-FROM-SYS
-00002 NUMERIC        02     DFSYS                        99
+00002 NUMERIC        02   DFSYS                          99, OCCURS 3
 
 00080 GROUP          01   HEADINGS-LINE
-00015 ALPHANUMERIC   02     FILLER                       X(15)
-00020 ALPHANUMERIC   02     FILLER                       X(20)
-00017 ALPHANUMERIC   02     PHASE                        X(17)
-00002 ALPHANUMERIC   02     MONTH-RUN                    XX
-00001 ALPHANUMERIC   02     FILLER                       X
-00002 ALPHANUMERIC   02     DAY-RUN                      XX
-00001 ALPHANUMERIC   02     FILLER                       X
-00002 ALPHANUMERIC   02     YEAR-RUN                     XX
-00008 ALPHANUMERIC   02     FILLER                       X(8)
-00008 ALPHANUMERIC   02     FILLER                       X(8)
-00004 NUMERIC        02     PAGE-NUMBER                  9(4)
+00015 ALPHANUMERIC   02   FILLER                         X(15)
+00020 ALPHANUMERIC   02   FILLER                         X(20)
+00017 ALPHANUMERIC   02   PHASE                          X(17)
+00002 ALPHANUMERIC   02   MONTH-RUN                      XX
+00001 ALPHANUMERIC   02   FILLER                         X
+00002 ALPHANUMERIC   02   DAY-RUN                        XX
+00001 ALPHANUMERIC   02   FILLER                         X
+00002 ALPHANUMERIC   02   YEAR-RUN                       XX
+00008 ALPHANUMERIC   02   FILLER                         X(8)
+00008 ALPHANUMERIC   02   FILLER                         X(8)
+00004 NUMERIC        02   PAGE-NUMBER                    9(4)
 
 00082 GROUP          01   COMMAND-LISTING
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00080 ALPHANUMERIC   02     COMMAND-IMAGE                X(80)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00080 ALPHANUMERIC   02   COMMAND-IMAGE                  X(80)
 
 00082 GROUP          01   ACTIVITIES-LISTING
-00002 ALPHANUMERIC   02     DISPOSITION                  X(2)
-00080 ALPHANUMERIC   02     ACTIVE-IMAGE                 X(80)
+00002 ALPHANUMERIC   02   DISPOSITION                    X(2)
+00080 ALPHANUMERIC   02   ACTIVE-IMAGE                   X(80)
 
 00008 GROUP          01   UPSI-BYTE
-00001 ALPHANUMERIC   02     UPSI-BIT                     X, OCCURS 8
+00001 ALPHANUMERIC   02   UPSI-BIT                       X, OCCURS 8
 
 00082 GROUP          01   MESSAGE-LOG
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00080 ALPHANUMERIC   02     MESSAGE-TEXT                 X(80)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00080 ALPHANUMERIC   02   MESSAGE-TEXT                   X(80)
 
 00070 GROUP          01   DISPLAY-MESSAGE
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00006 ALPHANUMERIC   02     DISPLAY-TEMP                 X(6)
-00002 ALPHANUMERIC   02     FILLER                       X(2)
-00060 ALPHANUMERIC   02     DISPLAY-TEXT                 X(60)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00006 ALPHANUMERIC   02   DISPLAY-TEMP                   X(6)
+00002 ALPHANUMERIC   02   FILLER                         X(2)
+00060 ALPHANUMERIC   02   DISPLAY-TEXT                   X(60)
 
 00001 NUMERIC        77   END-JOB-PROCESS                9
 00001 NUMERIC        77   DELETE-PROCESS                 9
@@ -4045,107 +4401,124 @@ SIZE  TYPE           LVL  NAME                           PICTURE
 00001 NUMERIC        77   WRITE-PROCESS                  9
 
 00002 GROUP          01   SELECTORS
-00001 NUMERIC        02     RETURN-SELECT                9
-00001 NUMERIC        02     NEXT-JOB-SELECT              9
+00001 NUMERIC        02   RETURN-SELECT                  9
+00001 NUMERIC        02   NEXT-JOB-SELECT                9
 
 
 NAME                           DEFINED                                    REFERENCES
 
-OLD-VERSION                    26      41      154     160     206     272     285     322
-OLD-RECORD                     46      258
-OLD-STATEMENT                  47      164     212     249     269     286
-OLD-NUMBER                     48      202     211     264     291
-                                       
-NEW-VERSION                    28      50      154     282     304     305     312     322
-NEW-RECORD                     55      282     313
-NEW-STATEMENT                  56      164     212     236     249     269     286
-NEW-NUMBER                     57      281
-                                       
-PRT-VERSION                    30    not referenced
-                                       
-MODIFICATION                   32      59      154     174     225     322
-UPDATE-ORDER                   64      178
-INSERTION                      65      236
-COMMAND                        66    not referenced
-ENDJOB                         67      191
-ENDSET                         68      229
-REMOVE                         69      188
-ADDNEW                         70      192
-CHANGE                         71      187
-DISPLY                         72      189
-A-FIELD                        74      181     183
-A-ALPHA                        75    not referenced
-A-BLANK                        76      181
-B-FIELD                        78      182     184
-B-ALPHA                        79    not referenced
-B-BLANK                        80      182
-                                       
-COMMENTARY                     34      84      154     162     170     171     176     179     194     204     209
-                                       227     232     239     260     267     275     293     296     299     302
-                                       314     321     322
-COMMENT-LINE                   89      162     170     171     176     179     194     204     209     227     232
-                                       239     260     267     275     293     296     299     302     314     321
-                                       
-COMMAND-ADDITIONS              94      230     233     234     240
-COMMAND-SUBTRACTIONS           95      263     265     268     270
-TOTAL-INSERTED                 96      233     294
-TOTAL-DELETED                  97      268     297
-OUTPUT-COUNT                   98      280     281     300
-LINE-COUNT                     99      169     180     241     242     261     262     315     316
-FIELDA                         100     183     202     208     211
-FIELDB                         101     184     264
-BLANK-LINE                     102     171
-DATE-FROM-SYS                  104     156
-DFSYS                          105     157     158     159
-HEADINGS-LINE                  107     170
-PHASE                          110     306
-MONTH-RUN                      111     158
-DAY-RUN                        113     159
-YEAR-RUN                       115     157
-PAGE-NUMBER                    118     168     307
-COMMAND-LISTING                120     179
-COMMAND-IMAGE                  122     178
-ACTIVITIES-LISTING             124     239     260     314
-DISPOSITION                    125     237     259     309
-ACTIVE-IMAGE                   126     236     258     313
-UPSI-BYTE                      128   not referenced
-UPSI-BIT                       129     155     189     303
-MESSAGE-LOG                    131     162     176     194     204     227     321
-MESSAGE-TEXT                   133     161     175     193     203     226     320
-DISPLAY-MESSAGE                135     209     232     267     275     293     296     299     302
-DISPLAY-TEMP                   137     208     230     265     291     294     297     300
-DISPLAY-TEXT                   139     207     231     266     273     292     295     298     301
-END-JOB-PROCESS                141   not referenced
-DELETE-PROCESS                 142   not referenced
-INSERT-PROCESS                 143   not referenced
-WRITE-PROCESS                  144   not referenced
-SELECTORS                      146   not referenced
-RETURN-SELECT                  147   not referenced
-NEXT-JOB-SELECT                148   not referenced
+OLD-VERSION                    26       41      153     160     206     272     285     322
+OLD-RECORD                     46       44      258
+OLD-STATEMENT                  47       164     212     249     269     286
+OLD-NUMBER                     48       202     211     264     291
+
+NEW-VERSION                    28       50      154     282     304     305     312     322
+NEW-RECORD                     55       53      282     313
+NEW-STATEMENT                  56       164     212     236     249     269     286
+NEW-NUMBER                     57       281
+
+PRT-VERSION                    30     not referenced
+
+MODIFICATION                   32       59      153     174     225     322
+UPDATE-ORDER                   64       62      178
+INSERTION                      65       236
+COMMAND                        66     referenced by parent/child
+ENDJOB                         67       191
+ENDSET                         68       229
+REMOVE                         69       188
+ADDNEW                         70       192
+CHANGE                         71       187
+DISPLY                         72       189
+A-FIELD                        74       181     183
+A-ALPHA                        75     referenced by parent/child
+A-BLANK                        76       181
+B-FIELD                        78       182     184
+B-ALPHA                        79     referenced by parent/child
+B-BLANK                        80       182
+
+COMMENTARY                     34       84      154     162     170     171     176     179     194     204     209
+                                        227     232     239     260     267     275     293     296     299     302
+                                        314     321     322
+COMMENT-LINE                   89       87      162     170     171     176     179     194     204     209     227
+                                        232     239     260     267     275     293     296     299     302     314
+                                        321
+
+COMMAND-ADDITIONS              94       230     233     234     240
+COMMAND-SUBTRACTIONS           95       263     265     268     270
+TOTAL-INSERTED                 96       233     294
+TOTAL-DELETED                  97       268     297
+OUTPUT-COUNT                   98       280     281     300
+LINE-COUNT                     99       169     180     241     242     261     262     315     316
+FIELDA                         100      183     202     208     211
+FIELDB                         101      184     264
+BLANK-LINE                     102      171
+DATE-FROM-SYS                  104      156
+DFSYS                          105      157     158     159
+HEADINGS-LINE                  107      170
+PHASE                          110      306
+MONTH-RUN                      111      158
+DAY-RUN                        113      159
+YEAR-RUN                       115      157
+PAGE-NUMBER                    118      168     307
+COMMAND-LISTING                120      179
+COMMAND-IMAGE                  122      178
+ACTIVITIES-LISTING             124      239     260     314
+DISPOSITION                    125      237     259     309
+ACTIVE-IMAGE                   126      236     258     313
+UPSI-BYTE                      128    referenced by child
+UPSI-BIT                       129      155     189     303
+MESSAGE-LOG                    131      162     176     194     204     227     321
+MESSAGE-TEXT                   133      161     175     193     203     226     320
+DISPLAY-MESSAGE                135      209     232     267     275     293     296     299     302
+DISPLAY-TEMP                   137      208     230     265     291     294     297     300
+DISPLAY-TEXT                   139      207     231     266     274     292     295     298     301
+END-JOB-PROCESS                141    not referenced
+DELETE-PROCESS                 142    not referenced
+INSERT-PROCESS                 143    not referenced
+WRITE-PROCESS                  144    not referenced
+SELECTORS                      146    not referenced
+RETURN-SELECT                  147    not referenced
+NEXT-JOB-SELECT                148    not referenced
 
 
-LABEL                          DEFINED                REFERENCES
+LABEL                          DEFINED                                    REFERENCES
 
 E EDITOR                       152
-P START-SECTION                152   not referenced
-P TOP-OF-PAGE-ROUTINE          167     242     262     290     308     316
-P READ-A-COMMAND               173     195     205     251     271
-P TEST-COMMAND-TYPE            186   not referenced
-P CHANGE-A-RECORD              197     187
-P FIND-FIELDA                  201     214     222     255
-P RETURN-TO-USER               216     198     220     254
-P INSERT-A-RECORD              219     192
-P INSERTION-PROCESS            224     198     220     243
-P NEXT-JOB-STEP                245     199     221     235
-P FORCED-WRITE                 248     221
-P DELETE-A-RECORD              253     188
-P DELETION-PROCESS             257     199     254     277
-P OUTPUT-A-RECORD              279     165     213     238     250     287
-P FINISH-JOB                   284     177     190     191
-P TEST-FOR-LISTING             289     285
-P LISTING-LOOP                 311     317
-P END-JOB                      319     163     210     217     228     246     276     303     312
+P START-SECTION                152    not referenced
+P TOP-OF-PAGE-ROUTINE          167      242     262     290     308     316
+P READ-A-COMMAND               173      195     205     251     271
+P TEST-COMMAND-TYPE            186    not referenced
+P CHANGE-A-RECORD              197      187
+P FIND-FIELDA                  201      214     222     255
+P RETURN-TO-USER               216      198     220     254
+P INSERT-A-RECORD              219      192
+P INSERTION-PROCESS            224      198     220     243
+P NEXT-JOB-STEP                245      199     221     235
+P FORCED-WRITE                 248      221
+P DELETE-A-RECORD              253      188
+P DELETION-PROCESS             257      199     254     277
+P OUTPUT-A-RECORD              279      165     213     238     250     287
+P FINISH-JOB                   284      177     190     191
+P TEST-FOR-LISTING             289      285
+P LISTING-LOOP                 311      317
+P END-JOB                      319      163     210     217     228     246     276     303     312
 
+
+Error/Warning summary:
+
+prog.cob: 42: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 44: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 51: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 53: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 60: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 62: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 85: warning: LABEL RECORDS is obsolete in GnuCOBOL
+prog.cob: 87: warning: DATA RECORDS is obsolete in GnuCOBOL
+prog.cob: 198: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 199: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 220: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 221: warning: ALTER is obsolete in GnuCOBOL
+prog.cob: 254: warning: ALTER is obsolete in GnuCOBOL
 
 13 warnings in compilation group
 0 errors in compilation group
@@ -4156,3 +4529,67 @@ AT_CHECK([diff prog19.lst prog.lis], [0], [], [])
 
 AT_CLEANUP
 
+
+AT_SETUP([Multiple programs in one file])
+AT_KEYWORDS([listing])
+
+AT_CAPTURE_FILE([prog.lst])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog-1.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  blah PIC x.
+
+       END PROGRAM prog-1.
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog-2.
+       END PROGRAM prog-2.
+])
+
+# Do not change $COMPILE to $COMPILE_ONLY. This tests whether codegen
+# affects the listing.
+AT_CHECK([$COMPILE -t prog.lst prog.cob], [0], [], [])
+
+AT_DATA([prog20.lst],
+[GnuCOBOL V.R.P          prog.cob             DDD MMM dd HH:MM:SS YYYY  Page 0001
+
+LINE    PG/LN  A...B............................................................
+
+000001
+000002         IDENTIFICATION DIVISION.
+000003         PROGRAM-ID. prog-1.
+000004
+000005         DATA DIVISION.
+000006         WORKING-STORAGE SECTION.
+000007         01  blah PIC x.
+000008
+000009         END PROGRAM prog-1.
+000010
+000011         IDENTIFICATION DIVISION.
+000012         PROGRAM-ID. prog-2.
+000013         END PROGRAM prog-2.
+GnuCOBOL V.R.P          prog.cob             DDD MMM dd HH:MM:SS YYYY  Page 0002
+
+SIZE  TYPE           LVL  NAME                           PICTURE
+
+      PROGRAM             prog-1
+
+00001 ALPHANUMERIC   01   blah                           X
+
+      PROGRAM             prog-2
+
+      No fields defined.
+
+
+0 warnings in compilation group
+0 errors in compilation group
+])
+
+AT_CHECK([$UNIFY_LISTING prog.lst prog.lis], [0], [], [])
+AT_CHECK([diff prog20.lst prog.lis], [0], [], [])
+
+AT_CLEANUP

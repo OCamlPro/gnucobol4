@@ -100,13 +100,13 @@
 #if defined(_MSC_VER)
 
 /*
-_MSC_VER == 1400 (Visual Studio 2005) since OS-Version 2000
-_MSC_VER == 1500 (Visual Studio 2008) since OS-Version XP / 2003
-_MSC_VER == 1600 (Visual Studio 2010) since OS-Version XP / 2003
-_MSC_VER == 1700 (Visual Studio 2012) since OS-Version 7  / 2008 R2
-_MSC_VER == 1800 (Visual Studio 2013) since OS-Version 7  / 2008 R2
-_MSC_VER == 1900 (Visual Studio 2015) since OS-Version 7  / 2008 R2
-_MSC_VER == 2000 (Visual Studio 2017) since OS-Version 7  / 2012 R2
+_MSC_VER == 1400 (Visual Studio 2005, VS8) since OS-Version 2000
+_MSC_VER == 1500 (Visual Studio 2008, VS9) since OS-Version XP / 2003
+_MSC_VER == 1600 (Visual Studio 2010, VS10) since OS-Version XP / 2003
+_MSC_VER == 1700 (Visual Studio 2012, VS11) since OS-Version 7  / 2008 R2
+_MSC_VER == 1800 (Visual Studio 2013, VS12) since OS-Version 7  / 2008 R2
+_MSC_VER == 1900 (Visual Studio 2015, VS14) since OS-Version 7  / 2008 R2
+_MSC_VER == 1910 (Visual Studio 2017, VS15) since OS-Version 7  / 2012 R2
 */
 
 #if _MSC_VER >= 1500
@@ -114,7 +114,7 @@ _MSC_VER == 2000 (Visual Studio 2017) since OS-Version 7  / 2012 R2
 #else
 #define COB_USE_VC2008_OR_GREATER 0
 #if _MSC_VER < 1400
-#error Support for Visual Studio 2003 and earlier dropped with GnuCOBOL 2.0
+#error Support for Visual Studio 2003 and older Visual C++ compilers dropped with GnuCOBOL 2.0
 #endif
 #endif
 
@@ -316,11 +316,17 @@ _MSC_VER == 2000 (Visual Studio 2017) since OS-Version 7  / 2012 R2
 /* remark: _putenv_s always overwrites, add a check for overwrite = 1 if necessary later*/
 #define setenv(name,value,overwrite)	_putenv_s(name,value)
 #define unsetenv(name)					_putenv_s(name,"")
+#if COB_USE_VC2013_OR_GREATER
 /* only usable with COB_USE_VC2013_OR_GREATER */
 #define timezone		_timezone
 #define tzname			_tzname
 #define daylight		_daylight
 /* only usable with COB_USE_VC2013_OR_GREATER - End */
+#endif
+
+#if !COB_USE_VC2013_OR_GREATER
+#define atoll			_atoi64
+#endif
 
 #define __attribute__(x)
 
@@ -369,19 +375,7 @@ _MSC_VER == 2000 (Visual Studio 2017) since OS-Version 7  / 2012 R2
 	#define COB_EXPIMP	extern
 #endif
 
-#if	defined(__370__) || defined(_MSC_VER) || defined(__DECC) || \
-	defined(__BORLANDC__) || defined(__WATCOMC__)
-	#define COB_INLINE	__inline
-#elif	defined(__INTEL_COMPILER)
-	/* icc */
-	#define COB_INLINE	inline
-#elif	defined(__GNUC__)
-	/* gcc */
-	#define COB_INLINE	__inline__
-#elif	defined(__STDC_VERSION__) && __STDC_VERSION__ > 199900L
-	/* C99 and C++ */
-	#define COB_INLINE	inline
-#elif	defined(COB_KEYWORD_INLINE)
+#if	defined(COB_KEYWORD_INLINE)
 	#define COB_INLINE	COB_KEYWORD_INLINE
 #else
 	#define COB_INLINE
@@ -544,7 +538,7 @@ _MSC_VER == 2000 (Visual Studio 2017) since OS-Version 7  / 2012 R2
 #define PATHSEP_CHAR (char) ':'
 #define PATHSEP_STR (char *) ":"
 #endif
-#ifndef	_WIN32
+#ifndef	_WIN32 /* note: needs to be \ for MinGW, needed for cobc -j */
 #define SLASH_CHAR	(char) '/'
 #define SLASH_STR	(char *) "/"
 #else
@@ -990,8 +984,8 @@ typedef cob_s64_t cob_flags_t;
 /* Picture symbol structure */
 
 typedef struct {
-        char	symbol;
-	int     times_repeated;
+	char	symbol;
+	int 	times_repeated;
 } cob_pic_symbol;
 
 /* Field attribute structure */
@@ -1431,9 +1425,6 @@ COB_EXPIMP void	cob_temp_name			(char *, const char *);
 COB_EXPIMP int	cob_sys_exit_proc	(const void *, const void *);
 COB_EXPIMP int	cob_sys_error_proc	(const void *, const void *);
 COB_EXPIMP int	cob_sys_system		(const void *);
-/**
- * Return some hosted C variables, argc, argv, stdin, stdout, stderr.
- */
 COB_EXPIMP int	cob_sys_hosted		(void *, const void *);
 COB_EXPIMP int	cob_sys_and		(const void *, void *, const int);
 COB_EXPIMP int	cob_sys_or		(const void *, void *, const int);
@@ -1481,7 +1472,6 @@ COB_EXPIMP void	cob_trace_section	(const char *, const char *, const int);
 
 COB_EXPIMP void			*cob_external_addr	(const char *, const int);
 COB_EXPIMP unsigned char	*cob_get_pointer	(const void *);
-COB_EXPIMP void			*cob_get_prog_pointer	(const void *);
 COB_EXPIMP void			cob_ready_trace		(void);
 COB_EXPIMP void			cob_reset_trace		(void);
 
@@ -1583,6 +1573,7 @@ COB_EXPIMP void cob_unstring_finish	(void);
 /*******************************/
 
 COB_EXPIMP void		cob_move	(cob_field *, cob_field *);
+COB_EXPIMP void		cob_move_ibm	(void *, void *, const int);
 COB_EXPIMP void		cob_set_int	(cob_field *, const int);
 COB_EXPIMP int		cob_get_int	(cob_field *);
 COB_EXPIMP cob_s64_t	cob_get_llint	(cob_field *);
@@ -1605,8 +1596,9 @@ COB_EXPIMP void		cob_put_comp1(float val, void *cbldata);
 COB_EXPIMP void		cob_put_comp2(double val, void *cbldata);
 COB_EXPIMP void 	cob_put_picx( void *cbldata, int len, void *string);
 COB_EXPIMP void		cob_put_s64_comp3(cob_s64_t val, void *cbldata, int len);
-COB_EXPIMP void		cob_put_s64_pic9 (cob_s64_t val, void *cbldata, int len);
 COB_EXPIMP void		cob_put_s64_comp5(cob_s64_t val, void *cbldata, int len);
+COB_EXPIMP void		cob_put_s64_compx(cob_s64_t val, void *cbldata, int len);
+COB_EXPIMP void		cob_put_s64_pic9 (cob_s64_t val, void *cbldata, int len);
 COB_EXPIMP void		cob_put_u64_comp3(cob_u64_t val, void *cbldata, int len);
 COB_EXPIMP void		cob_put_u64_comp5(cob_u64_t val, void *cbldata, int len);
 COB_EXPIMP void		cob_put_u64_comp6(cob_u64_t val, void *cbldata, int len);
@@ -1619,6 +1611,7 @@ COB_EXPIMP void		cob_put_pointer(void *val, void *cbldata);
 /* Functions in numeric.c */
 
 COB_EXPIMP void	cob_decimal_init	(cob_decimal *);
+COB_EXPIMP void	cob_decimal_clear	(cob_decimal *);
 COB_EXPIMP void cob_decimal_set_llint	(cob_decimal *, const cob_s64_t);
 COB_EXPIMP void cob_decimal_set_ullint	(cob_decimal *, const cob_u64_t);
 COB_EXPIMP void	cob_decimal_set_field	(cob_decimal *, cob_field *);
@@ -1629,6 +1622,7 @@ COB_EXPIMP void	cob_decimal_mul		(cob_decimal *, cob_decimal *);
 COB_EXPIMP void	cob_decimal_div		(cob_decimal *, cob_decimal *);
 COB_EXPIMP void	cob_decimal_pow		(cob_decimal *, cob_decimal *);
 COB_EXPIMP int	cob_decimal_cmp		(cob_decimal *, cob_decimal *);
+COB_EXPIMP void	cob_decimal_align(cob_decimal *, const int);
 
 COB_EXPIMP void	cob_add			(cob_field *, cob_field *, const int);
 COB_EXPIMP void	cob_sub			(cob_field *, cob_field *, const int);

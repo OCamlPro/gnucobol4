@@ -1611,15 +1611,6 @@ cob_get_pointer (const void *srcptr)
 	return (cob_u8_ptr)tmptr;
 }
 
-void *
-cob_get_prog_pointer (const void *srcptr)
-{
-	void	*tmptr;
-
-	memcpy (&tmptr, srcptr, sizeof (void *));
-	return tmptr;
-}
-
 void
 cob_field_to_string (const cob_field *f, void *str, const size_t maxsize)
 {
@@ -1669,7 +1660,9 @@ cob_stop_run (const int status)
 	}
 	cob_terminate_routines ();
 	exit (status);
-}int
+}
+
+int
 cob_is_initialized (void)
 {
 	return (cobglobptr != NULL);
@@ -1705,10 +1698,12 @@ cob_module_enter (cob_module **module, cob_global **mglobal,
 		*module = cob_cache_malloc (sizeof(cob_module));
 	}
 
-#if	1	/* RXWRXW - Params */
-	/* Save parameter count */
+	/* Save parameter count, get number from argc if main program */
+	if (!COB_MODULE_PTR) {
+		cobglobptr->cob_call_params = cob_argc - 1;
+	}
+
 	(*module)->module_num_params = cobglobptr->cob_call_params;
-#endif
 
 	/* Push module pointer */
 	(*module)->next = COB_MODULE_PTR;
@@ -2318,10 +2313,10 @@ cob_is_numeric (const cob_field *f)
 		return 1;
 	case COB_TYPE_NUMERIC_FLOAT:
 		memcpy (&fval.fpf, f->data, sizeof(float));
-		return !finite ((double)fval.fpf);
+		return !ISFINITE ((double)fval.fpf);
 	case COB_TYPE_NUMERIC_DOUBLE:
 		memcpy (&fval.fpd, f->data, sizeof(double));
-		return !finite (fval.fpd);
+		return !ISFINITE (fval.fpd);
 	case COB_TYPE_NUMERIC_PACKED:
 		/* Check digits */
 		for (i = 0; i < f->size - 1; ++i) {
@@ -2638,6 +2633,9 @@ cob_get_current_date_and_time (void)
 	if (!time_as_filetime_func) {
 		get_function_ptr_for_precise_time ();
 	}
+#if defined(_MSC_VER)
+#pragma warning(suppress: 6011) // the function pointer is always set by get_function_ptr_for_precise_time
+#endif
 	(time_as_filetime_func) (&filetime);
 	/* use fallback to GetLocalTime if one of the following does not work */
 	if (!(FileTimeToSystemTime (&filetime, &utc_time) &&
@@ -3050,18 +3048,17 @@ cob_chain_setup (void *data, const size_t parm, const size_t size)
 {
 	size_t	len;
 
-	memset (data, ' ', size);
+	/* only set if given on command-line, otherwise use normal 
+	   program internal initialization */
 	if (parm <= (size_t)cob_argc - 1) {
+		memset (data, ' ', size);
 		len = strlen (cob_argv[parm]);
 		if (len <= size) {
 			memcpy (data, cob_argv[parm], len);
 		} else {
 			memcpy (data, cob_argv[parm], size);
 		}
-	} else {
-		memset (data, ' ', size);
 	}
-	cobglobptr->cob_call_params = cob_argc - 1;
 }
 
 void
@@ -3445,6 +3442,9 @@ cob_sys_system (const void *cmdline)
 	return 1;
 }
 
+/**
+* Return some hosted C variables, argc, argv, stdin, stdout, stderr.
+*/
 int
 cob_sys_hosted (void *p, const void *var)
 {
@@ -3452,7 +3452,7 @@ cob_sys_hosted (void *p, const void *var)
 	cob_u8_ptr		data = p;
 	size_t			i;
 
-	COB_CHK_PARMS (CBL_OC_HOSTED, 2);
+	COB_CHK_PARMS (CBL_GC_HOSTED, 2);
 
 	if (!data) {
 		return 1;
@@ -3486,6 +3486,7 @@ cob_sys_hosted (void *p, const void *var)
 		}
 #if defined(HAVE_TIMEZONE)
 		if ((i == 6) && !strncmp (name, "tzname", 6)) {
+			/* Recheck: bcc raises "suspicious pointer conversion */
 			*((char ***)data) = tzname;
 			return 0;
 		}
@@ -3707,7 +3708,10 @@ cob_sys_x91 (void *p1, const void *p2, void *p3)
 		*result = 0;
 		break;
 	case 16:
-		/* Return number of call parameters */
+		/* Return number of call parameters
+		   according to the docs this is only set for programs CALLed from COBOL
+		   NOT for main programs in contrast to C$NARG (cob_sys_return_args)
+		*/
 		*parm = (unsigned char)COB_MODULE_PTR->module_num_params;
 		*result = 0;
 		break;
@@ -3758,9 +3762,7 @@ int
 cob_sys_oc_nanosleep (const void *data)
 {
 	cob_s64_t	nsecs;
-#if	defined(_WIN32) || defined(__370__) || defined(__OS400__)
-	unsigned int	msecs;
-#elif	defined(HAVE_NANO_SLEEP)
+#ifdef	HAVE_NANO_SLEEP	
 	struct timespec	tsec;
 #else
 	unsigned int	msecs;
@@ -3768,25 +3770,25 @@ cob_sys_oc_nanosleep (const void *data)
 
 	COB_UNUSED (data);
 
-	COB_CHK_PARMS (CBL_OC_NANOSLEEP, 1);
+	COB_CHK_PARMS (CBL_GC_NANOSLEEP, 1);
 
 	if (COB_MODULE_PTR->cob_procedure_params[0]) {
 		nsecs = cob_get_llint (COB_MODULE_PTR->cob_procedure_params[0]);
 		if (nsecs > 0) {
-#ifdef	_WIN32
-			msecs = (unsigned int)(nsecs / 1000000);
-			if (msecs > 0) {
-				Sleep (msecs);
-			}
+#ifdef	HAVE_NANO_SLEEP
+			tsec.tv_sec = nsecs / 1000000000;
+			tsec.tv_nsec = nsecs % 1000000000;
+			nanosleep (&tsec, NULL);
 #elif	defined(__370__) || defined(__OS400__)
 			msecs = (unsigned int)(nsecs / 1000000000);
 			if (msecs > 0) {
 				sleep (msecs);
 			}
-#elif	defined(HAVE_NANO_SLEEP)
-			tsec.tv_sec = nsecs / 1000000000;
-			tsec.tv_nsec = nsecs % 1000000000;
-			nanosleep (&tsec, NULL);
+#elif	defined(_WIN32)
+			msecs = (unsigned int)(nsecs / 1000000);
+			if (msecs > 0) {
+				Sleep (msecs);
+			}
 #else
 			msecs = (unsigned int)(nsecs / 1000000000);
 			if (msecs > 0) {
@@ -3926,6 +3928,10 @@ cob_sys_waitpid (const void *p_id)
 #endif
 }
 
+/* set the number of parameters passed to the current program;
+   works both for main programs and called sub programs
+   Implemented according to ACUCOBOL-GT -> returns the number of parameters that were passed,
+   not like in MF implementation the number of parameters that were received */
 int
 cob_sys_return_args (void *data)
 {
@@ -3935,7 +3941,7 @@ cob_sys_return_args (void *data)
 
 	if (COB_MODULE_PTR->cob_procedure_params[0]) {
 		cob_set_int (COB_MODULE_PTR->cob_procedure_params[0],
-			     COB_MODULE_PTR->module_num_params);
+			COB_MODULE_PTR->module_num_params);
 	}
 	return 0;
 }
@@ -4001,7 +4007,6 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 	size_t optlen;
 
 	unsigned int lo_amount;
-
 	int exit_status;
 
 	char* shortoptions;
@@ -4020,7 +4025,7 @@ cob_sys_getopt_long_long (void* so, void* lo, void* idx, const int long_only, vo
 	COB_UNUSED (lo);
 	COB_UNUSED (so);
 
-	COB_CHK_PARMS (CBL_OC_GETOPT, 6);
+	COB_CHK_PARMS (CBL_GC_GETOPT, 6);
 
 	/*
 	 * Read in sizes of some parameters
@@ -4601,33 +4606,34 @@ cob_expand_env_string (char *strval)
 	return str;
 }
 
-/* Store 'integer' value in field for correct length */
+/* Store 'integer' value in field for correct length (computed with sizeof (fieldtype)) */
 static void
-set_value (char *data, int len, long val)
+set_value (char *data, int len, cob_s64_t val)
 {
-	if(len == sizeof(int)) {
-		*(int*)data = (int)val;
-	} else if(len == sizeof(short)) {
-		*(short*)data = (short)val;
-	} else if(len == sizeof(long)) {
-		*(long*)data = val;
+	/* keep in order of occurence in data types, last nanoseconds for startup... */
+	if (len == sizeof(int)) {
+		*(int *)data = (int)val;
+	} else if (len == sizeof(short)) {
+		*(short *)data = (short)val;
+	} else if (len == sizeof(cob_s64_t)) {
+		*(cob_s64_t *)data = val;
 	} else {
-		*(char*)data = (char)val;
+		*data = (char)val;
 	}
 }
 
 /* Get 'integer' value from field */
-static long
+static cob_s64_t
 get_value (char *data, int len)
 {
-	if(len == sizeof(int)) {
-		return (long)*(int*)data;
-	} else if(len == sizeof(short)) {
-		return (long)*(short*)data;
-	} else if(len == sizeof(long)) {
-		return (long)*(long*)data;
+	if (len == sizeof(int)) {
+		return *(int *)data;
+	} else if (len == sizeof(short)) {
+		return *(short *)data;
+	} else if (len == sizeof(cob_s64_t)) {
+		return *(cob_s64_t *)data;
 	} else {
-		return (long)*(char*)data;
+		return *data;
 	}
 }
 
@@ -4635,16 +4641,16 @@ get_value (char *data, int len)
 static int					/* returns 1 if any error, else 0 */
 set_config_val (char *value, int pos)
 {
-	void 	*data;
+	char 	*data;
 	char	*ptr = value,*str;
-	unsigned long	numval = 0;
+	cob_s64_t	numval = 0;
 	int	i,data_type,data_loc,data_len,slen;
 
 	data_type = gc_conf[pos].data_type;
 	data_loc  = gc_conf[pos].data_loc;
 	data_len  = gc_conf[pos].data_len;
 
-	data = (void*)((char *)cobsetptr + data_loc);
+	data = ((char *)cobsetptr) + data_loc;
 
 	if(gc_conf[pos].enums) {		/* Translate 'word' into alternate 'value' */
 
@@ -4718,7 +4724,7 @@ set_config_val (char *value, int pos)
 			conf_runtime_error(1, _("maximum value: %lu"),gc_conf[pos].max_value);
 			return 1;
 		}
-		set_value((char *)data,data_len,numval);
+		set_value(data, data_len, numval);
 
 	} else if((data_type & ENV_BOOL)) {	/* Boolean: Yes/No,True/False,... */
 		numval = 2;
@@ -4749,7 +4755,7 @@ set_config_val (char *value, int pos)
 			if ((data_type & ENV_NOT)) {	/* Negate logic for actual setting */
 				numval = !numval;
 			}
-			set_value((char *)data,data_len,numval);
+			set_value(data, data_len, numval);
 		}
 
 	} else if((data_type & ENV_STR)
@@ -4760,12 +4766,13 @@ set_config_val (char *value, int pos)
 			cob_free((void*)str);
 		}
 		str = cob_expand_env_string(value);
-			if((data_type & ENV_FILE)
+		if((data_type & ENV_FILE)
 			&& strchr(str,PATHSEP_CHAR) != NULL) {
-				conf_runtime_error_value(value, pos);
-				conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
-				return 1;
-			}
+			conf_runtime_error_value(value, pos);
+			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
+			cob_free (str);
+			return 1;
+		}
 		memcpy(data,&str,sizeof(char *));
 
 	} else if((data_type & ENV_CHAR)) {	/* 'char' field inline */
@@ -4804,48 +4811,48 @@ set_config_val_by_name (char *value, const char *name, const char *func)
 static char *
 get_config_val (char *value, int pos, char *orgvalue)
 {
-	void 	*data;
+	char 	*data;
 	char	*str;
 	double	dval;
-	long	numval = 0;
+	cob_s64_t	numval = 0;
 	int	i,data_type,data_loc,data_len;
 
 	data_type	= gc_conf[pos].data_type;
 	data_loc	= gc_conf[pos].data_loc;
 	data_len	= gc_conf[pos].data_len;
 
-	data = (void*)((char *)cobsetptr + data_loc);
+	data = ((char *)cobsetptr) + data_loc;
 
 	strcpy(value,"Unknown");
 	strcpy(orgvalue,"");
 	if((data_type & ENV_INT)) {				/* Integer data */
-		numval = get_value((char *)data,data_len);
-		sprintf(value,"%ld",numval);
+		numval = get_value(data, data_len);
+		sprintf(value,CB_FMT_LLD,numval);
 
 	} else if((data_type & ENV_SIZE)) {			/* Size: integer with K, M, G */
-		numval = get_value((char *)data,data_len);
-		dval = numval;
+		numval = get_value(data, data_len);
+		dval = (double) numval;
 		if(numval > (1024 * 1024 * 1024)) {
 			if((numval % (1024 * 1024 * 1024)) == 0)
-				sprintf(value,"%ld GB",numval/(1024 * 1024 * 1024));
+				sprintf(value,CB_FMT_LLD" GB",numval/(1024 * 1024 * 1024));
 			else
 				sprintf(value,"%.2f GB",dval/(1024.0 * 1024.0 * 1024.0));
 		} else if(numval > (1024 * 1024)) {
 			if((numval % (1024 * 1024)) == 0)
-				sprintf(value,"%ld MB",numval/(1024 * 1024));
+				sprintf(value,CB_FMT_LLD" MB",numval/(1024 * 1024));
 			else
 				sprintf(value,"%.2f MB",dval/(1024.0 * 1024.0));
 		} else if(numval > 1024) {
 			if((numval % 1024) == 0)
-				sprintf(value,"%ld KB",numval/1024);
+				sprintf(value,CB_FMT_LLD" KB",numval/1024);
 			else
 				sprintf(value,"%.2f KB",dval/1024.0);
 		} else {
-			sprintf(value,"%ld",numval);
+			sprintf(value,CB_FMT_LLD,numval);
 		}
 
 	} else if((data_type & ENV_BOOL)) {	/* Boolean: Yes/No,True/False,... */
-		numval = get_value((char *)data,data_len);
+		numval = get_value(data, data_len);
 		if((data_type & ENV_NOT))
 			numval = !numval;
 		if(numval)
@@ -4921,6 +4928,9 @@ static int
 cb_config_entry (char *buf, int line)
 {
 	int	i,j,k, old_type;
+#if !HAVE_SETENV
+	int	len;
+#endif
 	void	*data;
 	char	*env,*str,qt;
 	char	keyword[COB_MINI_BUFF],value[COB_SMALL_BUFF],value2[COB_SMALL_BUFF];
@@ -4975,9 +4985,15 @@ cb_config_entry (char *buf, int line)
 		}
 		/* check additional value for inline env vars ${varname:-default} */
 		str = cob_expand_env_string(value2);
-		env = cob_malloc(strlen(value)+strlen(str)+2);
-		sprintf(env,"%s=%s",value,str);
-		(void)putenv(env);
+
+#if HAVE_SETENV
+		(void)setenv (value, str, 1);
+#else
+		len = (int) strlen (value) + (int) strlen (str) + 2;
+		env = cob_fast_malloc (len);
+		sprintf (env, "%s=%s", value, str);
+		(void)putenv (env);
+#endif
 		cob_free(str);
 		for (i=0; i < NUM_CONFIG; i++) {		/* Set value from config file */
 			if(gc_conf[i].env_name
@@ -5005,10 +5021,10 @@ cb_config_entry (char *buf, int line)
 #if HAVE_SETENV
 			(void)unsetenv(value);
 #else
-			env = cob_malloc(strlen(value)+2);
-			sprintf(env,"%s=",value);
-			(void)putenv(env);
-
+			len = (int) strlen (value) + 2;
+			env = cob_fast_malloc (len);
+			sprintf (env, "%s=", value);
+			(void)putenv (env);
 #endif
 		}
 		return 0;
@@ -5214,13 +5230,13 @@ cob_load_config (void)
 {
 	char		*env;
 	char		conf_file[COB_MEDIUM_BUFF];
-	int		isoptional = 1, sts, i, j;
+	int		is_optional = 1, sts, i, j;
 
 
 	/* Get the name for the configuration file */
 	if ((env = getenv ("COB_RUNTIME_CONFIG")) != NULL && env[0]) {
 		strcpy (conf_file, env);
-		isoptional = 0;			/* If declared then it is NOT optional */
+		is_optional = 0;			/* If declared then it is NOT optional */
 		if(strchr(conf_file,PATHSEP_CHAR) != NULL) {
 			conf_runtime_error(0, _("invalid value '%s' for configuration tag '%s'"), conf_file, "COB_RUNTIME_CONFIG");
 			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
@@ -5234,7 +5250,7 @@ cob_load_config (void)
 			snprintf (conf_file, (size_t)COB_MEDIUM_MAX, "%s%s%s", COB_CONFIG_DIR, SLASH_STR, "runtime.cfg");
 		}
 		conf_file[COB_MEDIUM_MAX] = 0; /* fixing code analyser warning */
-		isoptional = 1;			/* If not present, then just use env vars */
+		is_optional = 1;			/* If not present, then just use env vars */
 		if (strchr(conf_file,PATHSEP_CHAR) != NULL) {
 			conf_runtime_error(0, _("invalid value '%s' for configuration tag '%s'"), conf_file, "COB_CONFIG_DIR");
 			conf_runtime_error(1, _("should not contain '%c'"),PATHSEP_CHAR);
@@ -5247,8 +5263,10 @@ cob_load_config (void)
 		gc_conf[i].data_type &= ~(STS_ENVSET|STS_CNFSET|STS_ENVCLR);	/* Clear status */
 	}
 
-	sts = cob_load_config_file (conf_file, isoptional);
-
+	sts = cob_load_config_file (conf_file, is_optional);
+	if (sts < 0) {
+		return sts;
+	}
 	cob_rescan_env_vals(); 			/* Check for possible environment variables */
 
 	/* Set with default value if present and not set otherwise */
@@ -5272,7 +5290,7 @@ cob_load_config (void)
 		}
 	}
 
-	return sts;
+	return 0;
 }
 
 void
@@ -5402,7 +5420,7 @@ cob_fatal_error(const int fatal_error)
 		cob_runtime_error(_("codegen error - Please report this!"));
 		break;
 	case COB_FERROR_CHAINING:
-		cob_runtime_error(_("recursive call of chained program"));
+		cob_runtime_error(_("CALL of program with CHAINING clause"));
 		break;
 	case COB_FERROR_STACK:
 		cob_runtime_error(_("stack overflow, possible PERFORM depth exceeded"));
@@ -5611,7 +5629,7 @@ print_info (void)
 	char	*s;
 	int major, minor, patch;
 #if defined(mpir_version)
-	char	versbuff2[111] = { '\0' };
+	char	versbuff2[115] = { '\0' };
 #endif
 
 	print_version ();
@@ -5718,6 +5736,7 @@ print_info (void)
 		snprintf (versbuff2, 55, "%s, version %d.%d%d (compiled with %d.%d)",
 			"MPIR", major, minor, patch, __MPIR_VERSION, __MPIR_VERSION_MINOR);
 	}
+	versbuff[55] = versbuff2[55] = 0; /* silence VS analyzer */
 	strncat (versbuff2, " - ", 3);
 	strncat (versbuff2, versbuff, 55);
 	var_print (_("mathematical library"),		versbuff2, "", 0);

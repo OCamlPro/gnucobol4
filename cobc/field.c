@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
 
@@ -226,7 +226,7 @@ same_level:
 		&& p /* <- silence warnings */) {
 			dummy_fill = cb_build_filler ();
 			field_fill = CB_FIELD (cb_build_field (dummy_fill));
-			cb_warning_x (name,
+			cb_warning_x (COBC_WARN_FILLER, name,
 				      _("no previous data item of level %02d"),
 				      f->level);
 			field_fill->level = f->level;
@@ -413,10 +413,8 @@ check_picture_item (cb_tree x, struct cb_field *f)
 	}
 	vorint = (int)CB_LITERAL(CB_VALUE(f->values))->size;
 	/* Checkme: should we raise an error for !cb_relaxed_syntax_checks? */
-	if (warningopt) {
-		cb_warning_x (x, _("defining implicit picture size %d for '%s'"),
-			    vorint, cb_name (x));
-	}
+	cb_warning_x (warningopt, x, _("defining implicit picture size %d for '%s'"),
+		    vorint, cb_name (x));
 	sprintf (pic, "X(%d)", vorint);
 	f->pic = CB_PICTURE (cb_build_picture (pic));
 	f->pic->category = CB_CATEGORY_ALPHANUMERIC;
@@ -549,7 +547,8 @@ validate_field_1 (struct cb_field *f)
 	if (f->redefines && f->level != 66) {
 		/* Check OCCURS */
 		if (f->redefines->flag_occurs) {
-			cb_warning_x (x, _("the original definition '%s' should not have OCCURS clause"),
+			cb_warning_x (COBC_WARN_FILLER, x,
+				      _("the original definition '%s' should not have OCCURS clause"),
 				      f->redefines->name);
 		}
 
@@ -566,8 +565,7 @@ validate_field_1 (struct cb_field *f)
 			cb_error_x (x, _("'%s' cannot be variable length"), f->name);
 		}
 		if (cb_field_variable_size (f->redefines)) {
-			cb_error_x (x,
-				    _("the original definition '%s' cannot be variable length"),
+			cb_error_x (x, _("the original definition '%s' cannot be variable length"),
 				    f->redefines->name);
 		}
 	}
@@ -707,11 +705,12 @@ validate_field_1 (struct cb_field *f)
 				emit_incompatible_pic_and_usage_error (x, f->usage);
 			}
 			if (f->pic->have_sign) {
-				cb_warning_x (x, _("'%s' COMP-6 with sign - changing to COMP-3"), cb_name (x));
+				cb_warning_x (COBC_WARN_FILLER, x, _("'%s' COMP-6 with sign - changing to COMP-3"), cb_name (x));
 				f->usage = CB_USAGE_PACKED;
 			}
 			break;
 		case CB_USAGE_COMP_5:
+			f->flag_real_binary = 1;
 		case CB_USAGE_COMP_X:
 			if (f->pic) {
 				if (f->pic->category != CB_CATEGORY_NUMERIC &&
@@ -764,16 +763,19 @@ validate_field_1 (struct cb_field *f)
 			switch (f->pic->category) {
 			case CB_CATEGORY_NUMERIC:
 				/* Reconstruct the picture string */
-				n = 0;
 				if (f->pic->scale > 0) {
-					/* Enough for genned string */
-					f->pic->str = cobc_parse_malloc ((size_t)5 * sizeof (cob_pic_symbol));
+					/* Size for genned string */
+					if (f->pic->have_sign) {
+						n = 4;
+					} else {
+						n = 3;
+					}
+					f->pic->str = cobc_parse_malloc ((size_t)n * sizeof (cob_pic_symbol));
 					pstr = f->pic->str;
 					if (f->pic->have_sign) {
 						pstr->symbol = '+';
-					        pstr->times_repeated = 1;
+						pstr->times_repeated = 1;
 						++pstr;
-						n = 5;
 					}
 					pstr->symbol = '9';
 					pstr->times_repeated = (int)f->pic->digits - f->pic->scale;
@@ -788,20 +790,22 @@ validate_field_1 (struct cb_field *f)
 					++pstr;
 
 					f->pic->size++;
-					n += 15;
 				} else {
-					/* Enough for genned string */
-					f->pic->str = cobc_parse_malloc ((size_t)3 * sizeof(cob_pic_symbol));
+					/* Size for genned string */
+					if (f->pic->have_sign) {
+						n = 2;
+					} else {
+						n = 1;
+					}
+					f->pic->str = cobc_parse_malloc ((size_t)n * sizeof(cob_pic_symbol));
 					pstr = f->pic->str;
 					if (f->pic->have_sign) {
 						pstr->symbol = '+';
 						pstr->times_repeated = 1;
 						++pstr;
-						n = 5;
 					}
 					pstr->symbol = '9';
 					pstr->times_repeated = f->pic->digits;
-					n += 5;
 				}
 				f->pic->lenstr = n;
 				f->pic->category = CB_CATEGORY_NUMERIC_EDITED;
@@ -831,11 +835,11 @@ validate_field_1 (struct cb_field *f)
 			for (p = f; p; p = p->parent) {
 				if (cb_warn_ignored_initial_val) {
 					if (p->flag_external) {
-						cb_warning_x (x, _("initial VALUE clause ignored for %s item"),
+						cb_warning_x (COBC_WARN_FILLER, x, _("initial VALUE clause ignored for %s item"),
 										"EXTERNAL");
 				} else
 					if (p->redefines) {
-						cb_warning_x (x, _("initial VALUE clause ignored for %s item"),
+						cb_warning_x (COBC_WARN_FILLER, x, _("initial VALUE clause ignored for %s item"),
 										"REDEFINES");
 					}
 				}
@@ -899,6 +903,7 @@ setup_parameters (struct cb_field *f)
 			break;
 
 		case CB_USAGE_COMP_5:
+			f->flag_real_binary = 1;
 		case CB_USAGE_COMP_X:
 			if (f->pic->category == CB_CATEGORY_ALPHANUMERIC) {
 				if (f->pic->size > 8) {
@@ -1091,6 +1096,19 @@ compute_binary_size (struct cb_field *f, const int size)
 	}
 }
 
+static struct cb_field *
+get_last_child (struct cb_field *f)
+{
+	do {
+		f = f->children;
+		while (f->sister) {
+			f = f->sister;
+		}
+	} while (f->children);
+
+	return f;
+}
+
 static int
 compute_size (struct cb_field *f)
 {
@@ -1119,7 +1137,7 @@ compute_size (struct cb_field *f)
 	if (f->children) {
 		/* Groups */
 		if (f->flag_synchronized && warningopt) {
-			cb_warning_x (CB_TREE(f), _("ignoring SYNCHRONIZED for group item '%s'"),
+			cb_warning_x (COBC_WARN_FILLER, CB_TREE(f), _("ignoring SYNCHRONIZED for group item '%s'"),
 				    cb_name (CB_TREE (f)));
 		}
 unbounded_again:
@@ -1134,7 +1152,7 @@ unbounded_again:
 				    c->size * c->occurs_max >
 				    c->redefines->size * c->redefines->occurs_max) {
 					if (cb_larger_redefines_ok) {
-						cb_warning_x (CB_TREE (c),
+						cb_warning_x (COBC_WARN_FILLER, CB_TREE (c),
 							      _("size of '%s' larger than size of '%s'"),
 							      c->name, c->redefines->name);
 						maxsz = c->redefines->size * c->redefines->occurs_max;
@@ -1207,10 +1225,24 @@ unbounded_again:
 				}
 			}
 		}
+		/* Ensure items within OCCURS are aligned correctly. */
 		if (f->occurs_max > 1 && (size_check % occur_align_size) != 0) {
 			pad = occur_align_size - (size_check % occur_align_size);
 			size_check += pad;
-			f->offset += pad;
+			/*
+			  Add padding to last item, which will be (partly)
+			  responsible for misalignment. If the item is not SYNC,
+			  we have no problem. If it is SYNC, then it has been
+			  aligned on a smaller boundary than occur_align_size: a
+			  2-, 4- or 8-byte boundary. The needed padding will
+			  be a multiple of 2, 4 or 8 bytes, so adding extra
+			  padding will not break its alignment.
+			*/
+			if (f->children) {
+			        get_last_child (f)->offset += pad;
+			} else {
+				COBC_ABORT ();
+			}
 		}
 		/* size check for group items */
 		if (unbounded_items) {
@@ -1328,7 +1360,7 @@ unbounded_again:
 	if (f->redefines && f->redefines->flag_external &&
 	    (f->size * f->occurs_max > f->redefines->size * f->redefines->occurs_max)) {
 		if (cb_larger_redefines_ok) {
-			cb_warning_x (CB_TREE (f), _("size of '%s' larger than size of '%s'"),
+			cb_warning_x (COBC_WARN_FILLER, CB_TREE (f), _("size of '%s' larger than size of '%s'"),
 				      f->name, f->redefines->name);
 		} else {
 			cb_error_x (CB_TREE (f), _("size of '%s' larger than size of '%s'"),
@@ -1400,6 +1432,7 @@ cb_validate_field (struct cb_field *f)
 			c->count++;
 		}
 	}
+
 	f->flag_is_verified = 1;
 }
 
@@ -1440,19 +1473,6 @@ cb_validate_78_item (struct cb_field *f, const cob_u32_t no78add)
 		cb_add_78 (f);
 	}
 	return last_real_field;
-}
-
-static const struct cb_field *
-get_last_child (const struct cb_field *f)
-{
-	do {
-		f = f->children;
-		while (f->sister) {
-			f = f->sister;
-		}
-	} while (f->children);
-
-	return f;
 }
 
 static struct cb_field *

@@ -99,7 +99,7 @@ static int ppwrap (void) {
 
 struct copy_info {
 	struct copy_info	*next;
-	struct list_files       *listfile;
+	struct list_files       *containing_files;
 	const char		*file;
 	char			*dname;
 	struct cb_replace_list	*replacing;
@@ -264,7 +264,8 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 
 ^[ ]*">>"[ ]?"LEAP-SECOND"	{
 	if (warningopt) {
-		cb_plex_warning (newline_count, _("ignoring LEAP-SECOND directive"));
+		cb_plex_warning (warningopt, newline_count,
+			_("ignoring LEAP-SECOND directive"));
 	}
 	skip_to_eol ();
 }
@@ -275,7 +276,8 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 }
 
 ^[ ]*">>"[ ]*\n		{
-	cb_plex_warning (newline_count, _("ignoring empty directive"));
+	cb_plex_warning (COBC_WARN_FILLER, newline_count,
+			_("ignoring empty directive"));
 	unput ('\n');
 }
 
@@ -283,12 +285,14 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 	char	*s;
 
 	s = strchr (yytext, '>');
-	cb_plex_warning (newline_count, _("ignoring invalid directive: '%s'"), s);
+	cb_plex_warning (COBC_WARN_FILLER, newline_count,
+			_("ignoring invalid directive: '%s'"), s);
 	skip_to_eol ();
 }
 
 ^[ ]*">>"		{
-	cb_plex_warning (newline_count, _("ignoring invalid directive"));
+	cb_plex_warning (COBC_WARN_FILLER, newline_count,
+			_("ignoring invalid directive"));
 	skip_to_eol ();
 }
 
@@ -326,25 +330,29 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 	char	*s;
 
 	s = strchr (yytext, '$');
-	cb_plex_warning (newline_count, _("ignoring invalid directive: '%s'"), s);
+	cb_plex_warning (COBC_WARN_FILLER, newline_count,
+			_("ignoring invalid directive: '%s'"), s);
 	skip_to_eol ();
 }
 
 ^......"$"		{
 	/* Allow $ in column 7 for acucomment in fixed format */
 	if (cb_source_format == CB_FORMAT_FREE) {
-		cb_plex_warning (newline_count, _("spurious '$' detected - ignored"));
+		cb_plex_warning (COBC_WARN_FILLER, newline_count,
+			_("spurious '$' detected - ignored"));
 		skip_to_eol ();
 	}
 }
 
 ^[ ]*"$"		{
-	cb_plex_warning (newline_count, _("spurious '$' detected - ignored"));
+	cb_plex_warning (COBC_WARN_FILLER, newline_count,
+		_("spurious '$' detected - ignored"));
 	skip_to_eol ();
 }
 
 "PROCESS"		{
-	cb_plex_warning (newline_count, _("PROCESS statement ignored"));
+	cb_plex_warning (COBC_WARN_FILLER, newline_count,
+		_("PROCESS statement ignored"));
 	skip_to_eol ();
 }
 
@@ -716,22 +724,20 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 
 
 <<EOF>> {
-	struct copy_info *p;
-
-	p = copy_stack;
+	struct copy_info *current_copy_info = copy_stack;
 
 	yy_delete_buffer (YY_CURRENT_BUFFER);
 
 	/* Terminate at the end of all input */
-	if (p->next == NULL) {
+	if (current_copy_info->next == NULL) {
 		/* Check dangling IF/ELSE */
 		for (; plex_nest_depth > 0; --plex_nest_depth) {
 			cb_source_line = plex_cond_stack[plex_nest_depth].line;
 			cb_error (_("IF/ELIF/ELSE directive without matching END-IF"));
 		}
 		plex_nest_depth = 0;
-		cobc_free (p->dname);
-		cobc_free (p);
+		cobc_free (current_copy_info->dname);
+		cobc_free (current_copy_info);
 		listing_line = 0;
 		requires_listing_line = 1;
 		requires_new_line = 0;
@@ -753,22 +759,24 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 
 	/* Close the current file */
 	fclose (ppin);
+	ppin = NULL;
 
-	if (p->listfile) {
-	   cb_current_file = p->listfile;
+	if (current_copy_info->containing_files) {
+		cb_current_file = current_copy_info->containing_files;
 	}
 
 	/* Switch to previous buffer */
-	switch_to_buffer (p->line, p->file, p->buffer);
+	switch_to_buffer (current_copy_info->line, current_copy_info->file,
+			  current_copy_info->buffer);
 
 	/* Restore variables */
-	current_replace_list = p->replacing;
-	quotation_mark = p->quotation_mark;
-	cb_source_format = p->source_format;
+	current_replace_list = current_copy_info->replacing;
+	quotation_mark = current_copy_info->quotation_mark;
+	cb_source_format = current_copy_info->source_format;
 
-	copy_stack = p->next;
-	cobc_free (p->dname);
-	cobc_free (p);
+	copy_stack = current_copy_info->next;
+	cobc_free (current_copy_info->dname);
+	cobc_free (current_copy_info);
 }
 
 %%
@@ -807,7 +815,7 @@ pp_set_replace_list (struct cb_replace_list *list, const cob_u32_t is_pushpop)
 int
 ppopen (const char *name, struct cb_replace_list *replacing_list)
 {
-	struct copy_info	*p;
+	struct copy_info	*current_copy_info;
 	char			*s;
 	char			*dname;
 
@@ -837,7 +845,7 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 
 	/* Check for BOM - *not* for input from stdin as rewind() clears the input
 	  buffer if used on stdin and output in console has normally no BOM at all */
-	if (strcmp(name, COB_DASH) != 0) {
+	if (strcmp (name, COB_DASH) != 0) {
 		if (fread (bom, 3, 1, ppin) == 1) {
 			if (bom[0] != 0xEF || bom[1] != 0xBB || bom[2] != 0xBF) {
 				rewind (ppin);
@@ -847,30 +855,29 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 		}
 	}
 
-	/* save name for listing */
+	/* Save name for listing */
 	if (cb_current_file && !cb_current_file->name) {
 		cb_current_file->name = cobc_strdup (name);
 	}
 
 	/* Preserve the current buffer */
-	p = cobc_malloc (sizeof (struct copy_info));
-	p->file = cb_source_file;
-	p->buffer = YY_CURRENT_BUFFER;
+	current_copy_info = cobc_malloc (sizeof (struct copy_info));
+	current_copy_info->file = cb_source_file;
+	current_copy_info->buffer = YY_CURRENT_BUFFER;
 
 	/* Save variables */
-	p->replacing = current_replace_list;
-	p->line = cb_source_line;
-	p->quotation_mark = quotation_mark;
-	p->source_format = cb_source_format;
+	current_copy_info->replacing = current_replace_list;
+	current_copy_info->line = cb_source_line;
+	current_copy_info->quotation_mark = quotation_mark;
+	current_copy_info->source_format = cb_source_format;
 
-	p->next = copy_stack;
-	p->listfile = old_list_file;
-	copy_stack = p;
+	current_copy_info->next = copy_stack;
+	current_copy_info->containing_files = old_list_file;
+	copy_stack = current_copy_info;
 
 	if (cb_current_file) {
 		cb_current_file->copy_line = cb_source_line;
 	}
-
 
 	/* Set replacing list */
 	if (replacing_list) {
@@ -885,7 +892,7 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 	}
 
 	dname = cobc_strdup (name);
-	p->dname = dname;
+	current_copy_info->dname = dname;
 	for (s = dname; *s; ++s) {
 		if (*s == '\\') {
 			*s = '/';
@@ -943,7 +950,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 		}
 	}
 
-	/* COPY open error restore old file */
+	/* On COPY, open error restore old file */
 	cb_current_file = old_list_file;
 	fprintf (yyout, "#line %d \"%s\"\n", cb_source_line, cb_source_file);
 
@@ -1083,6 +1090,11 @@ get_new_listing_file (void)
 	if (!cb_current_file->copy_head) {
 		cb_current_file->copy_head = newfile;
 	}
+	if (cb_current_file->copy_tail) {
+		cb_current_file->copy_tail->next = newfile;
+	}
+	cb_current_file->copy_tail = newfile;
+
 	memset (newfile, 0, sizeof (struct list_files));
 	newfile->copy_line = cb_source_line;
 	newfile->source_format = cb_source_format;
@@ -1276,18 +1288,18 @@ start:
 		*/
 		if (cb_source_format == CB_FORMAT_FREE) {
 			if (line_overflow == 0) {
-				cb_plex_warning (newline_count + 1,
+				cb_plex_warning (COBC_WARN_FILLER, newline_count + 1,
 						 _("line not terminated by a newline"));
 			} else if (line_overflow == 2) {
-				cb_plex_warning (newline_count + 1,
+				cb_plex_warning (COBC_WARN_FILLER, newline_count + 1,
 						 _("source text exceeds %d bytes, will be truncated"), PPLEX_BUFF_LEN);
 			}
 		} else {
 			if (line_overflow == 0) {
-				cb_plex_warning (newline_count,
+				cb_plex_warning (COBC_WARN_FILLER, newline_count,
 						 _("line not terminated by a newline"));
 			} else if (line_overflow == 2) {
-				cb_plex_warning (newline_count,
+				cb_plex_warning (COBC_WARN_FILLER, newline_count,
 						 _("source text exceeds %d bytes, will be truncated"), PPLEX_BUFF_LEN);
 			}
 		}
@@ -1388,10 +1400,11 @@ start:
 			if (cb_current_file->skip_tail) {
 				cb_current_file->skip_tail->next = skip;
 			}
+			cb_current_file->skip_tail = skip;
+
 			if (!cb_current_file->skip_head) {
 				cb_current_file->skip_head = skip;
 			}
-			cb_current_file->skip_tail = skip;
 		}
 		goto start;
 	}
@@ -1428,7 +1441,7 @@ start:
 			goto start;
 		}
 	}
-	
+
 	/* Return when free format (no floating comments removed!) */
 	if (cb_source_format == CB_FORMAT_FREE) {
 		within_comment = 0;
@@ -1606,7 +1619,7 @@ start:
 	/* Show warning if text is longer than cb_text_column
 	   and not whitespace (postponed here) */
 	if (line_overflow != 0) {
-		cb_plex_warning (newline_count,
+		cb_plex_warning (COBC_WARN_FILLER, newline_count,
 				 _("source text after program-text area (column %d)"),
 				cb_text_column);
 	}

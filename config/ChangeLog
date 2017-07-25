@@ -1,4 +1,8 @@
 
+2017-04-22  Edward Hart <edward.dan.hart@gmail.com>
+
+	* general: added stop-identifier config option.
+
 2016-12-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* runtime.conf: FR #191 added COB_EXIT_WAIT and COB_EXIT_MSG
@@ -16,6 +20,10 @@
 2016-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* general: feature-request #179 added reference-out-of-declaratives option
+
+2016-10-13  Ron Norman <rjn@inglenet.com>
+
+	* general: added arithmetic-osvs option
 
 2016-10-02  Edward Hart <edward.dan.hart@gmail.com>
 

@@ -1,4 +1,61 @@
 
+2017-05-10  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added "Too many errors" message.
+
+2017-05-08  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Correct max error count test.
+
+2017-05-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* listings-sed.sh: simplified (more likely to run in non GNU/Linux
+	  environments)
+
+2017-04-25  Brian Tiffin <btiffin@gnu.org>
+
+	* testsuite.src/run_extensions.at: Drop daylight value test, zero means no
+	  rule exists, non-zero means rule exists, testing for bad value is
+	  pointless.
+
+2017-04-23  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobol85/Makefile.am: HACK for newcob.val in sourcedir during VPATH build
+
+2017-04-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_misc.at, testsuite.src/syn_definition.at: moved
+	  and renamed syntax tests for RETURNING to syn_defintion,
+	  added checks for RETURNING item
+
+2017-03-22  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added Error/Warning summary to listings.
+
+2017-03-21  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Changed variable indentation and redefines.
+
+2017-03-19  Edward Hart <edward.dan.hart@gmail.com>
+
+	* report.pl, EXEC85.conf.in: fixed bug #363: redefining filename (viz.
+	  "report.log") as variable is not portable.
+	* report.pl, summary.pl: fixed warnings and added "use warnings;" and
+	  "use strict;" directives.
+
+2017-03-19  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Added multiple files listing test.
+
+2017-02-21  Dave Pitts <dpitts@cozx.com>
+
+	* testsuite.src/listings.at: Fixed to pass internal cross reference.
+
+2017-02-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_file.at: fixed generation with old autoconf
+	  that trips on the string AT_DATA in AT_DATA definitions
+
 2017-01-20  Brian Tiffin <btiffin@gnu.org>
 
 	* testsuite.src/run_misc.at: add PROCEDURE DIVISION EXTERN test
@@ -39,7 +96,7 @@
 	* testsuite.at: added cobcrun to tested programs
 	* atlocal_win: changes for allowing test of Windows binaries with
 	  WSL / Bash on Windows
-	* testsuite.src/listings.sed: adjustment for optional package suffixes
+	* listings-sed.sh: adjustment for optional package suffixes
 
 2016-12-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -67,7 +124,7 @@
 
 2016-11-09  Dave Pitts <dpitts@cozx.com>
 
-	* testsuite.src/listings.at: sdded cross reference tests
+	* testsuite.src/listings.at: added cross reference tests
 
 2016-11-07  Dave Pitts <dpitts@cozx.com>
 
@@ -93,7 +150,7 @@
 
 2016-10-31  Dave Pitts <dpitts@cozx.com>
 
-	* testsuite.src/listings.at: Added header/trailer to file not found 
+	* testsuite.src/listings.at: Added header/trailer to file not found
 	  test case.
 
 2016-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
@@ -110,7 +167,7 @@
 
 	* atlocal.in: pass COB_HAS_UTC_OFFSET, set PATHSEP and COB_HAS_CURSES
 	  for MinGW
-	* testsuite.src/listings-sed.sh: fix for patchlevel up to 999  
+	* testsuite.src/listings-sed.sh: fix for patchlevel up to 999
 	* testsuite.src/configuration.at, testsuite.src/used_binaries.at:
 	  used `cobc -q` (instead of sed script) to simplify "unrecognized option"
 	* testsuite.src/run_misc.at: define NULL if needed
@@ -162,12 +219,12 @@
 
 2016-08-02  Dave Pitts <dpitts@cozx.com>
 
-	* testsuite.src/listings.at - Added tests for non-existant file and
+	* testsuite.src/listings.at - Added tests for non-existent file and
 	  copybook messages in the listing file.
 
 2016-07-24  Dave Pitts <dpitts@cozx.com>
 
-	* testsuite.src/listings.at - Fixed test for 32/64 bit pointers and 
+	* testsuite.src/listings.at - Fixed test for 32/64 bit pointers and
 	  additional picture information.
 
 2016-07-18  Dave Pitts <dpitts@cozx.com>
@@ -764,4 +821,3 @@
 
 	* Makefile.am, atlocal.in: New files.
 	* redef.at, subref.at, runtime.at: New files.
-

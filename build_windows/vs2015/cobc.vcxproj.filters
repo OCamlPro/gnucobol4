@@ -7,7 +7,7 @@
     </Filter>
     <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
     <Filter Include="Resource Files">
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
@@ -63,12 +63,6 @@
     <ClCompile Include="..\..\cobc\scanner.c">
       <Filter>Auto Generated Files\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\debugger_sources\animod.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\debugger_sources\printani.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\cobc\codeoptim.def">
@@ -120,18 +114,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\libcob\cobgetopt.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\debugger_sources\animod.c.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\debugger_sources\animod.c.l.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\debugger_sources\printani.c.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\debugger_sources\printani.c.l.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

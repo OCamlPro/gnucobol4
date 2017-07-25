@@ -19,7 +19,39 @@
 ### GnuCOBOL Test Suite
 
 
-AT_SETUP([Ambiguous AND/OR])
+AT_SETUP([ambiguous AND/OR])
+AT_KEYWORDS([misc expression])
+
+# Note: we use variables here as constants would be resolved before the warning
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 ONE   PIC 9 VALUE 1.
+       01 TWO   PIC 9 VALUE 2.
+       01 THREE PIC 9 VALUE 3.
+       PROCEDURE        DIVISION.
+           IF THREE = ONE AND TWO OR THREE
+               DISPLAY "OK"
+               END-DISPLAY
+           END-IF.
+           IF THREE = ONE OR TWO AND THREE
+               DISPLAY "NO"
+               END-DISPLAY
+           END-IF.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 11: warning: suggest parentheses around AND within OR
+prog.cob: 15: warning: suggest parentheses around AND within OR
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([warn constant expressions])
 AT_KEYWORDS([misc expression])
 
 AT_DATA([prog.cob], [
@@ -37,10 +69,102 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
-[prog.cob: 6: warning: suggest parentheses around AND within OR
-prog.cob: 10: warning: suggest parentheses around AND within OR
+# FIXME positions broken
+AT_CHECK([$COMPILE_ONLY -w -Wconstant-expression prog.cob], [0], [],
+[prog.cob: 5: warning: expression is always FALSE
+prog.cob: 5: warning: expression is always FALSE
+prog.cob: 6: warning: expression is always FALSE
+prog.cob: 5: warning: expression is always TRUE
+prog.cob: 6: warning: expression is always TRUE
+prog.cob: 9: warning: expression is always FALSE
+prog.cob: 9: warning: expression is always FALSE
+prog.cob: 9: warning: expression is always TRUE
+prog.cob: 10: warning: expression is always FALSE
+prog.cob: 10: warning: expression is always FALSE
 ])
+
+AT_CLEANUP
+
+
+AT_SETUP([warn literal size])
+AT_KEYWORDS([numeric constant expresssio])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-LINE-NUMBER PIC 9(3) VALUE ZERO.
+       01 WS-NUMBER      PIC 9(3)V99 VALUE ZERO.
+       01 WS-TEXT        PIC X(5) VALUE 'CAT'.
+       78 CONST1         VALUE 'CAT     '.
+       01 CONST2         CONSTANT AS 00000001234.
+       PROCEDURE DIVISION.
+       IF WS-LINE-NUMBER > '123'
+          CONTINUE.
+       IF WS-TEXT > 'DOGGY'
+          CONTINUE.
+       IF WS-NUMBER > 123.999
+          CONTINUE.
+       IF WS-LINE-NUMBER > 1234
+          CONTINUE.
+       IF WS-LINE-NUMBER > '1234'
+          CONTINUE.
+       IF WS-TEXT > 'DOGGY++'
+          CONTINUE.
+       IF WS-TEXT > 3141596
+          CONTINUE.
+       IF 'DOG+CAT' NOT = WS-TEXT
+          CONTINUE.
+       IF WS-TEXT = 'CAT+DOG'
+          CONTINUE.
+       EVALUATE TRUE
+          WHEN 'DOG+CAT' = WS-TEXT
+             CONTINUE
+          WHEN CONST1 = 'CAT+DOG'
+             CONTINUE
+          WHEN CONST1 = 'CAT'
+             CONTINUE
+          WHEN CONST2 = 1234
+             CONTINUE
+       END-EVALUATE
+       STOP RUN RETURNING 0.
+])
+
+#AT_CHECK([$COMPILE prog.cob], [0], [],
+#AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+#[prog.cob: 18: warning: literal is longer than field
+#prog.cob: 20: warning: literal is longer than field
+#prog.cob: 22: warning: literal is longer than field
+#prog.cob: 24: warning: literal is longer than field
+#prog.cob: 26: warning: literal is longer than field
+#prog.cob: 26: warning: expression is always TRUE
+#prog.cob: 28: warning: literal is longer than field
+#prog.cob: 28: warning: expression is always FALSE
+#prog.cob: 31: warning: literal is longer than field
+#prog.cob: 31: warning: expression is always FALSE
+#prog.cob: 33: warning: expression is always FALSE
+#prog.cob: 35: warning: expression is always TRUE
+#prog.cob: 37: warning: expression is always TRUE
+#])
+#FIXME - positions broken !!!
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 18: warning: literal is longer than field
+prog.cob: 20: warning: literal is longer than field
+prog.cob: 22: warning: literal is longer than field
+prog.cob: 24: warning: literal is longer than field
+prog.cob: 26: warning: literal is longer than field
+prog.cob: 26: warning: expression is always TRUE
+prog.cob: 28: warning: literal is longer than field
+prog.cob: 28: warning: expression is always FALSE
+prog.cob: 31: warning: literal is longer than field
+prog.cob: 31: warning: expression is always FALSE
+prog.cob: 9: warning: expression is always FALSE
+prog.cob: 9: warning: expression is always TRUE
+prog.cob: 10: warning: expression is always TRUE
+])
+
+#AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -147,7 +271,7 @@ prog.cob: 72: error: invalid expression
 AT_CLEANUP
 
 
-AT_SETUP([Missing headers])
+AT_SETUP([missing headers])
 AT_KEYWORDS([misc])
 
 AT_DATA([prog.cob], [
@@ -195,6 +319,65 @@ prog.cob: 17: warning: PROCEDURE DIVISION header missing - assumed
 ])
 
 AT_CLEANUP
+
+
+AT_SETUP([one line program])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [           DISPLAY "minimal".
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 1: error: PROGRAM-ID header missing
+prog.cob: 1: error: PROCEDURE DIVISION header missing
+])
+
+AT_CHECK([$COMPILE_ONLY -frelax-syntax-checks prog.cob], [0], [],
+[prog.cob: 1: warning: PROGRAM-ID header missing - assumed
+prog.cob: 1: warning: PROCEDURE DIVISION header missing - assumed
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([empty program])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC 999 VALUE 124.
+       END PROGRAM prog.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC 999 VALUE 124.
+])
+
+AT_CHECK([$COMPILE_ONLY prog2.cob], [0], [], [])
+
+AT_DATA([prog3.cob], [])
+
+AT_CHECK([$COMPILE_ONLY prog3.cob], [1], [],
+[prog3.cob: 1: error: PROGRAM-ID header missing
+])
+
+AT_CHECK([$COMPILE_ONLY -frelax-syntax-checks prog3.cob], [0], [],
+[prog3.cob: 1: warning: PROGRAM-ID header missing - assumed
+])
+
+AT_CLEANUP
+
 
 AT_SETUP([INITIALIZE constant])
 AT_KEYWORDS([misc])
@@ -408,7 +591,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 AT_CLEANUP
 
 
-AT_SETUP([Maximum data size])
+AT_SETUP([maximum data size])
 AT_KEYWORDS([misc])
 
 AT_DATA([prog.cob], [
@@ -437,7 +620,7 @@ prog.cob: 9: error: 'GROUP-ITEM2' cannot be larger than 268435456 bytes
 AT_CLEANUP
 
 
-AT_SETUP([Unreachable statement])
+AT_SETUP([unreachable statement])
 AT_KEYWORDS([misc extensions])
 
 AT_DATA([prog.cob], [
@@ -764,7 +947,7 @@ prog.cob: 76: error: 'SWIT32-OFF' is not defined
 AT_CLEANUP
 
 
-AT_SETUP([Unexpected mnemonic-name location])
+AT_SETUP([unexpected mnemonic-name location])
 AT_KEYWORDS([misc])
 
 AT_DATA([prog.cob], [
@@ -791,7 +974,7 @@ prog.cob: 12: error: invalid mnemonic identifier
 AT_CLEANUP
 
 
-AT_SETUP([Wrong device for mnemonic-name])
+AT_SETUP([wrong device for mnemonic-name])
 AT_KEYWORDS([misc ACCEPT DISPLAY SPECIAL-NAMES])
 
 AT_DATA([prog.cob], [
@@ -816,7 +999,7 @@ prog.cob: 9: error: 'SYSIN' is not an output device
 AT_CLEANUP
 
 
-AT_SETUP([Missing mnemonic-name declaration])
+AT_SETUP([missing mnemonic-name declaration])
 AT_KEYWORDS([misc ACCEPT SPECIAL-NAMES])
 
 AT_DATA([prog.cob], [
@@ -837,7 +1020,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 AT_CLEANUP
 
 
-AT_SETUP([Unknown device in dialect])
+AT_SETUP([unknown device in dialect])
 AT_KEYWORDS([misc ACCEPT DISPLAY SPECIAL-NAMES])
 
 AT_DATA([prog.cob], [
@@ -963,7 +1146,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
 AT_CLEANUP
 
 
-AT_SETUP([Source text after program-text area])
+AT_SETUP([source text after program-text area])
 AT_KEYWORDS([misc fixed])
 
 AT_DATA([prog.cob], [
@@ -984,7 +1167,7 @@ AT_CHECK([$COMPILE_ONLY -W prog.cob], [0], [],
 AT_CLEANUP
 
 
-AT_SETUP([Line overflow in Fixed-form / Free-form])
+AT_SETUP([line overflow in Fixed-form / Free-form])
 AT_KEYWORDS([misc])
 
 # We're testing trailing tabs and whitespace (should not lead to warning)
@@ -1032,7 +1215,7 @@ prog.cob: 8: error: unknown statement 'This'
 AT_CLEANUP
 
 
-AT_SETUP([Continuation Indicator - too many lines])
+AT_SETUP([continuation Indicator - too many lines])
 AT_KEYWORDS([misc fixed literals listing])
 
 AT_DATA([prog.cob], [
@@ -1589,7 +1772,7 @@ AT_CHECK([$COMPILE_ONLY -t prog.lst prog.cob], [1], [],
 AT_CLEANUP
 
 
-AT_SETUP([Continuation of COBOL words])
+AT_SETUP([continuation of COBOL words])
 AT_KEYWORDS([misc fixed literals])
 
 AT_DATA([prog.cob], [
@@ -1610,7 +1793,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
 AT_CLEANUP
 
 
-AT_SETUP([Literal too long])
+AT_SETUP([literal too long])
 AT_KEYWORDS([misc literals literal-length continuation listing])
 
 
@@ -1860,7 +2043,7 @@ prog2.cob: 9: error: literal length 8299 exceeds 8191 characters
 AT_CLEANUP
 
 
-AT_SETUP([Line and floating comments])
+AT_SETUP([line and floating comments])
 AT_KEYWORDS([misc extensions indicator])
 
 AT_DATA([prog.cob], [
@@ -2137,7 +2320,7 @@ AT_CHECK([$COMPILE_ONLY -free -frelax-syntax-checks -w prog2.cob], [0], [], [])
 AT_CLEANUP
 
 
-AT_SETUP([Floating-point literals])
+AT_SETUP([floating-point literals])
 # Refer to Section 8.3.1.2.2.2 of the COBOL 2010 FCD.
 AT_KEYWORDS([misc])
 
@@ -2337,7 +2520,7 @@ prog.cob: 11: error: hexadecimal-national literal does not conform to COBOL 85
 AT_CLEANUP
 
 
-AT_SETUP([Binary literals])
+AT_SETUP([binary literals])
 AT_KEYWORDS([misc extensions])
 
 AT_DATA([prog.cob], [
@@ -2373,7 +2556,7 @@ prog.cob: 10: error: numeric boolean literal does not conform to COBOL 85
 AT_CLEANUP
 
 
-AT_SETUP([Binary-hexadecimal literals])
+AT_SETUP([binary-hexadecimal literals])
 AT_KEYWORDS([misc extensions])
 
 AT_DATA([prog.cob], [
@@ -2496,7 +2679,7 @@ prog.cob: 8: error: literal exceeds limit 4294967295
 AT_CLEANUP
 
 
-AT_SETUP([Adding/removing reserved words])
+AT_SETUP([adding/removing reserved words])
 AT_KEYWORDS([misc extensions configuration])
 
 AT_DATA([prog.cob], [
@@ -2523,7 +2706,7 @@ prog.cob: 9: error: 'bar' is a reserved word, but isn't supported
 AT_CLEANUP
 
 
-AT_SETUP([Adding aliases])
+AT_SETUP([adding aliases])
 AT_KEYWORDS([misc extensions configuration])
 
 AT_DATA([prog.cob], [
@@ -2557,7 +2740,7 @@ AT_CHECK([$COMPILE_ONLY -freserved=" FOO = DISPLAY  " prog.cob], [0], [], [])
 AT_CLEANUP
 
 
-AT_SETUP([Complete specified word list])
+AT_SETUP([complete specified word list])
 AT_KEYWORDS([misc extensions configuration])
 
 AT_DATA([prog.cob], [
@@ -2601,7 +2784,7 @@ prog.cob: 9: error: ANY LENGTH items may only be BY REFERENCE formal parameters
 AT_CLEANUP
 
 
-AT_SETUP([Swapped SOURCE- and OBJECT-COMPUTER])
+AT_SETUP([swapped SOURCE- and OBJECT-COMPUTER])
 AT_KEYWORDS([misc extensions])
 
 AT_DATA([prog.cob], [
@@ -2683,7 +2866,8 @@ prog.cob: 44: error: NOT EXCEPTION before EXCEPTION does not conform to COBOL 85
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
 AT_CLEANUP
 
-AT_SETUP([Wrong dialect hints])
+
+AT_SETUP([wrong dialect hints])
 AT_KEYWORDS([misc])
 
 AT_DATA([prog.cob], [
@@ -2707,7 +2891,7 @@ prog.cob: 11: error: unknown statement 'TRANSFORM'; it may exist in another dial
 AT_CLEANUP
 
 
-AT_SETUP([Redundant periods])
+AT_SETUP([redundant periods])
 AT_KEYWORDS([misc])
 
 AT_DATA([a.cpy], [
@@ -2802,7 +2986,7 @@ prog.cob: 43: error: syntax error, unexpected DELIMITED, expecting INTO
 AT_CLEANUP
 
 
-AT_SETUP([Use of program-prototypes])
+AT_SETUP([use of program-prototypes])
 AT_KEYWORDS([misc])
 
 AT_DATA([prog.cob], [
@@ -2829,7 +3013,7 @@ prog.cob: 12: warning: CALL/CANCEL with program-prototype-name used
 AT_CLEANUP
 
 
-AT_SETUP([Invalid INSPECT/TRANSFORM operands])
+AT_SETUP([invalid INSPECT/TRANSFORM operands])
 AT_KEYWORDS([misc INSPECT TRANSFORM])
 
 AT_DATA([prog.cob], [
@@ -2898,7 +3082,7 @@ prog.cob: 13: error: elementary items with SIGN clause must be USAGE DISPLAY or 
 AT_CLEANUP
 
 
-AT_SETUP([Conflicting entry conventions])
+AT_SETUP([conflicting entry conventions])
 AT_KEYWORDS([misc ENTRY-CONVENTION])
 
 AT_DATA([prog.cob], [
@@ -2963,3 +3147,55 @@ prog.cob: 24: error: 'tab2b-entry' is not numeric
 ])
 AT_CLEANUP
 
+
+AT_SETUP([Empty PERFORM with DEBUGGING MODE])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+
+       ENVIRONMENT     DIVISION.
+       CONFIGURATION   SECTION.
+       SOURCE-COMPUTER.
+            whatever   WITH DEBUGGING MODE.
+           
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       01  i           PIC 9.
+       
+       PROCEDURE DIVISION.
+           PERFORM VARYING i FROM 1 BY 1
+                   UNTIL i = 5
+           END-PERFORM
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+AT_CLEANUP
+
+
+AT_SETUP([STOP identifier])
+AT_KEYWORDS([misc extensions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION  DIVISION.
+       PROGRAM-ID.     prog.
+
+       DATA            DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x           PIC 9(5) VALUE 1.
+       01  y           CONSTANT "ab".
+
+       PROCEDURE       DIVISION.
+           STOP x
+           STOP y
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 12: warning: STOP identifier is obsolete in GnuCOBOL
+prog.cob: 12: warning: STOP literal is obsolete in GnuCOBOL
+])
+AT_CHECK([$COMPILE_ONLY -fstop-identifier=ok -fstop-literal=ok prog.cob], [0], [], [])
+AT_CLEANUP

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2015 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
@@ -322,6 +322,15 @@ cob_decimal_init (cob_decimal *d)
 {
 	mpz_init2 (d->value, COB_MPZ_DEF);
 	d->scale = 0;
+}
+
+void
+cob_decimal_clear (cob_decimal *d)
+{
+	if (d) {
+		mpz_clear (d->value);
+		d->scale = 0;
+	}
 }
 
 /** setting a decimal field from an unsigned binary long int */
@@ -848,7 +857,7 @@ cob_decimal_set_double (cob_decimal *d, const double v)
 
 	memset (&t1, ' ', sizeof(t1));
 	ud.d1 = v;
-	if (ud.l1 == 0 || ud.l1 == t1 || !finite (v)) {
+	if (ud.l1 == 0 || ud.l1 == t1 || !ISFINITE (v)) {
 		mpz_set_ui (d->value, 0UL);
 		d->scale = 0;
 		return;
@@ -913,7 +922,7 @@ cob_decimal_get_double (cob_decimal *d)
 	}
 
 	v = mpf_get_d (cob_mpft);
-	if (!finite (v)) {
+	if (!ISFINITE (v)) {
 		v = 0.0;
 	}
 	return v;
@@ -1938,6 +1947,20 @@ cob_decimal_cmp (cob_decimal *d1, cob_decimal *d2)
 {
 	align_decimal (d1, d2);
 	return mpz_cmp (d1->value, d2->value);
+}
+
+/*
+ * Shift 'd1' to have same scale as 'd2'
+ */
+void
+cob_decimal_align (cob_decimal *d1, const int scale)
+{
+	if (d1->scale > scale) {
+		shift_decimal (d1, scale - d1->scale);
+	} else if (d1->scale < scale) {
+		shift_decimal (d1, d1->scale - scale);
+	}
+	return;
 }
 
 /* Convenience functions */

@@ -398,6 +398,8 @@ test.conf: missing definitions:
 	no definition of 'larger-redefines-ok'
 	no definition of 'relax-syntax-checks'
 	no definition of 'perform-osvs'
+	no definition of 'arithmetic-osvs'
+	no definition of 'move-ibm'
 	no definition of 'sticky-linkage'
 	no definition of 'relax-level-hierarchy'
 	no definition of 'hostsign'
@@ -417,6 +419,7 @@ test.conf: missing definitions:
 	no definition of 'synchronized-clause'
 	no definition of 'goto-statement-without-name'
 	no definition of 'stop-literal-statement'
+	no definition of 'stop-identifier-statement'
 	no definition of 'debugging-line'
 	no definition of 'use-for-debugging'
 	no definition of 'padding-character-clause'
@@ -679,7 +682,7 @@ AT_CHECK([echo "$PATHSEP"], [0], [;
 # Previous test "failed" --> PATHSEP isn't ;
 
 AT_CHECK([export COB_CONFIG_DIR="/temp:/tmp"; \
-$COMPILE prog.cob], [99], [],
+$COMPILE prog.cob], [97], [],
 [cobc: environment variable 'COB_CONFIG_DIR' is '/temp:/tmp'; should not contain ':'
 cobc: aborting
 ])
@@ -689,7 +692,7 @@ cobc: aborting
 # Previous test "passed" --> PATHSEP is ;
 
 AT_CHECK([export COB_CONFIG_DIR="C:\temp;C:\tmp"; \
-$COMPILE prog.cob], [99], [],
+$COMPILE prog.cob], [97], [],
 [cobc: environment variable 'COB_CONFIG_DIR' is 'C:\temp;C:\tmp'; should not contain ';'
 cobc: aborting
 ])

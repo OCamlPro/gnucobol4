@@ -31,6 +31,8 @@
 #define CB_PREFIX_BASE		"b_"	/* Base address (unsigned char *) */
 #define CB_PREFIX_CONST		"c_"	/* Constant or literal (cob_field) */
 #define CB_PREFIX_DECIMAL	"d_"	/* Decimal number (cob_decimal) */
+#define CB_PREFIX_DEC_FIELD	"kc_"	/* Decimal Constant for literal (cob_field) */
+#define CB_PREFIX_DEC_CONST	"dc_"	/* Decimal Contant (cob_decimal) */
 #define CB_PREFIX_FIELD		"f_"	/* Field (cob_field) */
 #define CB_PREFIX_FILE		"h_"	/* File (cob_file) */
 #define CB_PREFIX_KEYS		"k_"	/* File keys (cob_file_key []) */
@@ -102,7 +104,8 @@ enum cb_tag {
 	CB_TAG_DEBUG,		/* 35 Debug item set */
 	CB_TAG_DEBUG_CALL,	/* 36 Debug callback */
 	CB_TAG_PROGRAM,		/* 37 Program */
-	CB_TAG_PROTOTYPE	/* 38 Prototype */
+	CB_TAG_PROTOTYPE,	/* 38 Prototype */
+	CB_TAG_DECIMAL_LITERAL	/* 39 Decimal Literal */
 };
 
 /* Alphabet type */
@@ -491,6 +494,7 @@ typedef struct cb_tree_common	*cb_tree;
 struct cb_xref_elem {
 	struct cb_xref_elem	*next;
 	int			line;
+	int			receive;
 };
 
 struct cb_xref {
@@ -1461,6 +1465,7 @@ extern cb_tree			cb_int2;
 extern cb_tree			cb_int3;
 extern cb_tree			cb_int4;
 extern cb_tree			cb_int5;
+extern cb_tree			cb_int6;
 extern cb_tree			cb_i[COB_MAX_SUBSCRIPTS];
 extern cb_tree			cb_error_node;
 
@@ -1496,7 +1501,7 @@ extern cb_tree			cb_build_class_name (cb_tree, cb_tree);
 
 extern cb_tree			cb_build_locale_name (cb_tree, cb_tree);
 
-extern cb_tree			cb_build_numeric_literal (const int,
+extern cb_tree			cb_build_numeric_literal (int,
 							  const void *,
 							  const int);
 extern cb_tree			cb_build_alphanumeric_literal (const void *,
@@ -1510,6 +1515,8 @@ extern cb_tree			cb_concat_literals (const cb_tree,
 						    const cb_tree);
 
 extern cb_tree			cb_build_decimal (const int);
+extern cb_tree			cb_build_decimal_literal (const int);
+extern int 			cb_lookup_literal (cb_tree x, int make_decimal);
 
 extern cb_tree			cb_build_picture (const char *);
 extern cb_tree			cb_build_comment (const char *);
@@ -1669,7 +1676,7 @@ extern void			cb_list_system (void);
 extern void			cb_list_map (cb_tree (*) (cb_tree), cb_tree);
 
 /* error.c */
-extern void		cb_warning_x (cb_tree, const char *, ...) COB_A_FORMAT23;
+extern void		cb_warning_x (int, cb_tree, const char *, ...) COB_A_FORMAT34;
 extern void		cb_error_x (cb_tree, const char *, ...) COB_A_FORMAT23;
 extern unsigned int	cb_verify_x (cb_tree, const enum cb_support,
 				     const char *);
@@ -1737,6 +1744,7 @@ extern void		cb_validate_program_body (struct cb_program *);
 
 extern cb_tree		cb_build_expr (cb_tree);
 extern cb_tree		cb_build_cond (cb_tree);
+extern void		cb_end_cond (void);
 
 extern void		cb_emit_arithmetic (cb_tree, const int, cb_tree);
 extern cb_tree		cb_build_add (cb_tree, cb_tree, cb_tree);
@@ -1919,8 +1927,9 @@ extern struct cb_program	*cb_find_defined_program_by_name (const char *);
 extern struct cb_program	*cb_find_defined_program_by_id (const char *);
 
 /* cobc.c */
-extern void			cobc_xref_link (struct cb_xref *, const int);
+extern void			cobc_xref_link (struct cb_xref *, const int, const int);
 extern void			cobc_xref_link_parent (const struct cb_field *);
+extern void			cobc_xref_set_receiving (const cb_tree);
 
 /* Function defines */
 

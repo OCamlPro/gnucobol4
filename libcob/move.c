@@ -602,10 +602,10 @@ cob_move_display_to_binary (cob_field *f1, cob_field *f2)
 	}
 
 	if (COB_FIELD_HAVE_SIGN (f2)) {
+		/* Could this cast cause overflows? */
+		val2 = (cob_s64_t)val;
 		if (sign < 0) {
-			val2 = -(cob_s64_t)val;
-		} else {
-			val2 = val;
+			val2 *= -1;
 		}
 		cob_binary_mset_sint64 (f2, val2);
 	} else {
@@ -1154,6 +1154,20 @@ cob_move_all (cob_field *src, cob_field *dst)
 	cob_free (p);
 }
 
+/*
+ * Move data the same way as 'MVC' instruction on IBM works, 
+ * left to right, byte by byte
+ */
+void
+cob_move_ibm (void *dst, void *src, const int len)
+{
+	char	*dest = dst;
+	char	*srce = src;
+	int	i;
+	for(i=0; i < len; i++)
+		dest[i] = srce[i];
+}
+
 void
 cob_move (cob_field *src, cob_field *dst)
 {
@@ -1693,7 +1707,7 @@ cob_put_u64_compx (cob_u64_t val, void *mem, int len)
 	default:	/* Assume 64 bit value */
 	case sizeof(cob_s64_t):
 		memcpy (mem, ((cob_u8_t*)&val), sizeof(cob_s64_t));
-		return val;
+		return;
 	case sizeof(short):
 		ushort = ((cob_u16_t)val);
 		memcpy (mem, ((cob_u8_t*)&ushort), sizeof(short));
@@ -1767,6 +1781,64 @@ cob_put_u64_comp5 (cob_u64_t val, void *mem, int len)
 #else
 	memcpy (mem, ((cob_u8_t*)&val), len);
 #endif
+}
+
+void
+cob_put_s64_compx (cob_s64_t val, void *mem, int len)
+{
+	cob_s64_t	slong;
+	cob_s32_t	sint;
+	cob_s16_t	sshort;
+#if defined(WORDS_BIGENDIAN) 
+	switch (len) {
+	case sizeof(int):
+		sint = ((cob_s32_t)val);
+		memcpy(mem,((cob_u8_t*)&sint),sizeof(int));
+		return;
+	default:	/* Assume 64 bit value */
+	case sizeof(cob_s64_t):
+		memcpy(mem,((cob_u8_t*)&val),sizeof(cob_s64_t));
+		return;
+	case sizeof(short):
+		sshort = ((cob_s16_t)val);
+		memcpy(mem,((cob_u8_t*)&sshort),sizeof(short));
+		return;
+	case 1:
+		*((cob_s8_t*)mem) = ((cob_s8_t)val);
+		return;
+	case 3:
+	case 5:
+	case 6:
+	case 7:
+		memcpy(mem,((cob_u8_t*)&val)+(sizeof(cob_s64_t)-len),len);
+	}
+#else
+	switch (len) {
+	case sizeof(int):
+		sint = COB_BSWAP_32 ((cob_s32_t)val);
+		memcpy(mem,((cob_u8_t*)&sint),sizeof(int));
+		return;
+	default:	/* Assume 64 bit value */
+	case sizeof(cob_s64_t):
+		slong = COB_BSWAP_64 ((cob_s64_t)val);
+		memcpy(mem,((cob_u8_t*)&slong),sizeof(cob_s64_t));
+		return;
+	case sizeof(short):
+		sshort = COB_BSWAP_16 ((cob_s16_t)val);
+		memcpy(mem,((cob_u8_t*)&sshort),sizeof(short));
+		return;
+	case 1:
+		*((cob_s8_t*)mem) = ((cob_s8_t)val);
+		return;
+	case 3:
+	case 5:
+	case 6:
+	case 7:
+		slong = COB_BSWAP_64 (val);
+		memcpy(mem,((cob_u8_t*)&slong)+(sizeof(cob_s64_t)-len),len);
+	}
+#endif
+	return;
 }
 
 void

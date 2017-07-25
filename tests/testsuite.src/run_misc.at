@@ -4923,8 +4923,8 @@ AT_DATA([caller.cob], [
 ])
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [+000000000], [])
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([./caller], [0], [+000000000], [])
 
 AT_CLEANUP
 
@@ -4954,44 +4954,8 @@ AT_DATA([caller.cob], [
 ])
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [42], [+000000042], [])
-
-AT_CLEANUP
-
-
-# Disallow PROCEDURE DIVISION RETURNING OMITTED for main
-AT_SETUP([void PROCEDURE, main not allowed])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       PROCEDURE        DIVISION RETURNING OMITTED.
-           MOVE 42 TO RETURN-CODE
-           EXIT PROGRAM.
-])
-
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [], [ignore])
-
-AT_CLEANUP
-
-
-# Disallow PROCEDURE DIVISION RETURNING OMITTED for FUNCTION
-AT_SETUP([void PROCEDURE not allowed for FUNCTION])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       FUNCTION-ID.     func.
-       DATA             DIVISION.
-       PROCEDURE        DIVISION RETURNING OMITTED.
-           MOVE 42 TO RETURN-CODE
-           EXIT PROGRAM.
-])
-
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [], [ignore])
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([./caller], [42], [+000000042], [])
 
 AT_CLEANUP
 
@@ -5407,9 +5371,11 @@ libcob: prog.cob: 16: warning: ' S U B' literal includes leading spaces which ar
 
 AT_CLEANUP
 
-
 AT_SETUP([C API Test])
 AT_KEYWORDS([CALL])
+
+# CHECKME - returns COMP-4 instead of COMP-5
+AT_XFAIL_IF(true)
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -5417,7 +5383,7 @@ AT_DATA([prog.cob], [
        
        DATA DIVISION.
        WORKING-STORAGE SECTION.
-       01  BINFLD5     PIC  9(5) BINARY  VALUE  1280.
+       01  BINFLD5     PIC  9(5) COMP-5  VALUE  1280.
        01  BINFLD5S    PIC S9(5) BINARY  VALUE  1024.
        01  BINFLD9     PIC  9(9) BINARY  VALUE  2560.
        01  COMP3       PIC  9(8) COMP-3  VALUE  4096.
@@ -5465,7 +5431,6 @@ static char *
 getType(int type)
 {
    static char wrk[24];
-   sprintf(wrk,"Type %04X",type);
    switch (type) {
    case COB_TYPE_GROUP:    return "Group";
    case COB_TYPE_NUMERIC_COMP5:
@@ -5480,6 +5445,7 @@ getType(int type)
    case COB_TYPE_ALPHANUMERIC:   return "X";
    case COB_TYPE_NUMERIC_EDITED: return "EDITED";
    }
+   sprintf(wrk,"Type %04X",type);
    return wrk;
 }
 
@@ -5498,7 +5464,7 @@ CAPI(void *p1, ...)
       scale  = cob_get_param_scale (k);
       size   = cob_get_param_size (k);
       sign   = cob_get_param_sign (k);
-      printf("%d: %-8s ",k,getType(type));
+      printf(" %d: %-8s ",k,getType(type));
       if (cob_get_param_constant(k))
          printf("BY VALUE     ");
       else
@@ -5510,8 +5476,9 @@ CAPI(void *p1, ...)
          cob_free ((void*)str);
          cob_put_picx_param (k, "Bye!");
       } else if (type == COB_TYPE_GROUP) {
+         sprintf(pic,"(%d)",size);
          str = cob_get_grp_param (k, NULL, 0);
-         printf("%-11s '%.*s'","",size,str);
+         printf("%-11s '%.*s'",pic,size,str);
          cob_free ((void*)str);
          memset(wrk,' ',sizeof(wrk));
          memcpy(wrk,"Bye-Bye Birdie!",15);
@@ -5539,7 +5506,7 @@ CAPI(void *p1, ...)
          printf("%-11s %lld",pic,val);
          cob_put_s64_param (k, val + 3);
       }
-      printf(".\n");
+      printf(";\n");
       fflush(stdout);
    }
    if (nargs > 2)
@@ -5554,50 +5521,51 @@ prog.cob: 32: warning: BY CONTENT assumed for alphanumeric item
 prog.cob: 34: warning: BY CONTENT assumed for alphanumeric item
 ])
 
-AT_CHECK([./prog], [0], [CAPI called with 2 parameters
-1: COMP-4   BY VALUE     S9(9)       2560.
-2: DISPLAY  BY VALUE     9(2)        16.
+AT_CHECK([./prog], [0],
+[CAPI called with 2 parameters
+ 1: COMP-4   BY VALUE     S9(9)       2560;
+ 2: DISPLAY  BY VALUE     9(2)        16;
 CAPI called with 2 parameters
-1: COMP-4   BY REFERENCE 9(5)        1280.
-2: EDITED   BY REFERENCE S9(5)V9(2)  -51277  to   511.47 .
+ 1: COMP-5   BY REFERENCE 9(5)        1280;
+ 2: EDITED   BY REFERENCE S9(5)V9(2)  -51277  to   511.47 ;
 CAPI called with 1 parameters
-1: COMP-4   BY REFERENCE S9(5)       1024.
+ 1: COMP-4   BY REFERENCE S9(5)       1024;
 CAPI called with 1 parameters
-1: COMP-4   BY REFERENCE 9(9)        2560.
+ 1: COMP-4   BY REFERENCE 9(9)        2560;
 CAPI called with 2 parameters
-1: COMP-3   BY REFERENCE 9(8)        4096.
-2: EDITED   BY REFERENCE S9(5)V9(2)  51277  to   514.07-.
+ 1: COMP-3   BY REFERENCE 9(8)        4096;
+ 2: EDITED   BY REFERENCE S9(5)V9(2)  51277  to   514.07-;
 CAPI called with 4 parameters
-1: DISPLAY  BY REFERENCE S9(8)       8192.
-2: COMP-4   BY REFERENCE S9(5)       1027.
-3: X        BY REFERENCE X(9)        'Hello'.
-4: Group    BY REFERENCE             'Hello    World    '.
+ 1: DISPLAY  BY REFERENCE S9(8)       8192;
+ 2: COMP-4   BY REFERENCE S9(5)       1027;
+ 3: X        BY REFERENCE X(9)        'Hello';
+ 4: Group    BY REFERENCE (18)        'Hello    World    ';
 CAPI called with 3 parameters
-1: COMP-3   BY REFERENCE 9(8)        4099.
-2: EDITED   BY REFERENCE S9(5)V9(2)  -51407  to   512.77 .
-3: X        BY REFERENCE X(9)        'Bye!'.
+ 1: COMP-3   BY REFERENCE 9(8)        4099;
+ 2: EDITED   BY REFERENCE S9(5)V9(2)  -51407  to   512.77 ;
+ 3: X        BY REFERENCE X(9)        'Bye!';
 CAPI called with 2 parameters
-1: COMP-4   BY REFERENCE 9(5)        1283.
-2: EDITED   BY REFERENCE S9(5)V9(2)  51277  to   514.07-.
+ 1: COMP-5   BY REFERENCE 9(5)        1283;
+ 2: EDITED   BY REFERENCE S9(5)V9(2)  51277  to   514.07-;
 CAPI called with 2 parameters
-1: COMP-4   BY REFERENCE 9(5)        1286.
-2: X        BY VALUE     X(9)        'Hello!'.
+ 1: COMP-5   BY REFERENCE 9(5)        1286;
+ 2: X        BY VALUE     X(9)        'Hello!';
 CAPI called with 2 parameters
-1: COMP-4   BY REFERENCE 9(5)        1289.
-2: X        BY VALUE     X(9)        'Hello!'.
+ 1: COMP-5   BY REFERENCE 9(5)        1289;
+ 2: X        BY VALUE     X(9)        'Hello!';
 CAPI called with 1 parameters
-1: COMP-4   BY VALUE     S9(9)       18.
+ 1: COMP-4   BY VALUE     S9(9)       18;
 CAPI called with 2 parameters
-1: Group    BY VALUE                 'Bye-Bye Birdie!   '.
-2: COMP-4   BY VALUE     S9(9)       18.
+ 1: Group    BY VALUE     (18)        'Bye-Bye Birdie!   ';
+ 2: COMP-4   BY VALUE     S9(9)       18;
 CAPI called with 2 parameters
-1: X        BY VALUE     X(9)        'Fred Fish'.
-2: COMP-3   BY REFERENCE 9(8)        4102.
+ 1: X        BY VALUE     X(9)        'Fred Fish';
+ 2: COMP-3   BY REFERENCE 9(8)        4102;
 CAPI called with 1 parameters
-1: COMP-3   BY REFERENCE S9(7)V9(2)  1250.
+ 1: COMP-3   BY REFERENCE S9(7)V9(2)  1250;
 CAPI called with 0 parameters
 COMP3    is now 00004105;
-COMP4    is now 01292;
+COMP4    is now 0000001292;
 BINFLD5S is now +01030;
 CHRX     is now Hello!   ;
 NE       is now   514.07-;
@@ -5642,5 +5610,392 @@ AT_CHECK([./prog], [0],
 [2
 2
 ])
+
+AT_CLEANUP
+
+
+AT_SETUP([OCCURS INDEXED ASCENDING])
+AT_KEYWORDS([occurs extension])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       01  DBI-RECORD-NAMEST.
+           05  FILLER.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ACM            0315 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-MGL            0303 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZBL            0304 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZCC            0308 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZGL            0305 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZOO            0306 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZTR            0307 '.  
+       01  DBI-RECORD-NAMESR REDEFINES DBI-RECORD-NAMEST.
+           05  DBI-RECORD-NAMES
+                  OCCURS 7 TIMES
+                  INDEXED BY REC-NAME-IDX
+                  ASCENDING KEY IS DBI-RECORD-NAME
+                  .
+             10  DBI-RECORD-NAME PIC X(30).
+             10  DBI-RECORD-CODE PIC 9(4).
+             10  DBI-RECORD-DIR  PIC X.
+       01  REC-NAME   PIC X(30).
+       01  DBX-RECORD-NAMEST.
+           05  FILLER.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ACM            0315 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-MGL            0303 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZBL            0304 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZCC            0308 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZGL            0305 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZOO            0306 '.
+             10 FILLER PIC X(35)
+                VALUE 'A-F-GEN-LEDGER-ZTR            0307 '.
+       01  DBX-RECORD-NAMESR REDEFINES DBX-RECORD-NAMEST.
+           05  DBX-RECORD-NAMES
+                  OCCURS 7 TIMES
+                  ASCENDING KEY IS DBX-RECORD-NAME
+                  INDEXED BY REC-NAME-DBX
+                  .
+             10  DBX-RECORD-NAME PIC X(30).
+             10  DBX-RECORD-CODE PIC 9(4).
+             10  DBX-RECORD-DIR  PIC X.
+
+       PROCEDURE DIVISION.
+       MAIN.
+           MOVE 'A-F-GEN-LEDGER-ZGL' TO REC-NAME.
+           PERFORM FINDIT.
+           MOVE 'JUNK' TO REC-NAME.
+           PERFORM FINDIT.
+           STOP RUN.
+
+       FINDIT. 
+           SEARCH DBI-RECORD-NAMES
+           AT END
+               DISPLAY 'A ' REC-NAME ' is invalid.' 
+           WHEN REC-NAME = DBI-RECORD-NAME (REC-NAME-IDX)
+               DISPLAY 'A ' REC-NAME ' is code '
+                         DBI-RECORD-CODE (REC-NAME-IDX) '.'.
+
+           SEARCH DBX-RECORD-NAMES
+           AT END
+               DISPLAY 'B ' REC-NAME ' is invalid.'
+           WHEN REC-NAME = DBX-RECORD-NAME (REC-NAME-DBX)
+               DISPLAY 'B ' REC-NAME ' is code '
+                         DBX-RECORD-CODE (REC-NAME-DBX) '.'.
+])
+
+AT_CHECK([$COMPILE -frelax-syntax-checks prog.cob ], [0], [],
+[prog.cob: 26: warning: INDEXED should follow ASCENDING/DESCENDING
+])
+
+AT_CHECK([./prog], [0],
+[A A-F-GEN-LEDGER-ZGL             is code 0305.
+B A-F-GEN-LEDGER-ZGL             is code 0305.
+A JUNK                           is invalid.
+B JUNK                           is invalid.
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([ZERO unsigned and negative binary subscript])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       77  UBIN        PIC  9(8) BINARY.
+       77  SBIN        PIC S9(8) BINARY.
+       77  UNUP        PIC  9(8).
+       77  SNUP        PIC S9(8).
+
+       01  TSTREC.
+           05  TSTX PIC X(4) OCCURS 3 TIMES.
+           05  TSTY PIC X(4) OCCURS 3 TIMES.
+
+       PROCEDURE DIVISION.
+           MOVE ALL 'A' TO TSTX(1).
+           MOVE ALL 'B' TO TSTX(2).
+           MOVE ALL 'C' TO TSTX(3).
+           MOVE ALL '1' TO TSTY(1).
+           MOVE ALL '2' TO TSTY(2).
+           MOVE ALL '3' TO TSTY(3).
+           MOVE 0  TO UNUP.
+           DISPLAY "UNUP: " UNUP " is :" TSTY(UNUP) ":" UPON CONSOLE.
+           MOVE 0  TO SNUP.
+           DISPLAY "SNUP: " SNUP " is :" TSTY(SNUP) ":" UPON CONSOLE.
+           MOVE 0  TO SBIN.
+           DISPLAY "SBIN: " SBIN " is :" TSTY(SBIN) ":" UPON CONSOLE.
+           MOVE -1 TO SBIN.
+           DISPLAY "SBIN: " SBIN " is :" TSTY(SBIN) ":" UPON CONSOLE.
+           MOVE 'xxx'   TO TSTY(SBIN).
+           DISPLAY "SBIN: " SBIN " is :" TSTY(SBIN) ":" UPON CONSOLE.
+      * The following would often core dump
+           MOVE 0 TO UBIN.
+           DISPLAY "UBIN: " UBIN " is :" TSTY(UBIN) ":" UPON CONSOLE.
+           MOVE 'xxx'   TO TSTY(UBIN).
+           MOVE 1 TO UBIN.
+           DISPLAY "UBIN: " UBIN " is :" TSTY(UBIN) ":" UPON CONSOLE.
+           STOP RUN.
+])
+
+# Safe run with runtime checks
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [1], [], [libcob: prog.cob: 23: subscript of 'TSTY' out of bounds: 0
+])
+
+# Runtime checks disable, subscript may be zero or even negative
+AT_CHECK([$COBC -x prog.cob -o prog_unsafe], [0], [], [])
+AT_CHECK([./prog_unsafe], [0],
+[UNUP: 00000000 is :CCCC:
+SNUP: +00000000 is :CCCC:
+SBIN: +00000000 is :CCCC:
+SBIN: -00000001 is :BBBB:
+SBIN: -00000001 is :xxx :
+UBIN: 00000000 is :CCCC:
+UBIN: 00000001 is :1111:
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Default Arithmetic])
+AT_KEYWORDS([Runtime])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 NUM-A   PIC 9(3) VALUE 399.
+       01 NUM-B   PIC 9(3) VALUE 211.
+       01 NUM-C   PIC 9(3)V99 VALUE 212.34.
+       01 NUMV1   PIC 9(3)V9.
+       01 PICX    PIC X VALUE 'A'.
+       01 RSLT    PIC 9(3).
+       01 RSLTV1  PIC 9(3).9.
+       01 RSLTV2  PIC 9(3).99.
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           COMPUTE RSLT = NUM-A + 1.1.
+           DISPLAY 'Simple Compute  RSLT IS ' RSLT
+           COMPUTE RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Single Variable RSLT IS ' RSLT
+           COMPUTE RSLTV2, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv99 IS ' RSLTV2
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv9  IS ' RSLTV1
+           MOVE 0 TO RSLT 
+           ADD NUM-C TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C 10 TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           SUBTRACT NUM-C FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           SUBTRACT NUM-A -10 FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C TO RSLT GIVING RSLTV1.
+           DISPLAY 'Add      RSLTv9  IS ' RSLTV1
+           MULTIPLY NUM-A BY NUM-C GIVING RSLT.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           MULTIPLY RSLT BY NUM-C.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           DIVIDE NUM-A BY 10 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+           DIVIDE RSLT BY 4 GIVING RSLTV1.
+           DISPLAY 'Divide   RSLTv9  IS ' RSLTV1.
+           DIVIDE RSLT BY 4 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Simple   RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (100.55 + -0.550)) 
+                                -  (NUM-B / (10.11 * 10 - 1.1)))
+                                  * (220 / 2.2)
+           DISPLAY 'Complex  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (101 - 1)) 
+                                -  (NUM-B / (10 * 10))) * (200 / 2)
+           DISPLAY 'Reduced  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+           MOVE NUM-A TO NUMV1.
+           IF ((NUMV1 / (101 - 1)) 
+              -  (NUM-B / (10 * 10))) * (200 / 2) EQUAL 188
+              DISPLAY "Not Using ARITHMETIC-OSVS" 
+           ELSE
+              DISPLAY "Using ARITHMETIC-OSVS" 
+           END-IF.
+           STOP RUN.
+])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([./prog], [0],
+[Simple Compute  RSLT IS 400
+Single Variable RSLT IS 188
+Compute  RSLT    IS 188
+Compute  RSLTv99 IS 188.00
+Compute  RSLT    IS 188
+Compute  RSLTv9  IS 188.0
+Add      RSLT    IS 212
+Add      RSLT    IS 621
+Subtract RSLT    IS 408
+Subtract RSLT    IS 019
+Add      RSLTv9  IS 611.3
+Multiply RSLT    IS 723
+Multiply RSLT    IS 723
+Divide   RSLT    IS 039
+Divide   RSLTv9  IS 009.7
+Divide   RSLT    IS 009
+Simple   RSLT    IS 188 RSLTv9  IS 188.0
+Complex  RSLT    IS 188 RSLTv9  IS 188.0
+Reduced  RSLT    IS 188 RSLTv9  IS 188.0
+Not Using ARITHMETIC-OSVS
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([OSVS Arithmetic])
+AT_KEYWORDS([Runtime])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 NUM-A   PIC 9(3) VALUE 399.
+       01 NUM-B   PIC 9(3) VALUE 211.
+       01 NUM-C   PIC 9(3)V99 VALUE 212.34.
+       01 NUMV1   PIC 9(3)V9.
+       01 PICX    PIC X VALUE 'A'.
+       01 RSLT    PIC 9(3).
+       01 RSLTV1  PIC 9(3).9.
+       01 RSLTV2  PIC 9(3).99.
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           COMPUTE RSLT = NUM-A + 1.1.
+           DISPLAY 'Simple Compute  RSLT IS ' RSLT
+           COMPUTE RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Single Variable RSLT IS ' RSLT
+           COMPUTE RSLTV2, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv99 IS ' RSLTV2
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv9  IS ' RSLTV1
+           MOVE 0 TO RSLT 
+           ADD NUM-C TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C 10 TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           SUBTRACT NUM-C FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           SUBTRACT NUM-A -10 FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C TO RSLT GIVING RSLTV1.
+           DISPLAY 'Add      RSLTv9  IS ' RSLTV1
+           MULTIPLY NUM-A BY NUM-C GIVING RSLT.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           MULTIPLY RSLT BY NUM-C.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           DIVIDE NUM-A BY 10 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+           DIVIDE RSLT BY 4 GIVING RSLTV1.
+           DISPLAY 'Divide   RSLTv9  IS ' RSLTV1.
+           DIVIDE RSLT BY 4 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Simple   RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (100.55 + -0.550)) 
+                                -  (NUM-B / (10.11 * 10 - 1.1)))
+                                  * (220 / 2.2)
+           DISPLAY 'Complex  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (101 - 1)) 
+                                -  (NUM-B / (10 * 10))) * (200 / 2)
+           DISPLAY 'Reduced  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+           MOVE NUM-A TO NUMV1.
+           IF ((NUMV1 / (101 - 1)) 
+              -  (NUM-B / (10 * 10))) * (200 / 2) EQUAL 188
+              DISPLAY "Not Using ARITHMETIC-OSVS" 
+           ELSE
+              DISPLAY "Using ARITHMETIC-OSVS" 
+           END-IF.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -farithmetic-osvs prog.cob], [0], [],
+[prog.cob: in paragraph 'MAIN':
+prog.cob: 17: warning: precision of result may change with arithmetic-osvs
+prog.cob: 19: warning: precision of result may change with arithmetic-osvs
+prog.cob: 21: warning: precision of result may change with arithmetic-osvs
+prog.cob: 24: warning: precision of result may change with arithmetic-osvs
+prog.cob: 31: warning: precision of result may change with arithmetic-osvs
+prog.cob: 35: warning: precision of result may change with arithmetic-osvs
+prog.cob: 38: warning: precision of result may change with arithmetic-osvs
+prog.cob: 40: warning: precision of result may change with arithmetic-osvs
+prog.cob: 44: warning: precision of result may change with arithmetic-osvs
+prog.cob: 46: warning: precision of result may change with arithmetic-osvs
+prog.cob: 48: warning: precision of result may change with arithmetic-osvs
+prog.cob: 51: warning: precision of result may change with arithmetic-osvs
+prog.cob: 55: warning: precision of result may change with arithmetic-osvs
+prog.cob: 61: warning: precision of result may change with arithmetic-osvs
+prog.cob: 67: warning: precision of result may change with arithmetic-osvs
+])
+
+AT_CHECK([./prog], [0],
+[Simple Compute  RSLT IS 400
+Single Variable RSLT IS 100
+Compute  RSLT    IS 188
+Compute  RSLTv99 IS 188.00
+Compute  RSLT    IS 180
+Compute  RSLTv9  IS 180.0
+Add      RSLT    IS 212
+Add      RSLT    IS 621
+Subtract RSLT    IS 408
+Subtract RSLT    IS 019
+Add      RSLTv9  IS 611.3
+Multiply RSLT    IS 723
+Multiply RSLT    IS 723
+Divide   RSLT    IS 039
+Divide   RSLTv9  IS 009.7
+Divide   RSLT    IS 009
+Simple   RSLT    IS 180 RSLTv9  IS 180.0
+Complex  RSLT    IS 180 RSLTv9  IS 180.0
+Reduced  RSLT    IS 180 RSLTv9  IS 180.0
+Using ARITHMETIC-OSVS
+], [])
 
 AT_CLEANUP

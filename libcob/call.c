@@ -176,7 +176,9 @@ static size_t			call_lastsize;
 static size_t			resolve_size;
 static unsigned int		cob_jmp_primed;
 static cob_field_attr	const_binll_attr =
-				{COB_TYPE_NUMERIC_BINARY, 18, 0, COB_FLAG_HAVE_SIGN, NULL};
+			{COB_TYPE_NUMERIC_BINARY, 18, 0, COB_FLAG_HAVE_SIGN, NULL};
+static cob_field_attr	const_binull_attr =
+			{COB_TYPE_NUMERIC_BINARY, 18, 0, 0, NULL};
 
 static char		module_ext[8];		/* EB */
 static int		cob_anim_logging;	/* EB */
@@ -382,7 +384,12 @@ do_cancel_module (struct call_hash *p, struct call_hash **base_hash,
 	    *(p->module->module_ref_count)) {
 		nocancel = 1;
 	}
+#ifdef _MSC_VER
+#pragma warning(suppress: 4113) // funcint is a generic function prototype
 	cancel_func = p->module->module_cancel.funcint;
+#else
+	cancel_func = p->module->module_cancel.funcint;
+#endif
 	(void)cancel_func (-1, NULL, NULL, NULL, NULL);
 	p->module = NULL;
 
@@ -1118,7 +1125,12 @@ cob_cancel_field (const cob_field *f, const struct cob_call_struct *cs)
 	for (s = cs; s && s->cob_cstr_name; s++) {
 		if (!strcmp (entry, s->cob_cstr_name)) {
 			if (s->cob_cstr_cancel.funcvoid) {
+#ifdef _MSC_VER
+#pragma warning(suppress: 4113) // funcint is a generic function prototype
 				cancel_func = s->cob_cstr_cancel.funcint;
+#else
+				cancel_func = s->cob_cstr_cancel.funcint;
+#endif
 				(void)cancel_func (-1, NULL, NULL, NULL,
 						   NULL);
 			}
@@ -1563,13 +1575,13 @@ cob_get_param_type (int n)
 		return -1;
 	}
 	if (f->attr->type == COB_TYPE_NUMERIC_BINARY) {
-#ifndef WORDS_BIGENDIAN
-		if (COB_FIELD_BINARY_SWAP (f)) {
-			return COB_TYPE_NUMERIC_BINARY;
+		if (COB_FIELD_REAL_BINARY (f)) {
+			return COB_TYPE_NUMERIC_COMP5;
 		}
-		return COB_TYPE_NUMERIC_COMP5;
-#else
-		return COB_TYPE_NUMERIC_BINARY;
+#ifndef WORDS_BIGENDIAN
+		if (!COB_FIELD_BINARY_SWAP(f)) {
+			return COB_TYPE_NUMERIC_COMP5;
+		}
 #endif
 	}
 	return (int)f->attr->type;
@@ -1647,6 +1659,9 @@ cob_get_s64_param (int n)
 {
 	void		*cbl_data;
 	int		size;
+	cob_s64_t	val;
+	double		dbl;
+	cob_field	temp;
 	cob_field	*f = cob_get_param_field (n, "cob_get_s64_param");
 
 	if (f == NULL) {
@@ -1670,11 +1685,22 @@ cob_get_s64_param (int n)
 	case COB_TYPE_NUMERIC_PACKED:
 		return cob_get_s64_comp3 (cbl_data, size);
 	case COB_TYPE_NUMERIC_FLOAT:
-	        return cob_get_comp1 (cbl_data);
+		dbl = cob_get_comp1 (cbl_data);
+		val = (cob_s64_t)dbl; // possible data loss is explicit requested
+		return val;
 	case COB_TYPE_NUMERIC_DOUBLE:
-	        return cob_get_comp2 (cbl_data);
+		dbl = cob_get_comp2 (cbl_data);
+		val = (cob_s64_t)dbl; // possible data loss is explicit requested
+		return val;
 	case COB_TYPE_NUMERIC_EDITED:
 		return cob_get_s64_pic9 (cbl_data, size);
+	default:
+		temp.size = 8;
+		temp.data = (unsigned char *)&val;
+		temp.attr = &const_binll_attr;
+		const_binll_attr.scale = f->attr->scale;
+		cob_move (f, &temp);
+		return val;
 	}
 	return -1;
 }
@@ -1684,6 +1710,9 @@ cob_get_u64_param (int n)
 {
 	void		*cbl_data;
 	int		size;
+	cob_u64_t	val;
+	double		dbl;
+	cob_field	temp;
 	cob_field	*f = cob_get_param_field (n, "cob_get_u64_param");
 
 	if (f == NULL) {
@@ -1710,10 +1739,22 @@ cob_get_u64_param (int n)
 		return cob_get_u64_comp3 (cbl_data, size);
 
 	case COB_TYPE_NUMERIC_FLOAT:
-	        return cob_get_comp1 (cbl_data);
-
+		dbl = cob_get_comp1 (cbl_data);
+		val = (cob_u64_t)dbl; // possible data loss is explicit requested
+		return val;
 	case COB_TYPE_NUMERIC_DOUBLE:
-		return cob_get_comp2 (cbl_data);
+		dbl = cob_get_comp2 (cbl_data);
+		val = (cob_u64_t)dbl; // possible data loss is explicit requested
+		return val;
+	case COB_TYPE_NUMERIC_EDITED:
+		return cob_get_u64_pic9 (cbl_data, size);
+	default:
+		temp.size = 8;
+		temp.data = (unsigned char *)&val;
+		temp.attr = &const_binull_attr;
+		const_binull_attr.scale = f->attr->scale;
+		cob_move (f, &temp);
+		return val;
 	}
 	return 0;
 }
@@ -1764,7 +1805,7 @@ cob_put_s64_param (int n, cob_s64_t val)
 	case COB_TYPE_NUMERIC_BINARY:
 #ifndef WORDS_BIGENDIAN
 		if (COB_FIELD_BINARY_SWAP (f)) {
-			cob_put_u64_compx (val, cbl_data, size);
+			cob_put_s64_compx (val, cbl_data, size);
 		} else {
 			cob_put_s64_comp5 (val, cbl_data, size);
 		}
@@ -1778,16 +1819,15 @@ cob_put_s64_param (int n, cob_s64_t val)
 		return;
 
 	case COB_TYPE_NUMERIC_FLOAT:
-		flt = val;
+		flt = (float)val;  // possible data loss is explicit requested
 		cob_put_comp1 (flt, cbl_data);
 		return;
 
 	case COB_TYPE_NUMERIC_DOUBLE:
-		dbl = val;
+		dbl = (double)val; // possible data loss is explicit requested
 		cob_put_comp2 (dbl, cbl_data);
 		return;
-
-	case COB_TYPE_NUMERIC_EDITED:
+	default:	/* COB_TYPE_NUMERIC_EDITED, ... */
 		temp.size = 8;
 		temp.data = (unsigned char *)&val;
 		temp.attr = &const_binll_attr;
@@ -1840,16 +1880,15 @@ cob_put_u64_param (int n, cob_u64_t val)
 		return;
 
 	case COB_TYPE_NUMERIC_FLOAT:
-		flt = val;
+		flt = (float)val;  // possible data loss is explicit requested
 		cob_put_comp1 (flt, cbl_data);
 		return;
 
 	case COB_TYPE_NUMERIC_DOUBLE:
-		dbl = val;
+		dbl = (double)val;  // possible data loss is explicit requested
 		cob_put_comp2 (dbl, cbl_data);
 		return;
-
-	case COB_TYPE_NUMERIC_EDITED:
+	default:	/* COB_TYPE_NUMERIC_EDITED, ... */
 		temp.size = 8;
 		temp.data = (unsigned char *)&val;
 		temp.attr = &const_binll_attr;
@@ -1875,8 +1914,6 @@ cob_put_picx_param (int n, void *char_field)
 	}
 
 	cob_put_picx (f->data, f->size, char_field);
-
-	return;
 }
 
 void *
@@ -1916,9 +1953,7 @@ cob_put_grp_param (int n, void *char_field, int len)
 		return;
 	}
 
-	if (len <= 0) {
-		len = f->size;
-	} else if (len > f->size) {
+	if (len <= 0 || len > f->size) {
 		len = f->size;
 	}
 	memcpy (f->data, char_field, len);

@@ -1,10 +1,190 @@
 
+2017-05-10  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Added "Too many errors" message to listing.
+
+2017-05-08  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Added code to generate listing when max error count exceeded.
+
+2017-05-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y (emit_entry): checked RETURNING item for not having
+	  REDEFINES clause, use field name instead of cb_name(reference)
+
+2017-05-01  Ron Norman <rjn@inglenet.com>
+
+	* tree.c: improved resolving constant expressions at compile time:
+	  now handles cases with decimal constants, too
+	* parser.y, typeck.c, tree.h: Implement arithmetic-osvs for conditions;
+	  compute intermediate results to precision of variables used in expression
+
+2017-04-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, error.c, flag.def: added -fmax-errors / cb_max_errors
+	  for early/late aborting depending on number of errors, defaulting
+	  to the old value: 100
+	* cobc.c: added -W[no-]fatal-errors for aborting on first error
+	  note: this option takes precedence over -fmax-errors
+	* cobc.c: return 97 for aborts, not 99 as autotest recognizes 99
+	  as hard failure and we may want to check for aborts
+	* cobc.c: simplified --no-symbols option handling
+
+2017-04-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: using builtin rule for bison and cleaned rule for
+	  flexx, moved hack for _MSC_VER to ../create_win_dist.sh
+
+2017-04-27 Sergey Kashyrin <ska@kiska.net>
+
+	* parser.y: Fix for CALL-CONVENTION (was broken)
+	* codegen.c: on Windows we need to output entries prototypes
+	  with dllexport, otherwise they will not be seen.
+	* cobc.c: print_error_for_line cut continuation
+	  snprintf returns -1 in MSC and on HPUX if max is reached
+
+2017-04-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (print_fields, print_88_values): removed indent parameter as
+	  we no longer indent by level number
+	* cobc.c: cb_listing_linecount and cb_lines_per_page as unsigned int
+	* cobc.c: finished implementation of -Werror
+
+2017-04-22  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (stop_statement): added support for STOP identifier.
+
+2017-04-22  Brian Tiffin <btiffin@gnu.org>
+
+	* error.c, cobc.h, cobc.c, field.c, parser.y, ppparse.y, tree.h,
+	  scanner.l, tree.c, pplex.l: cb_warning[_x] change with
+	  preference argument, refactor undefined_error to account for new
+	  prototype.
+
+2017-04-17  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.c (process_translate): reverse program list in place so that
+	  current_program doesn't point to last program in file (see bug #265).
+	* codegen.c: reinstated local variable current_prog removed in
+	  r1309. (codegen) would leave current_program pointing to the last
+	  program in a file, from which you cannot get the first program. This
+	  caused the listing code to break (bug #265) because it assumed
+	  current_program would point to the first program in the file.
+
+2017-04-13  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.c: fixed buffer overflows and memory leaks in listing code.
+	* cobc.c, pplex.l: refactored listing code: added comments,
+	  improved variable names and modularised code.
+
+2017-04-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c: don't generate DEBUGGING code for empty PERFORMs,
+	  fixes #368 (SIGSEGV)
+	* cobc.c (cobc_sig_handler): don't ask for bug report on SIGPIPE
+
+2017-04-10  Brian Tiffin <btiffin@gnu.org>
+
+	* codegen.c: remove use of cob_get_prog_pointer.
+
+2017-04-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: fixed missing initialization for programs without
+	  PROCEDURE DIVISION
+
+2017-04-08  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.c, codegen.c, pplex.l: fixed buffer overflows and double
+	  frees in listing code, SORT of table with OCCURS DEPENDING 0 TO n
+	  and when aborting compilation in the lexer.
+
+2017-03-31  Ron Norman <rjn@inglenet.com>
+
+	* parser.y: allow ASCENDING/DESCENING and INDEXED BY to follow OCCURS
+	  in any order with -frelax-syntax
+
+2017-03-31  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c (cb_emit_set_to): added error when trying to set address of a
+	  non-01/77-level linkage item. Also improved error messages.
+
+2017-03-30  Edward Hart <edward.dan.hart@gmail.com>
+
+	* field.c (compute_size): padding for aligned OCCURS items should go
+	  after the last item, not the beginning of the group (bug #155).
+
+2017-03-22  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c, cobc.h: Added Error/Warning summary to listings.
+	* error.c: Added filename to error struct for summary.
+	* cobc.c: Added code to close and open append the listing file when
+	  calling the external cross reference, cobxref.
+
+2017-03-21  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Changed symbol listing indentation and added redefines clause
+	  to symbol listing.
+
+2017-03-19  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: fixed emission of decimal constants to go into  program.c.h
+
+2017-03-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c: bug #364 moved (output_initialize_chaining) out of
+	  (output_initialize_one), special handling for chaining only during
+	  program initialization
+	* codegen.c (output_internal_function): [bugs:#354] generate code for
+	  raising COB_FERROR_CHAINING when CHAINING program is not the
+	  main program instead of when it is called the second time
+
+2017-03-19  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.h, pplex.l: Restored copy_tail functionality. The copy books were
+	  not being chained for the listing processor.
+
+2017-03-19  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (setup_program_start): moved call to (cb_build_program) to
+	  (setup_program), after the PROGRAM-ID has been checked for
+	  redefinition (see bug #271).
+	* parser.y (file_control_entry): fixed bug #352 by not setting
+	  current_file to NULL in invalid SELECT entries.
+	* parser.y (file_control_entry): added parser error handler so typos
+	  don't define an erroneous SELECT entry.
+
+2017-03-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c (cb_check_overlapping): return a possible overlap if at least
+	  one of the vars can have an assignment of a different address
+	* parser.y (end_scope_of_program_name): fix possible access of NULL var
+	* typeck.c [_MSC_VER] (cb_check_overlapping): silence wrong warning 6011
+
+2017-03-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, error.c: fix minor memory leaks in listing / configuration code
+	* field.c: fix mismatching memory allocation in picture handling
+
+2017-03-11  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c (output_call): Fixed #353 to correctly emit parameter for
+	  CALL BY CONTENT with an INTRINSIC function
+
+2017-03-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: fix #362 one-liner not generating by setting entry_convention
+
+2017-02-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: do (setup_program_start) early in IDENTIFICATION DIVISION
+	  if given, otherwise in PROGRAM ID / FUNCTION ID as we did before
+
 2017-02-06  Ron Norman <rjn@inglenet.com>
 
 	* codegen.c:
 	  Emit routines cob_file_external_addr,cob_file_malloc,cob_file_free
 	  so that 'cob_file' is allocated within libcob
-	  This will allow the stucture have fields added to the end
+	  This will allow the structure have fields added to the end
 	  without forcing a recompile. COB_FILE_VERSION is unchanged
 	  Emit cob_module_free so that structure gets freed within libcob
 
@@ -14,7 +194,7 @@
 
 2017-02-02 Brian Tiffin <btiffin@gnu.org>
 
-	* cobc.h: Updated CB_PENDING CB_UNIFINISHED macros with quieter ONCE_COB
+	* cobc.h: Updated CB_PENDING CB_UNFINISHED macros with quieter ONCE_COB
 
 2017-02-02 Brian Tiffin <btiffin@gnu.org>
 
@@ -38,7 +218,10 @@
 
 2017-01-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
+	* parser.y: fix bug #271 by raising an error on UDF without PROCEDURE
+	  DIVISION and generating a minimal entry when this occurs with a program
 	* parser.y: work on SIZE IS for items passed BY VALUE
+	* cobc.c (cobc_abort_msg): output "FUNCTION-ID" if we abort in a UDF
 
 2017-01-22  Edward Hart <edward.dan.hart@gmail.com>
 
@@ -72,6 +255,12 @@
 	  to be in LINKAGE SECTION
 	* codegen.c (output_internal_function): only allocate UDF RETURNING items
 	  when in LINKAGE SECTION
+
+2017-01-18  Ron Norman <rjn@inglenet.com>
+
+	* field.c: set COB_FLAG_REAL_BINARY to on for COMP-5
+	* codegen.c: for numeric literals passed on CALL, COB_FLAG_REAL_BINARY is
+	  not set on since the internal field is actually S9(9) COMP-4
 
 2017-01-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -135,6 +324,7 @@
 2017-01-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* typeck.c (cb_build_identifier): corrected minimum check for OCCURS
+	* cobc.c: updates for generation of cross reference / symbol listing
 
 2017-01-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -144,6 +334,8 @@
 	  file - needed for suppressing empty lines after page header and for
 	  correct counting of lines per page
 	* cobc.h, cobc.c: moved all listing #define from cobc.h to cobc.c
+	* cobc.c, tree.h, tree.c, parser.y: added receiving flag to cb_xref_elem,
+	  set it on appropriate places (especially from references)
 
 2017-01-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -291,6 +483,11 @@
 	* parser.y, reserved.c, etc.: added complete recognition of all
 	  COMMUNICATION SECTION syntax.
 	* config.def: added use-for-debugging config option.
+
+2016-11-07  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c, cobc.c, config.def: added code for 'move-ibm' option which does
+	  MOVE same as IBM MVC instruction
 
 2016-11-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -502,6 +699,11 @@
 
 	* config.c: let reserved and not-reserved accept comma-separated lists
 
+2016-10-13  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c, config.def: added code for 'arithmetic-osvs' option
+	  which computes intermediate results similar to IBM OSVS & MVS
+
 2016-10-02  Edward Hart <edward.dan.hart@gmail.com>
 
 	* parser.y: improved checks for duplicate/conflicting clauses in ACCEPT
@@ -550,6 +752,11 @@
 	  2008 to 2014.
 	* reserved.c (lookup_reserved_word): changed to allow context-sensitive
 	  words to be activated by different words.
+
+2016-09-19  Ron Norman <rjn@inglenet.com>
+
+	* codgen.c, tree.c, tree.h:  added code to optimize handling of
+	  'decimal constants' in expressions
 
 2016-09-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -1138,6 +1345,20 @@
 
 	* cobc.c: correct process_run return code for systems with WEXITSTATUS
 
+2016-05-03  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* warning.def, tree.c: added cb_warn_constant_expr for warnings added
+	  by Ron Norman on 2016-05-01
+	* tree.c: resolve the value at compile time if literal size differs
+	  and checks are for = or !=
+
+2016-05-01  Ron Norman <rjn@inglenet.com>
+
+	* tree.c: for binary (arithmetic & relational) operations between integer constants
+	  resolve the value at compile time and reduce the expression down to the
+	  computed value
+	* tree.c Also, added checks to validate resolving contant expressions
+
 2016-04-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* parser.y: implement STOP RUN integer/identifier (RM/COBOL extension)
@@ -1375,6 +1596,12 @@
 
 	* parser.y: fixed bug #178 - added check that certain identifiers are
 	  not 88-level items.
+
+2016-01-02  Ron Norman
+
+	* codegen.c (output_index): If subscript is unsigned then output the
+	  code as if it was signed. This is to avoid a core dump when an
+	  unsigned binary subscript has a value of ZERO.
 
 2016-01-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

@@ -2,7 +2,7 @@
 # Configure template for GnuCOBOL
 # Process this file with autoconf to produce a configure script.
 #
-# Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+# Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
@@ -54,7 +54,6 @@ if echo $CFLAGS | grep 'aix64' 1>/dev/null 2>&1; then
 fi
 
 AM_INIT_AUTOMAKE([gnu no-texinfo.tex])
-AM_MAINTAINER_MODE
 
 # Autoheader templates
 AH_TEMPLATE([COB_EXPERIMENTAL], [Enable experimental code (Developers only!)])
@@ -92,6 +91,7 @@ AH_TEMPLATE([HAVE_USE_LEGACY_CODING], [ncurses has use_legacy_coding function])
 AH_TEMPLATE([HAVE_DESIGNATED_INITS], [Has designated initializers])
 AH_TEMPLATE([HAVE_NANO_SLEEP], [Has nanosleep function])
 AH_TEMPLATE([HAVE_CLOCK_GETTIME], [Has clock_gettime function and CLOCK_REALTIME])
+AH_TEMPLATE([HAVE_ISFINITE], [Has isfinite function])
 AH_TEMPLATE([HAVE_MP_GET_MEMORY_FUNCTIONS], [Do we have mp_get_memory_functions in gmp])
 #AH_TEMPLATE([HAVE_RAISE], [Has raise function])
 AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
@@ -185,6 +185,10 @@ LT_INIT([dlopen win32-dll])
 
 AC_PROG_EGREP
 AM_PROG_CC_C_O
+
+AM_PROG_LEX
+AC_PROG_YACC
+
 # Stop tests for C++ and Fortran
 AC_DEFUN([AC_PROG_F77], [])
 AC_DEFUN([AC_PROG_CXX], [])
@@ -566,6 +570,12 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <time.h>]],
   [AC_DEFINE([HAVE_CLOCK_GETTIME], [1]) AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
+AC_MSG_CHECKING([for isfinite ])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <math.h>]],
+  [[isfinite ( 1.0 );]])],
+  [AC_DEFINE([HAVE_ISFINITE], [1]) AC_MSG_RESULT([yes])],
+  [AC_MSG_RESULT([no])])
+
 # Check for raise (optional) --> done via AC_CHECK_FUNCS
 #AC_MSG_CHECKING([for raise])
 #AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <signal.h>]],
@@ -806,7 +816,9 @@ if test "$with_db" = "yes"; then
 	MYOLDLIBS="$LIBS"
 	cob_got_db=no
 	AC_MSG_CHECKING([for Berkeley DB library with version $COB_BDB_HEADER])
-	for cobdb in db db-$COB_BDB_HEADER
+	# prefer library with version number included as some systems link against s wrong version
+	# of the library and to not break when a newer BDB version is installed, see bug #100
+	for cobdb in db-$COB_BDB_HEADER db
 	do
 		LIBS="$MYOLDLIBS -l$cobdb"
 		AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
@@ -1292,6 +1304,8 @@ AC_CONFIG_COMMANDS([chmod],
 [chmod +x bin/cob-config;
 chmod +x tests/atconfig;
 chmod +x tests/atlocal])
+
+AM_MISSING_PROG([HELP2MAN], [help2man])
 
 AC_OUTPUT
 

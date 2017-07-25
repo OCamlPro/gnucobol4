@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman,
+   Edward Hart
 
    This file is part of GnuCOBOL.
 
@@ -98,6 +99,9 @@ static cb_tree			inspect_data;
 
 static int			expr_op;		/* Last operator */
 static cb_tree			expr_lh;		/* Last left hand */
+static int			expr_dmax = -1;		/* Max scale for expression result */
+static int			expr_line = 0;		/* Line holding expression for warnings */
+static cb_tree			expr_rslt = NULL;	/* Expression result */
 
 static size_t			initialized = 0;
 static size_t			overlapping = 0;
@@ -1096,27 +1100,27 @@ void
 cb_trim_program_id (cb_tree id_literal)
 {
 	char	*s;
-	int		len;
+	int	len;
 
-	s = (char *)(CB_LITERAL (id_literal)->data);
-	if (!strchr(s, ' ')) {
+	s = (char *) (CB_LITERAL (id_literal)->data);
+	if (!strchr (s, ' ')) {
 		return;
 	}
 
-	len = strlen(s);
+	len = strlen (s);
 	if (*s == ' ') {
 		/* same warning as in libcob/common.c */
-		cb_warning_x (id_literal,
+		cb_warning_x (COBC_WARN_FILLER, id_literal,
 			_("'%s' literal includes leading spaces which are omitted"), s);
 	}
-	if (s[len-1] == ' ') {
-		cb_warning_x (id_literal,
+	if (s[len - 1] == ' ') {
+		cb_warning_x (COBC_WARN_FILLER, id_literal,
 			_("'%s' literal includes trailing spaces which are omitted"), s);
 	}
 	while (*s == ' ') {
-		memmove(s, s+1, len--);
+		memmove (s, s + 1, len--);
 	}
-	while (s[len-1] == ' ' && len > 0) {
+	while (s[len - 1] == ' ' && len > 0) {
 		len--;
 	}
 	s[len] = 0;
@@ -1185,7 +1189,7 @@ char *
 cb_build_program_id (cb_tree name, cb_tree alt_name, const cob_u32_t is_func)
 {
 	const char	*name_str;
-	char			*s;
+	char		*s;
 	unsigned char	*p;
 
 	/* Set the program name */
@@ -1318,9 +1322,7 @@ org:
 				s = strchr (s, '-') + 1;
 			}
 			/* Convert the name into literal */
-			if (warningopt) {
-				cb_warning (_("ASSIGN interpreted as %s"), s);
-			}
+			cb_warning (warningopt, _("ASSIGN interpreted as %s"), s);
 			return cb_build_alphanumeric_literal (s, strlen (s));
 		}
 		/* Fall through for CB_ASSIGN_COBOL2002 */
@@ -1382,7 +1384,7 @@ cb_build_address (cb_tree x)
 			if (!cb_relaxed_syntax_checks) {
 				goto subserror;
 			} else {
-				cb_warning_x (x,
+				cb_warning_x (COBC_WARN_FILLER, x,
 					    _("subscript missing for '%s' - defaulting to 1"),
 					    name);
 				for (; refsubs < numsubs; ++refsubs) {
@@ -1480,7 +1482,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 		} else {
 			sprintf(full_name, _("'%s' (accessed by '%s')"), p->name, name);
 		}
-		xr = cb_build_reference(full_name);
+		xr = cb_build_reference (full_name);
 
 		if (CB_EXCEPTION_ENABLE (COB_EC_DATA_PTR_NULL) &&
 		    !current_statement->flag_no_based) {
@@ -1529,7 +1531,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 				if (!cb_relaxed_syntax_checks) {
 					goto refsubserr;
 				} else {
-					cb_warning_x (x,
+					cb_warning_x (COBC_WARN_FILLER, x,
 							_("subscript missing for '%s' - defaulting to 1"),
 							name);
 					for (; refsubs < numsubs; ++refsubs) {
@@ -2113,7 +2115,7 @@ cb_validate_program_environment (struct cb_program *prog)
 							sprintf(&errmsg[i], ", ...");
 							i = i + 5;
 							break;
-			}
+						}
 						if (i) {
 							sprintf(&errmsg[i], ", ");
 							i = i + 2;
@@ -2129,12 +2131,12 @@ cb_validate_program_environment (struct cb_program *prog)
 				errmsg[i] = 0;
 				cb_error_x (CB_VALUE(l),
 					_("duplicate character values in alphabet '%s': %s"),
-					ap->name, errmsg);
+					    ap->name, errmsg);
 			}
 			if (unvals) {
 				cb_error_x (CB_VALUE(l),
 					_("invalid character values in alphabet '%s', starting at position %d"),
-					ap->name, pos);
+					    ap->name, pos);
 			}
 			ap->low_val_char = 0;
 			ap->high_val_char = 255;
@@ -2245,7 +2247,7 @@ cb_validate_program_environment (struct cb_program *prog)
 					    _("duplicate values in class '%s'"),
 					    cb_name (CB_VALUE(l)));
 			} else {
-				cb_warning_x (CB_VALUE(l),
+				cb_warning_x (COBC_WARN_FILLER, CB_VALUE(l),
 					    _("duplicate values in class '%s'"),
 					    cb_name (CB_VALUE(l)));
 			}
@@ -2403,7 +2405,7 @@ validate_record_depending (cb_tree x)
 		/* RXWRXW - This breaks old legacy programs; FIXME: use compiler configuration */
 		/* FIXME: add explain_enum_storage, change to "should not be defined in %s */
 		if (cb_relaxed_syntax_checks) {
-			cb_warning_x (x, _("RECORD DEPENDING item '%s' should be defined in "
+			cb_warning_x (COBC_WARN_FILLER, x, _("RECORD DEPENDING item '%s' should be defined in "
 				"WORKING-STORAGE, LOCAL-STORAGE or LINKAGE section"), p->name);
 		} else {
 			cb_error_x (x, _("RECORD DEPENDING item '%s' should be defined in "
@@ -2485,7 +2487,8 @@ cb_validate_program_data (struct cb_program *prog)
 			if (CB_REFERENCE_P (assign) &&
 			    CB_WORD_COUNT (assign) == 0) {
 				if (cb_warn_implicit_define) {
-					cb_warning (_("'%s' will be implicitly defined"), CB_NAME (assign));
+					cb_warning (cb_warn_implicit_define,
+						_("'%s' will be implicitly defined"), CB_NAME (assign));
 				}
 				x = cb_build_implicit_field (assign, COB_SMALL_BUFF);
 				CB_FIELD (x)->count++;
@@ -2642,7 +2645,7 @@ cb_validate_program_body (struct cb_program *prog)
 		if (CB_LABEL_P (v)) {
 			if (CB_REFERENCE (x)->flag_in_decl &&
 				!CB_LABEL (v)->flag_declaratives) {
-				/* verfify reference-out-of-declaratives  */
+				/* verify reference-out-of-declaratives  */
 				switch (cb_reference_out_of_declaratives) {
 				case CB_OK:
 					break;
@@ -2651,7 +2654,7 @@ cb_validate_program_body (struct cb_program *prog)
 						    CB_LABEL (v)->name);
 					break;
 				case CB_WARNING:
-					cb_warning_x (x, _("'%s' is not in DECLARATIVES"),
+					cb_warning_x (COBC_WARN_FILLER, x, _("'%s' is not in DECLARATIVES"),
 						    CB_LABEL (v)->name);
 					break;
 				default:
@@ -2930,7 +2933,7 @@ expr_reduce (int token)
 				     CB_BINARY_OP (VALUE (-3))->op == '&') ||
 				    (CB_BINARY_OP_P (VALUE (-1)) &&
 				     CB_BINARY_OP (VALUE (-1))->op == '&')) {
-					cb_warning (_("suggest parentheses around AND within OR"));
+					cb_warning (cb_warn_parentheses, _("suggest parentheses around AND within OR"));
 				}
 			}
 			TOKEN (-3) = 'x';
@@ -3334,7 +3337,8 @@ decimal_free (void)
 static void
 decimal_compute (const int op, cb_tree x, cb_tree y)
 {
-	const char *func;
+	const char	*func;
+	cb_tree		expr_dec = NULL;	/* Int value for decimal_align */
 
 	switch (op) {
 	case '+':
@@ -3357,6 +3361,42 @@ decimal_compute (const int op, cb_tree x, cb_tree y)
 		COBC_ABORT ();
 	}
 	dpush (CB_BUILD_FUNCALL_2 (func, x, y));
+
+	if (expr_dmax >= 0) {
+		switch(expr_dmax) {
+		case 0:
+			expr_dec = cb_int0;
+			break;
+		case 1:
+			expr_dec = cb_int1;
+			break;
+		case 2:
+			expr_dec = cb_int2;
+			break;
+		case 3:
+			expr_dec = cb_int3;
+			break;
+		case 4:
+			expr_dec = cb_int4;
+			break;
+		case 5:
+			expr_dec = cb_int5;
+			break;
+		case 6:
+			expr_dec = cb_int6;
+			break;
+		default:
+			expr_dec = cb_int(expr_dmax);
+			break;
+		}
+		dpush (CB_BUILD_FUNCALL_2 ("cob_decimal_align", x, expr_dec));
+		if (cb_warn_arithmetic_osvs
+		&&  expr_line != cb_source_line) {
+			expr_line = cb_source_line;
+			cb_warning_x (cb_warn_arithmetic_osvs, expr_rslt,
+				_("precision of result may change with arithmetic-osvs"));
+		}
+	}
 }
 
 static void
@@ -3427,10 +3467,17 @@ decimal_expand (cb_tree d, cb_tree x)
 		 * OP d, t */
 		p = CB_BINARY_OP (x);
 		decimal_expand (d, p->x);
-		t = decimal_alloc ();
-		decimal_expand (t, p->y);
-		decimal_compute (p->op, d, t);
-		decimal_free ();
+
+		if (CB_TREE_TAG (p->y) == CB_TAG_LITERAL
+		&&  CB_TREE_CATEGORY (p->y) == CB_CATEGORY_NUMERIC) {
+			t = cb_build_decimal_literal (cb_lookup_literal(p->y,1));
+			decimal_compute (p->op, d, t);
+		} else {
+			t = decimal_alloc ();
+			decimal_expand (t, p->y);
+			decimal_compute (p->op, d, t);
+			decimal_free ();
+		}
 		break;
 	case CB_TAG_INTRINSIC:
 		dpush (CB_BUILD_FUNCALL_2 ("cob_decimal_set_field", d, x));
@@ -3495,11 +3542,28 @@ cb_build_div (cb_tree v, cb_tree n, cb_tree round_opt)
 static cb_tree
 build_decimal_assign (cb_tree vars, const int op, cb_tree val)
 {
+	struct cb_field	*f;
 	cb_tree	l;
 	cb_tree	t;
 	cb_tree	s1;
 	cb_tree	s2;
 	cb_tree	d;
+
+	if(cb_arithmetic_osvs) {
+		/* ARITHMETIC-OSVS: Determine largest scale used in result field */
+		expr_dmax = -1;
+		expr_rslt = CB_VALUE(vars);
+		for (l = vars; l; l = CB_CHAIN (l)) {
+			if (CB_FIELD_P (cb_ref (CB_VALUE(l)))) {
+				f = CB_FIELD_PTR (CB_VALUE(l));
+				if(f->pic->scale > expr_dmax) {
+					expr_dmax = f->pic->scale;
+				}
+			}
+		}
+	} else {
+		expr_dmax = -1;
+	}
 
 	d = decimal_alloc ();
 
@@ -3541,6 +3605,7 @@ build_decimal_assign (cb_tree vars, const int op, cb_tree val)
 	}
 
 	decimal_free ();
+	expr_dmax = -1;
 
 	return s1;
 }
@@ -3820,6 +3885,44 @@ cb_chk_alpha_cond (cb_tree x)
 	return 1;
 }
 
+static void
+cb_walk_cond (cb_tree x)
+{
+	struct cb_binary_op	*p;
+	struct cb_field		*f;
+
+	if (x == NULL)
+		return;
+
+	switch (CB_TREE_TAG (x)) {
+	case CB_TAG_REFERENCE:
+		if (!CB_FIELD_P (cb_ref (x))) {
+			return;
+		}
+
+		f = CB_FIELD_PTR (x);
+
+		if (f->level == 88) {
+			return ;
+		}
+		if(f->pic
+		&& f->pic->scale > expr_dmax) {
+			expr_dmax = f->pic->scale;
+		}
+
+		break;
+
+	case CB_TAG_BINARY_OP:
+		p = CB_BINARY_OP (x);
+		cb_walk_cond (p->x);
+		cb_walk_cond (p->y);
+		break;
+
+	default:
+		return;
+	}
+}
+
 cb_tree
 cb_build_cond (cb_tree x)
 {
@@ -3833,6 +3936,17 @@ cb_build_cond (cb_tree x)
 	if (x == cb_error_node) {
 		return cb_error_node;
 	}
+
+	if(cb_arithmetic_osvs) {
+		/* ARITHMETIC-OSVS: Determine largest scale used in condition */
+		if (expr_dmax == -1) {
+			expr_rslt = CB_VALUE(x);
+			cb_walk_cond (x);
+		}
+	} else {
+		expr_dmax = -1;
+	}
+
 	switch (CB_TREE_TAG (x)) {
 	case CB_TAG_CONST:
 		if (x != cb_any && x != cb_true && x != cb_false) {
@@ -3876,12 +3990,13 @@ cb_build_cond (cb_tree x)
 			if (!p->y || p->y == cb_error_node) {
 				return cb_error_node;
 			}
-			if (CB_INDEX_P (p->x) || CB_INDEX_P (p->y) ||
-			    CB_TREE_CLASS (p->x) == CB_CLASS_POINTER ||
-			    CB_TREE_CLASS (p->y) == CB_CLASS_POINTER) {
+			if (CB_INDEX_P (p->x) 
+			||  CB_INDEX_P (p->y) 
+			||  CB_TREE_CLASS (p->x) == CB_CLASS_POINTER 
+			||  CB_TREE_CLASS (p->y) == CB_CLASS_POINTER) {
 				x = cb_build_binary_op (p->x, '-', p->y);
-			} else if (CB_BINARY_OP_P (p->x) ||
-				   CB_BINARY_OP_P (p->y)) {
+			} else if (CB_BINARY_OP_P (p->x) 
+				|| CB_BINARY_OP_P (p->y)) {
 				/* Decimal comparison */
 				d1 = decimal_alloc ();
 				d2 = decimal_alloc ();
@@ -3955,6 +4070,13 @@ cb_build_cond (cb_tree x)
 	}
 	cb_error_x (x, _("invalid expression"));
 	return cb_error_node;
+}
+
+/* Reset at end of emiting code for condition */
+void
+cb_end_cond (void)
+{
+	expr_dmax = -1;
 }
 
 /* ADD/SUBTRACT CORRESPONDING */
@@ -4225,9 +4347,7 @@ cb_emit_corresponding (cb_tree (*func) (cb_tree f1, cb_tree f2, cb_tree f3),
 	}
 
 	if (!emit_corresponding (func, x1, x2, opt)) {
-		if (cb_warn_corresponding) {
-			cb_warning_x (x2, _("no CORRESPONDING items found"));
-		}
+		cb_warning_x (cb_warn_corresponding, x2, _("no CORRESPONDING items found"));
 	}
 }
 
@@ -4250,6 +4370,10 @@ cb_emit_tab_arithmetic (cb_tree (*func) (cb_tree f1, cb_tree f2, cb_tree f3),
 	}
 
 	/* TODO pending, no actual code generation */
+	COB_UNUSED (func);
+	COB_UNUSED (opt);
+	COB_UNUSED (from_to_idx);
+	COB_UNUSED (dest_idx);
 }
 
 static unsigned int
@@ -4283,25 +4407,25 @@ emit_move_corresponding (cb_tree x1, cb_tree x2)
 }
 
 void
-cb_emit_move_corresponding (cb_tree x1, cb_tree x2)
+cb_emit_move_corresponding (cb_tree source, cb_tree target_list)
 {
 	cb_tree		l;
-	cb_tree		v;
+	cb_tree		target;
 
-	x1 = cb_check_group_name (x1);
-	if (cb_validate_one (x1)) {
+	source = cb_check_group_name (source);
+	if (cb_validate_one (source)) {
 		return;
 	}
-	for (l = x2; l; l = CB_CHAIN(l)) {
-		v = CB_VALUE(l);
-		v = cb_check_group_name (v);
-		if (cb_validate_one (v)) {
+	for (l = target_list; l; l = CB_CHAIN(l)) {
+		target = CB_VALUE(l);
+		target = cb_check_group_name (target);
+		if (cb_validate_one (target)) {
 			return;
 		}
-		if (!emit_move_corresponding (x1, v)) {
-			if (cb_warn_corresponding) {
-				cb_warning_x (v, _("no CORRESPONDING items found"));
-			}
+		if (!emit_move_corresponding (source, target)) {
+			cb_warning_x (cb_warn_corresponding, target, _("no CORRESPONDING items found"));
+		} else if (cb_listing_xref) {
+			cobc_xref_set_receiving (target);
 		}
 	}
 }
@@ -4498,6 +4622,9 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 
 	if (attr_ptr) {
 		fgc = attr_ptr->fgc;
@@ -4627,6 +4754,9 @@ cb_emit_accept_line_or_col (cb_tree var, const int l_or_c)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_2 ("cob_screen_line_col", var, cb_int (l_or_c)));
 }
 
@@ -4635,6 +4765,9 @@ cb_emit_accept_escape_key (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_escape_key", var));
 }
@@ -4645,6 +4778,9 @@ cb_emit_accept_exception_status (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_exception_status", var));
 }
 
@@ -4653,6 +4789,9 @@ cb_emit_accept_user_name (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_user_name", var));
 }
@@ -4663,6 +4802,9 @@ cb_emit_accept_date (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_date", var));
 }
 
@@ -4671,6 +4813,9 @@ cb_emit_accept_date_yyyymmdd (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_date_yyyymmdd", var));
 }
@@ -4681,6 +4826,9 @@ cb_emit_accept_day (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_day", var));
 }
 
@@ -4689,6 +4837,9 @@ cb_emit_accept_day_yyyyddd (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_day_yyyyddd", var));
 }
@@ -4699,6 +4850,9 @@ cb_emit_accept_day_of_week (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_day_of_week", var));
 }
 
@@ -4707,6 +4861,9 @@ cb_emit_accept_time (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_time", var));
 }
@@ -4717,6 +4874,9 @@ cb_emit_accept_command_line (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_command_line", var));
 }
 
@@ -4725,6 +4885,9 @@ cb_emit_get_environment (cb_tree envvar, cb_tree envval)
 {
 	if (cb_validate_one (envvar)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (envvar);
 	}
 	if (cb_validate_one (envval)) {
 		return;
@@ -4738,6 +4901,9 @@ cb_emit_accept_environment (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_environment", var));
 }
 
@@ -4747,6 +4913,9 @@ cb_emit_accept_arg_number (cb_tree var)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_arg_number", var));
 }
 
@@ -4755,6 +4924,9 @@ cb_emit_accept_arg_value (cb_tree var)
 {
 	if (cb_validate_one (var)) {
 		return;
+	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
 	}
 	cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept_arg_value", var));
 }
@@ -4788,6 +4960,9 @@ cb_emit_accept_name (cb_tree var, cb_tree name)
 	if (cb_validate_one (var)) {
 		return;
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (var);
+	}
 
 	/* Allow direct reference to a device name (not defined as mnemonic name) */
 	sys = lookup_system_name (CB_NAME (name));
@@ -4796,7 +4971,8 @@ cb_emit_accept_name (cb_tree var, cb_tree name)
 		case CB_DEVICE_CONSOLE:
 		case CB_DEVICE_SYSIN:
 			if (!cb_relaxed_syntax_checks) {
-				cb_warning_x (name, _("'%s' is not defined in SPECIAL-NAMES"), CB_NAME (name));
+				cb_warning_x (COBC_WARN_FILLER, name,
+					_("'%s' is not defined in SPECIAL-NAMES"), CB_NAME (name));
 			}
 			cb_emit (CB_BUILD_FUNCALL_1 ("cob_accept", var));
 			return;
@@ -4842,6 +5018,9 @@ cb_emit_allocate (cb_tree target1, cb_tree target2, cb_tree size,
 				_("target of ALLOCATE is not a BASED item"));
 			return;
 		}
+		if (cb_listing_xref) {
+			cobc_xref_set_receiving (target1);
+		}
 	}
 	if (target2) {
 		if (!(CB_REFERENCE_P(target2) &&
@@ -4849,6 +5028,9 @@ cb_emit_allocate (cb_tree target1, cb_tree target2, cb_tree size,
 			cb_error_x (CB_TREE(current_statement),
 				_("target of RETURNING is not a data pointer"));
 			return;
+		}
+		if (cb_listing_xref) {
+			cobc_xref_set_receiving (target2);
 		}
 	}
 	if (size) {
@@ -4951,15 +5133,11 @@ cb_emit_call (cb_tree prog, cb_tree par_using, cb_tree returning,
 #ifndef	_WIN32
 	if (call_conv & CB_CONV_STDCALL) {
 		call_conv &= ~CB_CONV_STDCALL;
-		if (warningopt) {
-			cb_warning (_("STDCALL not available on this platform"));
-		}
+		cb_warning (warningopt, _("STDCALL not available on this platform"));
 	}
 #elif	defined(_WIN64)
 	if (call_conv & CB_CONV_STDCALL) {
-		if (warningopt) {
-			cb_warning (_("STDCALL used on 64-bit Windows platform"));
-		}
+		cb_warning (warningopt, _("STDCALL used on 64-bit Windows platform"));
 	}
 #endif
 	if ((call_conv & CB_CONV_STATIC_LINK)
@@ -5087,7 +5265,8 @@ cb_emit_call (cb_tree prog, cb_tree par_using, cb_tree returning,
 			if (cb_warn_call_params &&
 			    CB_PURPOSE_INT (l) == CB_CALL_BY_REFERENCE) {
 				if (f->level != 01 && f->level != 77) {
-					cb_warning_x (x, _("'%s' is not a 01 or 77 level item"), CB_NAME (x));
+					cb_warning_x (cb_warn_call_params, x,
+						_("'%s' is not a 01 or 77 level item"), CB_NAME (x));
 				}
 			}
 		}
@@ -5163,7 +5342,6 @@ cb_emit_close (cb_tree file, cb_tree opt)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
-	cobc_xref_link (&f->xref, cb_source_line);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -5215,6 +5393,9 @@ cb_emit_delete (cb_tree file)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
+
+	/* add a "receiving" entry for the file */
+	cobc_xref_link (&f->xref, current_statement->common.source_line, 1);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -5701,12 +5882,14 @@ cb_build_display_name (cb_tree x)
 		case CB_DEVICE_CONSOLE:
 		case CB_DEVICE_SYSOUT:
 			if (!cb_relaxed_syntax_checks) {
-				cb_warning_x (x, _("'%s' is not defined in SPECIAL-NAMES"), name);
+				cb_warning_x (COBC_WARN_FILLER, x,
+					_("'%s' is not defined in SPECIAL-NAMES"), name);
 			}
 			return cb_int0;
 		case CB_DEVICE_SYSERR:
 			if (!cb_relaxed_syntax_checks) {
-				cb_warning_x (x, _("'%s' is not defined in SPECIAL-NAMES"), name);
+				cb_warning_x (COBC_WARN_FILLER, x,
+					_("'%s' is not defined in SPECIAL-NAMES"), name);
 			}
 			return cb_int1;
 		default:
@@ -6339,40 +6522,40 @@ warning_destination (cb_tree x)
 	if (!strcmp (f->name, "RETURN-CODE") ||
 	    !strcmp (f->name, "SORT-RETURN") ||
 	    !strcmp (f->name, "NUMBER-OF-CALL-PARAMETERS")) {
-		cb_warning (_("internal register '%s' defined as BINARY-LONG"),
+		cb_warning (COBC_WARN_FILLER, _("internal register '%s' defined as BINARY-LONG"),
 			    f->name);
 	} else if (f->flag_real_binary) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, f->pic->orig);
 	} else if (f->usage == CB_USAGE_FLOAT) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT");
 	} else if (f->usage == CB_USAGE_DOUBLE) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "DOUBLE");
 	} else if (f->usage == CB_USAGE_LONG_DOUBLE) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT EXTENDED");
 	} else if (f->usage == CB_USAGE_FP_BIN32) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT-BINARY-7");
 	} else if (f->usage == CB_USAGE_FP_BIN64) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT-BINARY-16");
 	} else if (f->usage == CB_USAGE_FP_BIN128) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT-BINARY-34");
 	} else if (f->usage == CB_USAGE_FP_DEC64) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT-DECIMAL-16");
 	} else if (f->usage == CB_USAGE_FP_DEC128) {
-		cb_warning_x (loc, _("'%s' defined here as USAGE %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as USAGE %s"),
 			      f->name, "FLOAT-DECIMAL-34");
 	} else if (f->pic) {
-		cb_warning_x (loc, _("'%s' defined here as PIC %s"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as PIC %s"),
 			      cb_name (loc), f->pic->orig);
 	} else {
-		cb_warning_x (loc, _("'%s' defined here as a group of length %d"),
+		cb_warning_x (COBC_WARN_FILLER, loc, _("'%s' defined here as a group of length %d"),
 			      cb_name (loc), f->size);
 	}
 }
@@ -6390,17 +6573,17 @@ move_warning (cb_tree src, cb_tree dst, const unsigned int value_flag,
 	if (value_flag) {
 		/* VALUE clause */
 		if (CB_LITERAL_P (src)) {
-			cb_warning_x (dst, "%s", msg);
+			cb_warning_x (COBC_WARN_FILLER, dst, "%s", msg);
 		} else {
-			cb_warning_x (loc, "%s", msg);
+			cb_warning_x (COBC_WARN_FILLER, loc, "%s", msg);
 		}
 	} else {
 		/* MOVE statement */
 		if (flag) {
 			if (CB_LITERAL_P (src)) {
-				cb_warning_x (dst, "%s", msg);
+				cb_warning_x (COBC_WARN_FILLER, dst, "%s", msg);
 			} else {
-				cb_warning_x (loc, "%s", msg);
+				cb_warning_x (COBC_WARN_FILLER, loc, "%s", msg);
 			}
 			listprint_suppress ();
 			if (src_flag) {
@@ -6429,6 +6612,7 @@ count_pic_alphanumeric_edited (struct cb_field *field)
 	return count;
 }
 
+/* check if data of two fields may overlap */
 static size_t
 cb_check_overlapping (cb_tree src, cb_tree dst,
 		      struct cb_field *src_f, struct cb_field *dst_f)
@@ -6456,6 +6640,9 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 		dr = NULL;
 	}
 
+	if (cb_move_ibm) 		/* This MOVE result is exactly as on IBM */
+		return 0;
+
 	/* Check for identical field */
 	if (src_f == dst_f) {
 		if (!sr || !dr) {
@@ -6464,11 +6651,19 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 			return 1;
 		}
 		if (sr->subs) {
-			/* same fields with subs,
-			   overlapping possible, would need more checks
-			   (verify all subs of source and dest to be either identical or
-			   to be literal with the same integer value) */
+			/* same fields with subs, overlapping possible */
+#if 0		/* FIXME: more checks needed:
+			   1: are all subs of source and dest identical ?
+			   2: are all subs of source and dest literals with the same integer value ?
+			*/
+			if (...) {
+				goto pos_overlap_ret;
+			} else {
+				return 0;
+			}
+#else
 			return 1;
+#endif
 		}
 
 		/* same fields, at least one without ref-mod -> overlapping */
@@ -6491,6 +6686,10 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 		}
 
 		/* Check for same parent field */
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 6011) // cb_field_founder always returns a valid pointer
+#endif
 		ff1 = cb_field_founder (src_f);
 		ff2 = cb_field_founder (dst_f);
 		if (ff1->redefines) {
@@ -6500,12 +6699,20 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 			ff2 = ff2->redefines;
 		}
 		if (ff1 != ff2) {
-			/* different field founder -> no overlapping
-			   [FIXME: if at least one of the vars has ever an assignment
-			   of a different address we must return 1] */
-			return 0;
+			/* different field founder -> no overlapping */
+			/* if at least one of the vars can have an assignment
+			   of a different address we must return 1 */
+			if (ff1->flag_local_storage || ff1->flag_item_based ||
+				ff2->flag_local_storage || ff2->flag_item_based) {
+				return 1;
+			} else {
+				return 0;
+			}
 		}
 	}
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 	/* check if both fields are references, otherwise we can't check further */
 	if (!sr || !dr) {
@@ -6518,11 +6725,19 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 
 	/* Check for occurs */
 	if (sr->subs || dr->subs) {
-		/* overlapping possible, would need:
+		/* overlapping possible */
+#if 0	/* FIXME: more checks needed:
 		1: if all subs are integer literals: a full offset check of both fields
 		2: if at least one isn't an integer literal: check that all "upper" literals
 		   are either identical or numeric literals with the same integer value */
+		if (...) {
+			goto pos_overlap_ret;
+		} else {
+			return 0;
+		}
+#else
 		return 1;
+#endif
 	}
 
 	src_size = cb_field_size (src);
@@ -6562,13 +6777,15 @@ cb_check_overlapping (cb_tree src, cb_tree dst,
 pos_overlap_ret:
 	loc = src->source_line ? src : dst;
 	if (cb_warn_pos_overlap && !suppress_warn) {
-		cb_warning_x (loc, _("overlapping MOVE may occur and produce unpredictable results"));
+		cb_warning_x (COBC_WARN_FILLER, loc,
+			_("overlapping MOVE may occur and produce unpredictable results"));
 	}
 	return 1;
 overlap_ret:
 	loc = src->source_line ? src : dst;
 	if ((cb_warn_overlap || cb_warn_pos_overlap) && !suppress_warn) {
-		cb_warning_x (loc, _("overlapping MOVE may produce unpredictable results"));
+		cb_warning_x (COBC_WARN_FILLER, loc,
+			_("overlapping MOVE may produce unpredictable results"));
 	}
 	return 1;
 }
@@ -6624,7 +6841,8 @@ validate_move (cb_tree src, cb_tree dst, const unsigned int is_value)
 				if (!cb_relaxed_syntax_checks || is_value) {
 					goto invalid;
 				}
-				cb_warning_x (loc, _("source is non-numeric - substituting zero"));
+				cb_warning_x (COBC_WARN_FILLER, loc,
+					_("source is non-numeric - substituting zero"));
 			}
 		} else if (src == cb_zero) {
 			if (CB_TREE_CATEGORY (dst) == CB_CATEGORY_ALPHABETIC) {
@@ -6636,7 +6854,8 @@ validate_move (cb_tree src, cb_tree dst, const unsigned int is_value)
 				if (!cb_relaxed_syntax_checks || is_value) {
 					goto invalid;
 				}
-				cb_warning_x (loc, _("source is non-numeric - substituting zero"));
+				cb_warning_x (COBC_WARN_FILLER, loc,
+					_("source is non-numeric - substituting zero"));
 			}
 		}
 		break;
@@ -6721,7 +6940,8 @@ validate_move (cb_tree src, cb_tree dst, const unsigned int is_value)
 				}
 #if	1	/* RXWRXW - Initialize warn */
 				if (warningopt) {
-					cb_warning_x (loc, _("numeric move to ALPHABETIC"));
+					cb_warning_x (COBC_WARN_FILLER, loc,
+						_("numeric move to ALPHABETIC"));
 				}
 #endif
 				break;
@@ -6739,7 +6959,7 @@ validate_move (cb_tree src, cb_tree dst, const unsigned int is_value)
 					return -1;
 				}
 				if (cb_warn_constant) {
-					cb_warning_x (loc, _("ignoring sign"));
+					cb_warning_x (COBC_WARN_FILLER, loc, _("ignoring sign"));
 				}
 			}
 
@@ -7091,7 +7311,7 @@ numlit_overflow:
 		return -1;
 	}
 	if (cb_warn_constant && !suppress_warn) {
-		cb_warning_x (loc, _("numeric literal exceeds data size"));
+		cb_warning_x (cb_warn_constant, loc, _("numeric literal exceeds data size"));
 	}
 	return 0;
 
@@ -7100,7 +7320,7 @@ non_integer_move:
 		goto invalid;
 	}
 	if (!suppress_warn) {
-		cb_warning_x (loc, _("MOVE of non-integer to alphanumeric"));
+		cb_warning_x (COBC_WARN_FILLER, loc, _("MOVE of non-integer to alphanumeric"));
 	}
 	return 0;
 
@@ -7157,7 +7377,13 @@ cb_build_move_copy (cb_tree src, cb_tree dst)
 	if (size == 1) {
 		return CB_BUILD_FUNCALL_2 ("$F", dst, src);
 	}
-	if (overlapping
+	if (cb_move_ibm) {
+		overlapping = 0;
+		return CB_BUILD_FUNCALL_3 ("cob_move_ibm",
+					   CB_BUILD_CAST_ADDRESS (dst),
+					   CB_BUILD_CAST_ADDRESS (src),
+					   CB_BUILD_CAST_LENGTH (dst));
+	} else if (overlapping 
 	|| CB_FIELD_PTR (src)->storage == CB_STORAGE_LINKAGE
 	|| CB_FIELD_PTR (dst)->storage == CB_STORAGE_LINKAGE
 	|| CB_FIELD_PTR (src)->flag_item_based
@@ -7769,6 +7995,9 @@ cb_build_move (cb_tree src, cb_tree dst)
 		x->flag_receiving = 1;
 		dst = CB_TREE (x);
 	}
+	if (cb_listing_xref) {
+		cobc_xref_set_receiving (dst);
+	}
 
 	if ((src == cb_space || src == cb_low ||
 	     src == cb_high || src == cb_quote) &&
@@ -7885,6 +8114,7 @@ cb_emit_move (cb_tree src, cb_tree dsts)
 void
 cb_emit_open (cb_tree file, cb_tree mode, cb_tree sharing)
 {
+	cb_tree orig_file = file;
 	struct cb_file	*f;
 
 	if (file == cb_error_node) {
@@ -7896,7 +8126,11 @@ cb_emit_open (cb_tree file, cb_tree mode, cb_tree sharing)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
-	cobc_xref_link (&f->xref, cb_source_line);
+
+	if (mode == cb_int (COB_OPEN_OUTPUT)) {
+		/* add a "receiving" entry for the file */
+		cobc_xref_link (&f->xref, CB_REFERENCE (orig_file)->common.source_line, 1);
+	}
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -7938,7 +8172,7 @@ cb_emit_perform (cb_tree perform, cb_tree body)
 		return;
 	}
 	if (current_program->flag_debugging &&
-	    !current_statement->flag_in_debug && CB_PAIR_P (body)) {
+	    !current_statement->flag_in_debug && body && CB_PAIR_P (body)) {
 		cb_emit (cb_build_debug (cb_debug_contents, "PERFORM LOOP", NULL));
 	}
 	CB_PERFORM (perform)->body = body;
@@ -8038,7 +8272,6 @@ cb_emit_read (cb_tree ref, cb_tree next, cb_tree into,
 		return;
 	}
 	f = CB_FILE (file);
-	cobc_xref_link (&f->xref, current_statement->common.source_line);
 
 	rec = cb_build_field_reference (f->record, ref);
 	if (f->organization == COB_ORG_SORT) {
@@ -8064,7 +8297,7 @@ cb_emit_read (cb_tree ref, cb_tree next, cb_tree into,
 			read_opts |= COB_READ_NEXT;
 		}
 		if (key) {
-			cb_warning (_("KEY ignored with sequential READ"));
+			cb_warning (COBC_WARN_FILLER, _("KEY ignored with sequential READ"));
 		}
 		cb_emit (CB_BUILD_FUNCALL_3 ("cob_read_next", file,
 			 f->file_status,
@@ -8178,6 +8411,9 @@ cb_emit_rewrite (cb_tree record, cb_tree from, cb_tree lockopt)
 	current_statement->file = file;
 	f = CB_FILE (file);
 	opts = 0;
+
+	/* add a "receiving" entry for the file */
+	cobc_xref_link (&f->xref, current_statement->common.source_line, 1);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),
@@ -8474,24 +8710,7 @@ cb_emit_set_to (cb_tree vars, cb_tree x)
 		return;
 	}
 
-#if	0	/* RXWRXW - target check */
-	/* Determine class of targets */
-	for (l = vars; l; l = CB_CHAIN (l)) {
-		if (CB_TREE_CLASS (CB_VALUE (l)) != CB_CLASS_UNKNOWN) {
-			if (class == CB_CLASS_UNKNOWN) {
-				class = CB_TREE_CLASS (CB_VALUE (l));
-			} else if (class != CB_TREE_CLASS (CB_VALUE (l))) {
-				break;
-			}
-		}
-	}
-	if (l || (class != CB_CLASS_INDEX && class != CB_CLASS_POINTER)) {
-		cb_error_x (CB_TREE (current_statement),
-			    _("the targets of SET must be either indexes or pointers"));
-		return;
-	}
-#endif
-
+	/* Check PROGRAM-POINTERs are the target for SET ... TO ENTRY. */
 	if (CB_CAST_P (x)) {
 		p = CB_CAST (x);
 		if (p->cast_type == CB_CAST_PROGRAM_POINTER) {
@@ -8499,35 +8718,40 @@ cb_emit_set_to (cb_tree vars, cb_tree x)
 				v = CB_VALUE (l);
 				if (!CB_REFERENCE_P (v)) {
 					cb_error_x (CB_TREE (current_statement),
-					_("SET targets must be PROGRAM-POINTER"));
+						    _("SET targets must be PROGRAM-POINTER"));
 					CB_VALUE (l) = cb_error_node;
 				} else if (CB_FIELD(cb_ref(v))->usage != CB_USAGE_PROGRAM_POINTER) {
 					cb_error_x (CB_TREE (current_statement),
-					_("SET targets must be PROGRAM-POINTER"));
+						    _("SET targets must be PROGRAM-POINTER"));
 					CB_VALUE (l) = cb_error_node;
 				}
 			}
 		}
 	}
-	/* Validate the targets */
+	
+	/* Check ADDRESS OF targets can be modified. */
 	for (l = vars; l; l = CB_CHAIN (l)) {
 		v = CB_VALUE (l);
 		if (!CB_CAST_P (v)) {
 			continue;
 		}
 		p = CB_CAST (v);
-		if (p->cast_type == CB_CAST_ADDRESS &&
-		    !CB_FIELD (cb_ref (p->val))->flag_item_based &&
-		    CB_FIELD (cb_ref (p->val))->storage != CB_STORAGE_LINKAGE) {
-			cb_error_x (p->val, _("the address of '%s' cannot be changed"),
+		if (p->cast_type != CB_CAST_ADDRESS) {
+			continue;
+		}
+		if (CB_FIELD (cb_ref (p->val))->level != 1
+		    && CB_FIELD (cb_ref (p->val))->level != 77) {
+			cb_error_x (p->val, _("cannot change address of '%s', which is not level 1 or 77"),
+				    cb_name (p->val));
+			CB_VALUE (l) = cb_error_node;
+		} else if (!CB_FIELD (cb_ref (p->val))->flag_base) {
+			cb_error_x (p->val, _("cannot change address of '%s', which is not BASED or a linkage item"),
 				    cb_name (p->val));
 			CB_VALUE (l) = cb_error_node;
 		}
 	}
-	if (cb_validate_list (vars)) {
-		return;
-	}
 
+	/* Emit statements if targets have the correct class. */
 	for (l = vars; l; l = CB_CHAIN (l)) {
 		class = cb_tree_class (CB_VALUE (l));
 		switch (class) {
@@ -8538,9 +8762,11 @@ cb_emit_set_to (cb_tree vars, cb_tree x)
 			cb_emit (cb_build_move (x, CB_VALUE (l)));
 			break;
 		default:
-			cb_error_x (CB_TREE (current_statement),
-				    _("SET target is invalid: '%s'"),
-				    cb_name (CB_VALUE(l)));
+			if (CB_VALUE (l) != cb_error_node) {
+				cb_error_x (CB_TREE (current_statement),
+					    _("SET target '%s' is not numeric, an index or a pointer"),
+					    cb_name (CB_VALUE(l)));
+			}
 			break;
 		}
 	}
@@ -9090,7 +9316,9 @@ cb_emit_write (cb_tree record, cb_tree from, cb_tree opt, cb_tree lockopt)
 	}
 	current_statement->file = file;
 	f = CB_FILE (file);
-	cobc_xref_link (&f->xref, current_statement->common.source_line);
+
+	/* add a "receiving" entry for the file */
+	cobc_xref_link (&f->xref, current_statement->common.source_line, 1);
 
 	if (f->organization == COB_ORG_SORT) {
 		cb_error_x (CB_TREE (current_statement),

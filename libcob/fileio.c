@@ -71,7 +71,9 @@
 #define	close		_close
 #define	unlink		_unlink
 #define	fdopen		_fdopen
+#ifndef lseek
 #define lseek		_lseeki64
+#endif
 #endif
 #define off_t		cob_s64_t
 
@@ -3186,6 +3188,7 @@ dobuild:
 			cob_free (p->db);
 			cob_free (p->last_readkey);
 			cob_free (p->last_dupno);
+			cob_free (p->rewrite_sec_key);
 			cob_free (p->cursor);
 			if (bdb_env != NULL) {
 				bdb_env->lock_put (bdb_env, &p->bdb_file_lock);

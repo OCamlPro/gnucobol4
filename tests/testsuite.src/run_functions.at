@@ -304,6 +304,42 @@ AT_CHECK([./prog], [0], [], [])
 AT_CLEANUP
 
 
+AT_SETUP([FUNCTION as CALL parameter BY CONTENT])
+AT_KEYWORDS([functions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       PROCEDURE DIVISION.
+       PROG-MAIN.
+           CALL "subprog" USING BY CONTENT 
+                                FUNCTION CONCATENATE("Abc" "D")
+           STOP RUN.
+           END PROGRAM prog.
+
+       *> *****************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. subprog.
+
+       DATA DIVISION.
+       LINKAGE SECTION.
+       01 TESTING PIC X ANY LENGTH.
+
+       PROCEDURE DIVISION USING TESTING.
+       SUBPROG-MAIN.
+           DISPLAY TESTING
+           GOBACK.
+       END PROGRAM subprog.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [AbcD
+], [])
+
+AT_CLEANUP
+
+
 AT_SETUP([FUNCTION COS])
 AT_KEYWORDS([functions])
 
@@ -3069,6 +3105,12 @@ AT_DATA([prog.cob], [
               TO RESULT
             IF RESULT <> 1
                DISPLAY "Test 4 failed: " RESULT END-DISPLAY
+            END-IF
+            MOVE FUNCTION TEST-FORMATTED-DATETIME
+                    ("YYYYMMDDThhmmss", "16010101T      ")
+              TO RESULT
+            IF RESULT <> 10
+               DISPLAY "Test 5 failed: " RESULT END-DISPLAY
             END-IF
 
             STOP RUN

@@ -168,7 +168,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -Wno-constant-expression prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [OK], [])
 
 AT_CLEANUP
@@ -287,7 +287,7 @@ AT_DATA([prog.cob], [
            .
 ])
 
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -Wno-constant-expression prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
@@ -1548,8 +1548,8 @@ AT_CHECK([./caller], [0], [], [])
 
 AT_CLEANUP
 
-AT_SETUP([PROCEDURE DIVISION CHAINING ...])
-AT_KEYWORDS([extensions])
+AT_SETUP([PROCEDURE DIVISION CHAINING])
+AT_KEYWORDS([extensions CALL INITIALIZE])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1558,19 +1558,110 @@ AT_DATA([prog.cob], [
        WORKING-STORAGE  SECTION.
        01  X            PIC X.
        01  ABCD         PIC X(4).
+       01  NUM          PIC 9 VALUE 7.
        PROCEDURE        DIVISION
-                        CHAINING X ABCD.
-           IF X    NOT = "X" OR
+                        CHAINING X ABCD NUM.
+           IF X    NOT = "X"    OR
               ABCD NOT = "ABCD"
               DISPLAY "X = " X " ABCD = " ABCD
               END-DISPLAY
-           END-IF.
+           END-IF
+           IF NUM  NOT = 7
+              DISPLAY "NUM not INITIALIZED: " NUM
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog2.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  VAR.
+           03  X            PIC X VALUE 'a'.
+           03  ABCD         PIC X(4).
+           03  NUM          PIC 9 VALUE 7.
+       PROCEDURE        DIVISION
+                        CHAINING VAR.
+           DISPLAY '-' VAR '-' WITH NO ADVANCING
+           END-DISPLAY
+           STOP RUN.
+])
+
+AT_DATA([prog3.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog3.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  X            PIC X.
+       01  ABCD         PIC X(4).
+       01  NUM          PIC 9 VALUE 7.
+       PROCEDURE        DIVISION
+                        CHAINING X ABCD NUM.
+           IF X    NOT = "X"    OR
+              ABCD NOT = "ABCD"
+              DISPLAY "X = " X " ABCD = " ABCD
+              END-DISPLAY
+           END-IF
+           IF NUM  NOT = 7
+              DISPLAY "NUM not INITIALIZED: " NUM
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_DATA([caller.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      caller.
+       DATA             DIVISION.
+       PROCEDURE        DIVISION.
+           CALL "prog3" USING "X ABCD" END-CALL
+           STOP RUN.
+])
+
+AT_DATA([init.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      init.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  VAR.
+           03  X            PIC X VALUE 'a'.
+           03  ABCD         PIC X(4).
+           03  NUM          PIC 9  VALUE 7.
+       77  NUM2             PIC 99 VALUE 2.
+       PROCEDURE        DIVISION
+                        CHAINING VAR.
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
+           END-DISPLAY
+           INITIALIZE  VAR NUM2
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
+           MOVE 'XXXX' TO ABCD
+           INITIALIZE  VAR NUM2 ALL TO VALUE
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
+           MOVE ALL 'b' TO ABCD
+           INITIALIZE  VAR NUM2 ALL TO VALUE THEN TO DEFAULT
+           DISPLAY '-' VAR NUM2 '-' WITH NO ADVANCING
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-
 AT_CHECK([./prog X ABCD], [0], [], [])
+
+AT_CHECK([$COMPILE prog2.cob], [0], [], [])
+AT_CHECK([./prog2 X], [0], [-X     -], [])
+AT_CHECK([./prog2], [0], [-a    7-], [])
+
+AT_CHECK([$COMPILE_MODULE prog3.cob], [0], [], [])
+AT_CHECK([$COBCRUN prog3 X ABCD], [0], [], [])
+
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([./caller X ABCD], [1], [],
+[libcob: caller.cob: 6: CALL of program with CHAINING clause
+])
+
+AT_CHECK([$COMPILE init.cob], [0], [], [])
+AT_CHECK([./init X], [0], [-X     02--     000--aXXXX702--a    702-], [])
 
 AT_CLEANUP
 
@@ -2517,7 +2608,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -flarger-redefines-ok prog.cob], [0], [],
+AT_CHECK([$COMPILE -flarger-redefines-ok -Wno-constant-expression prog.cob], [0], [],
 [prog.cob: 12: warning: size of 'XMAIN0502' larger than size of 'XMAIN0501'
 prog.cob: 21: warning: size of 'FIRST-VARIANT-A' larger than size of 'FIRST-DATA'
 prog.cob: 23: warning: size of 'FIRST-VARIANT-B' larger than size of 'FIRST-DATA'
@@ -2603,7 +2694,7 @@ AT_CLEANUP
 
 
 AT_SETUP([System routine C$NARG])
-AT_KEYWORDS([extensions])
+AT_KEYWORDS([extensions narg])
 
 AT_DATA([callee.cob], [
        IDENTIFICATION   DIVISION.
@@ -2615,11 +2706,11 @@ AT_DATA([callee.cob], [
        01  Y            PIC   X.
        PROCEDURE        DIVISION USING Y.
            CALL "C$NARG" USING X
-           END-CALL.
+           END-CALL
            IF X NOT = 1
-              DISPLAY "NOTOK"  X
+              DISPLAY "NOTOK callee " X
               END-DISPLAY
-           END-IF.
+           END-IF
            EXIT PROGRAM.
 ])
 
@@ -2629,15 +2720,52 @@ AT_DATA([caller.cob], [
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
        01  X            PIC X VALUE "X".
+       01  N            PIC 9 USAGE BINARY.
+       LINKAGE SECTION.
+       77  Y            PIC X.
+       77  Z            PIC X.
        PROCEDURE        DIVISION.
+           CALL "C$NARG" USING N
+           END-CALL
+           IF N NOT = 2
+              DISPLAY "NOTOK caller (1) " N
+              END-DISPLAY
+           END-IF
            CALL "callee" USING X
-           END-CALL.
+           END-CALL
+           CALL "C$NARG" USING N
+           END-CALL
+           IF N NOT = 2
+              DISPLAY "NOTOK caller (2) " N
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  N            PIC 9 USAGE BINARY.
+       LINKAGE SECTION.
+       77  X            PIC X.
+       77  Y            PIC X.
+       77  Z            PIC X.
+       PROCEDURE        DIVISION.
+           CALL "C$NARG" USING N
+           END-CALL
+           DISPLAY N WITH NO ADVANCING
+           END-DISPLAY
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([./caller 1 2], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog "1 2"], [0], [1], [])
+AT_CHECK([./prog 1 2 3], [0], [3], [])
 
 AT_CLEANUP
 
@@ -3634,8 +3762,8 @@ AT_DATA([prog.cob], [
        01 CELL     USAGE BINARY-LONG.
        01 ARGC     USAGE BINARY-LONG.
        01 ARGV     USAGE POINTER.
-       01 ERRNO    USAGE POINTER.
-       01 ERR      USAGE BINARY-LONG BASED.
+       01 ERRPTR   USAGE POINTER.
+       01 ERRNO    USAGE BINARY-LONG BASED.
        01 TZNAME   USAGE POINTER.
        01 TZNAMES  USAGE POINTER BASED.
           05 TZS      USAGE POINTER OCCURS 2 TIMES.
@@ -3649,18 +3777,18 @@ AT_DATA([prog.cob], [
        CALL "CBL_GC_HOSTED" USING ARGC "argc" END-CALL
        CALL "CBL_GC_HOSTED" USING ARGV "argv" END-CALL
        CALL "CBL_GC_HOSTED" USING CELL "cell" END-CALL
-       CALL "CBL_GC_HOSTED" USING ERRNO "errno" END-CALL
+       CALL "CBL_GC_HOSTED" USING ERRPTR "errno" END-CALL
        CALL "CBL_GC_HOSTED" USING ARGC "arg" END-CALL
        CALL "CBL_GC_HOSTED" USING NULL "argc" END-CALL
-       SET ADDRESS OF ERR TO ERRNO
+       SET ADDRESS OF ERRNO TO ERRPTR
        CALL "CBL_GC_HOSTED" USING TZNAME "tzname" END-CALL
        CALL "CBL_GC_HOSTED" USING TIMEZONE "timezone" END-CALL
        CALL "CBL_GC_HOSTED" USING DAYLIGHT "daylight" END-CALL
 
        CALL "test_errno"
        END-CALL
-       IF ERR NOT EQUAL 2 THEN
-           DISPLAY "BAD ERRNO " ERR END-DISPLAY
+       IF ERRNO NOT EQUAL 2 THEN
+           DISPLAY "BAD ERRNO " ERRNO END-DISPLAY
        END-IF
 
        IF ARGC NOT EQUAL 2 THEN
@@ -3683,9 +3811,6 @@ AT_DATA([prog.cob], [
            IF TZS(1) EQUAL NULL THEN
                DISPLAY "BAD TZNAME" END-DISPLAY
            END-IF
-       END-IF
-       IF DAYLIGHT NOT EQUAL 0 AND 1 THEN
-           DISPLAY "BAD DAYLIGHT" DAYLIGHT END-DISPLAY
        END-IF
 
        *> Test assumes return-code will be 3, chars output by last fprintf
