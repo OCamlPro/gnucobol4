@@ -45,6 +45,10 @@ data hierarchy.  By calling the function from gdb, we can easily
 access the COBOL data at debugging time.
 
 5.2 Animator:
+* cobc (codegen): fix error that LINKAGE items are some times not in the
+  correct header file, see codegen.c (output_param) and f->flag_cached,
+  if possible: remove f->flag_cached while keeping the possibility to access
+  the fields --> reason for failing tests in run_misc.at
 * cobc: imply (minimal) -t listfile (use cob_temp_name, if needed) and read
   this file (skipping all non-source lines) instead of the original source
   file in codegen:
