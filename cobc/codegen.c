@@ -6554,13 +6554,13 @@ output_stmt (cb_tree x)
 					output_line ("memcpy (b_cb + 37, \"%06d\", 6);\t// current-line-if", anim_first_stmt);	/* EB */
 					output_line ("memcpy (b_cb + 43, \"%06d\", 6);\t// active-line-if", anim_first_stmt);	/* EB */
 					output_line ("memcpy (b_cb + 49, \"%06d\", 6);\t// no-code-lines-if", debug_source_lines);	/* EB */
-																												//output_line ("last_anim_field = lanimp;\n");	/* EB */
-																												//output_line ("last_anim_field_local = lanimp_local;\n");	/* EB */
-				}			/* EB */
-							/* rewrite ani record */	/* EB */
+#if	0	/* ANIM - CHECKME - this was in a comment block - can we remove this ? */
+					output_line ("last_anim_field = lanimp;\n");	/* EB */
+					output_line ("last_anim_field_local = lanimp_local;\n");	/* EB */
+#endif
+				}	/* EB */
 
-
-														/* Save information that this line is a program statement */
+				/* Save information that this line is a program statement */
 				_update_debugger_source_buffer (x->source_line, 'P');
 
 
@@ -6591,7 +6591,7 @@ output_stmt (cb_tree x)
 					output_line ("\t\tanim_gotoline = atoi(work);");
 #endif
 
-					output_line ("\tif(anim_gotoline) goto goto_reset;");
+					output_line ("\tif (anim_gotoline) goto goto_reset;");
 
 #if 0 /* anim with extra module */
 					output_line ("\tif (_callanim (%d, '%c', module)) goto goto_reset;", anim_gotoline, jmp_c);	/* EB */
@@ -8053,8 +8053,7 @@ output_anim_field_global_recursive (struct cb_field* f) {
 static void
 output_linkage_init_redefines_recursive (struct cb_field* f) {
 	struct cb_field *sibling, *redefined_parent;
-	int parent_id = 0;
-	int offset = 0;
+	int offset;
 
 	if (!f || f->flag_linkage_init) return;
 
@@ -8088,8 +8087,7 @@ output_linkage_init_redefines_recursive (struct cb_field* f) {
 static void
 output_linkage_init_recursive (struct cb_field* f) {
 	struct cb_field* sibling;
-	int parent_id = 0;
-	int offset = 0;
+	int offset;
 
 	if (!f || f->flag_linkage_init) return;
 
@@ -8690,10 +8688,10 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_line ("\tmodule->cob_procedure_params[1] = &f_ct;");	/* EB */
 		output_line ("\tcob_glob_ptr->cob_call_params = 2;");		/* EB */
 		output_line ("\tcob_anim_local = cob_glob_ptr->call_Xanim.funcint (b_cb, b_ct);");	/* EB */
-
-																							/*
-																							output_line("\tif (tmp_ret == 0)");
-																							output_line("\t\tgoto goto_reset;");*/
+#if	0	/* ANIM - CHECKME - this was in a comment block - can we remove this ? */
+		output_line ("\tif (tmp_ret == 0)");
+		output_line ("\t\tgoto goto_reset;");
+#endif
 		output_line ("}");
 
 		output_newline (); /* EB */
@@ -9345,19 +9343,28 @@ cancel_end:
 prog_cancel_end:
 	if (cobc_wants_anim) {
 		output_newline ();
+#if 0 /* ANIM: is only reached when cob_anim_local is set - no need for a check */
 		output_line ("if (cob_anim_local) {");
-		output_line ("/* Table with linenumbers to jump to for 'reset cursor' function */");	/* EB */
-		output_line ("\tgoto_reset:;");	/* EB */
+		output_indent_level++;
+#endif
+		output_line ("/* Table with line-numbers to jump to for 'reset cursor' function */");	/* EB */
+		output_line ("goto_reset:");	/* EB */
 
 		work_ptr = debug_source_buffer;
+		output_line ("switch (anim_gotoline) {");
 		for (i = 0; i < debug_source_lines; i++) {
-			if (work_ptr[0] == 'P' && i >= anim_first_stmt)
-				output_line ("\tif (anim_gotoline == %d) goto l_anim_%d;", i + 1, i + 1);
-
+			if (work_ptr[0] == 'P') {
+				output_line ("case %d: goto l_anim_%d;", i + 1, i + 1);
+			}
 			eol = strchr (work_ptr, '\n');
 			work_ptr = eol + 1;
 		}
+		output_line ("default: cob_fatal_error (COB_FERROR_CODEGEN);");
 		output_line ("}");
+#if 0 /* ANIM: is only reached when cob_anim_local is set - no need for a check */
+		output_line ("}");
+		output_indent_level--;
+#endif
 	}
 
 	output_indent ("}");
