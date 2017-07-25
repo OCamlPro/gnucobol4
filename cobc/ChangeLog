@@ -1,4 +1,141 @@
 
+2017-02-06  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c:
+	  Emit routines cob_file_external_addr,cob_file_malloc,cob_file_free
+	  so that 'cob_file' is allocated within libcob
+	  This will allow the stucture have fields added to the end
+	  without forcing a recompile. COB_FILE_VERSION is unchanged
+	  Emit cob_module_free so that structure gets freed within libcob
+
+2017-02-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c: fixed use of warn_cannot_get_utc while available
+
+2017-02-02 Brian Tiffin <btiffin@gnu.org>
+
+	* cobc.h: Updated CB_PENDING CB_UNIFINISHED macros with quieter ONCE_COB
+
+2017-02-02 Brian Tiffin <btiffin@gnu.org>
+
+	* cobc.h, warning.def: test cb_warn_pending in CB_PENDING message macro.
+
+2017-01-30  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, reserved.c, tree.h: allow EXTERN, STDCALL and STATIC to be
+	  disabled by mnemonics by removing (part of) their context flags.
+
+2017-01-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.h: removed CB_CS_PROCEDURE, alphabetical order for CB_CS_...
+	* pplex.l, ppparse.y, cobc.h, parser.y, tree.c:
+	  implemented CALL-CONVENTION directive
+	* parser.y, tree.h: removed cb_entry_convention - stored as
+	  call-convention now
+	* parser.y, codegen.c: implemented entry-convention for entry points
+	  including stdcall generation
+	* reserved.c, parser.y: removed WINAPI
+
+2017-01-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: work on SIZE IS for items passed BY VALUE
+
+2017-01-22  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.h: added CB_CS_OPTIONS.
+	* parser.y: added the OPTIONS paragraph, with DEFAULT ROUNDED MODE and
+	  ENTRY-CONVENTION implemented.
+
+2017-01-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	FR #194: generate a WinMain() function instead of main
+	* flag.def: new cb_flag_winmain / -fwinmain for generating a WinMain()
+	  function instead of main when compiling as executable
+	* codegen.c (output_standard_includes): generate additional include
+	  "windows.h" if cb_flag_winmain is active
+	* codegen.c (output_main_function): generate WinMain instead of main
+	  if cb_flag_winmain is active
+
+2017-01-20  Brian Tiffin <btiffin@gnu.org>
+
+	* tree.h: add PROCEDURE DIVISION entry convention types
+	* cobc.h: add CB_CS_PROCEDURE context test value
+	* parser.y: PROCEDURE DIVISION EXTERN support
+	* reserved.c: EXTERN, COBOL, WINAPI context sensitive words
+	* codegen.c: EXTERN program entry
+
+2017-01-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: fixed output of error messages (result of previous change)
+	  by adding and using (list_error_reverse)
+	* parser.y: reactivate check PROCEDURE DIVISION returning item needs
+	  to be in LINKAGE SECTION
+	* codegen.c (output_internal_function): only allocate UDF RETURNING items
+	  when in LINKAGE SECTION
+
+2017-01-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, reserved.c: some work on program-prototypes,
+	  added parsing of COBOL 2002 NESTED phrase for CALL
+	* cobc.c, cobc.h, errror.c: removed error_tail and copy_tail
+	* cobc.c: fixed SIGSEGV in listing on machines where char is signed
+	  and COBOL sources contain characters > 127
+	* cobc.c: fixed SIGSEGV in listing when compiling from multiple sources
+	  which all show errors
+
+2017-01-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.h, cobc.h, parser.y: removed unused cb_statement->statement and
+	  its assignment from cobc_glob_line which wasn't set at all
+	* parser.y (begin_implicit_statement): copy attributes common and name
+	  from current_statement when creating an implicit new current_statement
+
+2017-01-14  Edward Hart <edward.dan.hart@gmail.com>
+
+	* tree.c (userbp): fixed bug #350 - caused by userbp initialisation not
+	  matching current cb_intrinsic_table layout.
+	* tree.c (userbp), tree.h: made cb_intrinsic_table pointers const.
+
+2017-01-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c [_MSC_VER]: swapped order of parameters for C compiler
+	  and linking so that -L options come before -l
+	* cobc.c: swapped order of setting and size calculation of compiler/linker
+	  options to match the order used for the actual call
+
+2017-01-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c (cb_name_1): output name for USER FUNCTIONs
+
+2017-01-11  Mário Matos <matosma@users.sf.net>
+
+	* codegen.c (output_entry_function):
+	  fixed bug #349 (compatibility for C89 / _MSC_VER < 1800) - moved
+	  generation of pointer fields for BY VALUE items before any code
+
+2017-01-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: Copyright year 2017
+
+2017-01-10  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c:
+	  For CALL statements parameters passed BY VALUE or CONTENT are copied
+	  to a temporary variable with the attribute of COB_FLAG_CONSTANT.
+	  This is done so that the subroutine will not accidentally try to
+	  overwrite these parameter fields.
+
+2017-01-09  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c (cb_expr_shift): fixed bug #321 - parentheses now terminate
+	  abbreviated conditions.
+	* parser.y (expr_token): restricted IS to before ZERO/classes/condition
+	  words.
+
+2017-01-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c (cb_build_identifier): corrected minimum check for OCCURS
+
 2017-01-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.c (print_program_header): print only one page header when -tlines=0
@@ -116,6 +253,10 @@
 	* parser.y, reserved.c: added ACUCOBOL line sequential
 	  device names for ASSIGN
 
+2016-12-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, typeck.c, tree.h: FR#182 added ADD|SUBTRACT TABLE as pending
+
 2016-12-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.c (cobc_print_info): output exact C compiler which was used
@@ -211,7 +352,7 @@
 2016-11-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc/cobc.c (print_program_header): changed the version string limit
-	  (including patchlevel) to 14 digits
+	  (including patch level) to 14 digits
 
 2016-11-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -1437,7 +1578,7 @@
 2015-08-19  Ron Norman <rjn@inglenet.com>
 
 	* cobc.c: swapped order of parameters for C compiler and linking so that
-	  -L options come before -l 
+	  -L options come before -l
 	  Otherwise the linker does not find things correctly on Linux
 	* field.c (validate_field_1): warning instead of an error for VALUEs in
 	  REDEFINES with -frelax-syntax as some legacy COBOL code does this

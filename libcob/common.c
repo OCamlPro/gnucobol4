@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
@@ -1721,6 +1721,15 @@ cob_module_leave (cob_module *module)
 	COB_UNUSED (module);
 	/* Pop module pointer */
 	COB_MODULE_PTR = COB_MODULE_PTR->next;
+}
+
+void
+cob_module_free (cob_module **module)
+{
+	if (*module != NULL) {
+		cob_cache_free (*module);
+		*module = NULL;
+	}
 }
 
 void *
@@ -3801,10 +3810,10 @@ cob_sys_getpid (void)
 int
 cob_sys_fork (void)
 {
-#ifdef	_WIN32  /* cygwin does not define _WIN32, but implements fork() */
-	cob_runtime_warning (_("'%s' is not supported on this platform"), "CBL_GC_FORK");
-	return -1;
-#else
+ /* cygwin does not define _WIN32, but implements [slow] fork() and provides unistd.h
+    MSYS defines _WIN32, provides unistd.h and not implements fork()
+ */
+#if defined	(HAVE_UNISTD_H) && !(defined (_WIN32))
 	int	pid;
 	if ( (pid = fork()) == 0 ) {
 		return 0;		/* child process just returns */
@@ -3814,6 +3823,9 @@ cob_sys_fork (void)
 		return -2;
 	}
 	return pid;			/* parent gets process id of child */
+#else
+	cob_runtime_warning (_("'%s' is not supported on this platform"), "CBL_GC_FORK");
+	return -1;
 #endif
 }
 
@@ -3867,12 +3879,16 @@ cob_sys_waitpid (const void *p_id)
 		   PROCESS_QUERY_INFORMATION         needs more rights
 		   SYNCHRONIZE                       necessary for WaitForSingleObject
 		*/
+#if defined(PROCESS_QUERY_LIMITED_INFORMATION)
 		process = OpenProcess (SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
 #if !defined(_MSC_VER) || !COB_USE_VC2012_OR_GREATER /* only try a higher level if we possibly compile on XP/2003 */
 		/* TODO: check what happens on WinXP / 2003 as PROCESS_QUERY_LIMITED_INFORMATION isn't available there */
 		if (!process && GetLastError () == ERROR_ACCESS_DENIED) {
 			process = OpenProcess (SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, pid);
 		}
+#endif
+#else
+		process = OpenProcess (SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, pid);
 #endif
 		/* if we don't get access to query the process' exit status try to get at least
 			access to the process end (needed for WaitForSingleObject)
@@ -5575,7 +5591,7 @@ print_version (void)
 
 	printf ("libcob (%s) %s.%d\n",
 		PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
-	puts ("Copyright (C) 2016 Free Software Foundation, Inc.");
+	puts ("Copyright (C) 2017 Free Software Foundation, Inc.");
 	puts (_("License LGPLv3+: GNU LGPL version 3 or later <http://gnu.org/licenses/lgpl.html>"));
 	puts (_("This is free software; see the source for copying conditions.  There is NO\n"
 	        "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
@@ -5591,11 +5607,11 @@ void
 print_info (void)
 {
 	char	buff[16];
-	char	versbuff[56];
+	char	versbuff[56] = { '\0' };
 	char	*s;
 	int major, minor, patch;
 #if defined(mpir_version)
-	char	versbuff2[111];
+	char	versbuff2[111] = { '\0' };
 #endif
 
 	print_version ();
@@ -5686,7 +5702,7 @@ print_info (void)
 #endif
 
 	major = 0, minor = 0, patch = 0;
-	sscanf (gmp_version, "%d.%d.%d", &major, &minor, &patch);
+	(void)sscanf (gmp_version, "%d.%d.%d", &major, &minor, &patch);
 	if (major == __GNU_MP_VERSION && minor == __GNU_MP_VERSION_MINOR) {
 		snprintf (versbuff, 55, "%s, version %d.%d%d", "GMP", major, minor, patch);
 	} else {
@@ -5695,11 +5711,11 @@ print_info (void)
 }
 #if defined(mpir_version)
 	major = 0, minor = 0, patch = 0;
-	sscanf (mpir_version, "%d.%d.%d", &major, &minor, &patch);
+	(void)sscanf (mpir_version, "%d.%d.%d", &major, &minor, &patch);
 	if (major == __MPIR_VERSION && minor == __MPIR_VERSION_MINOR) {
-		snprintf (versbuff2, 52, "%s, version %d.%d%d", "MPIR", major, minor, patch);
+		snprintf (versbuff2, 55, "%s, version %d.%d%d", "MPIR", major, minor, patch);
 	} else {
-		snprintf (versbuff2, 52, "%s, version %d.%d%d (compiled with %d.%d)",
+		snprintf (versbuff2, 55, "%s, version %d.%d%d (compiled with %d.%d)",
 			"MPIR", major, minor, patch, __MPIR_VERSION, __MPIR_VERSION_MINOR);
 	}
 	strncat (versbuff2, " - ", 3);

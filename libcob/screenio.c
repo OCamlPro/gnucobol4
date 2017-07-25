@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
 
    This file is part of GnuCOBOL.
@@ -2551,7 +2551,7 @@ int
 cob_display_text (const char *text)
 {
 	cob_field	field;
-	cob_field_attr		attr;
+	cob_field_attr	attr;
 
 	if (text[0] == 0) return 0;
 
@@ -2602,19 +2602,19 @@ cob_sys_get_char (char c)
 int
 cob_get_char (void)
 {
-	cob_field	field;
-	unsigned char	c = ' ';
+	cob_field		field;
+	unsigned char		c = ' ';
 	cob_field_attr		attr;
-	const cob_flags_t flags = COB_SCREEN_AUTO;
 
 	COB_FIELD_INIT (1, &c, &attr);
 	COB_ATTR_INIT (COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL);
 
-	field_accept_from_curpos (&field, NULL, NULL, NULL, NULL, NULL, NULL, flags);
-	if (c != ' ') {
-		return (int)c;
-	} else {
+	field_accept_from_curpos (&field, NULL, NULL, NULL, NULL, NULL, NULL,
+				  COB_SCREEN_AUTO);
+	if (c == ' ') {
 		return COB_ACCEPT_STATUS;
+	} else {
+		return (int)c;
 	}
 }
 
@@ -2623,7 +2623,7 @@ int
 cob_get_text (char *text, int size)
 {
 	cob_field	field;
-	cob_field_attr		attr;
+	cob_field_attr	attr;
 
 	if (size > 0) {
 		COB_FIELD_INIT (size, (unsigned char *)text, &attr);
@@ -2640,23 +2640,25 @@ cob_get_text (char *text, int size)
 int
 cob_display_formatted_text (const char *fmt, ...)
 {
-	cob_field		field;
+	int		size;
+	cob_field	field;
 	cob_field_attr	attr;
-
-	va_list			ap;
-	char			buff [COB_NORMAL_BUFF];
+	va_list		ap;
+	char		buff [COB_NORMAL_BUFF];
 
 	va_start (ap, fmt);
-	field.size = vsnprintf (buff, COB_NORMAL_BUFF, fmt, ap);
+	size = vsnprintf (buff, COB_NORMAL_BUFF, fmt, ap);
 	va_end (ap);
 
-	if (field.size < 0) return -1;
-	if (buff[0] == 0) return 0;
-
-	if (field.size > COB_NORMAL_MAX) {
-		field.size = COB_NORMAL_MAX;
+	if (size < 0) {
+		return -1;
 	}
 
+	if (buff[0] == 0) {
+		return 0;
+	}
+
+	field.size = cob_min_int (size, COB_NORMAL_MAX);
 	field.data = (unsigned char *)&buff;
 	COB_ATTR_INIT (COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL);
 	field.attr = &attr;
@@ -2670,7 +2672,8 @@ void
 cob_exit_screen (void)
 {
 	cob_flags_t	flags;
-	char	exit_msg [COB_MINI_BUFF];
+	char		exit_msg[COB_MINI_BUFF];
+
 	if (!cobglobptr) {
 		return;
 	}
@@ -2711,8 +2714,7 @@ cob_exit_screen (void)
 void
 cob_field_display (cob_field *f, cob_field *line, cob_field *column,
 		   cob_field *fgc, cob_field *bgc, cob_field *fscroll,
-		   cob_field *size_is, const cob_flags_t fattr,
-		   const int zero_line_col_allowed)
+		   cob_field *size_is, const cob_flags_t fattr)
 {
 	COB_UNUSED (f);
 	COB_UNUSED (line);
@@ -2722,15 +2724,13 @@ cob_field_display (cob_field *f, cob_field *line, cob_field *column,
 	COB_UNUSED (fscroll);
 	COB_UNUSED (size_is);
 	COB_UNUSED (fattr);
-	COB_UNUSED (zero_line_col_allowed);
 }
 
 void
 cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
 		  cob_field *fgc, cob_field *bgc, cob_field *fscroll,
 		  cob_field *ftimeout, cob_field *prompt,
-		  cob_field *size_is, const cob_flags_t fattr,
-		  const int zero_line_col_allowed)
+		  cob_field *size_is, const cob_flags_t fattr)
 {
 	COB_UNUSED (f);
 	COB_UNUSED (line);
@@ -2742,7 +2742,6 @@ cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
 	COB_UNUSED (prompt);
 	COB_UNUSED (size_is);
 	COB_UNUSED (fattr);
-	COB_UNUSED (zero_line_col_allowed);
 }
 
 void
@@ -2757,12 +2756,14 @@ cob_screen_display (cob_screen *s, cob_field *line, cob_field *column,
 
 void
 cob_screen_accept (cob_screen *s, cob_field *line,
-		   cob_field *column, cob_field *ftimeout)
+		   cob_field *column, cob_field *ftimeout,
+		    const int zero_line_col_allowed)
 {
 	COB_UNUSED (s);
 	COB_UNUSED (line);
 	COB_UNUSED (column);
 	COB_UNUSED (ftimeout);
+	COB_UNUSED (zero_line_col_allowed);
 }
 
 void
@@ -2822,15 +2823,16 @@ cob_accept_escape_key (cob_field *f)
 	cob_set_int (f, COB_ACCEPT_STATUS);
 }
 
+/* get CurSoR position on screen */
 int
-cob_sys_get_scr_pos (unsigned char *fld)
+cob_sys_get_csr_pos (unsigned char *fld)
 {
 #ifdef	COB_GEN_SCREENIO
 	int	cline;
 	int	ccol;
 #endif
 
-	COB_CHK_PARMS (CBL_GET_SCR_POS, 1);
+	COB_CHK_PARMS (CBL_GET_CSR_POS, 1);
 
 #ifdef	COB_GEN_SCREENIO
 	getyx (stdscr, cline, ccol);
@@ -2844,15 +2846,16 @@ cob_sys_get_scr_pos (unsigned char *fld)
 	return 0;
 }
 
+/* set CurSoR position on screen */
 int
-cob_sys_put_scr_pos (unsigned char *fld)
+cob_sys_set_csr_pos (unsigned char *fld)
 {
 #ifdef	COB_GEN_SCREENIO
 	int	cline;
 	int	ccol;
 #endif
 
-	COB_CHK_PARMS (CBL_PUT_SCR_POS, 1);
+	COB_CHK_PARMS (CBL_SET_CSR_POS, 1);
 
 #ifdef	COB_GEN_SCREENIO
 	init_cob_screen_if_needed ();
@@ -2864,6 +2867,7 @@ cob_sys_put_scr_pos (unsigned char *fld)
 #endif
 }
 
+/* get current screen size */
 int
 cob_sys_get_scr_size (unsigned char *line, unsigned char *col)
 {

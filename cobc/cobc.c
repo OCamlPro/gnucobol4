@@ -1613,6 +1613,7 @@ cobc_clean_up (const int status)
 static void
 set_listing_date (void)
 {
+	char	*time_buff;
 	if (!current_compile_time.year) {
 		current_compile_time = cob_get_current_date_and_time();
 	}
@@ -1631,7 +1632,11 @@ set_listing_date (void)
 	}
 	current_compile_tm.tm_yday = current_compile_time.day_of_year;
 	current_compile_tm.tm_isdst = current_compile_time.is_daylight_saving_time;
-	strcpy (cb_listing_date, asctime(&current_compile_tm));
+	time_buff = asctime (&current_compile_tm);
+	if (!time_buff) {
+		time_buff = (char *)"DATE BUG, PLEASE REPORT";
+	}
+	strncpy (cb_listing_date, time_buff, CB_LISTING_DATE_MAX);
 	*strchr (cb_listing_date, '\n') = '\0';
 }
 
@@ -1662,7 +1667,7 @@ cobc_abort_msg (void)
 		if (current_program && current_program->program_id) {
 			prog_id = (char *)current_program->program_id;
 		} else {
-			prog_id = _("unknown");
+			prog_id = (char *) _("unknown");
 		}
 		if (!cb_source_line) {
 			cobc_err_msg (_("aborting codegen for %s (PROGRAM-ID: %s)"),
@@ -1719,7 +1724,7 @@ cobc_print_version (void)
 {
 	printf ("cobc (%s) %s.%d\n",
 		PACKAGE_NAME, PACKAGE_VERSION, PATCH_LEVEL);
-	puts ("Copyright (C) 2016 Free Software Foundation, Inc.");
+	puts ("Copyright (C) 2017 Free Software Foundation, Inc.");
 	puts (_("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>"));
 	puts (_("This is free software; see the source for copying conditions.  There is NO\n"
 	        "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
@@ -3696,10 +3701,6 @@ preprocess (struct filename *fn)
 	int			ret;
 #endif
 
-	/* Initialize */
-	cb_source_file = NULL;
-	cb_source_line = 0;
-
 	if (cb_unix_lf) {
 		ppout = fopen(fn->preprocess, "wb");
 	} else {
@@ -4120,7 +4121,7 @@ terminate_str_at_first_trailing_space (char * const str)
 {
 	int	i;
 
-	for (i = strlen (str) - 1; i && isspace (str[i]); i--) {
+	for (i = strlen (str) - 1; i && isspace ((unsigned char)str[i]); i--) {
 		str[i] = '\0';
 	}
 }
@@ -4166,7 +4167,7 @@ print_fields (int indent, struct cb_field *top)
 		memset (lcl_name, ' ', indent * 2);
 		strcat (lcl_name, check_filler_name((char *)top->name));
 		get_cat = 1;
-		got_picture = 1;;
+		got_picture = 1;
 
 		if (top->children) {
 			strcpy (type, "GROUP");
@@ -4344,7 +4345,6 @@ xref_print (struct cb_xref *xref, const enum xref_type type, struct cb_xref *xre
 			} else {
 				sprintf (print_data + pd_off, "not referenced");
 			}
-			return;
 		} else {
 			sprintf (print_data + pd_off, "not referenced");
 		}
@@ -4663,7 +4663,7 @@ get_next_token (char *bp, char *token, char *term)
 	/* Repeat until a token is found */
 	do {
 		/* Find first non-space character */
-		while (*bp && isspace (*bp)) {
+		while (*bp && isspace ((unsigned char)*bp)) {
 			bp++;
 		}
 
@@ -4679,9 +4679,9 @@ get_next_token (char *bp, char *token, char *term)
 				bp++;
 				continue;
 			}
-			if (*bp == '.' && isdigit(*(bp + 1))) {
+			if (*bp == '.' && isdigit((unsigned char)*(bp + 1))) {
 				;
-			} else if (isspace (*bp) || *bp == ',' || *bp == '.' || *bp == ';') {
+			} else if (isspace ((unsigned char)*bp) || *bp == ',' || *bp == '.' || *bp == ';') {
 				term[0] = *bp++;
 				break;
 			}
@@ -4938,16 +4938,16 @@ compare_prepare (char *cmp_line, char *pline[CB_READ_AHEAD],
 
 		/* Go the last non-space character */
 		for (last_nonspace = last_col;
-		     isspace (pline[line_idx][last_nonspace - 1]) && last_nonspace > first_col;
+		     isspace ((unsigned char)pline[line_idx][last_nonspace - 1]) && last_nonspace > first_col;
 		     last_nonspace--);
 		/* Go to first non-space character */
-		for (i = first_col; (i < last_nonspace) && isspace (pline[line_idx][i]); i++);
+		for (i = first_col; (i < last_nonspace) && isspace ((unsigned char)pline[line_idx][i]); i++);
 
 		/* Copy chars between the first and last non-space characters */
 		while (i < last_nonspace) {
-			if (isspace (pline[line_idx][i])) {
+			if (isspace ((unsigned char)pline[line_idx][i])) {
 				cmp_line[out_pos++] = ' ';
-				for (i++; (i < last_nonspace) && isspace (pline[line_idx][i]); i++);
+				for (i++; (i < last_nonspace) && isspace ((unsigned char)pline[line_idx][i]); i++);
 				if (i == last_nonspace) {
 					break;
 				}
@@ -5524,6 +5524,21 @@ print_replace_main (struct list_files *cfile, FILE *fd,
 	return pline_cnt;
 }
 
+static struct list_error *
+list_error_reverse (struct list_error *p)
+{
+	struct list_error	*next;
+	struct list_error	*last;
+
+	last = NULL;
+	for (; p; p = next) {
+		next = p->next;
+		p->next = last;
+		last = p;
+	}
+	return last;
+}
+
 /* TODO: Modularise! */
 static void
 print_program_code (struct list_files *cfile, int in_copy)
@@ -5542,6 +5557,9 @@ print_program_code (struct list_files *cfile, int in_copy)
 	char	*pline[CB_READ_AHEAD];
 	int	prec;
 
+	if (cfile->err_head) {
+		cfile->err_head = list_error_reverse (cfile->err_head);
+	}
 	cfile->listing_on = 1;
 	memset (pline, 0, sizeof(pline));
 #ifdef DEBUG_REPLACE
@@ -5899,7 +5917,7 @@ process_translate (struct filename *fn)
 		}
 	}
 
-/* Translate to C */
+	/* Translate to C */
 	current_section = NULL;
 	current_paragraph = NULL;
 	current_statement = NULL;
@@ -6109,13 +6127,14 @@ process_module_direct (struct filename *fn)
 #endif
 
 	bufflen = cobc_cc_len + cobc_cflags_len
-			+ cobc_export_dyn_len + cobc_shared_opt_len
+			+ cobc_include_len + cobc_shared_opt_len
+			+ cobc_pic_flags_len + cobc_export_dyn_len
 			+ size + fn->translate_len
-			+ cobc_libs_len + cobc_ldflags_len + cobc_include_len
 #ifdef	_MSC_VER
 			+ manilink_len
 #endif
-			+ cobc_lib_paths_len + cobc_pic_flags_len + 128U;
+			+ cobc_ldflags_len + cobc_lib_paths_len + cobc_libs_len
+			+ 128U;
 
 	cobc_chk_buff_size (bufflen);
 
@@ -6125,7 +6144,7 @@ process_module_direct (struct filename *fn)
 		"%s %s %s     /MD  /LD          /Fe\"%s\" /Fo\"%s\" \"%s\" %s %s %s %s",
 			cobc_cc, cobc_cflags, cobc_include, exename, name,
 			fn->translate,
-			manilink, cobc_ldflags, cobc_libs, cobc_lib_paths);
+			manilink, cobc_ldflags, cobc_lib_paths, cobc_libs);
 	if (verbose_output > 1) {
 		ret = process (cobc_buffer);
 	} else {
@@ -6220,13 +6239,15 @@ process_module (struct filename *fn)
 #endif
 
 	size = strlen (name);
-	bufflen = cobc_cc_len + cobc_ldflags_len
-			+ cobc_export_dyn_len + cobc_shared_opt_len
-			+ size + fn->object_len + cobc_libs_len
+	bufflen = cobc_cc_len 
+			+ cobc_shared_opt_len
+			+ cobc_pic_flags_len + cobc_export_dyn_len
+			+ size + fn->object_len
 #ifdef	_MSC_VER
 			+ manilink_len
 #endif
-			+ cobc_lib_paths_len + cobc_pic_flags_len + 128U;
+			+ cobc_ldflags_len + cobc_lib_paths_len + cobc_libs_len
+			+ 128U;
 
 	cobc_chk_buff_size (bufflen);
 
@@ -6330,13 +6351,14 @@ process_library (struct filename *l)
 #endif
 
 	size = strlen (name);
-	bufflen = cobc_cc_len + cobc_ldflags_len
-			+ cobc_export_dyn_len + cobc_shared_opt_len
+	bufflen = cobc_cc_len + cobc_shared_opt_len
+			+ cobc_pic_flags_len + cobc_export_dyn_len
 			+ size + cobc_objects_len + cobc_libs_len
 #ifdef	_MSC_VER
 			+ manilink_len
 #endif
-			+ cobc_lib_paths_len + cobc_pic_flags_len + 64U;
+			+ cobc_ldflags_len + cobc_lib_paths_len
+			+ 64U;
 
 	cobc_chk_buff_size (bufflen);
 
@@ -6345,7 +6367,7 @@ process_library (struct filename *l)
 		"%s /Od /MDd /LDd /Zi /FR /Fe\"%s\" %s %s %s %s %s" :
 		"%s     /MD  /LD          /Fe\"%s\" %s %s %s %s %s",
 		cobc_cc, exename, cobc_objects_buffer,
-		manilink, cobc_ldflags, cobc_libs, cobc_lib_paths);
+		manilink, cobc_ldflags, cobc_lib_paths, cobc_libs);
 	if (verbose_output > 1) {
 		ret = process (cobc_buffer);
 	} else {
@@ -6448,13 +6470,13 @@ process_link (struct filename *l)
 #endif
 
 	size = strlen (name);
-	bufflen = cobc_cc_len + cobc_ldflags_len
-			+ cobc_export_dyn_len + size
-			+ cobc_objects_len + cobc_libs_len
+	bufflen = cobc_cc_len + cobc_export_dyn_len
+			+ size + cobc_objects_len
 #ifdef	_MSC_VER
 			+ manilink_len
 #endif
-			+ cobc_lib_paths_len + 64U;
+			+ cobc_ldflags_len + cobc_libs_len + cobc_lib_paths_len
+			+ 64U;
 
 	cobc_chk_buff_size (bufflen);
 
@@ -6463,7 +6485,7 @@ process_link (struct filename *l)
 		"%s /Od /MDd /Zi /FR /Fe\"%s\" %s %s %s %s %s" :
 		"%s     /MD          /Fe\"%s\" %s %s %s %s %s",
 		cobc_cc, exename, cobc_objects_buffer,
-		manilink, cobc_ldflags, cobc_libs, cobc_lib_paths);
+		manilink, cobc_ldflags, cobc_lib_paths, cobc_libs);
 	if (verbose_output > 1) {
 		ret = process (cobc_buffer);
 	} else {
@@ -6873,13 +6895,13 @@ main (int argc, char **argv)
 
 	cobc_cc_len = strlen (cobc_cc);
 	cobc_cflags_len = strlen (cobc_cflags);
-	cobc_libs_len = strlen (cobc_libs);
-	cobc_lib_paths_len = strlen (cobc_lib_paths);
 	cobc_include_len = strlen (cobc_include);
-	cobc_ldflags_len = strlen (cobc_ldflags);
-	cobc_export_dyn_len = strlen (COB_EXPORT_DYN);
 	cobc_shared_opt_len = strlen (COB_SHARED_OPT);
 	cobc_pic_flags_len = strlen (COB_PIC_FLAGS);
+	cobc_export_dyn_len = strlen (COB_EXPORT_DYN);
+	cobc_ldflags_len = strlen (cobc_ldflags);
+	cobc_lib_paths_len = strlen (cobc_lib_paths);
+	cobc_libs_len = strlen (cobc_libs);
 
 	/* Process input files */
 	status = 0;
@@ -6912,6 +6934,10 @@ main (int argc, char **argv)
 
 		/* Initialize general vars */
 		errorcount = 0;
+		cb_source_file = NULL;
+		cb_source_line = 0;
+		current_section = NULL;
+		current_paragraph = NULL;
 		cb_id = 1;
 		cb_pic_id = 1;
 		cb_attr_id = 1;

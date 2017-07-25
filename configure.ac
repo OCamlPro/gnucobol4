@@ -242,11 +242,17 @@ AC_CHECK_FUNCS([memmove memset setlocale fcntl strerror strcasecmp \
 	readlink getexecname canonicalize_file_name realpath \
 	strcoll strxfrm setenv raise])
 
+# Checks for UTC offset (init)
+# FIXME: set to yes if C compiler defines _BSD_SOURCE
+COB_HAS_UTC_OFFSET="no"
+
 # Check for timezone
 AC_MSG_CHECKING([for timezone variable access])
 AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <time.h>]],
 	[[timezone = 3600;]])],
-	[AC_DEFINE([HAVE_TIMEZONE], [1]) AC_MSG_RESULT([yes])],
+	[AC_DEFINE([HAVE_TIMEZONE], [1])
+		COB_HAS_UTC_OFFSET="yes"
+		AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])])
 
 # Check for designated initializers
@@ -519,7 +525,7 @@ AC_MSG_CHECKING([matching GMP version])
 COB_GMP_LIB_MAJOR=$(echo "$COB_GMP_LIB" | cut -d. -f1)
 COB_GMP_LIB_MINOR=$(echo "$COB_GMP_LIB" | cut -d. -f2)
 
-if test "$COB_GMP_HEADER" == "$COB_GMP_LIB_MAJOR.$COB_GMP_LIB_MINOR"; then
+if test "$COB_GMP_HEADER" = "$COB_GMP_LIB_MAJOR.$COB_GMP_LIB_MINOR"; then
 	AC_MSG_RESULT([yes ($COB_GMP_HEADER)])
 else
 	AC_MSG_RESULT([no (header: $COB_GMP_HEADER / library: $COB_GMP_LIB)])
@@ -891,7 +897,9 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[#include <stdio.h>
 		return 1;
 	}
 	return 0;]])],
-	[AC_DEFINE([COB_STRFTIME], [1]) AC_MSG_RESULT([yes])],
+	[AC_DEFINE([COB_STRFTIME], [1])
+		COB_HAS_UTC_OFFSET="yes"
+		AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])],
 	[])
 
@@ -1000,7 +1008,7 @@ fi
 unset enable_cflags_setting
 
 if test "$enable_debug" != "yes" -a "x$CFLAGS" != "x"; then
-	CFLAGS=`echo "$CFLAGS" | sed -e 's/-g//' -e 's/-g3//' -e 's/^ //' -e 's/ $//'`
+	CFLAGS=`echo "$CFLAGS" | sed -e 's/-g3//' -e 's/-g//' -e 's/^ //' -e 's/ $//'`
 fi
 
 if test "$COB_USES_GCC" = "yes"; then
@@ -1088,7 +1096,7 @@ if test "x$CPPFLAGS" != "x"; then
 	fi
 fi
 if test "x$cob_temp_flags" != "x"; then
-	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-g//' -e 's/-g3//' -e 's/ $//' -e 's/^ //'`
+	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-g3//' -e 's/-g//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/@<:@+-@:>@O@<:@0-9s@:>@//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-O//' -e 's/ $//' -e 's/^ //'`
 	cob_temp_flags=`echo "$cob_temp_flags" | sed -e 's/-fmessage-length=0//'`
@@ -1271,11 +1279,6 @@ AC_SUBST([COB_FIX_LIBTOOL])
 AC_SUBST([COB_KEYWORD_INLINE])
 AC_SUBST([COB_HAS_ISAM])
 AC_SUBST([COB_HAS_CURSES])
-if test "$COB_STRFTIME" = "no" -a "$COB_TIMEZONE" = "no"; then
-	COB_HAS_UTC_OFFSET="no"
-else
-	COB_HAS_UTC_OFFSET="yes"
-fi
 AC_SUBST([COB_HAS_UTC_OFFSET])
 AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level]) # needed for bin/cob-config
 

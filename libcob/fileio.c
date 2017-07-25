@@ -1,12 +1,12 @@
 /*
-   Copyright (C) 2002-2012, 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2002-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
 
    The GnuCOBOL runtime library is free software: you can redistribute it
    and/or modify it under the terms of the GNU Lesser General Public License
-   as published by the Freecob_freetware Foundation, either version 3 of the
+   as published by the Free Software Foundation, either version 3 of the
    License, or (at your option) any later version.
 
    GnuCOBOL is distributed in the hope that it will be useful,
@@ -3028,7 +3028,10 @@ dobuild:
 #endif
 
 	COB_UNUSED (sharing);
-
+	if (cobsetptr->bdb_home != NULL
+	 && bdb_env == NULL) {		/* Join BDB, on first OPEN of INDEXED file */
+		join_environment ();
+	}
 	cob_chk_file_mapping ();
 
 #if	0	/* RXWRXW - Access check BDB Human */
@@ -3596,14 +3599,6 @@ indexed_read_next (cob_file *f, const int read_opts)
 	fh = f->file;
 	ret = COB_STATUS_00_SUCCESS;
 	lmode = 0;
-
-	if (f->flag_nonexistent) {
-		if (f->flag_first_read == 0) {
-			return COB_STATUS_23_KEY_NOT_EXISTS;
-		}
-		f->flag_first_read = 0;
-		return COB_STATUS_10_END_OF_FILE;
-	}
 
 	if (fh->curkey == -1) {
 		/* Switch to primary index */
@@ -4474,6 +4469,83 @@ cob_file_unlock (cob_file *f)
 
 /* Global functions */
 
+/*
+ * Allocate memory for 'IS EXTERNAL' cob_file
+ */
+void
+cob_file_external_addr (const char *exname,
+		cob_file **pfl, cob_file_key **pky,
+		const int nkeys, const int linage)
+{
+	cob_file	*fl;
+	fl = cob_external_addr (exname, sizeof(cob_file));
+	if (fl->file_version == 0)
+		fl->file_version = COB_FILE_VERSION;
+
+	if (nkeys > 0
+	 && fl->keys != NULL) {
+		fl->keys = cob_cache_malloc (sizeof(cob_file_key) * nkeys);
+	}
+	if (pky != NULL) {
+		*pky = fl->keys;
+	}
+
+	if (linage > 0
+	 && fl->linorkeyptr == NULL) {
+		fl->linorkeyptr = cob_cache_malloc (sizeof(cob_linage));
+	}
+	*pfl = fl;
+}
+
+/*
+ * Allocate memory for cob_file
+ */
+void
+cob_file_malloc (cob_file **pfl, cob_file_key **pky,
+		 const int nkeys, const int linage)
+{
+	cob_file	*fl;
+	fl = cob_cache_malloc (sizeof(cob_file));
+	fl->file_version = COB_FILE_VERSION;
+
+	if (nkeys > 0
+	 && pky != NULL) {
+		*pky = fl->keys = cob_cache_malloc (sizeof(cob_file_key) * nkeys);
+	}
+
+	if (linage > 0) {
+		fl->linorkeyptr = cob_cache_malloc (sizeof(cob_linage));
+	}
+	*pfl = fl;
+}
+
+/*
+ * Free memory for cob_file
+ */
+void
+cob_file_free (cob_file **pfl, cob_file_key **pky)
+{
+	cob_file	*fl;
+	if (pky != NULL) {
+		if (*pky != NULL) {
+			cob_cache_free (*pky);
+			*pky = NULL;
+		}
+	}
+	if (pfl != NULL) {
+		fl = *pfl;
+		if (fl->linorkeyptr) {
+			cob_cache_free (fl->linorkeyptr);
+			fl->linorkeyptr = NULL;
+		}
+		if (*pfl != NULL) {
+			cob_cache_free (*pfl);
+			*pfl = NULL;
+		}
+	}
+}
+
+
 void
 cob_unlock_file (cob_file *f, cob_field *fnstatus)
 {
@@ -4754,7 +4826,7 @@ cob_read_next (cob_file *f, cob_field *fnstatus, const int read_opts)
 
 	if (unlikely(f->flag_nonexistent)) {
 		if (f->flag_first_read == 0) {
-			save_status (f, fnstatus, COB_STATUS_23_KEY_NOT_EXISTS);
+			save_status (f, fnstatus, COB_STATUS_46_READ_ERROR);
 			return;
 		}
 		f->flag_first_read = 0;
@@ -6421,7 +6493,6 @@ cob_init_fileio (cob_global *lptr, cob_settings *sptr)
 #ifdef	WITH_DB
 	bdb_env = NULL;
 	bdb_data_dir = NULL;
-	join_environment ();
 	record_lock_object = cob_malloc ((size_t)1024);
 	bdb_buff = cob_malloc ((size_t)COB_SMALL_BUFF);
 	rlo_size = 1024;

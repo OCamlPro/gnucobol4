@@ -1,6 +1,6 @@
 /*
    Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edwart Hart
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
 
    This file is part of GnuCOBOL.
 
@@ -426,6 +426,10 @@ static struct cobc_reserved default_reserved_words[] = {
   { "CLOSE",			0, 0, CLOSE,			/* 2002 */
 				0, 0
   },
+  { "COBOL",			0, 1, COBOL,			/* 2002,
+												Extension: implicit defined CALL-CONVENTION */
+				0, CB_CS_CALL | CB_CS_OPTIONS
+  },
   { "CODE",			0, 0, CODE,			/* 2002 */
 				0, 0
   },
@@ -762,8 +766,8 @@ static struct cobc_reserved default_reserved_words[] = {
   { "ENTRY",			0, 0, ENTRY,			/* Extension */
 				0, 0
   },
-  { "ENTRY-CONVENTION",		0, 1, -1,			/* 2002 (C/S) */
-				0, 0
+  { "ENTRY-CONVENTION",		0, 1, ENTRY_CONVENTION,		/* 2002 (C/S) */
+				0, CB_CS_OPTIONS
   },
   { "ENVIRONMENT",		0, 0, ENVIRONMENT,		/* 2002 */
 				0, 0
@@ -821,6 +825,10 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "EXTEND",			0, 0, EXTEND,			/* 2002 */
 				0, 0
+  },
+  { "EXTERN",			0, 1, TOK_EXTERN,			/* 2002 Implementor specific ENTRY-CONVENTION,
+											Extension: implicit defined CALL-CONVENTION */
+				0, CB_CS_CALL | CB_CS_OPTIONS
   },
   { "EXTERNAL",			0, 0, EXTERNAL,			/* 2002 */
 				0, 0
@@ -1034,9 +1042,8 @@ static struct cobc_reserved default_reserved_words[] = {
   { "INTERFACE-ID",		0, 0, -1,			/* 2002 */
 				0, 0
   },
-  { "INTERMEDIATE",		0, 1, -1,			/* 2014 (C/S) */
-				0, 0
-	/* FIXME: 2014 Context-sensitive to OPTIONS paragraph */
+  { "INTERMEDIATE",		0, 1, INTERMEDIATE,		/* 2014 (C/S) */
+				0, CB_CS_OPTIONS
   },
   { "INTO",			0, 0, INTO,			/* 2002 */
 				0, 0
@@ -1218,7 +1225,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "NEGATIVE",			0, 0, NEGATIVE,			/* 2002 */
 				0, 0
   },
-  { "NESTED",			0, 0, -1,			/* 2002 */
+  { "NESTED",			0, 0, NESTED,			/* 2002 */
 				0, 0
   },
   { "NEXT",			0, 0, NEXT,			/* 2002 */
@@ -1293,8 +1300,8 @@ static struct cobc_reserved default_reserved_words[] = {
   { "OPTIONAL",			0, 0, OPTIONAL,			/* 2002 */
 				0, 0
   },
-  { "OPTIONS",			0, 0, -1,			/* 2002 */
-				0, 0
+  { "OPTIONS",			0, 0, OPTIONS,			/* 2002 */
+				CB_CS_OPTIONS, 0
   },
   { "OR",			0, 0, OR,			/* 2002 */
 				0, 0
@@ -1564,9 +1571,8 @@ static struct cobc_reserved default_reserved_words[] = {
   { "ROUNDED",			0, 0, ROUNDED,			/* 2002 */
 				CB_CS_ROUNDED, 0
   },
-  { "ROUNDING",			0, 1, -1,			/* 2002 (C/S) */
-				0, 0
-	/* FIXME: 2014 Context-sensitive to OPTIONS paragraph */
+  { "ROUNDING",			0, 1, ROUNDING,			/* 2002 (C/S) */
+				0, CB_CS_OPTIONS
   },
   { "RUN",			0, 0, RUN,			/* 2002 */
 				0, 0
@@ -1717,14 +1723,14 @@ static struct cobc_reserved default_reserved_words[] = {
   { "STATEMENT",		0, 1, -1,			/* 2002 (C/S) */
 				0, 0
   },
-  { "STATIC",			0, 1, STATIC,			/* Extension */
+  { "STATIC",			0, 1, STATIC,			/* Extension: implicit defined CALL-CONVENTION */
 				0, CB_CS_CALL
   },
   { "STATUS",			0, 0, STATUS,			/* 2002 */
 				0, 0
   },
-  { "STDCALL",			0, 1, STDCALL,			/* Extension */
-				0, CB_CS_CALL
+  { "STDCALL",			0, 1, STDCALL,			/* Extension: implicit defined CALL-CONVENTION */
+				0, CB_CS_CALL | CB_CS_OPTIONS
   },
   { "STEP",			0, 0, STEP,			/* 2002 (C/S) */
 				0, 0
@@ -2973,6 +2979,17 @@ is_default_reserved_word (const char *word)
 	return !!find_default_reserved_word (create_dummy_reserved (word));
 }
 
+void
+remove_context_sensitivity (const char *word, const int context)
+{
+	struct cobc_reserved *reserved =
+		find_default_reserved_word (create_dummy_reserved (word));
+
+	if (reserved) {
+		reserved->context_test ^= context;
+	}
+}
+
 cb_tree
 lookup_system_name (const char *name)
 {
@@ -3104,7 +3121,15 @@ lookup_reserved_word (const char *name)
 		if (!(cobc_cs_check & p->context_test)) {
 			return NULL;
 		}
-		if (!cobc_in_procedure) {
+		/*
+		  The only context-sensitive phrase outside the procedure
+		  division we expect to reset cobc_cs_check is OPTIONS.
+
+		  TO-DO: Change !cobc_in_procedure to cobc_in_data. (Everything
+		  in the environment and identification division can (and does)
+		  reset cobc-cs_check.)
+		*/
+		if (!cobc_in_procedure && !(cobc_cs_check & CB_CS_OPTIONS)) {
 			cobc_cs_check = 0;
 		}
 		return p;

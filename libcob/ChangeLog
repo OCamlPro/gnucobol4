@@ -1,4 +1,39 @@
 
+2017-02-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* screenio.c: [!COB_GEN_SCREENIO] fixed zero_line_col_allowed
+	  missing / superfluous in function declarations
+
+2017-02-06  Ron Norman <rjn@inglenet.com>
+
+	* common.c, common.h:
+	  added cob_module_free so that structure gets freed within libcob
+	* fileio.c, common.h:
+	  Added new routines cob_file_external_addr,cob_file_malloc,cob_file_free
+	  so that 'cob_file' is allocated within libcob
+	  This will allow the stucture have fields added to the end
+	  without forcing a recompile.
+
+2017-02-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c, common.h, call.c: [__MINGW32__] fixes for mixed printf
+	  format modifiers for long long
+	* common.c: [WIN32] check if PROCESS_QUERY_LIMITED_INFORMATION is
+	  actually defined (not the case for MINGW and old VC versions)
+
+2017-01-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c: Copyright year 2017
+
+2017-01-10  Ron Norman <rjn@inglenet.com>
+
+	* move.c, call.c, common.h: New routines added to provide
+	  application C code access to COBOL data fields.
+
+2017-01-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.h, common.c (cob_check_subscript): corrected minimum check
+
 2017-01-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* screenio.c (field_accept): don't write anything on the screen for
@@ -18,6 +53,12 @@
 	* common.h: extended cob_time with is_daylight_saving_time and day_of_year
 	* common.c [_BSD_SOURCE]: get utc_offset directly from tm_gmtoff
 
+2017-01-01  Ron Norman <rjn@inglenet.com>
+
+	* fileio.c (cob_read_next): change to return 46 on 2nd read on an optional
+	  missing file, removed some redundant code
+	* fileio.c [WITH_DB]: moved call to join_environment to indexed_open
+
 2016-12-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* common.h: added COB_MAX_UNBOUNDED_SIZE
@@ -36,8 +77,6 @@
 	  position, (cob_get_char) / cobgetch to get a single character or
 	  function key, (cob_get_text) to get a text input and function keys with
 	  a given size from current cursor position
-	* screenio.c, common.h, system.def: renamed cob_sys_get_csr_pos /
-	  CBL_GET_CSR_POS to cob_sys_get_scr_pos / CBL_GET_SCR_POS
 	* screenio.c, common.h, system.def: added system routine
 	  CBL_PUT_SCR_POS / cob_sys_put_scr_pos to set the cursor position
 	  and for compatibility: CBL_READ_KBD_CHAR / cob_sys_get_char to get

@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -41,6 +41,7 @@
 
 #include "cobc.h"
 #include "tree.h"
+#include "parser.h"
 
 #define PIC_ALPHABETIC		0x01
 #define PIC_NUMERIC		0x02
@@ -119,10 +120,10 @@ static const char		* const cb_const_subs[] = {
 	NULL
 };
 
-static struct cb_intrinsic_table	userbp =
-	{ "USER FUNCTION", "cob_user_function", -1, 1,
-	  CB_INTR_USER_FUNCTION, CB_CATEGORY_NUMERIC,
-	  0, 0, 0 };
+static const struct cb_intrinsic_table	userbp =
+	{ "USER FUNCTION", "cob_user_function", 
+	  CB_INTR_USER_FUNCTION, USER_FUNCTION_NAME, 1, 0, 0, CB_CATEGORY_NUMERIC,
+	  0 };
 
 /* Global variables */
 
@@ -248,7 +249,7 @@ check_code_set_items_are_subitems_of_records (struct cb_file * const file)
 	 */
 	for (l = file->code_set_items; l; l = CB_LIST (l->chain)) {
 
-		r = CB_VALUE (l);
+		r = l->value;
 		f = CB_FIELD (cb_ref (r));
 
 		if (f->level == 1) {
@@ -382,7 +383,7 @@ cb_name_1 (char *s, cb_tree x)
 		} else {
 			s += sprintf (s, "%s", p->word->name);
 		}
-		if (p->subs) {
+		if (p->subs && CB_VALUE(p->subs) != cb_int1) {
 			s += sprintf (s, " (");
 			p->subs = cb_list_reverse (p->subs);
 			for (l = p->subs; l; l = CB_CHAIN (l)) {
@@ -452,10 +453,13 @@ cb_name_1 (char *s, cb_tree x)
 
 	case CB_TAG_INTRINSIC:
 		cbit = CB_INTRINSIC (x);
-		if (cbit->isuser) {
-			sprintf (s, "USER FUNCTION");
-		} else {
+		if (!cbit->isuser) {
 			sprintf (s, "FUNCTION %s", cbit->intr_tab->name);
+		} else if (cbit->name && CB_REFERENCE_P(cbit->name)
+				&& CB_REFERENCE(cbit->name)->word) {
+			sprintf (s, "USER FUNCTION %s", CB_REFERENCE(cbit->name)->word->name);
+		} else {
+			sprintf (s, "USER FUNCTION");
 		}
 		break;
 	case CB_TAG_FILE:
@@ -469,7 +473,7 @@ cb_name_1 (char *s, cb_tree x)
 }
 
 static cb_tree
-make_intrinsic (cb_tree name, struct cb_intrinsic_table *cbp, cb_tree args,
+make_intrinsic (cb_tree name, const struct cb_intrinsic_table *cbp, cb_tree args,
 		cb_tree field, cb_tree refmod, const int isuser)
 {
 	struct cb_intrinsic *x;
@@ -655,7 +659,7 @@ get_last_elt (cb_tree l)
 	return l;
 }
 
-#if !defined (COB_STRFTIME) && !defined (COB_TIMEZONE)
+#if !defined(_BSD_SOURCE) && !defined (COB_STRFTIME) && !defined (HAVE_TIMEZONE)
 static void
 warn_cannot_get_utc (const cb_tree tree, const enum cb_intr_enum intr,
 		     cb_tree args)
@@ -796,9 +800,8 @@ cb_name (cb_tree x)
 	char	tmp[COB_NORMAL_BUFF] = { 0 };
 	int		tlen;
 
-	(void)cb_name_1 (tmp, x);
+	tlen = cb_name_1 (tmp, x);
 
-	tlen = strlen (tmp);
 	s = cobc_parse_malloc (tlen + 1);
 	strncpy (s, tmp, tlen);
 
@@ -1515,6 +1518,7 @@ cb_build_program (struct cb_program *last_program, const int nest_level)
 		p->decimal_point = last_program->decimal_point;
 		p->numeric_separator = last_program->numeric_separator;
 		p->currency_symbol = last_program->currency_symbol;
+		p->entry_convention = last_program->entry_convention;
 		p->flag_trailing_separate = last_program->flag_trailing_separate;
 		p->flag_console_is_crt = last_program->flag_console_is_crt;
 		/* RETURN-CODE is global for contained programs */
@@ -4090,7 +4094,7 @@ cb_build_intrinsic (cb_tree name, cb_tree args, cb_tree refmod,
 		if (!valid_const_date_time_args (name, cbp, args)) {
 			return cb_error_node;
 		}
-#if !defined (COB_STRFTIME) && !defined (COB_TIMEZONE)
+#if !defined(_BSD_SOURCE) && !defined (COB_STRFTIME) && !defined (HAVE_TIMEZONE)
 		warn_cannot_get_utc (name, cbp->intr_enum, args);
 #endif
 	}

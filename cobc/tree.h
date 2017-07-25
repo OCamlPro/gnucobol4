@@ -113,20 +113,41 @@ enum cb_tag {
 
 /* Call convention bits */
 /* Bit number	Meaning			Value */
-/*	0	Parameter order		0 - Right to left		*/
+/*	0	currently ignored by GC			*/
+/*		Parameter order		0 - Right to left		*/
 /*					1 - Left to right		*/
-/*	1	Stack manipulation	0 - Caller removes params	*/
+/*	1	currently ignored by GC			*/
+/*		Stack manipulation	0 - Caller removes params	*/
 /*					1 - Callee removes params	*/
 /*	2	RETURN-CODE update	0 - Updated			*/
 /*					1 - Not updated			*/
 /*	3	Linking behaviour	0 - Normal linking		*/
 /*					1 - Static CALL linking		*/
-/*	4	OS/2 Optlink		0 - ??				*/
+/*	4	currently ignored by GC + MF		*/
+/*		OS/2 Optlink		0 - ??				*/
 /*					1 - ??				*/
-/*	5	Thunked to 16 bit	0 - No thunk			*/
+/*	5	currently ignored by GC + MF		*/
+/*		Thunked to 16 bit	0 - No thunk			*/
 /*					1 - Thunk			*/
-/*	6	STDCALL convention	0 - CDECL			*/
+/*	6	GC: works bith with static/dynamic calls */
+/*		MF: this has his has no effect on dynamic calls	*/
+/*		STDCALL convention	0 - CDECL			*/
 /*					1 - STDCALL			*/
+/*	7	currently ignored by GC + MF		*/
+/*	8	currently ignored by GC			*/
+/*		parameter-count for individual entry points	0 - checked	*/
+/*					1 - not checked			*/
+/*	9	currently ignored by GC			*/
+/*		case of call + program names	0 - disregareded (depending on compile time flags)		*/
+/*					1 - regarded			*/
+/*	10	currently ignored by GC			*/
+/*		RETURN-CODE storage	0 - passed as return value		*/
+/*					1 - passed in the first parameter			*/
+/*	11-14	currently ignored by GC+MF			*/
+/*	15	GC: enabling COBOL parameter handling for external callers	*/
+/*		currently ignored by MF			*/
+/*					0 - external callers don't set cob_call_params	*/
+/*					1 - external callers set cob_call_params	- standard (!)*/
 
 #define CB_CONV_L_TO_R		(1 << 0)
 #define CB_CONV_CALLEE_STACK	(1 << 1)
@@ -135,6 +156,7 @@ enum cb_tag {
 #define CB_CONV_OPT_LINK	(1 << 4)
 #define CB_CONV_THUNK_16	(1 << 5)
 #define CB_CONV_STDCALL		(1 << 6)
+#define CB_CONV_COBOL	(1 << 15)
 
 /* System category */
 enum cb_system_name_category {
@@ -144,7 +166,6 @@ enum cb_system_name_category {
 	CB_CALL_CONVENTION_NAME,
 	CB_CODE_NAME,
 	CB_COMPUTER_NAME,
-	CB_ENTRY_CONVENTION_NAME,
 	CB_EXTERNAL_LOCALE_NAME,
 	CB_LIBRARY_NAME,
 	CB_TEXT_NAME
@@ -943,6 +964,7 @@ struct cb_reference {
 #define CB_REFERENCE(x)		(CB_TREE_CAST (CB_TAG_REFERENCE, struct cb_reference, x))
 #define CB_REFERENCE_P(x)	(CB_TREE_TAG (x) == CB_TAG_REFERENCE)
 
+#define CB_WORD(x)		(CB_REFERENCE (x)->word)
 #define CB_NAME(x)		(CB_REFERENCE (x)->word->name)
 #define CB_WORD_COUNT(x)	(CB_REFERENCE (x)->word->count)
 #define CB_WORD_ITEMS(x)	(CB_REFERENCE (x)->word->items)
@@ -1034,7 +1056,7 @@ struct cb_intrinsic {
 	cb_tree				name;		/* INTRINSIC name */
 	cb_tree				args;		/* Arguments */
 	cb_tree				intr_field;	/* Field to use */
-	struct cb_intrinsic_table	*intr_tab;	/* Table pointer */
+	const struct cb_intrinsic_table	*intr_tab;	/* Table pointer */
 	cb_tree				offset;		/* Reference mod */
 	cb_tree				length;		/* Reference mod */
 	int				isuser;		/* User function */
@@ -1190,7 +1212,6 @@ enum cb_handler_type {
 struct cb_statement {
 	struct cb_tree_common	common;			/* Common values */
 	const char		*name;			/* Statement name */
-	const char		*statement;		/* Statement line */
 	cb_tree			body;			/* Statement body */
 	cb_tree			file;			/* File reference */
 	cb_tree			ex_handler;		/* Exception handler */
@@ -1357,6 +1378,7 @@ struct cb_program {
 	unsigned char	currency_symbol;		/* '$' or user-specified */
 	unsigned char	numeric_separator;		/* ',' or '.' */
 	unsigned char	prog_type;			/* Program type */
+	cb_tree			entry_convention;	/* ENTRY convention / PROCEDURE convention */
 
 	unsigned int	flag_main		: 1;	/* Gen main function */
 	unsigned int	flag_common		: 1;	/* COMMON PROGRAM */
@@ -1636,6 +1658,8 @@ extern unsigned int	cobc_allow_program_name;
 /* reserved.c */
 extern int			is_reserved_word (const char *);
 extern int			is_default_reserved_word (const char *);
+extern void			remove_context_sensitivity (const char *,
+							    const int);
 extern struct cobc_reserved	*lookup_reserved_word (const char *);
 extern cb_tree			lookup_system_name (const char *);
 extern void			cb_list_reserved (void);
@@ -1720,6 +1744,9 @@ extern cb_tree		cb_build_sub (cb_tree, cb_tree, cb_tree);
 extern void		cb_emit_corresponding (
 				cb_tree (*) (cb_tree, cb_tree, cb_tree),
 				cb_tree, cb_tree, cb_tree);
+extern void		cb_emit_tab_arithmetic (
+	cb_tree (*) (cb_tree, cb_tree, cb_tree),
+	cb_tree, cb_tree, cb_tree, cb_tree, cb_tree);
 extern void		cb_emit_move_corresponding (cb_tree, cb_tree);
 
 extern void		cb_emit_accept (cb_tree, cb_tree,
