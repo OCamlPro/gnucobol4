@@ -311,7 +311,7 @@ raise_ec_on_invalid_line_or_col (const int line, const int column)
 	}
 }
 
-static void
+static int
 cob_move_cursor (const int line, const int column)
 {
 	int status = move (line, column);
@@ -319,6 +319,7 @@ cob_move_cursor (const int line, const int column)
 	if (status == ERR) {
 		raise_ec_on_invalid_line_or_col (line, column);
 	}
+	return status;
 }
 
 void
@@ -590,7 +591,8 @@ cob_check_pos_status (const int fret)
 	cob_field	*f;
 	int		sline;
 	int		scolumn;
-	char		datbuf[8];
+	char		buff[23]; /* 10: make the compiler happy as "int" *could*
+						         have more digits than we "assume" */
 
 	if (fret) {
 		cob_set_exception (COB_EC_IMP_ACCEPT);
@@ -603,8 +605,8 @@ cob_check_pos_status (const int fret)
 		if (COB_FIELD_IS_NUMERIC (COB_MODULE_PTR->crt_status)) {
 			cob_set_int (COB_MODULE_PTR->crt_status, fret);
 		} else {
-			sprintf(datbuf, "%4.4d", fret);
-			memcpy (COB_MODULE_PTR->crt_status->data, datbuf,
+			sprintf(buff, "%4.4d", fret);
+			memcpy (COB_MODULE_PTR->crt_status->data, buff,
 				(size_t)4);
 		}
 	}
@@ -620,13 +622,13 @@ cob_check_pos_status (const int fret)
 			if (f->size < 6) {
 				sline *= 100;
 				sline += scolumn;
-				sprintf(datbuf, "%4.4d", sline);
-				memcpy (f->data, datbuf, (size_t)4);
+				sprintf (buff, "%4.4d", sline);
+				memcpy (f->data, buff, (size_t)4);
 			} else {
 				sline *= 1000;
 				sline += scolumn;
-				sprintf(datbuf, "%6.6d", sline);
-				memcpy (f->data, datbuf, (size_t)6);
+				sprintf (buff, "%6.6d", sline);
+				memcpy (f->data, buff, (size_t)6);
 			}
 		}
 	}
@@ -1121,10 +1123,13 @@ cob_screen_get_all (const int initial_curs, const int gettimeout)
 	int			ateof = 0;
 	int			gotbacksp = 0;
 	int			ungetched = 0;
+	int			status;
 	chtype			promptchar;
 
-	pending_accept = 0;
-	cob_move_cursor (sline, scolumn);
+	status = cob_move_cursor (sline, scolumn);
+	if (status != ERR) {
+		pending_accept = 0;
+	}
 	cob_screen_attr (s->foreg, s->backg, s->attr, ACCEPT_STATEMENT);
 
 	for (; ;) {
@@ -1664,13 +1669,16 @@ extract_line_and_col_vals (cob_field *line, cob_field *column,
 static void
 screen_display (cob_screen *s, const int line, const int column)
 {
+	int		status;
 	init_cob_screen_if_needed ();
 
 	origin_y = line;
 	origin_x = column;
-	pending_accept = 1;
 
-	cob_move_cursor (line, column);
+	status = cob_move_cursor (line, column);
+	if (status != ERR) {
+		pending_accept = 1;
+	}
 	cob_screen_iterate (s);
 	refresh ();
 }
@@ -1776,10 +1784,11 @@ field_display (cob_field *f, const int line, const int column, cob_field *fgc,
 	       cob_field *bgc, cob_field *fscroll, cob_field *size_is,
 	       const cob_flags_t fattr)
 {
-	int	sline;
-	int	scolumn;
-	int	ssize_is = 0;	/* WITH SIZE IS */
-	int	size_display;	/* final size to display */
+	int		sline;
+	int		scolumn;
+	int		ssize_is = 0;	/* WITH SIZE IS */
+	int		size_display;	/* final size to display */
+	int		status;
 	char	fig_const;	/* figurative constant character */
 
 	if (unlikely(!f)) {
@@ -1790,7 +1799,6 @@ field_display (cob_field *f, const int line, const int column, cob_field *fgc,
 
 	origin_y = 0;
 	origin_x = 0;
-	pending_accept = 1;
 
 	/* Field size to display */
 	size_display = (int)f->size;
@@ -1818,7 +1826,10 @@ field_display (cob_field *f, const int line, const int column, cob_field *fgc,
 
 	sline = line;
 	scolumn = column;
-	cob_move_cursor (sline, scolumn);
+	status = cob_move_cursor (sline, scolumn);
+	if (status != ERR) {
+		pending_accept = 1;
+	}
 
 	cob_screen_attr (fgc, bgc, fattr, DISPLAY_STATEMENT);
 	if (!(fattr & COB_SCREEN_NO_DISP)) {
@@ -1864,6 +1875,7 @@ field_accept (cob_field *f, const int sline, const int scolumn, cob_field *fgc,
 	unsigned char	move_char;      /* data shift character */
 	int		prompt_char;    /* prompt character */
 	int		gettimeout;
+	int		status;
 	chtype		promptchar;
 	int		ssize_is = 0;	/* WITH SIZE IS */
 	size_t		size_accept = 0;	/* final size to accept */
@@ -1886,7 +1898,6 @@ field_accept (cob_field *f, const int sline, const int scolumn, cob_field *fgc,
 
 	origin_y = 0;
 	origin_x = 0;
-	pending_accept = 0;
 
 	/* Set the default prompt character */
 	if (prompt) {
@@ -1917,7 +1928,10 @@ field_accept (cob_field *f, const int sline, const int scolumn, cob_field *fgc,
 	}
 	cobglobptr->cob_exception_code = 0;
 
-	cob_move_cursor (sline, scolumn);
+	status = cob_move_cursor (sline, scolumn);
+	if (status != ERR) {
+		pending_accept = 0;
+	}
 
 	cob_screen_attr (fgc, bgc, fattr, ACCEPT_STATEMENT);
 
@@ -2564,41 +2578,6 @@ cob_display_text (const char *text)
 	return 0;
 }
 
-/* COBOL: get a char (or x'00' for function keys)
-   call a second time when getting x'00' leads to the function keys
-   1001-1199 as x'01' - x'C7', 2001 - 2055 as x'C9' - x'FF'
-   No implementation of MF function tables so far.
-*/
-int
-cob_sys_get_char (char c)
-{
-	int ret;
-
-	COB_CHK_PARMS (CBL_READ_KBD_CHAR, 1);
-
-	if (!got_sys_char) {
-		ret = cob_get_char ();
-		if (ret > 255) {
-			c = 0;
-			got_sys_char = 1;
-		} else {
-			c = (char) ret;
-		}
-	} else {
-		got_sys_char = 0;
-		if (COB_ACCEPT_STATUS == 0) {
-			return cob_sys_get_char (c);
-		} else if (COB_ACCEPT_STATUS > 1000 && COB_ACCEPT_STATUS < 1201) {
-			c = (char) (COB_ACCEPT_STATUS - 1000);
-		} else if (COB_ACCEPT_STATUS > 2000 && COB_ACCEPT_STATUS < 2056) {
-			c = (char) (COB_ACCEPT_STATUS - 1800);
-		} else {
-			return -1;
-		}
-	}
-	return 0;
-}
-
 /* C: get a char x'01' thru x'255' or keyboard status > 1000  (or 0) */
 int
 cob_get_char (void)
@@ -2847,6 +2826,47 @@ cob_sys_get_csr_pos (unsigned char *fld)
 	return 0;
 }
 
+/* COBOL: get a char (or x'00' for function keys)
+   call a second time when getting x'00' leads to the function keys
+   1001-1199 as x'01' - x'C7', 2001 - 2055 as x'C9' - x'FF'
+   No implementation of MF function tables so far.
+*/
+int
+cob_sys_get_char (char c)
+{
+#ifdef	COB_GEN_SCREENIO
+	int ret;
+#endif
+
+	COB_CHK_PARMS (CBL_READ_KBD_CHAR, 1);
+
+#ifdef	COB_GEN_SCREENIO
+	if (!got_sys_char) {
+		ret = cob_get_char ();
+		if (ret > 255) {
+			c = 0;
+			got_sys_char = 1;
+		} else {
+			c = (char) ret;
+		}
+	} else {
+		got_sys_char = 0;
+		if (COB_ACCEPT_STATUS == 0) {
+			return cob_sys_get_char (c);
+		} else if (COB_ACCEPT_STATUS > 1000 && COB_ACCEPT_STATUS < 1201) {
+			c = (char) (COB_ACCEPT_STATUS - 1000);
+		} else if (COB_ACCEPT_STATUS > 2000 && COB_ACCEPT_STATUS < 2056) {
+			c = (char) (COB_ACCEPT_STATUS - 1800);
+		} else {
+			return -1;
+		}
+	}
+#else
+	COB_UNUSED (c);
+#endif
+	return 0;
+}
+
 /* set CurSoR position on screen */
 int
 cob_sys_set_csr_pos (unsigned char *fld)
@@ -2864,6 +2884,7 @@ cob_sys_set_csr_pos (unsigned char *fld)
 	ccol= fld[1];
 	return move (cline, ccol);
 #else
+	COB_UNUSED (fld);
 	return 0;
 #endif
 }

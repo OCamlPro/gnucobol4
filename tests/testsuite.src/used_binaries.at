@@ -1,4 +1,4 @@
-## Copyright (C) 2014-2016 Free Software Foundation, Inc.
+## Copyright (C) 2014-2017 Free Software Foundation, Inc.
 ## Written by Simon Sobisch, Brian Tiffin
 ##
 ## This file is part of GnuCOBOL.
@@ -18,7 +18,7 @@
 
 ### GnuCOBOL Test Suite
 
-AT_SETUP([Compiler outputs])
+AT_SETUP([Compiler outputs (general)])
 AT_KEYWORDS([runmisc cobc])
 
 AT_DATA([prog.cob],[
@@ -36,18 +36,43 @@ AT_CHECK([$COBC -C prog.cob], [0], [], [])
 AT_CHECK([$COBC -c prog.c], [0], [], [])
 AT_CHECK([$COBC prog.$COB_OBJECT_EXT])
 AT_CHECK([$COBCRUN prog], [0], [bluBb], [])
-AT_CHECK([$COBC -S prog.cob], [0], [], [])
-AT_CHECK([$COBC prog.s])
-AT_CHECK([$COBCRUN prog], [0], [bluBb], [])
 AT_CHECK([$COBC -x -C prog.cob], [0], [], [])
 AT_CHECK([$COBC -x -c prog.c], [0], [], [])
 AT_CHECK([$COBC -x prog.$COB_OBJECT_EXT])
-AT_CHECK([./prog], [0], [bluBb], [])
-AT_CHECK([$COBC -x -S prog.cob], [0], [], [])
-AT_CHECK([$COBC -x prog.s])
-AT_CHECK([./prog], [0], [bluBb], [])
 AT_CHECK([$COBC -E prog.cob], [0], [], [])
-AT_CHECK([test -f prog.i], [0], [], [])
+AT_CHECK([$COBC -x prog.i], [0], [], [])
+AT_CHECK([./prog], [0], [bluBb], [])
+AT_CLEANUP
+
+
+AT_SETUP([Compiler outputs (assembler)])
+AT_KEYWORDS([runmisc cobc])
+
+AT_DATA([prog.cob],[
+        IDENTIFICATION DIVISION.
+        PROGRAM-ID. prog.
+        DATA DIVISION.
+        WORKING-STORAGE SECTION.
+        01 BLA PIC X(5) VALUE 'bluBb'.
+        PROCEDURE DIVISION.
+        DISPLAY BLA NO ADVANCING END-DISPLAY
+        STOP RUN.
+])
+
+AT_CHECK([$COBC -S prog.cob], [0], [], [])
+AT_CHECK([test -f prog.s], [0], [], [],
+# Previous test "failed" --> prog.s not available --> likely a VS build
+[AT_CHECK([test -f prog.asm], [0], [], [])],
+# Previous test "passed" --> prog.s is available, test compilation and run
+[AT_CHECK([$COBC prog.s])
+ AT_CHECK([$COBCRUN prog], [0], [bluBb], [])])
+AT_CHECK([$COBC -x -S prog.cob], [0], [], [])
+AT_CHECK([test -f prog.s], [0], [], [],
+# Previous test "failed" --> prog.s not available --> likely a VS build
+[AT_CHECK([test -f prog.asm], [0], [], [])],
+# Previous test "passed" --> prog.s is available, test compilation and run
+[AT_CHECK([$COBC -x prog.s])
+ AT_CHECK([./prog], [0], [bluBb], [])])
 AT_CLEANUP
 
 
@@ -60,6 +85,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 
 AT_CLEANUP
 
+
 AT_SETUP([Compiler help and information])
 AT_KEYWORDS([runmisc cobc])
 
@@ -67,8 +93,13 @@ AT_CHECK([$COBC --version], [0], [ignore], [])
 AT_CHECK([$COBC --help], [0], [ignore], [])
 AT_CHECK([$COBC --info], [0], [ignore], [])
 AT_CHECK([$COBC --list-reserved], [0], [ignore], [])
+AT_CHECK([$COBC --list-registers], [0], [ignore], [])
 AT_CHECK([$COBC --list-intrinsics], [0], [ignore], [])
 AT_CHECK([$COBC --list-mnemonics], [0], [ignore], [])
+AT_CHECK([$COBC -std=mf --list-reserved], [0], [ignore], [])
+AT_CHECK([$COBC -std=acu --list-registers], [0], [ignore], [])
+AT_CHECK([$COBC -std=cobol2002 --list-intrinsics], [0], [ignore], [])
+AT_CHECK([$COBC -std=ibm --list-mnemonics], [0], [ignore], [])
 AT_CHECK([$COBC --list-system], [0], [ignore], [])
 AT_CLEANUP
 
@@ -89,6 +120,59 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE "$(_return_path "$(pwd)/prog.cob")"], [0], [], [])
 AT_CHECK([./prog], [0], [OK], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([C Compiler optimizations])
+AT_KEYWORDS([runmisc cobc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       PROCEDURE        DIVISION.
+           DISPLAY "OK" NO ADVANCING
+           END-DISPLAY.
+           EXIT PROGRAM.
+])
+
+AT_CHECK([$COMPILE -O  -o prog  prog.cob], [0], [], [])
+AT_CHECK([./prog],  [0], [OK], [])
+
+AT_CHECK([$COMPILE -O2 -o prog2 prog.cob], [0], [], [])
+AT_CHECK([./prog2], [0], [OK], [])
+
+AT_CHECK([$COMPILE -Os -o progs prog.cob], [0], [], [])
+AT_CHECK([./progs], [0], [OK], [])
+
+AT_CHECK([$COMPILE -O3 -o prog3 prog.cob], [0], [], [])
+AT_CHECK([./prog3], [0], [OK], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Invalid cobc option])
+AT_KEYWORDS([runmisc cobc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+])
+
+# normal option
+AT_CHECK([$COMPILE -q --thisoptiondoesntexist prog.cob], [1], [],
+[cobc: unrecognized option '--thisoptiondoesntexist'
+])
+# flag
+AT_CHECK([$COMPILE -q -flagdoesntexist prog.cob], [1], [],
+[cobc: unrecognized option '-flagdoesntexist'
+])
+# warning
+AT_CHECK([$COMPILE -q -Wdoesntexist prog.cob], [1], [],
+[cobc: unrecognized option '-Wdoesntexist'
+])
 
 AT_CLEANUP
 
@@ -370,29 +454,5 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE -j="job 123" prog.cob], [0], [job 123 ], [])
 AT_CHECK([$COMPILE -jdg prog.cob], [0], [        ], [])
 AT_CHECK([$COMPILE_MODULE --job=job123 prog.cob], [0], [job123  ], [])
-
-AT_CLEANUP
-
-
-AT_SETUP([Invalid cobc option])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-])
-
-# normal option
-AT_CHECK([$COMPILE -q --thisoptiondoesntexist prog.cob], [1], [],
-[cobc: unrecognized option '--thisoptiondoesntexist'
-])
-# flag
-AT_CHECK([$COMPILE -q -flagdoesntexist prog.cob], [1], [],
-[cobc: unrecognized option '-flagdoesntexist'
-])
-# warning
-AT_CHECK([$COMPILE -q -Wdoesntexist prog.cob], [1], [],
-[cobc: unrecognized option '-Wdoesntexist'
-])
 
 AT_CLEANUP

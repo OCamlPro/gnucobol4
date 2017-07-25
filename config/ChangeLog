@@ -1,7 +1,86 @@
 
+2017-07-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: allow GnuCOBOL specific registers for lax dialect
+	  configurations
+
+2017-07-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* default.conf: set word-length to most unrestrictive value: 61
+
+2017-07-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: added move-figurative-constant-to-numeric and
+	  move-figurative-quote-to-numeric option
+
+2017-07-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: added settings for registers. mnemonic names and
+	  intrinsic functions
+	* acu.conf: added (non-standard) mnemonic names for switches
+
+2017-07-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: added constant-folding option
+	* general: renamed acucobol-literals option to acu-literals
+
+2017-07-02  Ron Norman <rjn@inglenet.com>
+
+	* mf.conf: corrected to have synchronized-clause: ignore
+
+2017-06-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: created a "strict" set of vendor dialect configurations,
+	  made "normal" vendor dialect configurations lax by allowing *all*
+	  words GnuCOBOL can handle *additional* to the not-implemented
+	  vendor specific extensions and by allowing use of most features
+	  Note: COBOL85, COBOL2002 and COBOL2014 are always "strict"
+
+2017-06-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: moved reserved words list from conf files to seperate files,
+	  replaced "specify-all-reserved" option by "reserved-words"
+	  (special include file);
+	  reviewed all word lists, defining aliases where needed and removing
+	  mnemonic devices / special registers
+
+2017-06-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: renamed "debugging-line" option to "debugging-mode"
+
+2017-06-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: added define-constant-directive option
+
+2017-06-05  Edward Hart <edward.dan.hart@gmail.com>
+
+	* general: added incorrect-conf-sec-order option
+
+2017-06-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* general: renamed eject-statement to listing-statements,
+	  added title-statement
+
+2017-06-04  Edward Hart <edward.dan.hart@gmail.com>
+
+	* rm.conf: added config file for RM-COBOL
+
+2017-05-22  Ron Norman <rjn@inglenet.com>
+
+	* mf.conf: corrected to have pretty-display: yes
+
+2017-05-13  Edward Hart <edward.dan.hart@gmail.com>
+
+	* general: added numeric-value-for-edited-item
+
+2017-04-26  Ron Norman <rjn@inglenet.com>
+
+	* general: added 'constant-78' to indicate if 78 is allowed and
+	  'constant-01' to indicate if 01 CONSTANT is allowed
+
 2017-04-22  Edward Hart <edward.dan.hart@gmail.com>
 
-	* general: added stop-identifier config option.
+	* general: added stop-identifier config option
 
 2016-12-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -15,11 +94,11 @@
 
 2016-11-19  Edward Hart <edward.dan.hart@gmail.com>
 
-	* general: added use-for-debugging config option.
+	* general: added use-for-debugging config option
 
 2016-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
-	* general: feature-request #179 added reference-out-of-declaratives option
+	* general: FR #179 added reference-out-of-declaratives option
 
 2016-10-13  Ron Norman <rjn@inglenet.com>
 
@@ -51,20 +130,20 @@
 2016-08-09  Edward Hart <edward.dan.hart@gmail.com>
 
 	* general: added program-name-redefinition and program-prototypes
-	  configuration options.
+	  configuration options
 
 2016-07-27  Edward Hart <edward.dan.hart@gmail.com>
 
-	* general: added renames-uncommon-levels configuration option.
+	* general: added renames-uncommon-levels configuration option
 
 2016-07-18  Edward Hart <edward.dan.hart@gmail.com>
 
 	* general: added accept-display-extensions and console-is-crt
-	  configuration options.
+	  configuration options
 
 2016-06-14  Edward Hart <edward.dan.hart@gmail.com>
 
-	* general: moved uncommon aliases from reserved.c to config files.
+	* general: moved uncommon aliases from reserved.c to config files
 
 2016-06-03  Edward Hart <edward.dan.hart@gmail.com>
 
@@ -103,7 +182,7 @@
 
 2015-09-23  Edward Hart <edward.dan.hart@gmail.com>
 
-	* general: added numeric-boolean and acucobol-literals
+	* general: added numeric-boolean and acu-literals
 
 2015-07-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

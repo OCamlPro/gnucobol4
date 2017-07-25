@@ -40,6 +40,7 @@ static int conf_error_displayed = 0;
 static int last_error_line = 0;
 static const char	*last_error_file = "Unknown";
 static FILE			*sav_lst_file = NULL;
+static int		ignore_error = 0;
 
 #define COBC_ERRBUF_SIZE		1024
 
@@ -167,6 +168,14 @@ cb_get_strerror (void)
 #endif
 }
 
+int
+cb_set_ignore_error (int state)
+{
+	int prev = ignore_error;
+	ignore_error = state;
+	return prev;
+}
+
 void
 cb_warning (int pref, const char *fmt, ...)
 {
@@ -204,14 +213,19 @@ cb_error (const char *fmt, ...)
 	cobc_cs_check = 0;
 #endif
 	va_start (ap, fmt);
-	print_error (NULL, 0, _("error: "), fmt, ap);
+	print_error (NULL, 0, ignore_error ?
+		_("error (ignored): "):_("error: "), fmt, ap);
 	va_end (ap);
 
 	if (sav_lst_file) {
 		return;
 	}
-	if (++errorcount > cb_max_errors) {
-		cobc_too_many_errors ();
+	if (ignore_error) {
+		warningcount++;
+	} else {
+		if (++errorcount > cb_max_errors) {
+			cobc_too_many_errors ();
+		}
 	}
 }
 
@@ -434,17 +448,27 @@ cb_error_x (cb_tree x, const char *fmt, ...)
 	va_list ap;
 
 	va_start (ap, fmt);
-	print_error (x->source_file, x->source_line, _("error: "), fmt, ap);
+	print_error (x->source_file, x->source_line, ignore_error ?
+		_("error (ignored): "):_("error: "), fmt, ap);
 	va_end (ap);
 
 	if (sav_lst_file) {
 		return;
 	}
-	if (++errorcount > cb_max_errors) {
-		cobc_too_many_errors ();
+	if (ignore_error) {
+		warningcount++;
+	} else {
+		if (++errorcount > cb_max_errors) {
+			cobc_too_many_errors ();
+		}
 	}
 }
 
+/**
+ * verify if the given compiler option is supported by the current std/configuration
+ * \param	x	tree whose position is used for raising warning/errors
+ * \return	1 = ok/warning/obsolete, 0 = skip/ignore/error/unconformable
+ */
 unsigned int
 cb_verify_x (cb_tree x, const enum cb_support tag, const char *feature)
 {
@@ -485,6 +509,12 @@ cb_verify_x (cb_tree x, const enum cb_support tag, const char *feature)
 	return 0;
 }
 
+/**
+ * verify if the given compiler option is supported by the current std/configuration
+ * current position is used for raising warning/errors
+ * \returns	1 = ok/warning/obsolete, 0 = skip/ignore/error/unconformable
+ */
+
 unsigned int
 cb_verify (const enum cb_support tag, const char *feature)
 {
@@ -499,6 +529,9 @@ redefinition_error (cb_tree x)
 	w = CB_REFERENCE (x)->word;
 	cb_error_x (x, _("redefinition of '%s'"), w->name);
 	if (w->items) {
+		if (CB_VALUE (w->items)->source_line == 0) {
+			return;
+		}
 		listprint_suppress ();
 		cb_error_x (CB_VALUE (w->items),
 			    _("'%s' previously defined here"), w->name);
@@ -522,6 +555,9 @@ redefinition_warning (cb_tree x, cb_tree y)
 	}
 
 	if (z) {
+		if (z->source_line == 0) {
+			return;
+		}
 		listprint_suppress ();
 		cb_warning_x (COBC_WARN_FILLER, z, _("'%s' previously defined here"), w->name);
 		listprint_restore ();
@@ -533,10 +569,6 @@ undefined_error (cb_tree x)
 {
 	struct cb_reference	*r = CB_REFERENCE (x);
 	cb_tree			c;
-	/* TO BE REMOVED
-	void (* const emit_error_func)(int, cb_tree, const char *, ...)
-		= r->flag_optional ? &cb_warning_x : &cb_error_x;
-	*/
 	const char		*error_message;
 
 	if (!errnamebuff) {
@@ -613,6 +645,9 @@ ambiguous_error (cb_tree x)
 			default:
 				break;
 			}
+			if (y->source_line == 0) {
+				continue;
+			}
 			listprint_suppress ();
 			cb_error_x (y, _("'%s' defined here"), errnamebuff);
 			listprint_restore ();
@@ -624,8 +659,10 @@ ambiguous_error (cb_tree x)
 void
 flex_fatal_error (const char *msg, const char * filename, const int line_num)
 {
+	/* LCOV_EXCL_START */
 	cobc_err_msg (_ ("fatal error: %s"), msg);
 	cobc_abort (filename, line_num);
+	/* LCOV_EXCL_STOP */
 }
 
 void

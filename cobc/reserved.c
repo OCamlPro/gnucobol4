@@ -33,156 +33,164 @@
 
 /* Local variables */
 
-struct system_struct {
+struct system_name_struct {
 	const char				*name;
 	const enum cb_system_name_category	category;
 	const int				token;
+	enum cb_feature_mode	active;
 };
 
-static const struct system_struct	system_table[] = {
-	{"SYSIN",		CB_DEVICE_NAME,  CB_DEVICE_SYSIN},
-	{"SYSIPT",		CB_DEVICE_NAME,  CB_DEVICE_SYSIN},
-	{"STDIN",		CB_DEVICE_NAME,  CB_DEVICE_SYSIN},
-	{"SYSOUT",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"SYSLIST",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"SYSLST",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"STDOUT",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"PRINT",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"PRINTER",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"PRINTER-1",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT},
-	{"SYSERR",		CB_DEVICE_NAME,  CB_DEVICE_SYSERR},
-	{"STDERR",		CB_DEVICE_NAME,  CB_DEVICE_SYSERR},
-	{"CONSOLE",		CB_DEVICE_NAME,  CB_DEVICE_CONSOLE},
-	{"C01",			CB_FEATURE_NAME, CB_FEATURE_C01},
-	{"C02",			CB_FEATURE_NAME, CB_FEATURE_C02},
-	{"C03",			CB_FEATURE_NAME, CB_FEATURE_C03},
-	{"C04",			CB_FEATURE_NAME, CB_FEATURE_C04},
-	{"C05",			CB_FEATURE_NAME, CB_FEATURE_C05},
-	{"C06",			CB_FEATURE_NAME, CB_FEATURE_C06},
-	{"C07",			CB_FEATURE_NAME, CB_FEATURE_C07},
-	{"C08",			CB_FEATURE_NAME, CB_FEATURE_C08},
-	{"C09",			CB_FEATURE_NAME, CB_FEATURE_C09},
-	{"C10",			CB_FEATURE_NAME, CB_FEATURE_C10},
-	{"C11",			CB_FEATURE_NAME, CB_FEATURE_C11},
-	{"C12",			CB_FEATURE_NAME, CB_FEATURE_C12},
-	{"CSP",			CB_FEATURE_NAME, CB_FEATURE_FORMFEED},
-	{"FORMFEED",		CB_FEATURE_NAME, CB_FEATURE_FORMFEED},
-	{"CALL-CONVENTION",	CB_FEATURE_NAME, CB_FEATURE_CONVENTION},
-	{"SWITCH-0",		CB_SWITCH_NAME,  CB_SWITCH_0},
-	{"SWITCH-1",		CB_SWITCH_NAME,  CB_SWITCH_1},
-	{"SWITCH-2",		CB_SWITCH_NAME,  CB_SWITCH_2},
-	{"SWITCH-3",		CB_SWITCH_NAME,  CB_SWITCH_3},
-	{"SWITCH-4",		CB_SWITCH_NAME,  CB_SWITCH_4},
-	{"SWITCH-5",		CB_SWITCH_NAME,  CB_SWITCH_5},
-	{"SWITCH-6",		CB_SWITCH_NAME,  CB_SWITCH_6},
-	{"SWITCH-7",		CB_SWITCH_NAME,  CB_SWITCH_7},
-	{"SWITCH-8",		CB_SWITCH_NAME,  CB_SWITCH_8},
-	{"SWITCH-9",		CB_SWITCH_NAME,  CB_SWITCH_9},
-	{"SWITCH-10",		CB_SWITCH_NAME,  CB_SWITCH_10},
-	{"SWITCH-11",		CB_SWITCH_NAME,  CB_SWITCH_11},
-	{"SWITCH-12",		CB_SWITCH_NAME,  CB_SWITCH_12},
-	{"SWITCH-13",		CB_SWITCH_NAME,  CB_SWITCH_13},
-	{"SWITCH-14",		CB_SWITCH_NAME,  CB_SWITCH_14},
-	{"SWITCH-15",		CB_SWITCH_NAME,  CB_SWITCH_15},
-	{"SWITCH-16",		CB_SWITCH_NAME,  CB_SWITCH_16},
-	{"SWITCH-17",		CB_SWITCH_NAME,  CB_SWITCH_17},
-	{"SWITCH-18",		CB_SWITCH_NAME,  CB_SWITCH_18},
-	{"SWITCH-19",		CB_SWITCH_NAME,  CB_SWITCH_19},
-	{"SWITCH-20",		CB_SWITCH_NAME,  CB_SWITCH_20},
-	{"SWITCH-21",		CB_SWITCH_NAME,  CB_SWITCH_21},
-	{"SWITCH-22",		CB_SWITCH_NAME,  CB_SWITCH_22},
-	{"SWITCH-23",		CB_SWITCH_NAME,  CB_SWITCH_23},
-	{"SWITCH-24",		CB_SWITCH_NAME,  CB_SWITCH_24},
-	{"SWITCH-25",		CB_SWITCH_NAME,  CB_SWITCH_25},
-	{"SWITCH-26",		CB_SWITCH_NAME,  CB_SWITCH_26},
-	{"SWITCH-27",		CB_SWITCH_NAME,  CB_SWITCH_27},
-	{"SWITCH-28",		CB_SWITCH_NAME,  CB_SWITCH_28},
-	{"SWITCH-29",		CB_SWITCH_NAME,  CB_SWITCH_29},
-	{"SWITCH-30",		CB_SWITCH_NAME,  CB_SWITCH_30},
-	{"SWITCH-31",		CB_SWITCH_NAME,  CB_SWITCH_31},
-	{"SWITCH-32",		CB_SWITCH_NAME,  CB_SWITCH_32},
-	{"SWITCH-33",		CB_SWITCH_NAME,  CB_SWITCH_33},
-	{"SWITCH-34",		CB_SWITCH_NAME,  CB_SWITCH_34},
-	{"SWITCH-35",		CB_SWITCH_NAME,  CB_SWITCH_35},
-	{"SWITCH-36",		CB_SWITCH_NAME,  CB_SWITCH_36}
+/* TODO: allow these to not only be enabled/disabled but defined by compiler configuration
+         removing duplicates from this list (especially concerning the switches) */
+static struct system_name_struct	system_name_table[] = {
+	{"SYSIN",		CB_DEVICE_NAME,  CB_DEVICE_SYSIN, CB_FEATURE_ACTIVE},
+	{"SYSIPT",		CB_DEVICE_NAME,  CB_DEVICE_SYSIN, CB_FEATURE_ACTIVE},
+	{"STDIN",		CB_DEVICE_NAME,  CB_DEVICE_SYSIN, CB_FEATURE_ACTIVE},
+	{"SYSOUT",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"SYSLIST",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"SYSLST",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"STDOUT",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"PRINT",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"PRINTER",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"PRINTER-1",		CB_DEVICE_NAME,  CB_DEVICE_SYSOUT, CB_FEATURE_ACTIVE},
+	{"SYSERR",		CB_DEVICE_NAME,  CB_DEVICE_SYSERR, CB_FEATURE_ACTIVE},
+	{"STDERR",		CB_DEVICE_NAME,  CB_DEVICE_SYSERR, CB_FEATURE_ACTIVE},
+	{"CONSOLE",		CB_DEVICE_NAME,  CB_DEVICE_CONSOLE, CB_FEATURE_ACTIVE},
+	{"C01",			CB_FEATURE_NAME, CB_FEATURE_C01, CB_FEATURE_ACTIVE},
+	{"C02",			CB_FEATURE_NAME, CB_FEATURE_C02, CB_FEATURE_ACTIVE},
+	{"C03",			CB_FEATURE_NAME, CB_FEATURE_C03, CB_FEATURE_ACTIVE},
+	{"C04",			CB_FEATURE_NAME, CB_FEATURE_C04, CB_FEATURE_ACTIVE},
+	{"C05",			CB_FEATURE_NAME, CB_FEATURE_C05, CB_FEATURE_ACTIVE},
+	{"C06",			CB_FEATURE_NAME, CB_FEATURE_C06, CB_FEATURE_ACTIVE},
+	{"C07",			CB_FEATURE_NAME, CB_FEATURE_C07, CB_FEATURE_ACTIVE},
+	{"C08",			CB_FEATURE_NAME, CB_FEATURE_C08, CB_FEATURE_ACTIVE},
+	{"C09",			CB_FEATURE_NAME, CB_FEATURE_C09, CB_FEATURE_ACTIVE},
+	{"C10",			CB_FEATURE_NAME, CB_FEATURE_C10, CB_FEATURE_ACTIVE},
+	{"C11",			CB_FEATURE_NAME, CB_FEATURE_C11, CB_FEATURE_ACTIVE},
+	{"C12",			CB_FEATURE_NAME, CB_FEATURE_C12, CB_FEATURE_ACTIVE},
+	{"CSP",			CB_FEATURE_NAME, CB_FEATURE_FORMFEED, CB_FEATURE_ACTIVE},
+	{"FORMFEED",		CB_FEATURE_NAME, CB_FEATURE_FORMFEED, CB_FEATURE_ACTIVE},
+	{"CALL-CONVENTION",	CB_FEATURE_NAME, CB_FEATURE_CONVENTION, CB_FEATURE_ACTIVE},
+	{"SWITCH-0",		CB_SWITCH_NAME,  CB_SWITCH_0, CB_FEATURE_ACTIVE},
+	{"SWITCH-1",		CB_SWITCH_NAME,  CB_SWITCH_1, CB_FEATURE_ACTIVE},
+	{"SWITCH-2",		CB_SWITCH_NAME,  CB_SWITCH_2, CB_FEATURE_ACTIVE},
+	{"SWITCH-3",		CB_SWITCH_NAME,  CB_SWITCH_3, CB_FEATURE_ACTIVE},
+	{"SWITCH-4",		CB_SWITCH_NAME,  CB_SWITCH_4, CB_FEATURE_ACTIVE},
+	{"SWITCH-5",		CB_SWITCH_NAME,  CB_SWITCH_5, CB_FEATURE_ACTIVE},
+	{"SWITCH-6",		CB_SWITCH_NAME,  CB_SWITCH_6, CB_FEATURE_ACTIVE},
+	{"SWITCH-7",		CB_SWITCH_NAME,  CB_SWITCH_7, CB_FEATURE_ACTIVE},
+	{"SWITCH-8",		CB_SWITCH_NAME,  CB_SWITCH_8, CB_FEATURE_ACTIVE},
+	{"SWITCH-9",		CB_SWITCH_NAME,  CB_SWITCH_9, CB_FEATURE_ACTIVE},
+	{"SWITCH-10",		CB_SWITCH_NAME,  CB_SWITCH_10, CB_FEATURE_ACTIVE},
+	{"SWITCH-11",		CB_SWITCH_NAME,  CB_SWITCH_11, CB_FEATURE_ACTIVE},
+	{"SWITCH-12",		CB_SWITCH_NAME,  CB_SWITCH_12, CB_FEATURE_ACTIVE},
+	{"SWITCH-13",		CB_SWITCH_NAME,  CB_SWITCH_13, CB_FEATURE_ACTIVE},
+	{"SWITCH-14",		CB_SWITCH_NAME,  CB_SWITCH_14, CB_FEATURE_ACTIVE},
+	{"SWITCH-15",		CB_SWITCH_NAME,  CB_SWITCH_15, CB_FEATURE_ACTIVE},
+	{"SWITCH-16",		CB_SWITCH_NAME,  CB_SWITCH_16, CB_FEATURE_ACTIVE},
+	{"SWITCH-17",		CB_SWITCH_NAME,  CB_SWITCH_17, CB_FEATURE_ACTIVE},
+	{"SWITCH-18",		CB_SWITCH_NAME,  CB_SWITCH_18, CB_FEATURE_ACTIVE},
+	{"SWITCH-19",		CB_SWITCH_NAME,  CB_SWITCH_19, CB_FEATURE_ACTIVE},
+	{"SWITCH-20",		CB_SWITCH_NAME,  CB_SWITCH_20, CB_FEATURE_ACTIVE},
+	{"SWITCH-21",		CB_SWITCH_NAME,  CB_SWITCH_21, CB_FEATURE_ACTIVE},
+	{"SWITCH-22",		CB_SWITCH_NAME,  CB_SWITCH_22, CB_FEATURE_ACTIVE},
+	{"SWITCH-23",		CB_SWITCH_NAME,  CB_SWITCH_23, CB_FEATURE_ACTIVE},
+	{"SWITCH-24",		CB_SWITCH_NAME,  CB_SWITCH_24, CB_FEATURE_ACTIVE},
+	{"SWITCH-25",		CB_SWITCH_NAME,  CB_SWITCH_25, CB_FEATURE_ACTIVE},
+	{"SWITCH-26",		CB_SWITCH_NAME,  CB_SWITCH_26, CB_FEATURE_ACTIVE},
+	{"SWITCH-27",		CB_SWITCH_NAME,  CB_SWITCH_27, CB_FEATURE_ACTIVE},
+	{"SWITCH-28",		CB_SWITCH_NAME,  CB_SWITCH_28, CB_FEATURE_ACTIVE},
+	{"SWITCH-29",		CB_SWITCH_NAME,  CB_SWITCH_29, CB_FEATURE_ACTIVE},
+	{"SWITCH-30",		CB_SWITCH_NAME,  CB_SWITCH_30, CB_FEATURE_ACTIVE},
+	{"SWITCH-31",		CB_SWITCH_NAME,  CB_SWITCH_31, CB_FEATURE_ACTIVE},
+	{"SWITCH-32",		CB_SWITCH_NAME,  CB_SWITCH_32, CB_FEATURE_ACTIVE},
+	{"SWITCH-33",		CB_SWITCH_NAME,  CB_SWITCH_33, CB_FEATURE_ACTIVE},
+	{"SWITCH-34",		CB_SWITCH_NAME,  CB_SWITCH_34, CB_FEATURE_ACTIVE},
+	{"SWITCH-35",		CB_SWITCH_NAME,  CB_SWITCH_35, CB_FEATURE_ACTIVE},
+	{"SWITCH-36",		CB_SWITCH_NAME,  CB_SWITCH_36, CB_FEATURE_ACTIVE},
+	{"SW0",			CB_SWITCH_NAME,  CB_SWITCH_0, CB_FEATURE_DISABLED},
+	{"SW1",			CB_SWITCH_NAME,  CB_SWITCH_1, CB_FEATURE_DISABLED},
+	{"SW2",			CB_SWITCH_NAME,  CB_SWITCH_2, CB_FEATURE_DISABLED},
+	{"SW3",			CB_SWITCH_NAME,  CB_SWITCH_3, CB_FEATURE_DISABLED},
+	{"SW4",			CB_SWITCH_NAME,  CB_SWITCH_4, CB_FEATURE_DISABLED},
+	{"SW5",			CB_SWITCH_NAME,  CB_SWITCH_5, CB_FEATURE_DISABLED},
+	{"SW6",			CB_SWITCH_NAME,  CB_SWITCH_6, CB_FEATURE_DISABLED},
+	{"SW7",			CB_SWITCH_NAME,  CB_SWITCH_7, CB_FEATURE_DISABLED},
+	{"SW8",			CB_SWITCH_NAME,  CB_SWITCH_8, CB_FEATURE_DISABLED},
+	{"SW9",			CB_SWITCH_NAME,  CB_SWITCH_9, CB_FEATURE_DISABLED},
+	{"SW10",		CB_SWITCH_NAME,  CB_SWITCH_10, CB_FEATURE_DISABLED},
+	{"SW11",		CB_SWITCH_NAME,  CB_SWITCH_11, CB_FEATURE_DISABLED},
+	{"SW12",		CB_SWITCH_NAME,  CB_SWITCH_12, CB_FEATURE_DISABLED},
+	{"SW13",		CB_SWITCH_NAME,  CB_SWITCH_13, CB_FEATURE_DISABLED},
+	{"SW14",		CB_SWITCH_NAME,  CB_SWITCH_14, CB_FEATURE_DISABLED},
+	{"SW15",		CB_SWITCH_NAME,  CB_SWITCH_15, CB_FEATURE_DISABLED},
+	{"SWITCH 0",		CB_SWITCH_NAME,  CB_SWITCH_0, CB_FEATURE_DISABLED},
+	{"SWITCH 1",		CB_SWITCH_NAME,  CB_SWITCH_1, CB_FEATURE_DISABLED},
+	{"SWITCH 2",		CB_SWITCH_NAME,  CB_SWITCH_2, CB_FEATURE_DISABLED},
+	{"SWITCH 3",		CB_SWITCH_NAME,  CB_SWITCH_3, CB_FEATURE_DISABLED},
+	{"SWITCH 4",		CB_SWITCH_NAME,  CB_SWITCH_4, CB_FEATURE_DISABLED},
+	{"SWITCH 5",		CB_SWITCH_NAME,  CB_SWITCH_5, CB_FEATURE_DISABLED},
+	{"SWITCH 6",		CB_SWITCH_NAME,  CB_SWITCH_6, CB_FEATURE_DISABLED},
+	{"SWITCH 7",		CB_SWITCH_NAME,  CB_SWITCH_7, CB_FEATURE_DISABLED},
+	{"SWITCH 8",		CB_SWITCH_NAME,  CB_SWITCH_8, CB_FEATURE_DISABLED},
+	{"SWITCH 9",		CB_SWITCH_NAME,  CB_SWITCH_9, CB_FEATURE_DISABLED},
+	{"SWITCH 10",		CB_SWITCH_NAME,  CB_SWITCH_10, CB_FEATURE_DISABLED},
+	{"SWITCH 11",		CB_SWITCH_NAME,  CB_SWITCH_11, CB_FEATURE_DISABLED},
+	{"SWITCH 12",		CB_SWITCH_NAME,  CB_SWITCH_12, CB_FEATURE_DISABLED},
+	{"SWITCH 13",		CB_SWITCH_NAME,  CB_SWITCH_13, CB_FEATURE_DISABLED},
+	{"SWITCH 14",		CB_SWITCH_NAME,  CB_SWITCH_14, CB_FEATURE_DISABLED},
+	{"SWITCH 15",		CB_SWITCH_NAME,  CB_SWITCH_15, CB_FEATURE_DISABLED},
+	{"SWITCH 16",		CB_SWITCH_NAME,  CB_SWITCH_16, CB_FEATURE_DISABLED},
+	{"SWITCH 17",		CB_SWITCH_NAME,  CB_SWITCH_17, CB_FEATURE_DISABLED},
+	{"SWITCH 18",		CB_SWITCH_NAME,  CB_SWITCH_18, CB_FEATURE_DISABLED},
+	{"SWITCH 19",		CB_SWITCH_NAME,  CB_SWITCH_19, CB_FEATURE_DISABLED},
+	{"SWITCH 20",		CB_SWITCH_NAME,  CB_SWITCH_20, CB_FEATURE_DISABLED},
+	{"SWITCH 21",		CB_SWITCH_NAME,  CB_SWITCH_21, CB_FEATURE_DISABLED},
+	{"SWITCH 22",		CB_SWITCH_NAME,  CB_SWITCH_22, CB_FEATURE_DISABLED},
+	{"SWITCH 23",		CB_SWITCH_NAME,  CB_SWITCH_23, CB_FEATURE_DISABLED},
+	{"SWITCH 24",		CB_SWITCH_NAME,  CB_SWITCH_24, CB_FEATURE_DISABLED},
+	{"SWITCH 25",		CB_SWITCH_NAME,  CB_SWITCH_25, CB_FEATURE_DISABLED},
+	{"SWITCH 26",		CB_SWITCH_NAME,  CB_SWITCH_26, CB_FEATURE_DISABLED},
+	{"SWITCH A",		CB_SWITCH_NAME,  CB_SWITCH_1, CB_FEATURE_DISABLED},
+	{"SWITCH B",		CB_SWITCH_NAME,  CB_SWITCH_2, CB_FEATURE_DISABLED},
+	{"SWITCH C",		CB_SWITCH_NAME,  CB_SWITCH_3, CB_FEATURE_DISABLED},
+	{"SWITCH D",		CB_SWITCH_NAME,  CB_SWITCH_4, CB_FEATURE_DISABLED},
+	{"SWITCH E",		CB_SWITCH_NAME,  CB_SWITCH_5, CB_FEATURE_DISABLED},
+	{"SWITCH F",		CB_SWITCH_NAME,  CB_SWITCH_6, CB_FEATURE_DISABLED},
+	{"SWITCH G",		CB_SWITCH_NAME,  CB_SWITCH_7, CB_FEATURE_DISABLED},
+	{"SWITCH H",		CB_SWITCH_NAME,  CB_SWITCH_8, CB_FEATURE_DISABLED},
+	{"SWITCH I",		CB_SWITCH_NAME,  CB_SWITCH_9, CB_FEATURE_DISABLED},
+	{"SWITCH J",		CB_SWITCH_NAME,  CB_SWITCH_10, CB_FEATURE_DISABLED},
+	{"SWITCH K",		CB_SWITCH_NAME,  CB_SWITCH_11, CB_FEATURE_DISABLED},
+	{"SWITCH L",		CB_SWITCH_NAME,  CB_SWITCH_12, CB_FEATURE_DISABLED},
+	{"SWITCH M",		CB_SWITCH_NAME,  CB_SWITCH_13, CB_FEATURE_DISABLED},
+	{"SWITCH N",		CB_SWITCH_NAME,  CB_SWITCH_14, CB_FEATURE_DISABLED},
+	{"SWITCH O",		CB_SWITCH_NAME,  CB_SWITCH_15, CB_FEATURE_DISABLED},
+	{"SWITCH P",		CB_SWITCH_NAME,  CB_SWITCH_16, CB_FEATURE_DISABLED},
+	{"SWITCH Q",		CB_SWITCH_NAME,  CB_SWITCH_17, CB_FEATURE_DISABLED},
+	{"SWITCH R",		CB_SWITCH_NAME,  CB_SWITCH_18, CB_FEATURE_DISABLED},
+	{"SWITCH S",		CB_SWITCH_NAME,  CB_SWITCH_19, CB_FEATURE_DISABLED},
+	{"SWITCH T",		CB_SWITCH_NAME,  CB_SWITCH_20, CB_FEATURE_DISABLED},
+	{"SWITCH U",		CB_SWITCH_NAME,  CB_SWITCH_21, CB_FEATURE_DISABLED},
+	{"SWITCH V",		CB_SWITCH_NAME,  CB_SWITCH_22, CB_FEATURE_DISABLED},
+	{"SWITCH W",		CB_SWITCH_NAME,  CB_SWITCH_23, CB_FEATURE_DISABLED},
+	{"SWITCH X",		CB_SWITCH_NAME,  CB_SWITCH_24, CB_FEATURE_DISABLED},
+	{"SWITCH Y",		CB_SWITCH_NAME,  CB_SWITCH_25, CB_FEATURE_DISABLED},
+	{"SWITCH Z",		CB_SWITCH_NAME,  CB_SWITCH_26, CB_FEATURE_DISABLED},
+	{"UPSI-0",		CB_SWITCH_NAME,  CB_SWITCH_0, CB_FEATURE_DISABLED},
+	{"UPSI-1",		CB_SWITCH_NAME,  CB_SWITCH_1, CB_FEATURE_DISABLED},
+	{"UPSI-2",		CB_SWITCH_NAME,  CB_SWITCH_2, CB_FEATURE_DISABLED},
+	{"UPSI-3",		CB_SWITCH_NAME,  CB_SWITCH_3, CB_FEATURE_DISABLED},
+	{"UPSI-4",		CB_SWITCH_NAME,  CB_SWITCH_4, CB_FEATURE_DISABLED},
+	{"UPSI-5",		CB_SWITCH_NAME,  CB_SWITCH_5, CB_FEATURE_DISABLED},
+	{"UPSI-6",		CB_SWITCH_NAME,  CB_SWITCH_6, CB_FEATURE_DISABLED},
+	{"UPSI-7",		CB_SWITCH_NAME,  CB_SWITCH_7, CB_FEATURE_DISABLED},
+	{"UPSI-8",		CB_SWITCH_NAME,  CB_SWITCH_8, CB_FEATURE_DISABLED}
 };
 
-#define	SYSTEM_TAB_SIZE	sizeof(system_table) / sizeof(struct system_struct)
+#define	SYSTEM_TAB_SIZE	sizeof(system_name_table) / sizeof(struct system_name_struct)
 
-static const struct system_struct	ext_system_table[] = {
-	{"SW0",			CB_SWITCH_NAME,  CB_SWITCH_0},
-	{"SW1",			CB_SWITCH_NAME,  CB_SWITCH_1},
-	{"SW2",			CB_SWITCH_NAME,  CB_SWITCH_2},
-	{"SW3",			CB_SWITCH_NAME,  CB_SWITCH_3},
-	{"SW4",			CB_SWITCH_NAME,  CB_SWITCH_4},
-	{"SW5",			CB_SWITCH_NAME,  CB_SWITCH_5},
-	{"SW6",			CB_SWITCH_NAME,  CB_SWITCH_6},
-	{"SW7",			CB_SWITCH_NAME,  CB_SWITCH_7},
-	{"SW8",			CB_SWITCH_NAME,  CB_SWITCH_8},
-	{"SW9",			CB_SWITCH_NAME,  CB_SWITCH_9},
-	{"SW10",		CB_SWITCH_NAME,  CB_SWITCH_10},
-	{"SW11",		CB_SWITCH_NAME,  CB_SWITCH_11},
-	{"SW12",		CB_SWITCH_NAME,  CB_SWITCH_12},
-	{"SW13",		CB_SWITCH_NAME,  CB_SWITCH_13},
-	{"SW14",		CB_SWITCH_NAME,  CB_SWITCH_14},
-	{"SW15",		CB_SWITCH_NAME,  CB_SWITCH_15},
-	{"SWITCH 0",		CB_SWITCH_NAME,  CB_SWITCH_0},
-	{"SWITCH 1",		CB_SWITCH_NAME,  CB_SWITCH_1},
-	{"SWITCH 2",		CB_SWITCH_NAME,  CB_SWITCH_2},
-	{"SWITCH 3",		CB_SWITCH_NAME,  CB_SWITCH_3},
-	{"SWITCH 4",		CB_SWITCH_NAME,  CB_SWITCH_4},
-	{"SWITCH 5",		CB_SWITCH_NAME,  CB_SWITCH_5},
-	{"SWITCH 6",		CB_SWITCH_NAME,  CB_SWITCH_6},
-	{"SWITCH 7",		CB_SWITCH_NAME,  CB_SWITCH_7},
-	{"SWITCH 8",		CB_SWITCH_NAME,  CB_SWITCH_8},
-	{"SWITCH 9",		CB_SWITCH_NAME,  CB_SWITCH_9},
-	{"SWITCH 10",		CB_SWITCH_NAME,  CB_SWITCH_10},
-	{"SWITCH 11",		CB_SWITCH_NAME,  CB_SWITCH_11},
-	{"SWITCH 12",		CB_SWITCH_NAME,  CB_SWITCH_12},
-	{"SWITCH 13",		CB_SWITCH_NAME,  CB_SWITCH_13},
-	{"SWITCH 14",		CB_SWITCH_NAME,  CB_SWITCH_14},
-	{"SWITCH 15",		CB_SWITCH_NAME,  CB_SWITCH_15},
-	{"SWITCH 16",		CB_SWITCH_NAME,  CB_SWITCH_16},
-	{"SWITCH 17",		CB_SWITCH_NAME,  CB_SWITCH_17},
-	{"SWITCH 18",		CB_SWITCH_NAME,  CB_SWITCH_18},
-	{"SWITCH 19",		CB_SWITCH_NAME,  CB_SWITCH_19},
-	{"SWITCH 20",		CB_SWITCH_NAME,  CB_SWITCH_20},
-	{"SWITCH 21",		CB_SWITCH_NAME,  CB_SWITCH_21},
-	{"SWITCH 22",		CB_SWITCH_NAME,  CB_SWITCH_22},
-	{"SWITCH 23",		CB_SWITCH_NAME,  CB_SWITCH_23},
-	{"SWITCH 24",		CB_SWITCH_NAME,  CB_SWITCH_24},
-	{"SWITCH 25",		CB_SWITCH_NAME,  CB_SWITCH_25},
-	{"SWITCH 26",		CB_SWITCH_NAME,  CB_SWITCH_26},
-	{"SWITCH A",		CB_SWITCH_NAME,  CB_SWITCH_1},
-	{"SWITCH B",		CB_SWITCH_NAME,  CB_SWITCH_2},
-	{"SWITCH C",		CB_SWITCH_NAME,  CB_SWITCH_3},
-	{"SWITCH D",		CB_SWITCH_NAME,  CB_SWITCH_4},
-	{"SWITCH E",		CB_SWITCH_NAME,  CB_SWITCH_5},
-	{"SWITCH F",		CB_SWITCH_NAME,  CB_SWITCH_6},
-	{"SWITCH G",		CB_SWITCH_NAME,  CB_SWITCH_7},
-	{"SWITCH H",		CB_SWITCH_NAME,  CB_SWITCH_8},
-	{"SWITCH I",		CB_SWITCH_NAME,  CB_SWITCH_9},
-	{"SWITCH J",		CB_SWITCH_NAME,  CB_SWITCH_10},
-	{"SWITCH K",		CB_SWITCH_NAME,  CB_SWITCH_11},
-	{"SWITCH L",		CB_SWITCH_NAME,  CB_SWITCH_12},
-	{"SWITCH M",		CB_SWITCH_NAME,  CB_SWITCH_13},
-	{"SWITCH N",		CB_SWITCH_NAME,  CB_SWITCH_14},
-	{"SWITCH O",		CB_SWITCH_NAME,  CB_SWITCH_15},
-	{"SWITCH P",		CB_SWITCH_NAME,  CB_SWITCH_16},
-	{"SWITCH Q",		CB_SWITCH_NAME,  CB_SWITCH_17},
-	{"SWITCH R",		CB_SWITCH_NAME,  CB_SWITCH_18},
-	{"SWITCH S",		CB_SWITCH_NAME,  CB_SWITCH_19},
-	{"SWITCH T",		CB_SWITCH_NAME,  CB_SWITCH_20},
-	{"SWITCH U",		CB_SWITCH_NAME,  CB_SWITCH_21},
-	{"SWITCH V",		CB_SWITCH_NAME,  CB_SWITCH_22},
-	{"SWITCH W",		CB_SWITCH_NAME,  CB_SWITCH_23},
-	{"SWITCH X",		CB_SWITCH_NAME,  CB_SWITCH_24},
-	{"SWITCH Y",		CB_SWITCH_NAME,  CB_SWITCH_25},
-	{"SWITCH Z",		CB_SWITCH_NAME,  CB_SWITCH_26}
-};
-
-#define	EXT_SYSTEM_TAB_SIZE	\
-	sizeof(ext_system_table) / sizeof(struct system_struct)
+static struct system_name_struct *lookup_system_name (const char *, const int);
 
 /* Reserved word table */
 /* Must be ordered on word for binary search */
@@ -411,7 +419,7 @@ static struct cobc_reserved default_reserved_words[] = {
   { "CHARACTER",		0, 0, CHARACTER,		/* 2002 */
 				0, 0
   },
-  { "CHARACTERS",		0, 0, CHARACTERS,		/* 2002 */
+  { "CHARACTERS",		0, 0, CHARACTERS,		/* 85 (OBJECT-COMPUTER) 2002 */
 				0, 0
   },
   { "CLASS",			0, 0, CLASS,			/* 2002 */
@@ -622,6 +630,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "DEFAULT",			0, 0, DEFAULT,			/* 2002 */
 				0, 0
   },
+  { "DEFAULT-FONT",			0, 0, DEFAULT_FONT,			/* ACU extension */
+				0, 0					/* Checkme: likely context sensitive */
+  },
   { "DELETE",			1, 0, DELETE,			/* 2002 */
 				0, 0
   },
@@ -638,6 +649,9 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "DESTINATION",		0, 0, DESTINATION,		/* 2002 */
+				0, 0
+  },
+  { "DESTROY",		0, 0, DESTROY,		/* ACU extension */
 				0, 0
   },
   { "DETAIL",			0, 0, DETAIL,			/* 2002 */
@@ -866,13 +880,16 @@ static struct cobc_reserved default_reserved_words[] = {
   { "FIXED",			0, 0, FIXED,			/* Extension */
 				0, CB_CS_RECORDING
   },
-  { "FLOAT-BINARY-128",		0, 0, -1,			/* 2011 */
+  { "FIXED-FONT",			0, 0, FIXED_FONT,			/* ACU extension */
+					0, 0					/* Checkme: likely context sensitive */
+  },
+  { "FLOAT-BINARY-128",		0, 0, -1,			/* 2014 */
 				0, 0
   },
-  { "FLOAT-BINARY-32",		0, 0, -1,			/* 2011 */
+  { "FLOAT-BINARY-32",		0, 0, -1,			/* 2014 */
 				0, 0
   },
-  { "FLOAT-BINARY-64",		0, 0, -1,			/* 2011 */
+  { "FLOAT-BINARY-64",		0, 0, -1,			/* 2014 */
 				0, 0
   },
   { "FLOAT-DECIMAL-16",		0, 0, FLOAT_DECIMAL_16,		/* 2014 */
@@ -889,17 +906,23 @@ static struct cobc_reserved default_reserved_words[] = {
   { "FLOAT-EXTENDED",		0, 0, -1,			/* 2002 */
 				0, 0
   },
-  { "FLOAT-INFINITY",		0, 0, -1,			/* 2011 */
+  { "FLOAT-INFINITY",		0, 0, -1,			/* 2014 */
 				0, 0
   },
   { "FLOAT-LONG",		0, 0, FLOAT_LONG,		/* 2002 */
 				0, 0
   },
-  { "FLOAT-NOT-A-NUMBER",	0, 1, -1,			/* 2011 */
+  { "FLOAT-NOT-A-NUMBER",	0, 1, -1,			/* 2014 */
 				0, 0
   },
   { "FLOAT-SHORT",		0, 0, FLOAT_SHORT,		/* 2002 */
 				0, 0
+  },
+  { "FLOATING",		0, 0, FLOATING,		/* ACU extension */
+				0, CB_CS_DISPLAY
+  },
+  { "FONT",			0, 0, FONT,			/* ACU extension */
+	  0, 0					/* Checkme: likely context sensitive */
   },
   { "FOOTING",			0, 0, FOOTING,			/* 2002 */
 				0, 0
@@ -952,6 +975,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "GOBACK",			0, 0, GOBACK,			/* 2002 */
 				0, 0
   },
+  { "GRAPHICAL",		0, 0, GRAPHICAL,		/* ACU extension */
+				0, CB_CS_DISPLAY
+  },
   { "GREATER",			0, 0, GREATER,			/* 2002 */
 				0, 0
   },
@@ -963,6 +989,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "GROUP-USAGE",		0, 0, -1,			/* 2002 */
 				0, 0
+  },
+  { "HANDLE",			0, 0, HANDLE,			/* ACU extension */
+	  0, 0
   },
   { "HEADING",			0, 0, HEADING,			/* 2002 */
 				0, 0
@@ -1002,6 +1031,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "IN",			0, 0, IN,			/* 2002 */
 				0, 0
+  },
+  { "INDEPENDENT",		0, 0, INDEPENDENT,		/* ACU extension */
+				0, CB_CS_DISPLAY
   },
   { "INDEX",			0, 0, INDEX,			/* 2002 */
 				0, 0
@@ -1078,8 +1110,14 @@ static struct cobc_reserved default_reserved_words[] = {
   { "LABEL",			0, 0, LABEL,			/* 85 */
 				0, 0
   },
+  { "LARGE-FONT",			0, 0, LARGE_FONT,			/* ACU extension */
+	  0, 0					/* Checkme: likely context sensitive */
+  },
   { "LAST",			0, 0, LAST,			/* 2002 */
 				0, 0
+  },
+  { "LAYOUT-MANAGER",		0, 0, LAYOUT_MANAGER,		/* ACU extension */
+	  0, 0					/* Checkme: likely context sensitive */
   },
   { "LC_ALL",			0, 1, -1,			/* 2002 (C/S) */
 				0, 0
@@ -1144,6 +1182,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "LINKAGE",			0, 0, LINKAGE,			/* 2002 */
 				0, 0
   },
+  { "LM-RESIZE",			0, 0, LM_RESIZE,			/* ACU extension */
+					0, 0					/* Checkme: likely context sensitive */
+  },
   { "LOCAL-STORAGE",		0, 0, LOCAL_STORAGE,		/* 2002 */
 				0, 0
   },
@@ -1171,8 +1212,14 @@ static struct cobc_reserved default_reserved_words[] = {
   { "MANUAL",			0, 0, MANUAL,			/* 2002 */
 				0, 0
   },
-  { "MEMORY",			0, 0, MEMORY,			/* 85 */
-				0, 0
+  { "MEDIUM-FONT",			0, 0, MEDIUM_FONT,			/* ACU extension */
+		  0, 0					/* Checkme: likely context sensitive */
+  },
+  { "MEMORY",			0, 1, MEMORY,			/* 85 */
+				0, CB_CS_OBJECT_COMPUTER
+  },
+  { "MENU",			0, 0, MENU,			/* ACU extension */
+					0, 0					/* Checkme: likely context sensitive */
   },
   { "MERGE",			0, 0, MERGE,			/* 2002 */
 				0, 0
@@ -1191,6 +1238,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "MODE",			0, 0, MODE,			/* 2002 */
 				0, 0
+  },
+  { "MODULES",		0, 0, MODULES,			/* 85 */
+				0, CB_CS_OBJECT_COMPUTER
   },
   { "MOVE",			0, 0, MOVE,			/* 2002 */
 				0, 0
@@ -1271,7 +1321,7 @@ static struct cobc_reserved default_reserved_words[] = {
 				0, 0
   },
   { "OBJECT-COMPUTER",		0, 0, OBJECT_COMPUTER,		/* 2002 */
-				0, 0
+				CB_CS_OBJECT_COMPUTER, 0
   },
   { "OBJECT-REFERENCE",		0, 0, -1,			/* 2002 */
 				0, 0
@@ -1363,6 +1413,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "POINTER",			0, 0, POINTER,			/* 2002 */
 				0, 0
   },
+  { "POP-UP",		0, 0, POP_UP,		/* ACU extension */
+				0, 0
+  },
   { "POSITION",			0, 0, POSITION,			/* 85 */
 				0, 0
   },
@@ -1390,6 +1443,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "PRINTING",			0, 0, PRINTING,			/* 2002 */
 				0, 0
+  },
+  { "PRIORITY",			0, 0, PRIORITY,			/* ACU extension */
+	  0, 0					/* Checkme: likely context sensitive */
   },
   { "PROCEDURE",		0, 0, PROCEDURE,		/* 2002 */
 				0, 0
@@ -1618,7 +1674,7 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "SEND",			0, 0, SEND,			/* Communication Section */
 				0, 0
-  },  
+  },
   { "SENTENCE",			0, 0, SENTENCE,			/* 2002 */
 				0, 0
   },
@@ -1661,6 +1717,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "SIZE",			0, 0, SIZE,			/* 2002 */
 				0, 0
+  },
+  { "SMALL-FONT",			0, 0, SMALL_FONT,			/* ACU extension */
+	  0, 0					/* Checkme: likely context sensitive */
   },
   { "SORT",			0, 0, SORT,			/* 2002 */
 				0, 0
@@ -1756,6 +1815,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "SUBTRACT",			1, 0, SUBTRACT,			/* 2002 */
 				0, 0
   },
+  { "SUBWINDOW",			0, 0, SUBWINDOW,			/* ACU extension */
+	  0, 0					/* Checkme: likely context sensitive */
+  },
   { "SUM",			0, 0, SUM,			/* 2002 */
 				0, 0
   },
@@ -1813,6 +1875,12 @@ static struct cobc_reserved default_reserved_words[] = {
   { "THEN",			0, 0, THEN,			/* 2002 */
 				0, 0
   },
+  { "THREAD",			0, 0, THREAD,			/* ACU extension */
+					0, 0
+  },
+  { "THREADS",			0, 0, THREADS,			/* ACU extension */
+					0, 0
+  },
   { "THROUGH",			0, 0, THRU,			/* 2002 */
 				0, 0
   },
@@ -1839,6 +1907,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "TOWARD-LESSER",		0, 1, TOWARD_LESSER,		/* 2014 (C/S) */
 				0, CB_CS_ROUNDED
+  },
+  { "TRADITIONAL-FONT",		0, 0, TRADITIONAL_FONT,		/* ACU extension */
+					0, 0					/* Checkme: likely context sensitive */
   },
   { "TRAILING",			0, 0, TRAILING,			/* 2002 */
 				0, 0
@@ -1957,6 +2028,9 @@ static struct cobc_reserved default_reserved_words[] = {
   { "VARIABLE",			0, 0, VARIABLE,			/* Extension */
 				0, CB_CS_RECORDING
   },
+  { "VARIANT",			0, 0, VARIANT,			/* ACU extension */
+					0, 0
+  },
   { "VARYING",			0, 0, VARYING,			/* 2002 */
 				0, 0
   },
@@ -1965,6 +2039,9 @@ static struct cobc_reserved default_reserved_words[] = {
   },
   { "WHEN",			0, 0, WHEN,			/* 2002 */
 				0, 0
+  },
+  { "WINDOW",			0, 0, WINDOW,			/* ACU extension */
+					0, 0
   },
   { "WITH",			0, 0, WITH,			/* 2002 */
 				CB_CS_WITH, CB_CS_ACCEPT | CB_CS_DISPLAY
@@ -2015,345 +2092,372 @@ struct amendment_list {
 
 struct amendment_list	*amendment_list = NULL;
 
+struct register_struct {
+	const char				*name;
+	const char				*definition;
+	enum cb_feature_mode	active;
+};
+
+static size_t current_register = 0;
+
+static struct register_struct	register_list[] = {
+	{"RETURN-CODE", "GLOBAL USAGE BINARY-LONG VALUE ZERO", CB_FEATURE_ACTIVE},
+	{"SORT-RETURN", "GLOBAL USAGE BINARY-LONG VALUE ZERO", CB_FEATURE_ACTIVE},
+	{"NUMBER-OF-CALL-PARAMETERS", "USAGE BINARY-LONG", CB_FEATURE_ACTIVE},	/* OpenCOBOL / GnuCOBOL extension, at least from 1.0+ */
+	{"COB-CRT-STATUS", "PICTURE 9(4) USAGE DISPLAY VALUE ZERO", CB_FEATURE_ACTIVE},	/* FIXME: currently not handled the "normal" register way */
+	{"TALLY", "GLOBAL PICTURE 9(5) USAGE BINARY VALUE ZERO", CB_FEATURE_ACTIVE},
+	{"ADDRESS OF", "USAGE POINTER", CB_FEATURE_ACTIVE},		/* FIXME: currently not handled the "normal" register way */
+	{"LENGTH OF", "CONSTANT USAGE BINARY-LONG", CB_FEATURE_ACTIVE},	/* FIXME: currently not handled the "normal" register way */
+	{"WHEN-COMPILED", "CONSTANT PICTURE X(16) USAGE DISPLAY", CB_FEATURE_ACTIVE}
+};
+
+#define	NUM_REGISTERS	sizeof(register_list) / sizeof(struct register_struct)
+
 /* Intrinsic Function List */
 /* Must be ordered on name for binary search */
 
-/*	Name,		Routine,							*/
-/*	Token,	Parser token,	Implemented				*/
-/*	Number of arguments: Max [-1 = unlimited], Min,	*/
+/*	Name,		Routine,					*/
+/*	Token,	Parser token,					*/
+/*	Implemented, Number of arguments: Max [-1 = unlimited], Min,	*/
 /*	Category,	Can refmod							*/
 
-static const struct cb_intrinsic_table function_list[] = {
+static struct cb_intrinsic_table function_list[] = {
   { "ABS",				"cob_intr_abs",
-					CB_INTR_ABS, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_ABS, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
+					CB_CATEGORY_NUMERIC, 0
+  },
+  /* ACUCOBOL-extension (synonym for ABS) */
+  { "ABSOLUTE-VALUE",		"cob_intr_abs",
+					CB_INTR_ABS, FUNCTION_NAME,
+					CB_FEATURE_DISABLED,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ACOS",				"cob_intr_acos",
-					CB_INTR_ACOS, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_ACOS, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ANNUITY",				"cob_intr_annuity",
-					CB_INTR_ANNUITY, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_ANNUITY, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ASIN",				"cob_intr_asin",
-					CB_INTR_ASIN, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_ASIN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ATAN",				"cob_intr_atan",
-					CB_INTR_ATAN, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_ATAN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "BOOLEAN-OF-INTEGER",		"cob_intr_boolean_of_integer",
-					CB_INTR_BOOLEAN_OF_INTEGER, FUNCTION_NAME, 0,
-					2, 2,
+					CB_INTR_BOOLEAN_OF_INTEGER, FUNCTION_NAME,
+					CB_FEATURE_NOT_IMPLEMENTED,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "BYTE-LENGTH",			"cob_intr_byte_length",
-					CB_INTR_BYTE_LENGTH, LENGTH_FUNC, 1,
-					1, 1,
+					CB_INTR_BYTE_LENGTH, LENGTH_FUNC,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "CHAR",				"cob_intr_char",
-					CB_INTR_CHAR, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_CHAR, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "CHAR-NATIONAL",			"cob_intr_char_national",
-					CB_INTR_CHAR_NATIONAL, FUNCTION_NAME, 0,
-					1, 1,
+					CB_INTR_CHAR_NATIONAL, FUNCTION_NAME,
+					CB_FEATURE_NOT_IMPLEMENTED,	1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "COMBINED-DATETIME",		"cob_intr_combined_datetime",
-					CB_INTR_COMBINED_DATETIME, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_COMBINED_DATETIME, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "CONCATENATE",			"cob_intr_concatenate",
-					CB_INTR_CONCATENATE, CONCATENATE_FUNC, 1,
-					-1, 1,
+					CB_INTR_CONCATENATE, CONCATENATE_FUNC,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "COS",				"cob_intr_cos",
-					CB_INTR_COS, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_COS, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "CURRENCY-SYMBOL",			"cob_intr_currency_symbol",
-					CB_INTR_CURRENCY_SYMBOL, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_CURRENCY_SYMBOL, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "CURRENT-DATE",			"cob_intr_current_date",
-					CB_INTR_CURRENT_DATE, CURRENT_DATE_FUNC, 1,
-					0, 0,
+					CB_INTR_CURRENT_DATE, CURRENT_DATE_FUNC,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "DATE-OF-INTEGER",			"cob_intr_date_of_integer",
-					CB_INTR_DATE_OF_INTEGER, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_DATE_OF_INTEGER, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "DATE-TO-YYYYMMDD",			"cob_intr_date_to_yyyymmdd",
-					CB_INTR_DATE_TO_YYYYMMDD, FUNCTION_NAME, 1,
-					3, 1,
+					CB_INTR_DATE_TO_YYYYMMDD, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	3, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "DAY-OF-INTEGER",			"cob_intr_day_of_integer",
-					CB_INTR_DAY_OF_INTEGER, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_DAY_OF_INTEGER, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "DAY-TO-YYYYDDD",			"cob_intr_day_to_yyyyddd",
-					CB_INTR_DAY_TO_YYYYDDD, FUNCTION_NAME, 1,
-					3, 1,
+					CB_INTR_DAY_TO_YYYYDDD, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	3, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "DISPLAY-OF",			"cob_intr_display_of",
-					CB_INTR_DISPLAY_OF, DISPLAY_OF_FUNC, 0,
-					2, 1,
+					CB_INTR_DISPLAY_OF, DISPLAY_OF_FUNC,
+					CB_FEATURE_NOT_IMPLEMENTED,	2, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "E",				"cob_intr_e",
-					CB_INTR_E, FUNCTION_NAME, 1,
+					CB_INTR_E, FUNCTION_NAME, CB_FEATURE_ACTIVE,
 					0, 0,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "EXCEPTION-FILE",			"cob_intr_exception_file",
-					CB_INTR_EXCEPTION_FILE, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_EXCEPTION_FILE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "EXCEPTION-FILE-N",			"cob_intr_exception_file_n",
-					CB_INTR_EXCEPTION_FILE_N, FUNCTION_NAME, 0,
-					0, 0,
+					CB_INTR_EXCEPTION_FILE_N, FUNCTION_NAME,
+					CB_FEATURE_NOT_IMPLEMENTED,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "EXCEPTION-LOCATION",		"cob_intr_exception_location",
-					CB_INTR_EXCEPTION_LOCATION, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_EXCEPTION_LOCATION, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "EXCEPTION-LOCATION-N",		"cob_intr_exception_location_n",
-					CB_INTR_EXCEPTION_LOCATION_N, FUNCTION_NAME, 0,
-					0, 0,
+					CB_INTR_EXCEPTION_LOCATION_N, FUNCTION_NAME,
+					CB_FEATURE_NOT_IMPLEMENTED,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "EXCEPTION-STATEMENT",		"cob_intr_exception_statement",
-					CB_INTR_EXCEPTION_STATEMENT, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_EXCEPTION_STATEMENT, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "EXCEPTION-STATUS",			"cob_intr_exception_status",
-					CB_INTR_EXCEPTION_STATUS, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_EXCEPTION_STATUS, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "EXP",				"cob_intr_exp",
-					CB_INTR_EXP, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_EXP, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "EXP10",				"cob_intr_exp10",
-					CB_INTR_EXP10, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_EXP10, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "FACTORIAL",			"cob_intr_factorial",
-					CB_INTR_FACTORIAL, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_FACTORIAL, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "FORMATTED-CURRENT-DATE",		"cob_intr_formatted_current_date",
-					CB_INTR_FORMATTED_CURRENT_DATE, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_FORMATTED_CURRENT_DATE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "FORMATTED-DATE",			"cob_intr_formatted_date",
-					CB_INTR_FORMATTED_DATE, FORMATTED_DATE_FUNC, 1,
-					2, 2,
+					CB_INTR_FORMATTED_DATE, FORMATTED_DATE_FUNC,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "FORMATTED-DATETIME",		"cob_intr_formatted_datetime",
-					CB_INTR_FORMATTED_DATETIME, FORMATTED_DATETIME_FUNC, 1,
-    					/* including implicit SYSTEM-OFFSET arg */
-    					5, 4,
+					CB_INTR_FORMATTED_DATETIME, FORMATTED_DATETIME_FUNC,
+								/* including implicit SYSTEM-OFFSET arg */
+					CB_FEATURE_ACTIVE,	  5, 4,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "FORMATTED-TIME",			"cob_intr_formatted_time",
-					CB_INTR_FORMATTED_TIME, FORMATTED_TIME_FUNC, 1,
-    					/* including implicit SYSTEM-OFFSET arg */
-				        4, 3,
+					CB_INTR_FORMATTED_TIME, FORMATTED_TIME_FUNC,
+    							/* including implicit SYSTEM-OFFSET arg */
+					CB_FEATURE_ACTIVE,	4, 3,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "FRACTION-PART",			"cob_intr_fraction_part",
-					CB_INTR_FRACTION_PART, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_FRACTION_PART, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "HIGHEST-ALGEBRAIC",		"cob_intr_highest_algebraic",
-					CB_INTR_HIGHEST_ALGEBRAIC, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_HIGHEST_ALGEBRAIC, FUNCTION_NAME,
+						CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "INTEGER",				"cob_intr_integer",
-					CB_INTR_INTEGER, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_INTEGER, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "INTEGER-OF-BOOLEAN",		"cob_intr_integer_of_boolean",
-					CB_INTR_INTEGER_OF_BOOLEAN, FUNCTION_NAME, 0,
-					1, 1,
+					CB_INTR_INTEGER_OF_BOOLEAN, FUNCTION_NAME,
+					CB_FEATURE_NOT_IMPLEMENTED,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "INTEGER-OF-DATE",			"cob_intr_integer_of_date",
-					CB_INTR_INTEGER_OF_DATE, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_INTEGER_OF_DATE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "INTEGER-OF-DAY",			"cob_intr_integer_of_day",
-					CB_INTR_INTEGER_OF_DAY, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_INTEGER_OF_DAY, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "INTEGER-OF-FORMATTED-DATE",	"cob_intr_integer_of_formatted_date",
-					CB_INTR_INTEGER_OF_FORMATTED_DATE, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_INTEGER_OF_FORMATTED_DATE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "INTEGER-PART",			"cob_intr_integer_part",
-					CB_INTR_INTEGER_PART, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_INTEGER_PART, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LENGTH",				"cob_intr_length",
-					CB_INTR_LENGTH, LENGTH_FUNC, 1,
-					1, 1,
+					CB_INTR_LENGTH, LENGTH_FUNC,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LENGTH-AN",			"cob_intr_byte_length",
-					CB_INTR_BYTE_LENGTH, LENGTH_FUNC, 1,
-					1, 1,
+					CB_INTR_BYTE_LENGTH, LENGTH_FUNC,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LOCALE-COMPARE",			"cob_intr_locale_compare",
-					CB_INTR_LOCALE_COMPARE, FUNCTION_NAME, 1,
-					3, 2,
+					CB_INTR_LOCALE_COMPARE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	3, 2,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "LOCALE-DATE",			"cob_intr_locale_date",
-					CB_INTR_LOCALE_DATE, LOCALE_DATE_FUNC, 1,
-					2, 1,
+					CB_INTR_LOCALE_DATE, LOCALE_DATE_FUNC,
+					CB_FEATURE_ACTIVE,	2, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "LOCALE-TIME",			"cob_intr_locale_time",
-					CB_INTR_LOCALE_TIME, LOCALE_TIME_FUNC, 1,
-					2, 1,
+					CB_INTR_LOCALE_TIME, LOCALE_TIME_FUNC,
+					CB_FEATURE_ACTIVE,	2, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "LOCALE-TIME-FROM-SECONDS",		"cob_intr_lcl_time_from_secs",
-					CB_INTR_LOCALE_TIME_FROM_SECS, LOCALE_TIME_FROM_FUNC, 1,
-					2, 1,
+					CB_INTR_LOCALE_TIME_FROM_SECS, LOCALE_TIME_FROM_FUNC,
+					CB_FEATURE_ACTIVE,	2, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "LOG",				"cob_intr_log",
-					CB_INTR_LOG, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_LOG, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LOG10",				"cob_intr_log10",
-					CB_INTR_LOG10, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_LOG10, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "LOWER-CASE",			"cob_intr_lower_case",
-					CB_INTR_LOWER_CASE, LOWER_CASE_FUNC, 1,
-					1, 1,
+					CB_INTR_LOWER_CASE, LOWER_CASE_FUNC,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "LOWEST-ALGEBRAIC",			"cob_intr_lowest_algebraic",
-					CB_INTR_LOWEST_ALGEBRAIC, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_LOWEST_ALGEBRAIC, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MAX",				"cob_intr_max",
-					CB_INTR_MAX, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_MAX, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MEAN",				"cob_intr_mean",
-					CB_INTR_MEAN, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_MEAN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MEDIAN",				"cob_intr_median",
-					CB_INTR_MEDIAN, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_MEDIAN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MIDRANGE",				"cob_intr_midrange",
-					CB_INTR_MIDRANGE, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_MIDRANGE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MIN",				"cob_intr_min",
-					CB_INTR_MIN, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_MIN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MOD",				"cob_intr_mod",
-					CB_INTR_MOD, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_MOD, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MODULE-CALLER-ID",			"cob_intr_module_caller_id",
-					CB_INTR_MODULE_CALLER_ID, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_CALLER_ID, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "MODULE-DATE",			"cob_intr_module_date",
-					CB_INTR_MODULE_DATE, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_DATE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MODULE-FORMATTED-DATE",		"cob_intr_module_formatted_date",
-					CB_INTR_MODULE_FORMATTED_DATE, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_FORMATTED_DATE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "MODULE-ID",			"cob_intr_module_id",
-					CB_INTR_MODULE_ID, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_ID, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "MODULE-PATH",			"cob_intr_module_path",
-					CB_INTR_MODULE_PATH, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_PATH, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "MODULE-SOURCE",			"cob_intr_module_source",
-					CB_INTR_MODULE_SOURCE, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_SOURCE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "MODULE-TIME",			"cob_intr_module_time",
-					CB_INTR_MODULE_TIME, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MODULE_TIME, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "MONETARY-DECIMAL-POINT",		"cob_intr_mon_decimal_point",
-					CB_INTR_MON_DECIMAL_POINT, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MON_DECIMAL_POINT, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "MONETARY-THOUSANDS-SEPARATOR",	"cob_intr_mon_thousands_sep",
-					CB_INTR_MON_THOUSANDS_SEP, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_MON_THOUSANDS_SEP, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "NATIONAL-OF",			"cob_intr_national_of",
@@ -2362,98 +2466,98 @@ static const struct cb_intrinsic_table function_list[] = {
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "NUMERIC-DECIMAL-POINT",		"cob_intr_num_decimal_point",
-					CB_INTR_NUM_DECIMAL_POINT, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_NUM_DECIMAL_POINT, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "NUMERIC-THOUSANDS-SEPARATOR",	"cob_intr_num_thousands_sep",
-					CB_INTR_NUM_THOUSANDS_SEP, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_NUM_THOUSANDS_SEP, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "NUMVAL",				"cob_intr_numval",
-					CB_INTR_NUMVAL, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_NUMVAL, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "NUMVAL-C",				"cob_intr_numval_c",
-					CB_INTR_NUMVAL_C, NUMVALC_FUNC, 1,
-					2, 2,
+					CB_INTR_NUMVAL_C, NUMVALC_FUNC,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "NUMVAL-F",				"cob_intr_numval_f",
-					CB_INTR_NUMVAL_F, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_NUMVAL_F, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ORD",				"cob_intr_ord",
-					CB_INTR_ORD, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_ORD, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ORD-MAX",				"cob_intr_ord_max",
-					CB_INTR_ORD_MAX, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_ORD_MAX, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "ORD-MIN",				"cob_intr_ord_min",
-					CB_INTR_ORD_MIN, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_ORD_MIN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "PI",				"cob_intr_pi",
-					CB_INTR_PI, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_PI, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "PRESENT-VALUE",			"cob_intr_present_value",
-					CB_INTR_PRESENT_VALUE, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_PRESENT_VALUE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "RANDOM",				"cob_intr_random",
-					CB_INTR_RANDOM, FUNCTION_NAME, 1,
-					-1, 0,
+					CB_INTR_RANDOM, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 0,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "RANGE",				"cob_intr_range",
-					CB_INTR_RANGE, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_RANGE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "REM",				"cob_intr_rem",
-					CB_INTR_REM, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_REM, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "REVERSE",				"cob_intr_reverse",
-					CB_INTR_REVERSE, REVERSE_FUNC, 1,
-					1, 1,
+					CB_INTR_REVERSE, REVERSE_FUNC,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "SECONDS-FROM-FORMATTED-TIME",	"cob_intr_seconds_from_formatted_time",
-					CB_INTR_SECONDS_FROM_FORMATTED_TIME, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_SECONDS_FROM_FORMATTED_TIME, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "SECONDS-PAST-MIDNIGHT",		"cob_intr_seconds_past_midnight",
-					CB_INTR_SECONDS_PAST_MIDNIGHT, FUNCTION_NAME, 1,
-					0, 0,
+					CB_INTR_SECONDS_PAST_MIDNIGHT, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "SIGN",				"cob_intr_sign",
-					CB_INTR_SIGN, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_SIGN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "SIN",				"cob_intr_sin",
-					CB_INTR_SIN, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_SIN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "SQRT",				"cob_intr_sqrt",
-					CB_INTR_SQRT, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_SQRT, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "STANDARD-COMPARE",			"cob_intr_standard_compare",
@@ -2462,88 +2566,88 @@ static const struct cb_intrinsic_table function_list[] = {
 					CB_CATEGORY_ALPHANUMERIC, 0
   },
   { "STANDARD-DEVIATION",		"cob_intr_standard_deviation",
-					CB_INTR_STANDARD_DEVIATION, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_STANDARD_DEVIATION, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "STORED-CHAR-LENGTH",		"cob_intr_stored_char_length",
-					CB_INTR_STORED_CHAR_LENGTH, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_STORED_CHAR_LENGTH, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "SUBSTITUTE",			"cob_intr_substitute",
-					CB_INTR_SUBSTITUTE, SUBSTITUTE_FUNC, 1,
-					-1, 3,
+					CB_INTR_SUBSTITUTE, SUBSTITUTE_FUNC,
+					CB_FEATURE_ACTIVE,	-1, 3,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "SUBSTITUTE-CASE",			"cob_intr_substitute_case",
-					CB_INTR_SUBSTITUTE_CASE, SUBSTITUTE_CASE_FUNC, 1,
-					-1, 3,
+					CB_INTR_SUBSTITUTE_CASE, SUBSTITUTE_CASE_FUNC,
+					CB_FEATURE_ACTIVE,	-1, 3,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "SUM",				"cob_intr_sum",
-					CB_INTR_SUM, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_SUM, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TAN",				"cob_intr_tan",
-					CB_INTR_TAN, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_TAN, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TEST-DATE-YYYYMMDD",		"cob_intr_test_date_yyyymmdd",
-					CB_INTR_TEST_DATE_YYYYMMDD, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_TEST_DATE_YYYYMMDD, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TEST-DAY-YYYYDDD",			"cob_intr_test_day_yyyyddd",
-					CB_INTR_TEST_DAY_YYYYDDD, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_TEST_DAY_YYYYDDD, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TEST-FORMATTED-DATETIME",		"cob_intr_test_formatted_datetime",
-					CB_INTR_TEST_FORMATTED_DATETIME, FUNCTION_NAME, 1,
-					2, 2,
+					CB_INTR_TEST_FORMATTED_DATETIME, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TEST-NUMVAL",			"cob_intr_test_numval",
-					CB_INTR_TEST_NUMVAL, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_TEST_NUMVAL, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TEST-NUMVAL-C",			"cob_intr_test_numval_c",
-					CB_INTR_TEST_NUMVAL_C, NUMVALC_FUNC, 1,
-					2, 2,
+					CB_INTR_TEST_NUMVAL_C, NUMVALC_FUNC,
+					CB_FEATURE_ACTIVE,	2, 2,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TEST-NUMVAL-F",			"cob_intr_test_numval_f",
-					CB_INTR_TEST_NUMVAL_F, FUNCTION_NAME, 1,
-					1, 1,
+					CB_INTR_TEST_NUMVAL_F, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "TRIM",				"cob_intr_trim",
-					CB_INTR_TRIM, TRIM_FUNC, 1,
-					2, 1,
+					CB_INTR_TRIM, TRIM_FUNC,
+					CB_FEATURE_ACTIVE,	2, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "UPPER-CASE",			"cob_intr_upper_case",
-					CB_INTR_UPPER_CASE, UPPER_CASE_FUNC, 1,
-					1, 1,
+					CB_INTR_UPPER_CASE, UPPER_CASE_FUNC,
+					CB_FEATURE_ACTIVE,	1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "VARIANCE",				"cob_intr_variance",
-					CB_INTR_VARIANCE, FUNCTION_NAME, 1,
-					-1, 1,
+					CB_INTR_VARIANCE, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	-1, 1,
 					CB_CATEGORY_NUMERIC, 0
   },
   { "WHEN-COMPILED",			"cob_intr_when_compiled",
-					CB_INTR_WHEN_COMPILED, WHEN_COMPILED_FUNC, 1,
-					0, 0,
+					CB_INTR_WHEN_COMPILED, WHEN_COMPILED_FUNC,
+					CB_FEATURE_ACTIVE,	0, 0,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
   { "YEAR-TO-YYYY",			"cob_intr_year_to_yyyy",
-					CB_INTR_YEAR_TO_YYYY, FUNCTION_NAME, 1,
-					3, 1,
+					CB_INTR_YEAR_TO_YYYY, FUNCTION_NAME,
+					CB_FEATURE_ACTIVE,	3, 1,
 					CB_CATEGORY_NUMERIC, 0
   }
 };
@@ -2716,6 +2820,8 @@ static int
 is_invalid_word (const char *word, const int size,
 		 const char *fname, const int line)
 {
+	/* FIXME: Should use the current (dialect specific) maximum word length,
+	          not the absolute maximum, check order of reading and add test case */
 	if (size > COB_MAX_WORDLEN) {
 		configuration_error (fname, line, 1,
 				     _("reserved word must have less than %d characters"),
@@ -2896,7 +3002,7 @@ get_reserved_words_with_amendments (void)
 	struct cobc_reserved		to_find;
 	struct cobc_reserved		*p;
 
-	if (!cb_specify_all_reserved) {
+	if (cb_reserved_words == NULL) {
 		/*
 		  Append the default reserved words to the amendment list as
 		  additions.
@@ -2965,6 +3071,35 @@ initialize_reserved_words_if_needed (void)
 	}
 }
 
+static void
+list_aliases (const struct cobc_reserved * const word)
+{
+	size_t	i;
+	int     alias_found = 0;
+
+	if (word->token <= 0) {
+		return;
+	}
+	
+	for (i = 0; i < num_reserved_words; ++i) {
+		if (&reserved_words[i] == word
+		    || reserved_words[i].token != word->token) {
+			continue;
+		}
+		if (!alias_found) {
+		        fputs (" (aliased with ", stdout);
+			alias_found = 1;
+		} else {
+		        fputs (", ", stdout);
+		}
+	        fputs (reserved_words[i].name, stdout);
+	}
+
+	if (alias_found) {
+		putchar (')');
+	}
+}
+
 /* Global functions */
 
 int
@@ -2991,23 +3126,14 @@ remove_context_sensitivity (const char *word, const int context)
 }
 
 cb_tree
-lookup_system_name (const char *name)
+get_system_name (const char *name)
 {
-	size_t	i;
 
-	for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
-		if (cob_strcasecmp (name, system_table[i].name) == 0) {
-			return cb_build_system_name (system_table[i].category,
-						      system_table[i].token);
-		}
-	}
-	if (cb_flag_syntax_extension) {
-		for (i = 0; i < EXT_SYSTEM_TAB_SIZE; ++i) {
-			if (cob_strcasecmp (name, ext_system_table[i].name) == 0) {
-				return cb_build_system_name (ext_system_table[i].category,
-							      ext_system_table[i].token);
-			}
-		}
+	struct system_name_struct *system_name = lookup_system_name (name, 0);
+	
+	if (system_name != NULL) {
+		return cb_build_system_name (system_name->category,
+			system_name->token);
 	}
 	return NULL;
 }
@@ -3158,12 +3284,323 @@ lookup_intrinsic (const char *name, const int checkimpl)
 	struct cb_intrinsic_table	*cbp;
 
 	cbp = bsearch (name, function_list, NUM_INTRINSICS,
-			sizeof (struct cb_intrinsic_table), intrinsic_comp);
-	if (cbp && (checkimpl || cbp->implemented)) {
+		sizeof (struct cb_intrinsic_table), intrinsic_comp);
+	if (cbp && (checkimpl || cbp->active == CB_FEATURE_ACTIVE)) {
 		return cbp;
 	}
 	return NULL;
 }
+
+static void
+set_intrinsic_mode (struct cb_intrinsic_table *cbp, enum cb_feature_mode mode)
+{
+	/* FIXME: doesn't cater for not implemented -> disabled -> active [should be not implemented again] */
+	if (cbp->active == CB_FEATURE_NOT_IMPLEMENTED && mode == CB_FEATURE_ACTIVE) {
+		return;
+	}
+	cbp->active = mode;
+}
+
+static void
+change_intrinsic (const char *name, const char *fname, const int line, enum cb_feature_mode mode)
+{
+	struct cb_intrinsic_table *cbp;
+	size_t		i;
+	
+	/* Group "ALL" intrinsics */
+	if (cob_strcasecmp (name, "DIALECT-ALL") == 0) {
+		for (i = 0; i < NUM_INTRINSICS; ++i) {
+			set_intrinsic_mode (&function_list[i], mode);
+		}
+		return;
+	}
+
+	cbp = lookup_intrinsic (name, 1);
+	if (!cbp) {
+		if (mode == CB_FEATURE_ACTIVE) {
+			configuration_error (fname, line, 1, _("intrinsic function %s is unknown"), name);
+		}
+		return;
+	}
+	set_intrinsic_mode (cbp, mode);
+}
+
+void
+activate_intrinsic (const char *name, const char *fname, const int line)
+{
+	change_intrinsic (name, fname, line, CB_FEATURE_ACTIVE);
+}
+
+void
+deactivate_intrinsic (const char *name, const char *fname, const int line)
+{
+	change_intrinsic (name, fname, line, CB_FEATURE_DISABLED);
+}
+
+void
+cb_list_intrinsics (void)
+{
+	const char	*t;
+	char	argnum [20];
+	size_t		i;
+
+	putchar ('\n');
+	printf ("%-32s%-16s%s\n",
+		_("Intrinsic Function"), _("Implemented"), _("Parameters"));
+	for (i = 0; i < NUM_INTRINSICS; ++i) {
+		switch (function_list[i].active) {
+		case CB_FEATURE_ACTIVE:
+			t = _("Yes");
+			break;
+		case CB_FEATURE_NOT_IMPLEMENTED:
+			t = _("No");
+			break;
+		default: /* CB_FEATURE_DISABLED */
+			continue;
+		}
+		if (function_list[i].args == -1) {
+			snprintf (argnum, sizeof (argnum) - 1, "%s", _("Unlimited"));
+		} else if (function_list[i].args != function_list[i].min_args) {
+			snprintf (argnum, sizeof (argnum) - 1, "%d - %d",
+				(int)function_list[i].min_args, (int)function_list[i].args);
+		} else {
+			snprintf (argnum, sizeof (argnum) - 1, "%d", (int)function_list[i].args);
+		}
+		printf ("%-32s%-16s%s\n", function_list[i].name, t, argnum);
+	}
+}
+
+static struct register_struct *
+lookup_register (const char *name, const int checkimpl)
+{
+	size_t		i;
+
+	for (i = 0; i < NUM_REGISTERS; ++i) {
+		if (cob_strcasecmp (register_list[i].name, name) == 0) {
+			if (checkimpl || register_list[i].active != CB_FEATURE_DISABLED) {
+				return &register_list[i];
+			}
+			break;
+		}
+	}
+	return NULL;
+}
+
+/* add an entry to the register list, currently the definition is ignored,
+   TODO: check definition and add a new special register accordingly */
+
+void
+add_register (const char *name_and_definition, const char *fname, const int line)
+{
+	const char *name = name_and_definition;
+	char *definition;
+
+	struct register_struct *special_register;
+
+	/* note: we don't break at space as this would kill "ADDRESS OF"
+	         and "PIC 9(05) USAGE ..." */
+	definition = strpbrk (name_and_definition, "\t:=");
+	if (definition) {
+		*definition++ = 0;
+		/* TODO: parse definition here (and start from first non-space) */
+	}
+
+	special_register = lookup_register (name, 1);
+	if (!special_register) {
+		if (!definition || *definition == 0) {
+			configuration_error (fname, line, 1,
+				_("special register %s is unknown, needs a defintion"), name);
+			return;
+		}
+		/* TODO: add register here */
+		configuration_error (fname, line, 1, _("special register %s is unknown"), name);
+		return;
+	}
+	special_register->active = CB_FEATURE_ACTIVE;
+}
+
+void
+remove_register (const char *name, const char *fname, const int line)
+{
+	struct register_struct *special_register = lookup_register (name, 1);
+
+	COB_UNUSED (fname);
+	COB_UNUSED (line);
+
+	if (!special_register) {
+		return;
+	}
+	/* TODO: when user-defined registers are possible: do memory cleanup here */
+	special_register->active = CB_FEATURE_DISABLED;
+}
+
+const char *
+cb_register_list_get_first (const char *definition)
+{
+	current_register = 0;
+	return cb_register_list_get_next (definition);
+}
+
+const char *
+cb_register_list_get_next (const char *definition)
+{
+	for (; current_register < NUM_REGISTERS; ++current_register) {
+		if (register_list[current_register].active == CB_FEATURE_ACTIVE) {
+			definition = register_list[current_register].definition;
+			return register_list[current_register++].name;
+		}
+	}
+	return NULL;
+}
+
+const char *
+cb_get_register_definition (const char *name)
+{
+	struct register_struct *special_register = lookup_register (name, 0);
+
+	if (!special_register) {
+		return NULL;
+	}
+	return special_register->definition;
+}
+
+void
+cb_list_registers (void)
+{
+	size_t		i;
+	const char	*name, *t;
+
+	/* TODO: implement creation from user-specified list (currently only enable/disable)
+	   Note: will still be able to be referenced if not implemented, 
+	         but not set/read by libcob [still helps compilation but should raise a warning]
+	*/
+
+	putchar ('\n');
+	printf ("%-32s%-16s%s\n",
+		_("Internal registers"), _("Implemented"), _("Definition"));
+	for (i = 0; i < NUM_REGISTERS; ++i) {
+		switch (register_list[i].active) {
+		case CB_FEATURE_ACTIVE:
+			t = _("Yes");
+			break;
+		case CB_FEATURE_NOT_IMPLEMENTED:
+			t = _("No");
+			break;
+		default: /* CB_FEATURE_DISABLED */
+			continue;
+		}
+		if (strcmp (register_list[i].name, "LENGTH OF") != 0) {
+			name = register_list[i].name;
+		} else {
+			name = _("'LENGTH OF' phrase");
+		}
+		printf ("%-32s%-16s%s\n", name, t, register_list[i].definition);
+	}
+}
+
+static struct system_name_struct *
+lookup_system_name (const char *name, const int checkimpl)
+{
+	size_t		i;
+
+	for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
+		if (cob_strcasecmp (system_name_table[i].name, name) == 0) {
+			if (checkimpl || system_name_table[i].active != CB_FEATURE_DISABLED) {
+				return &system_name_table[i];
+			}
+			break;
+		}
+	}
+	return NULL;
+}
+
+
+
+static void
+set_system_name_mode (struct system_name_struct *system_name, enum cb_feature_mode mode)
+{
+	/* FIXME: doesn't cater for not implemented -> disabled -> active [should be not implemented again] */
+	if (system_name->active == CB_FEATURE_NOT_IMPLEMENTED && mode == CB_FEATURE_ACTIVE) {
+		return;
+	}
+	system_name->active = mode;
+}
+
+static void
+change_system_name (const char *name, const char *fname, const int line, enum cb_feature_mode mode)
+{
+	struct system_name_struct *system_name;
+	size_t		i;
+
+
+	/* some predefined groups first */
+	if (cob_strcasecmp (name, "DIALECT-ALL") == 0) {
+		for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
+			set_system_name_mode (&system_name_table[i], mode);
+		}
+		return;
+	} else if (cob_strcasecmp (name, "DIALECT-ALL-DEVICES") == 0) {
+		for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
+			if (system_name_table[i].category == CB_DEVICE_NAME) {
+				set_system_name_mode (&system_name_table[i], mode);
+			}
+		}
+		return;
+	} else if (cob_strcasecmp (name, "DIALECT-ALL-SWITCHES") == 0) {
+		for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
+			if (system_name_table[i].category == CB_SWITCH_NAME) {
+				set_system_name_mode (&system_name_table[i], mode);
+			}
+		}
+		return;
+	} else if (cob_strcasecmp (name, "DIALECT-ALL-FEATURES") == 0) {
+		for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
+			if (system_name_table[i].category == CB_FEATURE_NAME) {
+				set_system_name_mode (&system_name_table[i], mode);
+			}
+		}
+		return;
+	} 
+
+	system_name = lookup_system_name (name, 1);
+	if (!system_name) {
+		if (mode == CB_FEATURE_ACTIVE) {
+			configuration_error (fname, line, 1, _("system name %s is unknown"), name);
+		}
+		return;
+	}
+	set_system_name_mode (system_name, mode);
+}
+
+void
+activate_system_name (const char *name, const char *fname, const int line)
+{
+	change_system_name (name, fname, line, CB_FEATURE_ACTIVE);
+}
+
+void
+deactivate_system_name (const char *name, const char *fname, const int line)
+{
+	change_system_name (name, fname, line, CB_FEATURE_DISABLED);
+}
+
+void
+cb_list_system_names (void)
+{
+	const char	*feature;
+	size_t		i;
+
+	putchar ('\n');
+	puts (_("System names"));
+	for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
+		if (system_name_table[i].active == CB_FEATURE_DISABLED) {
+			continue;
+		}
+		feature = res_get_feature (system_name_table[i].category);
+		printf ("%-32s%s\n", system_name_table[i].name, feature);
+	}
+}
+
 
 void
 cb_list_reserved (void)
@@ -3189,9 +3626,13 @@ cb_list_reserved (void)
 				p = _("No");
 			}
 		}
-		printf ("%-32s%s\n", reserved_words[i].name, p);
+		printf ("%-32s%s", reserved_words[i].name, p);
+		list_aliases (&reserved_words[i]);
+		putchar ('\n');
 	}
 	putchar ('\n');
+	/* FIXME: handle these as normal context sensitive words by
+	          checking in scanner.l if these are reserved */
 	puts (_("Extra (obsolete) context sensitive words"));
 	puts ("AUTHOR");
 	puts ("DATE-COMPILED");
@@ -3201,61 +3642,7 @@ cb_list_reserved (void)
 	puts ("REMARKS");
 	puts ("SECURITY");
 	putchar ('\n');
-	printf ("%-32s%s\n", _("Extra internal registers"), _("Definition"));
-	printf ("%-32s%s\n", "RETURN-CODE", "USAGE BINARY-LONG");
-	printf ("%-32s%s\n", "SORT-RETURN", "USAGE BINARY-LONG");
-	printf ("%-32s%s\n", "NUMBER-OF-CALL-PARAMETERS", "USAGE BINARY-LONG");
-	printf ("%-32s%s\n", "COB-CRT-STATUS", "PIC 9(4)");
-	printf ("%-32s%s\n", "TALLY", "GLOBAL PIC 9(5) USAGE BINARY VALUE ZERO");
-	printf ("%-32s%s\n", _("'LENGTH OF' phrase"), "USAGE BINARY-LONG");
-}
-
-void
-cb_list_intrinsics (void)
-{
-	const char	*t;
-	char	argnum [20];
-	size_t		i;
-
-	putchar ('\n');
-	printf ("%-32s%-16s%s\n",
-		_("Intrinsic Function"), _("Implemented"), _("Parameters"));
-	for (i = 0; i < NUM_INTRINSICS; ++i) {
-		if (function_list[i].implemented) {
-			t = _("Yes");
-		} else {
-			t = _("No");
-		}
-		if (function_list[i].args == -1) {
-			snprintf (argnum, sizeof (argnum) - 1, "%s", _("Unlimited"));
-		} else if (function_list[i].args != function_list[i].min_args) {
-			snprintf (argnum, sizeof (argnum) - 1, "%d - %d",
-				(int)function_list[i].min_args, (int)function_list[i].args);
-		} else {
-			snprintf (argnum, sizeof (argnum) - 1, "%d", (int)function_list[i].args);
-		}
-		printf ("%-32s%-16s%s\n", function_list[i].name, t, argnum);
-	}
-}
-
-void
-cb_list_mnemonics (void)
-{
-	const char	*feature;
-	size_t		i;
-
-	putchar ('\n');
-	puts (_("Mnemonic names"));
-	for (i = 0; i < SYSTEM_TAB_SIZE; ++i) {
-		feature = res_get_feature (system_table[i].category);
-		printf ("%-32s%s\n", system_table[i].name, feature);
-	}
-	putchar ('\n');
-	puts (_("Extended mnemonic names (with -fsyntax-extension)"));
-	for (i = 0; i < EXT_SYSTEM_TAB_SIZE; ++i) {
-		feature = res_get_feature (ext_system_table[i].category);
-		printf ("%-32s%s\n", ext_system_table[i].name, feature);
-	}
+	cb_list_registers ();
 }
 
 #ifndef	HAVE_DESIGNATED_INITS

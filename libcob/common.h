@@ -348,7 +348,12 @@ _MSC_VER == 1910 (Visual Studio 2017, VS15) since OS-Version 7  / 2012 R2
 #endif
 #endif
 
-#endif
+#endif /* _MSC_VER */
+
+#ifdef	__MINGW32__	/* needed by older versions */
+#define strncasecmp		_strnicmp
+#define strcasecmp		_stricmp
+#endif /* __MINGW32__ */
 
 #ifdef __BORLANDC__
 #include <io.h>
@@ -361,7 +366,7 @@ _MSC_VER == 1910 (Visual Studio 2017, VS15) since OS-Version 7  / 2012 R2
 #define timezone	_timezone
 #define tzname		_tzname
 #define daylight	_daylight
-#endif
+#endif /* __BORLANDC__ */
 
 #include <setjmp.h>
 
@@ -590,7 +595,13 @@ _MSC_VER == 1910 (Visual Studio 2017, VS15) since OS-Version 7  / 2012 R2
 #define	COB_STACK_SIZE		255
 
 /* Maximum size of file records */
-#define	MAX_FD_RECORD		65535
+/* TODO: add compiler configuration for limiting this */
+#define	MAX_FD_RECORD		64 * 1024 * 1024
+
+/* Maximum size of file records (IDX) */
+/* TODO: define depending on used ISAM */
+/* TODO: add compiler configuration for limiting this */
+#define	MAX_FD_RECORD_IDX	65535
 
 /* Maximum number of field digits */
 #define	COB_MAX_DIGITS		38
@@ -599,7 +610,8 @@ _MSC_VER == 1910 (Visual Studio 2017, VS15) since OS-Version 7  / 2012 R2
 #define	COB_MAX_BINARY		39
 
 /* Maximum bytes in a single/group field,
-  which doesn't contain UNBOUNDED items */
+   which doesn't contain UNBOUNDED items */
+/* TODO: add compiler configuration for limiting this */
 #define	COB_MAX_FIELD_SIZE	268435456
 
 /* Maximum bytes in an unbounded table entry
@@ -610,10 +622,10 @@ _MSC_VER == 1910 (Visual Studio 2017, VS15) since OS-Version 7  / 2012 R2
 #define	COB_MAX_DEC_STRUCT	32
 
 /* Maximum length of COBOL words */
-#define COB_MAX_WORDLEN		61
+#define	COB_MAX_WORDLEN		61
 
 /* Memory size for sorting */
-#define COB_SORT_MEMORY		128 * 1024 * 1024
+#define	COB_SORT_MEMORY		128 * 1024 * 1024
 #define	COB_SORT_CHUNK		256 * 1024
 
 /* Program return types */
@@ -1166,7 +1178,7 @@ typedef struct {
 
 /*NOTE: *** Add new fields to end  ***
  *       cob_file is now allocated by cob_file_malloc in common.c
- *       so as long as you add new fields to the end there should be no 
+ *       so as long as you add new fields to the end there should be no
  *       need to change COB_FILE_VERSION
  */
 typedef struct {
@@ -1376,6 +1388,7 @@ COB_EXPIMP void	*cob_fast_malloc		(const size_t) COB_A_MALLOC;
 COB_EXPIMP void	*cob_cache_malloc		(const size_t) COB_A_MALLOC;
 COB_EXPIMP void	*cob_cache_realloc		(void *, const size_t);
 COB_EXPIMP void	cob_cache_free			(void *);
+
 COB_EXPIMP void	cob_set_locale			(cob_field *, const int);
 
 COB_EXPIMP char *cob_expand_env_string(char *);
@@ -1478,18 +1491,18 @@ COB_EXPIMP void			cob_reset_trace		(void);
 /* Datetime structure */
 struct cob_time
 {
-	int	year;
-	int	month; /* 1 = Jan ... 12 = Dec */
-	int	day_of_month; /* 1 ... 31 */
-	int	day_of_week; /* 1 = Monday ... 7 = Sunday */
-	int day_of_year; /* -1 on _WIN32! */
-	int	hour;
-	int	minute;
-	int	second;
-	int	nanosecond;
+	int	year;			/* Year         [1900-9999] */
+	int	month;			/* Month        [1-12] 1 = Jan ... 12 = Dec */
+	int	day_of_month;	/* Day          [1-31] */
+	int	day_of_week;	/* Day of week  [1-7] 1 = Monday ... 7 = Sunday */
+	int day_of_year;	/* Days in year [1-366] -1 on _WIN32! */
+	int	hour;			/* Hours        [0-23] */
+	int	minute;			/* Minutes      [0-59] */
+	int	second;			/* Seconds      [0-60] (1 leap second) */
+	int	nanosecond;		/* Nanoseconds */
 	int	offset_known;
-	int	utc_offset; /* in minutes */
-	int is_daylight_saving_time;
+	int	utc_offset;		/* Minutes east of UTC */
+	int is_daylight_saving_time;	/* DST [-1/0/1] */
 };
 
 COB_EXPIMP struct cob_time cob_get_current_date_and_time	(void);
@@ -1734,10 +1747,10 @@ COB_EXPIMP void cob_accept	(cob_field *);
 /*******************************/
 /* Functions in fileio.c */
 
-COB_EXPIMP void	cob_file_external_addr (const char *, 
-				 cob_file **, cob_file_key **, 
+COB_EXPIMP void	cob_file_external_addr (const char *,
+				 cob_file **, cob_file_key **,
 				 const int nkeys, const int linage);
-COB_EXPIMP void	cob_file_malloc (cob_file **, cob_file_key **, 
+COB_EXPIMP void	cob_file_malloc (cob_file **, cob_file_key **,
 				 const int nkeys, const int linage);
 COB_EXPIMP void	cob_file_free   (cob_file **, cob_file_key **);
 

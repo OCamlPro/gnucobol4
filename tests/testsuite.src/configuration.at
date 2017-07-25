@@ -1,18 +1,18 @@
-## Copyright (C) 2014-2016 Free Software Foundation, Inc.
+## Copyright (C) 2014-2017 Free Software Foundation, Inc.
 ## Written by Simon Sobisch
-## 
+##
 ## This file is part of GnuCOBOL.
-## 
+##
 ## The GnuCOBOL compiler is free software: you can redistribute it
 ## and/or modify it under the terms of the GNU General Public License
 ## as published by the Free Software Foundation, either version 3 of the
 ## License, or (at your option) any later version.
-## 
+##
 ## GnuCOBOL is distributed in the hope that it will be useful,
 ## but WITHOUT ANY WARRANTY; without even the implied warranty of
 ## MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 ## GNU General Public License for more details.
-## 
+##
 ## You should have received a copy of the GNU General Public License
 ## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -65,21 +65,33 @@ AT_CHECK([$COMPILE_ONLY -std=cobol2002 prog.cob], [1], [],
 AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [1], [],
 [prog.cob: 4: error: AUTHOR does not conform to COBOL 2014
 ])
-AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [],
+AT_CHECK([$COMPILE_ONLY -std=xopen prog.cob], [0], [],
+[prog.cob: 4: warning: AUTHOR used
+])
+AT_CHECK([$COMPILE_ONLY -std=acu-strict prog.cob], [0], [],
 [prog.cob: 4: warning: AUTHOR is obsolete in ACUCOBOL-GT
 ])
-AT_CHECK([$COMPILE_ONLY -std=bs2000 prog.cob], [0], [],
+AT_CHECK([$COMPILE_ONLY -std=bs2000-strict prog.cob], [0], [],
 [prog.cob: 4: warning: AUTHOR is obsolete in BS2000 COBOL
 ])
-AT_CHECK([$COMPILE_ONLY -std=ibm prog.cob], [0], [],
+AT_CHECK([$COMPILE_ONLY -std=ibm-strict prog.cob], [0], [],
 [prog.cob: 4: warning: AUTHOR is obsolete in IBM COBOL
 ])
-AT_CHECK([$COMPILE_ONLY -std=mf prog.cob], [0], [],
+AT_CHECK([$COMPILE_ONLY -std=mf-strict prog.cob], [0], [],
 [prog.cob: 4: warning: AUTHOR is obsolete in Micro Focus COBOL
 ])
-AT_CHECK([$COMPILE_ONLY -std=mvs prog.cob], [0], [],
+AT_CHECK([$COMPILE_ONLY -std=rm-strict prog.cob], [0], [],
+[prog.cob: 4: warning: AUTHOR is obsolete in RM-COBOL
+])
+AT_CHECK([$COMPILE_ONLY -std=mvs-strict prog.cob], [0], [],
 [prog.cob: 4: warning: AUTHOR is obsolete in MVS/VM COBOL
 ])
+AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -std=bs2000 prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -std=ibm prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -std=mf prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -std=rm prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -std=mvs prog.cob], [0], [], [])
 
 AT_CLEANUP
 
@@ -373,13 +385,14 @@ AT_SETUP([cobc configuration: incomplete])
 AT_KEYWORDS([configuration misc])
 
 AT_DATA([test.conf], [
-name: "Sample Conf"
+name: "Empty Conf"
 ])
 
 # check if incomplete configuration result in error
 AT_CHECK([$COMPILE_ONLY -conf=test.conf prog.cob], [1], [],
 [configuration error:
 test.conf: missing definitions:
+	no definition of 'reserved-words'
 	no definition of 'tab-width'
 	no definition of 'text-column'
 	no definition of 'pic-length'
@@ -397,18 +410,18 @@ test.conf: missing definitions:
 	no definition of 'indirect-redefines'
 	no definition of 'larger-redefines-ok'
 	no definition of 'relax-syntax-checks'
+	no definition of 'relax-level-hierarchy'
+	no definition of 'sticky-linkage'
+	no definition of 'move-ibm'
 	no definition of 'perform-osvs'
 	no definition of 'arithmetic-osvs'
-	no definition of 'move-ibm'
-	no definition of 'sticky-linkage'
-	no definition of 'relax-level-hierarchy'
+	no definition of 'constant-folding'
 	no definition of 'hostsign'
+	no definition of 'program-name-redefinition'
 	no definition of 'accept-update'
 	no definition of 'accept-auto'
 	no definition of 'console-is-crt'
-	no definition of 'program-name-redefinition'
 	no definition of 'no-echo-means-secure'
-	no definition of 'specify-all-reserved'
 	no definition of 'comment-paragraphs'
 	no definition of 'memory-size-clause'
 	no definition of 'multiple-file-tape-clause'
@@ -420,13 +433,16 @@ test.conf: missing definitions:
 	no definition of 'goto-statement-without-name'
 	no definition of 'stop-literal-statement'
 	no definition of 'stop-identifier-statement'
-	no definition of 'debugging-line'
+	no definition of 'debugging-mode'
 	no definition of 'use-for-debugging'
 	no definition of 'padding-character-clause'
 	no definition of 'next-sentence-phrase'
-	no definition of 'eject-statement'
+	no definition of 'listing-statements'
+	no definition of 'title-statement'
 	no definition of 'entry-statement'
 	no definition of 'move-noninteger-to-alphanumeric'
+	no definition of 'move-figurative-constant-to-numeric'
+	no definition of 'move-figurative-quote-to-numeric'
 	no definition of 'odo-without-to'
 	no definition of 'section-segments'
 	no definition of 'alter-statement'
@@ -435,13 +451,18 @@ test.conf: missing definitions:
 	no definition of 'hexadecimal-boolean'
 	no definition of 'national-literals'
 	no definition of 'hexadecimal-national-literals'
-	no definition of 'acucobol-literals'
+	no definition of 'acu-literals'
 	no definition of 'word-continuation'
 	no definition of 'not-exception-before-exception'
 	no definition of 'accept-display-extensions'
 	no definition of 'renames-uncommon-levels'
+	no definition of 'constant-78'
+	no definition of 'constant-01'
 	no definition of 'program-prototypes'
 	no definition of 'reference-out-of-declaratives'
+	no definition of 'numeric-value-for-edited-item'
+	no definition of 'incorrect-conf-sec-order'
+	no definition of 'define-constant-directive'
 ])
 
 AT_CLEANUP

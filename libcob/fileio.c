@@ -3154,7 +3154,7 @@ dobuild:
 					bdb_env->dbremove (bdb_env, NULL, runtime_buffer, NULL, 0);
 				} else {
 					/* FIXME: test "First READ on empty SEQUENTIAL INDEXED file ..."
-					   on OPEN-OUTPUT results with MinGW & BDB 6 in 
+					   on OPEN-OUTPUT results with MinGW & BDB 6 in
 					   BDB1565 DB->pget: method not permitted before handle's open method
 					*/
 					p->db[i]->remove (p->db[i], runtime_buffer, NULL, 0);
@@ -3172,7 +3172,7 @@ dobuild:
 		/* Open db */
 		if (!ret) {
 			/* FIXME: test "First READ on empty SEQUENTIAL INDEXED file ..."
-			   on OPEN-OUTPUT results with MinGW & BDB 6 in 
+			   on OPEN-OUTPUT results with MinGW & BDB 6 in
 			   BDB0588 At least one secondary cursor must be specified to DB->join
 			*/
 			ret = p->db[i]->open (p->db[i], NULL, runtime_buffer, NULL,
@@ -6248,7 +6248,9 @@ cob_file_sort_giving (cob_file *sort_file, const size_t varcnt, ...)
 				sort_file->file_status[1] = '0';
 			} else {
 				hp = sort_file->file;
-				*(int *)(hp->sort_return) = 16;
+				if (hp->sort_return) {
+					*(int *)(hp->sort_return) = 16;
+				}
 				sort_file->file_status[0] = '3';
 				sort_file->file_status[1] = '0';
 			}
@@ -6299,8 +6301,10 @@ cob_file_sort_init (cob_file *f, const unsigned int nkeys,
 		p->chunk_size += p->alloc_size - (p->chunk_size % p->alloc_size);
 	}
 	p->pointer = f;
-	p->sort_return = sort_return;
-	*(int *)sort_return = 0;
+	if (sort_return) {
+		p->sort_return = sort_return;
+		*(int *)sort_return = 0;
+	}
 	p->mem_base = cob_fast_malloc (sizeof (struct sort_mem_struct));
 	p->mem_base->mem_ptr = cob_fast_malloc (p->chunk_size);
 	p->mem_base->next = NULL;
@@ -6370,7 +6374,7 @@ cob_file_release (cob_file *f)
 		save_status (f, fnstatus, COB_STATUS_00_SUCCESS);
 		return;
 	}
-	if (likely(hp)) {
+	if (likely(hp && hp->sort_return)) {
 		*(int *)(hp->sort_return) = 16;
 	}
 	save_status (f, fnstatus, COB_STATUS_30_PERMANENT_ERROR);
@@ -6397,7 +6401,7 @@ cob_file_return (cob_file *f)
 		save_status (f, fnstatus, COB_STATUS_10_END_OF_FILE);
 		return;
 	}
-	if (likely(hp)) {
+	if (likely(hp && hp->sort_return)) {
 		*(int *)(hp->sort_return) = 16;
 	}
 	save_status (f, fnstatus, COB_STATUS_30_PERMANENT_ERROR);

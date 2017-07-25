@@ -49,6 +49,291 @@ size_t			cb_needs_01 = 0;
 static struct cb_field	*last_real_field = NULL;
 static int		occur_align_size = 0;
 static const int	pic_digits[] = { 2, 4, 7, 9, 12, 14, 16, 18 };
+#define CB_MAX_OPS	16
+static int			op_pos = 1, op_val_pos;
+static char			op_type [CB_MAX_OPS];
+static char			op_prec [CB_MAX_OPS];
+static cob_s64_t	op_val  [CB_MAX_OPS];
+static int			op_scale[CB_MAX_OPS];
+
+/* Is list of values really an expression */
+static int
+cb_is_expr (cb_tree ch)
+{
+	cb_tree			t, l;
+	int				num;
+
+	if (op_pos >= 0) {
+		for (num=0; num < CB_MAX_OPS; num++) {
+			op_type [num] = ' ';
+			op_prec [num] = 0;
+			op_val  [num] = 0;
+		}
+	}
+	op_pos = op_val_pos = -1;
+	num = 0;
+	for (l = ch; l; l = CB_CHAIN (l)) {
+		t = CB_VALUE (l);
+		if (t && CB_LITERAL(t)) {
+			if (++num > 1)
+				return 1;
+		}
+	}
+	return 0;
+}
+
+static void
+cb_eval_op ( void )
+{
+	cob_s64_t	lval, rval, xval;
+	int			lscale, rscale, xscale;
+
+	if (op_pos >= 0
+	 && op_val_pos > 0) {
+		lval = op_val [op_val_pos-1];
+		lscale = op_scale [op_val_pos-1];
+		rval = op_val [op_val_pos];
+		rscale = op_scale [op_val_pos];
+		op_val_pos--;
+		switch (op_type [op_pos]) {
+		case '+':
+		case '-':
+			while (lscale > rscale) {
+				rval = rval * 10;
+				rscale++;
+			}
+			while (lscale < rscale) {
+				lval = lval * 10;
+				lscale++;
+			}
+			xscale = lscale;
+			if (op_type [op_pos] == '+')
+				xval = lval + rval;
+			else
+				xval = lval - rval;
+			break;
+		case '*':
+			xscale = lscale + rscale;
+			xval = lval * rval;
+			break;
+		case '/':
+			while (rscale > 0) {
+				lval = lval * 10;
+				rscale--;
+			}
+			if (rval == 0) {
+				xscale = 0;
+				xval = 0;
+				cb_error (_("Constant expression has Divide by ZERO"));
+			} else {
+				xscale = lscale;
+				xval = lval / rval;
+			}
+			break;
+		case '^':
+			while (rscale > 0) {	/* Only whole number exponents */
+				rval = rval / 10;
+				rscale--;
+			}
+			if (rval == 0 || lval == 1) {
+				xval = 1;
+				xscale = 0;
+			} else {
+				xval = lval;
+				xscale = lscale;
+				while(--rval > 0) {
+					xscale = xscale + lscale;
+					xval = xval * lval;
+				}
+			}
+			break;
+		case '&':
+			xscale = 0;
+			xval = (lval && rval);
+			break;
+		case '|':
+			xscale = 0;
+			xval = (lval || rval);
+			break;
+		case '>':
+			xscale = 0;
+			xval = (lval > rval);
+			break;
+		case '<':
+			xscale = 0;
+			xval = (lval < rval);
+			break;
+		case '=':
+			xscale = 0;
+			xval = (lval == rval);
+			break;
+		case ']':
+			xscale = 0;
+			xval = (lval >= rval);
+			break;
+		case '[':
+			xscale = 0;
+			xval = (lval <= rval);
+			break;
+		case '~':
+			xscale = 0;
+			xval = (lval != rval);
+			break;
+		case '(':
+			cb_error (_("missing right parenthesis"));
+			op_pos--;
+			return;
+		default:
+			op_pos--;
+			return;
+		}
+		op_pos--;
+		while (xscale > 0 
+			&& (xval % 10) == 0) {
+			xscale--;
+			xval = xval / 10;
+		}
+		op_scale [op_val_pos] = xscale;
+		op_val [op_val_pos] = xval;
+	}
+}
+
+static void
+cb_push_op ( char op, int prec )
+{
+	while (op_pos >= 0
+	   &&  op_val_pos > 0
+	   &&  prec > 0
+	   &&  op_type [op_pos] != '('
+	   &&  prec <= op_prec [op_pos]) {
+		cb_eval_op ();
+	}
+	op_pos++;
+	op_type [op_pos] = op;
+	op_prec [op_pos] = prec;
+}
+
+/* Evaluate expression and store as new Numeric Literal */
+static cb_tree
+cb_evaluate_expr (cb_tree ch, int normal_prec)
+{
+	cb_tree			t, l;
+	cob_s64_t		xval;
+	int				unop = 1, xscale, k;
+	char			result[48];
+	struct cb_literal	*lp;
+
+	for (l = ch; l; l = CB_CHAIN (l)) {
+		t = CB_VALUE (l);
+		if (t && CB_LITERAL(t)) {
+			lp = CB_LITERAL(t);
+			if (CB_NUMERIC_LITERAL_P(t)) {
+				xval = atoll((const char *)lp->data);
+				xscale = lp->scale;
+				if (unop) {
+					if (lp->sign < 0)		/* Unary op, change sign */
+						xval = -xval;
+				} else {
+					if (lp->sign < 0) {		/* Treat 'sign' as binary op */
+						cb_push_op ('-', 4);
+					} else if (lp->sign > 0) {
+						cb_push_op ('+', 4);
+					}
+				}
+				while (xscale > 0 
+					&& (xval % 10) == 0) {	/* Remove decimal zeros */
+					xscale--;
+					xval = xval / 10;
+				}
+				op_val_pos++;
+				op_val [op_val_pos] = xval;
+				op_scale [op_val_pos] = xscale;
+				unop = 0;
+			} else {
+				switch (lp->data[0]) {
+				case '(':
+					cb_push_op ('(', 0);
+					unop = 1;
+					break;
+				case ')':
+					unop = 0;
+					for (k=op_pos; k >= 0 && op_type[k] != '('; k--);
+					if (op_type [k] != '(')
+						cb_error (_("missing left parenthesis"));
+					while (op_pos >= 0
+					   &&  op_val_pos > 0) {
+						if (op_type [op_pos] == '(') {
+							break;
+						}
+						cb_eval_op ();
+					}
+					if (op_pos >= 0
+					 && op_type [op_pos] == '(')
+						op_pos--;
+					break;
+				case '+':
+					cb_push_op ('+', 4);
+					unop = 1;
+					break;
+				case '-':
+					cb_push_op ('-', 4);
+					unop = 1;
+					break;
+				case '*':
+					cb_push_op ('*', normal_prec ? 6 : 4);
+					unop = 1;
+					break;
+				case '/':
+					cb_push_op ('/', normal_prec ? 6 : 4);
+					unop = 1;
+					break;
+				case '&':
+					cb_push_op ('&', normal_prec ? 8 : 4);
+					unop = 1;
+					break;
+				case '|':
+					cb_push_op ('|', normal_prec ? 8 : 4);
+					unop = 1;
+					break;
+				case '^':
+					cb_push_op ('^', normal_prec ? 7 : 4);
+					unop = 1;
+					break;
+				default:
+					cb_error (_("invalid operator '%s' in expression"),lp->data);
+					break;
+				}
+			}
+		}
+	}
+	while (op_pos >= 0
+	   &&  op_val_pos > 0) {
+		if (op_type [op_pos] == '(') {
+			cb_error (_("missing right parenthesis"));
+			op_pos--;
+			continue;
+		}
+		cb_eval_op ();
+	}
+	if (op_pos >= 0
+	 && op_type [op_pos] == '(') {
+		cb_error (_("missing right parenthesis"));
+	} else if (op_pos >= 0) {
+		cb_error (_("'%c' operator misplaced"),op_type [op_pos]);
+	}
+	xval	= op_val [0];
+	xscale	= op_scale [0];
+	while (xscale > 0) { 		/* Reduce to 'fixed point numeric' */
+		xscale--;
+		xval = xval / 10;
+	}
+	while (xscale < 0) { 		/* Reduce to 'fixed point numeric' */
+		xscale++;
+		xval = xval * 10;
+	}
+	sprintf(result, CB_FMT_LLD, xval);
+	return cb_build_numeric_literal (0, result, xscale);
+}
 
 int
 cb_get_level (cb_tree x)
@@ -129,6 +414,7 @@ cb_build_field_tree (cb_tree level, cb_tree name, struct cb_field *last_field,
 	if (lv == 78) {
 		f->level = 01;
 		f->flag_item_78 = 1;
+		f->flag_constant = 0;
 		return CB_TREE (f);
 	} else {
 		f->level = lv;
@@ -185,7 +471,6 @@ cb_build_field_tree (cb_tree level, cb_tree name, struct cb_field *last_field,
 		return cb_error_node;
 	} else if (f->level == 66) {
 		/* Level 66 */
-		/* Check no segfault when 66 is first field */
 		f->parent = cb_field_founder (last_field);
 		for (p = f->parent->children; p && p->sister; p = p->sister) ;
 		if (p) {
@@ -462,13 +747,19 @@ validate_field_1 (struct cb_field *f)
 			} else {
 				f->pic = CB_PICTURE (cb_build_picture ("X"));
 			}
-#if	0	/* RXWRXW - ANY length */
-			cb_error_x (x, _("'%s' ANY LENGTH must have a PICTURE"), cb_name (x));
-			return 1;
-#endif
+		} else if (f->flag_any_numeric) {
+			if (f->pic->category != CB_CATEGORY_NUMERIC) 
+				cb_error (_("'%s' ANY NUMERIC must be PIC 9"),f->name);
+		} else if (f->pic->category != CB_CATEGORY_ALPHANUMERIC
+			&& f->pic->category != CB_CATEGORY_ALPHABETIC) {
+			cb_error (_("'%s' ANY LENGTH must be PIC X or PIC A"),f->name);
 		}
 		if (f->pic->size != 1 || f->usage != CB_USAGE_DISPLAY) {
-			cb_error_x (x, _("'%s' ANY LENGTH has invalid definition"), cb_name (x));
+			if (f->flag_any_numeric) {
+				cb_error_x (x, _("'%s' ANY NUMERIC has invalid definition"), cb_name (x));
+			} else {
+				cb_error_x (x, _("'%s' ANY LENGTH has invalid definition"), cb_name (x));
+			}
 			return 1;
 		}
 		f->count++;
@@ -606,6 +897,14 @@ validate_field_1 (struct cb_field *f)
 		/* Validate PICTURE */
 		switch (f->usage) {
 		case CB_USAGE_INDEX:
+		case CB_USAGE_HNDL:
+		case CB_USAGE_HNDL_WINDOW:
+		case CB_USAGE_HNDL_SUBWINDOW:
+		case CB_USAGE_HNDL_FONT:
+		case CB_USAGE_HNDL_THREAD:
+		case CB_USAGE_HNDL_MENU:
+		case CB_USAGE_HNDL_VARIANT:
+		case CB_USAGE_HNDL_LM:
 		case CB_USAGE_LENGTH:
 		case CB_USAGE_OBJECT:
 		case CB_USAGE_POINTER:
@@ -876,6 +1175,14 @@ setup_parameters (struct cb_field *f)
 			break;
 
 		case CB_USAGE_INDEX:
+		case CB_USAGE_HNDL:
+		case CB_USAGE_HNDL_WINDOW:
+		case CB_USAGE_HNDL_SUBWINDOW:
+		case CB_USAGE_HNDL_FONT:
+		case CB_USAGE_HNDL_THREAD:
+		case CB_USAGE_HNDL_MENU:
+		case CB_USAGE_HNDL_VARIANT:
+		case CB_USAGE_HNDL_LM:
 			f->pic = CB_PICTURE (cb_build_picture ("S9(9)"));
 			break;
 
@@ -1203,6 +1510,14 @@ unbounded_again:
 						}
 						break;
 					case CB_USAGE_INDEX:
+					case CB_USAGE_HNDL:
+					case CB_USAGE_HNDL_WINDOW:
+					case CB_USAGE_HNDL_SUBWINDOW:
+					case CB_USAGE_HNDL_FONT:
+					case CB_USAGE_HNDL_THREAD:
+					case CB_USAGE_HNDL_MENU:
+					case CB_USAGE_HNDL_VARIANT:
+					case CB_USAGE_HNDL_LM:
 					case CB_USAGE_LENGTH:
 						align_size = sizeof (int);
 						break;
@@ -1241,7 +1556,8 @@ unbounded_again:
 			if (f->children) {
 			        get_last_child (f)->offset += pad;
 			} else {
-				COBC_ABORT ();
+				/* ToDo: add appropriate message (untranslated) */
+				COBC_ABORT ();	/* LCOV_EXCL_LINE */
 			}
 		}
 		/* size check for group items */
@@ -1319,6 +1635,14 @@ unbounded_again:
 			f->size = (f->pic->size + 1) / 2;
 			break;
 		case CB_USAGE_INDEX:
+		case CB_USAGE_HNDL:
+		case CB_USAGE_HNDL_WINDOW:
+		case CB_USAGE_HNDL_SUBWINDOW:
+		case CB_USAGE_HNDL_FONT:
+		case CB_USAGE_HNDL_THREAD:
+		case CB_USAGE_HNDL_MENU:
+		case CB_USAGE_HNDL_VARIANT:
+		case CB_USAGE_HNDL_LM:
 		case CB_USAGE_LENGTH:
 			f->size = sizeof (int);
 			break;
@@ -1348,9 +1672,11 @@ unbounded_again:
 			f->size = sizeof (void *);
 			break;
 		default:
+			/* LCOV_EXCL_START */
 			cobc_err_msg (_("unexpected USAGE: %d"),
 					(int)f->usage);
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 	}
 
@@ -1459,12 +1785,27 @@ struct cb_field *
 cb_validate_78_item (struct cb_field *f, const cob_u32_t no78add)
 {
 	cb_tree			x;
-	cob_u32_t		noadd;
+	cob_u32_t		noadd, prec;
+
+	if (f->flag_internal_constant) {	/* Keep all internal CONSTANTs */
+		prec = 1;
+	} else if (f->flag_constant) {		/* 01 CONSTANT is verified in parser.y */
+		prec = 1;
+	} else {
+		if (!cb_verify (cb_constant_78, "78 VALUE")) {
+			return last_real_field;
+		}
+		prec = 0;
+	}
+
+	if (cb_is_expr (f->values) ) {
+		f->values = CB_LIST_INIT(cb_evaluate_expr (f->values, prec));
+	}
 
 	x = CB_TREE (f);
 	noadd = no78add;
-	if (CB_INVALID_TREE(f->values) ||
-	    CB_INVALID_TREE(CB_VALUE(f->values))) {
+	if (CB_INVALID_TREE(f->values) 
+	 || CB_INVALID_TREE(CB_VALUE(f->values))) {
 		level_require_error (x, "VALUE");
 		noadd = 1;
 	}
@@ -1710,8 +2051,26 @@ cb_get_usage_string (const enum cb_usage usage)
 		return "FLOAT-BINARY-128";
 	case CB_USAGE_LONG_DOUBLE:
 		return "FLOAT-EXTENDED";
+	case CB_USAGE_HNDL:
+		return "HANDLE";
+	case CB_USAGE_HNDL_WINDOW:
+		return "HANDLE OF WINDOW";
+	case CB_USAGE_HNDL_SUBWINDOW:
+		return "HANDLE OF SUBWINDOW";
+	case CB_USAGE_HNDL_FONT:
+		return "HANDLE OF FONT";
+	case CB_USAGE_HNDL_THREAD:
+		return "HANDLE OF THREAD";
+	case CB_USAGE_HNDL_MENU:
+		return "HANDLE OF MENU";
+	case CB_USAGE_HNDL_VARIANT:
+		return "VARIANT";
+	case CB_USAGE_HNDL_LM:
+		return "HANDLE OF LAYOUT-MANAGER";
 	default:
-		cb_error (_("unexpected usage %d"), usage);
+		/* LCOV_EXCL_START */
+		cb_error (_("unexpected USAGE: %d"), usage);
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }

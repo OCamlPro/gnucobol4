@@ -23,7 +23,7 @@
 AC_PREREQ([2.64])
 
 AC_INIT([GnuCOBOL],
-	[2.0-rc3],
+	[2.2-anim],
 	[bug-gnucobol@gnu.org],
 	[gnucobol],
 	[https://www.gnu.org/software/gnucobol/])
@@ -100,15 +100,13 @@ AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 save_libs="$LIBS"
 
 enable_cflags_setting=no
-if test "$enable_debug" = "yes"; then
-	AC_MSG_CHECKING([whether CFLAGS can be modified])
-	# Enable setting if the user has not specified the optimisation in CFLAGS.
-	echo "$CFLAGS" | grep "\-O.*\( \|$\)" 1>/dev/null 2>/dev/null
-	if test $? != 0; then
-		enable_cflags_setting=yes
-	fi
-	AC_MSG_RESULT([$enable_cflags_setting])
+AC_MSG_CHECKING([whether CFLAGS can be modified])
+# Enable setting if the user has not specified the optimisation in CFLAGS.
+echo "$CFLAGS" | grep "\-O.*\( \|$\)" 1>/dev/null 2>/dev/null
+if test $? != 0; then
+	enable_cflags_setting=yes
 fi
+AC_MSG_RESULT([$enable_cflags_setting])
 
 # Configure options part I (not needing any compilation)
 
@@ -247,8 +245,17 @@ AC_CHECK_FUNCS([memmove memset setlocale fcntl strerror strcasecmp \
 	strcoll strxfrm setenv raise])
 
 # Checks for UTC offset (init)
-# FIXME: set to yes if C compiler defines _BSD_SOURCE
 COB_HAS_UTC_OFFSET="no"
+
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
+	#ifdef _BSD_SOURCE
+	return 0;
+	#else
+	return 1;
+	#endif]])],
+	[COB_HAS_UTC_OFFSET="yes"],
+	[],
+	[])
 
 # Check for timezone
 AC_MSG_CHECKING([for timezone variable access])
@@ -337,12 +344,19 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[COB_USES_WATCOMC_ONLY=yes],
 	[],
 	[])
-                                      
+
 COB_CC="$CC"
 if test "$COB_USES_ICC_ONLY" = "yes"; then
 	LIBCOB_LIBS="-limf -lm"
 else
 	LIBCOB_LIBS="-lm"
+fi
+
+# Add --enable-code-coverage and test for code-coverage tools if enabled
+AX_CODE_COVERAGE
+
+if test "$COB_USES_GCC_NO_ICC" != yes -a "$enable_code_coverage" = "yes"; then
+	AC_MSG_ERROR([Code coverage checks are only usable with GCC!])
 fi
 
 
@@ -783,22 +797,29 @@ if test "$with_db" = "yes"; then
 
 	# BDB header exists. Extract major/minor number pair
 	COB_BDB_HEADER=''
+	COB_BDB_HEADER_STR=''
 	AC_RUN_IFELSE([AC_LANG_SOURCE([[
 		#include <stdio.h>
 		#include <db.h>
 		int main (int argc, char **argv)
 		{
 			(void)argv;
-			if (argc > 1)
+			if (argc == 2)
 				printf ("%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
+			if (argc == 3)
+				printf ("-%s-\n", DB_VERSION_STRING);
 			return 0;
 		}
 		]])],
-		[COB_BDB_HEADER=`./conftest$ac_exeext x`],
+		[COB_BDB_HEADER=`./conftest$ac_exeext x`]
+		[COB_BDB_HEADER_STR=`./conftest$ac_exeext x y`],
 		[AC_MSG_ERROR([Unable to extract Berkeley DB version information from db.h])],
 		[])
 	if test "x$COB_BDB_HEADER" = "x"; then
 		AC_MSG_ERROR([Unable to extract Berkeley DB version information])
+	fi
+	if test "x$COB_BDB_HEADER_STR" != "x"; then
+		AC_MSG_NOTICE([db.h reports version "$COB_BDB_HEADER_STR"])
 	fi
 	AC_MSG_CHECKING([for Berkeley DB db.h version >= 4.1])
 	COB_BDB_HEADER_MAJOR=$(echo "$COB_BDB_HEADER" | cut -d. -f1)
@@ -998,16 +1019,19 @@ COB_EXPORT_DYN="`eval echo $export_dynamic_flag_spec`"
 COB_PIC_FLAGS=`echo "$lt_prog_compiler_pic" | sed -e 's/^ //'`
 COB_SHARED_OPT="-shared"
 
-if test "$enable_cflags_setting" = yes; then
+if test "$enable_cflags_setting" = "yes"; then
+
 	# Remove -O2 option added by AC_PROG_CC and add -O0
-	CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-O@<:@0-9a-zA-Z@:>@* */ /g' -e 's/ $//' -e 's/^ //'`
-	if test "$COB_USES_GCC" = "yes"; then
-		CFLAGS="$CFLAGS -O0"
+	if test "$enable_debug" = "yes" -o "$enable_code_coverage" = "yes"; then
+		CFLAGS=`echo "$CFLAGS" | sed -e 's/ *-O@<:@0-9a-zA-Z@:>@* */ /g' -e 's/ $//' -e 's/^ //'`
+		if test "$COB_USES_GCC" = "yes"; then
+			CFLAGS="$CFLAGS -O0"
+		fi
 	fi
 
-	# Add -g3 if using GCC.
-	if test "$COB_USES_GCC" = "yes"; then
-		MYOLDCFLAGS="$CFLAGS"		     
+	# For debugging: add -g3 if using GCC.
+	if test "$enable_debug" = "yes" -a "$COB_USES_GCC" = "yes"; then
+		MYOLDCFLAGS="$CFLAGS"
 		CFLAGS="$CFLAGS -g3"
 		AC_MSG_CHECKING([for gcc -g3 option])
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[int testint;]])],
@@ -1030,7 +1054,6 @@ if test "$COB_USES_GCC" = "yes"; then
 		CFLAGS="-pipe"
 	fi
 fi
-
 
 # include directory (install dir)
 
@@ -1369,4 +1392,9 @@ unset DEFINE_DL
 if test "$COB_HAS_UTC_OFFSET" = "no"; then
   AC_MSG_WARN([ Could not find strftime or timezone. FORMATTED-CURRENT-DATE, FORMATTED-DATE])
   AC_MSG_WARN([and FORMATTED-DATETIME may not work.])
+fi
+
+if test "$enable_code_coverage" = "yes"; then
+	AC_MSG_WARN([Code coverage checks are currently disabled because of compatibility issues!])
+	AC_MSG_NOTICE([Use trunk (or enable it in */Makefile.am) to use coverage checks.])
 fi

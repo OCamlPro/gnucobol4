@@ -1,6 +1,6 @@
 /*
    Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
 
@@ -307,7 +307,15 @@ enum cb_usage {
 	CB_USAGE_FP_BIN32,		/* 25 */
 	CB_USAGE_FP_BIN64,		/* 26 */
 	CB_USAGE_FP_BIN128,		/* 27 */
-	CB_USAGE_LONG_DOUBLE		/* 28 */
+	CB_USAGE_LONG_DOUBLE,		/* 28 */
+	CB_USAGE_HNDL,			/* 29 */
+	CB_USAGE_HNDL_WINDOW,		/* 30 */
+	CB_USAGE_HNDL_SUBWINDOW,	/* 31 */
+	CB_USAGE_HNDL_FONT,		/* 32 */
+	CB_USAGE_HNDL_THREAD,	/* 33 */
+	CB_USAGE_HNDL_MENU,		/* 34 */
+	CB_USAGE_HNDL_VARIANT,	/* 35 */
+	CB_USAGE_HNDL_LM		/* 36 */
 };
 
 
@@ -503,6 +511,19 @@ struct cb_xref {
 	int			skip;
 };
 
+struct cb_call_elem {
+	struct cb_call_elem	*next;
+	char		        *name;
+	struct cb_xref		xref;
+	int			is_identifier;
+	int			is_system;
+};
+
+struct cb_call_xref {
+	struct cb_call_elem	*head;
+	struct cb_call_elem	*tail;
+};
+
 /* Constant */
 
 struct cb_const {
@@ -650,6 +671,9 @@ struct cb_decimal {
 #define CB_DECIMAL(x)	(CB_TREE_CAST (CB_TAG_DECIMAL, struct cb_decimal, x))
 #define CB_DECIMAL_P(x)	(CB_TREE_TAG (x) == CB_TAG_DECIMAL)
 
+#define CB_DECIMAL_LITERAL(x)	(CB_TREE_CAST (CB_TAG_DECIMAL_LITERAL, struct cb_decimal, x))
+#define CB_DECIMAL_LITERAL_P(x)	(CB_TREE_TAG (x) == CB_TAG_DECIMAL_LITERAL)
+
 /* Picture */
 
 struct cb_picture {
@@ -695,7 +719,7 @@ struct cb_field {
 	struct cb_field		*rename_thru;	/* RENAMES THRU */
 	struct cb_field		*index_qual;	/* INDEXED BY qualifier */
 	struct cb_file		*file;		/* FD section file name */
-	struct cb_cd		*cd;		/* CD name */ 
+	struct cb_cd		*cd;		/* CD name */
 	struct cb_key 		*keys;		/* SEARCH key */
 	struct cb_picture	*pic;		/* PICTURE */
 	struct cb_field		*vsize;		/* Variable size cache */
@@ -730,7 +754,8 @@ struct cb_field {
 	unsigned int		odo_level;	/* ODO level (0 = no ODO item)
 						   could be direct ODO (check via depending)
 						   or via subordinate) */
-	cob_u32_t		special_index;	/* Special field */
+	cob_u32_t		special_index;	/* Special field,
+						   generated as int (2=>non-static) */
 
 	enum cb_storage		storage;	/* Storage section */
 	enum cb_usage		usage;		/* USAGE */
@@ -782,6 +807,9 @@ struct cb_field {
 	unsigned int flag_is_returning	: 1;	/* Is RETURNING item */
 	unsigned int flag_unbounded : 1;	/* OCCURS UNBOUNDED */
 
+	unsigned int flag_constant	: 1;	/* Is 01 AS CONSTANT */
+	unsigned int flag_internal_constant	: 1;	/* Is an internally generated CONSTANT */
+
 	unsigned int flag_cached  : 1;    /* Is saved in any field cache, sometimes needed for debugger code generation */
 	unsigned int flag_anim_field_printed : 1; /* 1 if the corresponding debugger_field was printed to headers */
 	unsigned int flag_initialized_local : 1; /* 1 if the corresponding debugger_field was initialized with a base address */
@@ -798,7 +826,7 @@ struct cb_field {
 
 /* Index */
 
-#define CB_INDEX_P(x)		cb_check_index_p (x)
+#define CB_INDEX_OR_HANDLE_P(x)		cb_check_index_or_handle_p (x)
 
 /* Label */
 
@@ -1041,6 +1069,14 @@ struct cb_assign {
 #define CB_ASSIGN(x)		(CB_TREE_CAST (CB_TAG_ASSIGN, struct cb_assign, x))
 #define CB_ASSIGN_P(x)		(CB_TREE_TAG (x) == CB_TAG_ASSIGN)
 
+/* Compiler features like directives, functions, mnemonics and registers */
+
+enum cb_feature_mode {
+	CB_FEATURE_ACTIVE = 0,	/* 0 Feature is implemented and not disabled */
+	CB_FEATURE_DISABLED,		/* 1 Feature disabled */
+	CB_FEATURE_NOT_IMPLEMENTED	/* 2 Feature known but not yet implemented */
+};
+
 /* Intrinsic FUNCTION */
 
 struct cb_intrinsic_table {
@@ -1048,7 +1084,7 @@ struct cb_intrinsic_table {
 	const char		*intr_routine;	/* Routine name */
 	const enum cb_intr_enum	intr_enum;	/* Enum intrinsic */
 	const int		token;		/* Token value */
-	const int		implemented;	/* Have we implemented it? */
+	enum cb_feature_mode	active;	/* Have we implemented it? Is it active? */
 	const int		args;		/* Maximum number of arguments, -1 = unlimited */
 	const int		min_args;	/* Minimum number of arguments */
 	const enum cb_category	category;	/* Category */
@@ -1368,6 +1404,7 @@ struct cb_program {
 	cb_tree			crt_status;		/* CRT STATUS */
 	cb_tree			returning;		/* RETURNING */
 	struct cb_label		*all_procedure;		/* DEBUGGING */
+	struct cb_call_xref	call_xref;		/* CALL Xref list */
 
 	/* Internal variables */
 	int		loop_counter;			/* Loop counters */
@@ -1668,11 +1705,13 @@ extern int			is_default_reserved_word (const char *);
 extern void			remove_context_sensitivity (const char *,
 							    const int);
 extern struct cobc_reserved	*lookup_reserved_word (const char *);
-extern cb_tree			lookup_system_name (const char *);
+extern cb_tree			get_system_name (const char *);
+extern const char	*cb_get_register_definition (const char *);
 extern void			cb_list_reserved (void);
 extern void			cb_list_intrinsics (void);
-extern void			cb_list_mnemonics (void);
-extern void			cb_list_system (void);
+extern void			cb_list_system_names (void);
+extern void			cb_list_registers (void);
+extern void			cb_list_system_routines (void);
 extern void			cb_list_map (cb_tree (*) (cb_tree), cb_tree);
 
 /* error.c */
@@ -1691,6 +1730,7 @@ extern void		group_error (cb_tree, const char *);
 extern void		level_redundant_error (cb_tree, const char *);
 extern void		level_require_error (cb_tree, const char *);
 extern void		level_except_error (cb_tree, const char *);
+extern int		cb_set_ignore_error (int state);
 
 /* field.c */
 extern size_t		cb_needs_01;
@@ -1719,15 +1759,20 @@ extern struct cb_program	*cb_build_program (struct cb_program *,
 						   const int);
 
 extern cb_tree		cb_check_numeric_value (cb_tree);
-extern size_t		cb_check_index_p (cb_tree x);
+extern size_t		cb_check_index_or_handle_p (cb_tree x);
 
+extern void		cb_set_intr_when_compiled (void);
 extern void		cb_build_registers (void);
+extern const char		*cb_register_list_get_first (const char *);
+extern const char		*cb_register_list_get_next (const char *);
 extern void		cb_build_debug_item (void);
 extern void		cb_check_field_debug (cb_tree);
 extern void		cb_trim_program_id (cb_tree);
 extern char		*cb_encode_program_id (const char *);
 extern char		*cb_build_program_id (cb_tree, cb_tree, const cob_u32_t);
 extern cb_tree		cb_define_switch_name (cb_tree, cb_tree, const int);
+
+extern void		cb_check_word_length (unsigned int, const char *);
 extern cb_tree		cb_build_section_name (cb_tree, const int);
 extern cb_tree		cb_build_assignment_name (struct cb_file *, cb_tree);
 extern cb_tree		cb_build_index (cb_tree, cb_tree,
@@ -1735,6 +1780,9 @@ extern cb_tree		cb_build_index (cb_tree, cb_tree,
 extern cb_tree		cb_build_identifier (cb_tree, const int);
 extern cb_tree		cb_build_length (cb_tree);
 extern cb_tree		cb_build_const_length (cb_tree);
+extern cb_tree		cb_build_const_from (cb_tree);
+extern cb_tree		cb_build_const_start (struct cb_field *, cb_tree);
+extern cb_tree		cb_build_const_next (struct cb_field *);
 extern cb_tree		cb_build_address (cb_tree);
 extern cb_tree		cb_build_ppointer (cb_tree);
 
@@ -1744,7 +1792,14 @@ extern void		cb_validate_program_body (struct cb_program *);
 
 extern cb_tree		cb_build_expr (cb_tree);
 extern cb_tree		cb_build_cond (cb_tree);
-extern void		cb_end_cond (void);
+
+extern void		cb_end_cond (cb_tree);
+extern void		cb_save_cond (void);
+extern void		cb_terminate_cond (void);
+extern void		cb_true_side (void);
+extern void		cb_false_side (void);
+extern void		cb_end_statement (void);
+extern const char		*explain_operator (const int);
 
 extern void		cb_emit_arithmetic (cb_tree, const int, cb_tree);
 extern cb_tree		cb_build_add (cb_tree, cb_tree, cb_tree);
@@ -1783,7 +1838,7 @@ extern void		cb_emit_alter (cb_tree, cb_tree);
 extern void		cb_emit_free (cb_tree);
 
 extern void		cb_emit_call (cb_tree, cb_tree, cb_tree, cb_tree,
-				      cb_tree, cb_tree);
+				      cb_tree, cb_tree, cb_tree, cb_tree);
 
 extern void		cb_emit_cancel (cb_tree);
 extern void		cb_emit_close (cb_tree, cb_tree);
@@ -1791,12 +1846,20 @@ extern void		cb_emit_commit (void);
 extern void		cb_emit_continue (void);
 extern void		cb_emit_delete (cb_tree);
 extern void		cb_emit_delete_file (cb_tree);
+
+
+extern void		cb_emit_display_window (cb_tree, cb_tree, cb_tree,
+					 cb_tree, struct cb_attr_struct *);
+extern void		cb_emit_close_window (cb_tree);
+extern void		cb_emit_destroy (cb_tree);
+
 extern void		cb_emit_display (cb_tree, cb_tree,
 					 cb_tree, cb_tree,
 					 struct cb_attr_struct *,
 					 int, enum cb_display_type);
 extern cb_tree		cb_build_display_mnemonic (cb_tree);
 extern cb_tree		cb_build_display_name (cb_tree);
+
 extern void		cb_emit_env_name (cb_tree);
 extern void		cb_emit_env_value (cb_tree);
 extern void		cb_emit_arg_number (cb_tree);
@@ -1840,12 +1903,13 @@ extern void		cb_emit_move (cb_tree, cb_tree);
 
 extern void		cb_emit_open (cb_tree, cb_tree, cb_tree);
 
-extern void		cb_emit_perform (cb_tree, cb_tree);
+extern void		cb_emit_perform (cb_tree, cb_tree, cb_tree, cb_tree);
 extern cb_tree		cb_build_perform_once (cb_tree);
 extern cb_tree		cb_build_perform_times (cb_tree);
 extern cb_tree		cb_build_perform_until (cb_tree, cb_tree);
 extern cb_tree		cb_build_perform_forever (cb_tree);
 extern cb_tree		cb_build_perform_exit (struct cb_label *);
+extern void		cb_build_perform_after_until(void);
 
 extern void		cb_emit_read (cb_tree, cb_tree, cb_tree,
 				      cb_tree, cb_tree);
@@ -1870,6 +1934,7 @@ extern void		cb_emit_set_up_down (cb_tree, cb_tree, cb_tree);
 extern void		cb_emit_set_on_off (cb_tree, cb_tree);
 extern void		cb_emit_set_true (cb_tree);
 extern void		cb_emit_set_false (cb_tree);
+extern void		cb_emit_set_thread_priority (cb_tree, cb_tree);
 extern void		cb_emit_set_attribute (cb_tree,
 					       const cob_flags_t,
 					       const cob_flags_t);
@@ -1888,6 +1953,8 @@ extern void		cb_emit_sort_finish (cb_tree);
 extern void		cb_emit_start (cb_tree, cb_tree, cb_tree, cb_tree);
 
 extern void		cb_emit_stop_run (cb_tree);
+
+extern void		cb_emit_stop_thread (cb_tree);
 
 extern void		cb_emit_string (cb_tree, cb_tree, cb_tree);
 
@@ -1930,6 +1997,7 @@ extern struct cb_program	*cb_find_defined_program_by_id (const char *);
 extern void			cobc_xref_link (struct cb_xref *, const int, const int);
 extern void			cobc_xref_link_parent (const struct cb_field *);
 extern void			cobc_xref_set_receiving (const cb_tree);
+extern void			cobc_xref_call (const char *, const int, const int, const int);
 
 /* Function defines */
 

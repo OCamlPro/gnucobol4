@@ -1,4 +1,4 @@
-## Copyright (C) 2003-2012, 2014-2015 Free Software Foundation, Inc.
+## Copyright (C) 2003-2012, 2014-2015, 2017 Free Software Foundation, Inc.
 ## Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart, Ron Norman
 ##
 ## This file is part of GnuCOBOL.
@@ -363,7 +363,7 @@ AT_CHECK([./prog], [0],
 AT_CLEANUP
 
 
-AT_SETUP([Move to item with simple and floating insertion])
+AT_SETUP([MOVE to item with simple and floating insertion])
 AT_KEYWORDS([fundamental edited editing])
 
 AT_DATA([prog.cob], [
@@ -758,7 +758,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=ibm prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -fmove-ibm prog.cob], [0], [], [])
 
 AT_CHECK([./prog], [0],
 [  OK with MOVE: 1234567899
@@ -1333,131 +1333,6 @@ AT_CHECK([./prog], [0],
 ])
 AT_CLEANUP
 
-AT_SETUP([START RELATIVE (1)])
-AT_KEYWORDS([fundamental])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       INPUT-OUTPUT     SECTION.
-       FILE-CONTROL.
-       SELECT OPTIONAL TEST-FILE
-              ASSIGN      "TESTFILE"
-              ACCESS       DYNAMIC
-              ORGANIZATION RELATIVE
-              STATUS       TESTSTAT
-              RELATIVE KEY TESTKEY
-       .
-       DATA             DIVISION.
-       FILE             SECTION.
-       FD  TEST-FILE.
-       01  TEST-REC     PIC X(4).
-       WORKING-STORAGE  SECTION.
-       01  TESTKEY      USAGE BINARY-LONG.
-       01  TESTSTAT     PIC XX.
-           88  V-OK     VALUE "00" "05".
-       PROCEDURE        DIVISION.
-           DELETE FILE TEST-FILE.
-           OPEN  I-O   TEST-FILE.
-           IF NOT V-OK
-              DISPLAY "OPEN " TESTSTAT
-              END-DISPLAY
-              GOBACK
-           END-IF.
-           MOVE 99 TO TESTKEY.
-           START TEST-FILE KEY < TESTKEY
-           END-START.
-           IF TESTSTAT NOT = "23"
-              DISPLAY "START " TESTSTAT
-              END-DISPLAY
-           END-IF.
-           CLOSE TEST-FILE.
-       END PROGRAM prog.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
-
-AT_CLEANUP
-
-
-AT_SETUP([START RELATIVE (2)])
-AT_KEYWORDS([fundamental])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       INPUT-OUTPUT     SECTION.
-       FILE-CONTROL.
-       SELECT OPTIONAL TEST-FILE
-              ASSIGN      "TESTFILE"
-              ACCESS       DYNAMIC
-              ORGANIZATION RELATIVE
-              STATUS       TESTSTAT
-              RELATIVE KEY TESTKEY
-       .
-       DATA             DIVISION.
-       FILE             SECTION.
-       FD  TEST-FILE.
-       01  TEST-REC     PIC X(4).
-       WORKING-STORAGE  SECTION.
-       01  TESTKEY      USAGE BINARY-LONG.
-       01  TESTSTAT     PIC XX.
-           88  V-OK     VALUE "00" "05".
-           88  V-ZERO   VALUE "00".
-       PROCEDURE        DIVISION.
-           DELETE FILE TEST-FILE.
-           OPEN  I-O   TEST-FILE.
-           IF NOT V-OK
-              DISPLAY "OPEN " TESTSTAT
-              END-DISPLAY
-              GOBACK
-           END-IF.
-           MOVE 3 TO TESTKEY.
-           MOVE "0003" TO TEST-REC.
-           WRITE TEST-REC INVALID KEY
-                 DISPLAY "WRITE " TESTSTAT
-                 END-DISPLAY
-           END-WRITE.
-           MOVE 2 TO TESTKEY.
-           MOVE "0002" TO TEST-REC.
-           WRITE TEST-REC INVALID KEY
-                 DISPLAY "WRITE " TESTSTAT
-                 END-DISPLAY
-           END-WRITE.
-           MOVE 99 TO TESTKEY.
-           START TEST-FILE KEY < TESTKEY
-           END-START.
-           IF NOT V-ZERO
-              DISPLAY "START " TESTSTAT
-              END-DISPLAY
-           END-IF.
-           IF TESTKEY NOT = 99
-              DISPLAY "TESTKEY " TESTKEY
-              END-DISPLAY
-           END-IF.
-           MOVE  SPACE TO TEST-REC.
-           READ  TEST-FILE NEXT
-           END-READ.
-           IF NOT V-ZERO
-              DISPLAY "READ " TESTSTAT
-              END-DISPLAY
-           END-IF.
-           IF TEST-REC NOT = "0003"
-              DISPLAY "READ RECORD " TEST-REC
-              END-DISPLAY
-           END-IF.
-           CLOSE TEST-FILE.
-       END PROGRAM prog.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
-
-AT_CLEANUP
-
 
 AT_SETUP([GLOBAL FD (1)])
 AT_KEYWORDS([fundamental])
@@ -1818,9 +1693,10 @@ AT_DATA([prog.cob], [
            END-DISPLAY.
            STOP RUN.
 ])
-
-AT_CHECK([$COMPILE -std=mf prog.cob], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE -fpretty-display prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [+0+00+0+])
+AT_CHECK([$COBCRUN prog], [0], [+0+00+0+])
 
 AT_CLEANUP
 
@@ -3773,7 +3649,7 @@ AT_CLEANUP
 
 
 AT_SETUP([Numeric operations (7)])
-AT_KEYWORDS([fundamental add compute])
+AT_KEYWORDS([fundamental add compute literal])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -4059,6 +3935,54 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Numeric operations (8)])
+AT_KEYWORDS([fundamental compute literal])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+          1 COMPUTE-DATA.
+           2 COMPUTE-8             PICTURE 999       VALUE ZERO.
+       PROCEDURE        DIVISION.
+           COMPUTE COMPUTE-8 = (((24.0 + 1) * (60 - 10)) / 125) ** 2
+           IF COMPUTE-8 NOT = 100
+              DISPLAY 'COMPUTE with wrong result: ' COMPUTE-8
+              END-DISPLAY
+           END-IF
+           COMPUTE COMPUTE-8 = 55 / (1 - 2 + 1)
+              NOT ON SIZE ERROR
+                 DISPLAY 'SIZE ERROR not set from divide by zero!'
+                 END-DISPLAY
+           END-COMPUTE
+           COMPUTE COMPUTE-8 = 0 ** 1
+           IF COMPUTE-8 NOT = 0
+              DISPLAY '0 ** 1 <> 0: ' COMPUTE-8
+              END-DISPLAY
+           END-IF
+           COMPUTE COMPUTE-8 = 55 ** 0
+           IF COMPUTE-8 NOT = 1
+              DISPLAY '55 ** 0 <> 1: ' COMPUTE-8
+              END-DISPLAY
+           END-IF
+           COMPUTE COMPUTE-8 = 1 ** 55
+           IF COMPUTE-8 NOT = 1
+              DISPLAY '11 ** 55 <> 1: ' COMPUTE-8
+              END-DISPLAY
+           END-IF
+           
+           GOBACK.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [],
+[prog.cob: 14: warning: divide by constant ZERO
+])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP

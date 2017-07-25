@@ -21,7 +21,16 @@
 
 include_HEADERS = libcob.h
 
-SUBDIRS = libcob lib cobc bin config copy po doc extras debugger tests
+SUBDIRS = lib libcob cobc bin config copy po doc extras debugger tests
+
+# define prerequisites to fix parallel builds
+libcob: lib
+cobc: libcob
+bin: libcob
+po: cobc
+doc: cobc
+extras: cobc
+tests: bin cobc
 
 ACLOCAL_AMFLAGS = -I m4 --install
 BUILT_SOURCES = defaults.h
@@ -29,6 +38,11 @@ DISTCLEANFILES = $(BUILT_SOURCES)
 # CLEANFILES = $(bin_SCRIPTS)
 
 EXTRA_DIST = gnucobol.spec po/update_linguas.sh
+
+# FIXME: needs GNU make, even if not enabled
+# Add rules for code-coverage testing, as defined by AX_CODE_COVERAGE
+#CODE_COVERAGE_BRANCH_COVERAGE=1
+#@ CODE_COVERAGE_RULES @
 
 dist-hook:
 	echo "#define COB_TAR_DATE \"`date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h
@@ -85,9 +99,11 @@ defaults.h: Makefile.am $(top_builddir)/config.status
 	  echo "#define LOCALEDIR        \"$(datadir)/locale\"";	\
 	} > defaults.h
 
-test: all test-only
 
-test-only:
+# targets that are only logical targets instead of files
+.PHONY: test checkall
+
+test: all
 	cd tests && $(MAKE) $(AM_MAKEFLAGS) test
 
-checkall: check test-only
+checkall: check test

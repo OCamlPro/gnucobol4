@@ -371,8 +371,11 @@ H#[0-9A-Za-z]* {
 		/* Integer label or level number */
 		RETURN_TOK (WORD);
 	}
-	/* Numeric literal or referenced integer label */
-	/* All transformations/checks are postponed to tree.c */
+	/* Numeric literal or referenced integer label
+	remark: all transformations/checks are postponed:
+	literals to tree.c,
+	integer label to typeck.c (cb_build_section_name)
+	*/
 	yylval = cb_build_numeric_literal (0, yytext, 0);
 	RETURN_TOK (LITERAL);
 }
@@ -685,6 +688,11 @@ H#[0-9A-Za-z]* {
 
 "LENGTH"[ ,;\n]+"OF"[ ,;\n] {
 	count_lines (yytext);
+	/* FIXME: check with "lookup_register ("LENGTH OF") != NULL"
+	          if we actually want to do this,
+			  otherwise return 2 (!) WORD tokens (by adding a que
+			  of tokens to be returned)
+	*/
 	RETURN_TOK (LENGTH_OF);
 }
 
@@ -694,6 +702,12 @@ H#[0-9A-Za-z]* {
 	char name[10] = "";
 
 	unput (yytext[yyleng-1]); /* unput seperator */
+	/* FIXME: move the code for filling "name" here and first
+	          check with "lookup_system_name (name) != NULL"
+	          if we actually want to do this,
+			  otherwise return 2 (!) WORD tokens (by adding a que
+			  of tokens to be returned)
+	*/
 	if (cobc_in_procedure) {
 		 /* unput characters */
 		yylval = cb_build_reference ("SWITCH");
@@ -732,20 +746,7 @@ H#[0-9A-Za-z]* {
 	cb_tree				l;
 	struct cb_program		*program;
 
-	/* Check word length */
-	if (unlikely (yyleng > (signed int) cb_word_length)) {
-		if (yyleng > COB_MAX_WORDLEN) {
-			/* Absolute limit */
-			cb_error (_("word length exceeds maximum of %d characters: '%s'"),
-				  COB_MAX_WORDLEN, yytext);
-		} else if (!cb_relaxed_syntax_checks) {
-			cb_error (_("word length exceeds %d characters: '%s'"),
-				  cb_word_length, yytext);
-		} else {
-			cb_warning (warningopt, _("word length exceeds %d characters: '%s'"),
-				  cb_word_length, yytext);
-		}
-	}
+	cb_check_word_length ((unsigned int)yyleng, yytext);
 
 	/* Check Intrinsic FUNCTION name without keyword */
 	if ((cobc_in_procedure && (functions_are_all || cb_intrinsic_list ||
@@ -1351,7 +1352,7 @@ scan_h (const char *text, const char *type)
 	literal_error = 0;
 
 	if (type[1] == '#' &&
-		!cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"))) {
+		!cb_verify (cb_acu_literals, _("ACUCOBOL numeric literal"))) {
 		goto error; /* early exit possible as complete literal is consumed */
 	}
 
@@ -1440,7 +1441,7 @@ scan_b (const char *text, const char *type)
 			goto error; /* early exit possible as complete literal is consumed */
 		}
 	} else {
-		if (!cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"))) {
+		if (!cb_verify (cb_acu_literals, _("ACUCOBOL numeric literal"))) {
 			goto error; /* early exit possible as complete literal is consumed */
 		}
 	};
@@ -1509,7 +1510,7 @@ scan_o (const char *text, const char *type)
 
 	literal_error = 0;
 
-	if (!cb_verify (cb_acucobol_literals, _("ACUCOBOL numeric literal"))) {
+	if (!cb_verify (cb_acu_literals, _("ACUCOBOL numeric literal"))) {
 		goto error; /* early exit possible as complete literal is consumed */
 	}
 
@@ -1840,6 +1841,7 @@ cb_add_const_var (const char *name, cb_tree value)
 	f = CB_FIELD (x);
 	f->flag_item_78 = 1;
 	f->flag_is_global = 1;
+	f->flag_internal_constant = 1;
 	f->level = 1;
 	(void)cb_validate_78_item (f, 1);
 
@@ -1886,10 +1888,23 @@ scan_define_options (const char *text)
 	cb_tree				x;
 	size_t				size;
 	int				scale;
-	int				sign;
+	int				sign, override;
 
 	/* Scan a source inline define */
 	p = cobc_strdup (text);
+
+	q = &p[strlen(p)-1];
+	while(q != p 
+	   && (isspace(*q) || *q == '\n' || *q == '\r'))
+		q--;
+	q = q - 7;
+	if (memcmp(q,"OVERRIDE",8) == 0) {
+		override = 1;
+		while (q[-1] == ' ') q--;
+		strcpy(q,"\n");
+	} else {
+		override = 0;
+	}
 
 	/* Ignore first part */
 	s = strtok (p, " ");
@@ -1902,10 +1917,12 @@ scan_define_options (const char *text)
 	}
 
 	/* Check for already defined constant */
-	for (p78 = top78ptr; p78; p78 = p78->globnext) {
-		if (strcasecmp (s, p78->fld78->name) == 0) {
-			cobc_free (p);
-			return;
+	if (!override) {
+		for (p78 = top78ptr; p78; p78 = p78->globnext) {
+			if (strcasecmp (s, p78->fld78->name) == 0) {
+				cobc_free (p);
+				return;
+			}
 		}
 	}
 

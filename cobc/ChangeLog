@@ -1,4 +1,361 @@
 
+2017-07-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: fixed memory overlap for long strings in listing title
+	* cobc.c [_MSC_VER](process_filtered): fixed cobc_free of NULL pointer
+
+2017-07-19  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c, parser.y, tree.h, tree.c:
+	  Limit ignoring errors to IF, WHEN and PERFORM UNTIL
+	  when the condition is resolved at compile time
+	* tree.c: When comparing a display numeric field to a literal
+	  and the literal is longer than the field, the result
+	  can be determined at compile time as TRUE or FALSE
+
+2017-07-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, tree.c: check both increased MAX_FD_RECORD and the new
+	  introduced MAX_FD_RECORD_IDX depending on file organization
+	* config.c: for -fnot-reserved=word: additional to removing "word"
+	  from reserved word list remove "word" from register, system-names
+	  and intrinsic function list
+
+2017-07-17  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c (cb_expr_shift): corrected r1347 - only set expr_lh to NULL
+	  if the token in parentheses is a relational expression (see bug #321).
+
+2017-07-17  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.c: better handling of empty/comment only lines
+	* tree.h, tree.c, typeck.c: added explain_operator and used where
+	  appropriate
+
+2017-07-17  Ron Norman <rjn@inglenet.com>
+
+	* tree.c: in cb_build_binary_op provide details on why an
+	  expression is always TRUE or FALSE and better indicate which
+	  line this happened on
+	* tree.c: in cb_build_binary_op check for '@' parens operator
+	  with a numeric literal inside the parens
+
+2017-07-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: only allow RETURNING/GIVING in EXIT PROGRAM/GOBACK
+	  if RETURN-CODE register is not disabled; always return 0 on
+	  STOP RUN if no RETURN-CODE register is available
+	* reserved.c, tree.h: new functions cb_register_list_get_first and
+	  cb_register_list_get_next for iterating through all active registers
+	* typeck.c: modularize register creation
+
+2017-07-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.def: added support options cb_move_fig_constant_to_numeric
+	  "move-figurative-constant-to-numeric" and cb_move_fig_quote_to_numeric
+	  "move-figurative-quote-to-numeric"
+	* typeck.c: re-allow move of figurative constants to numeric/numeric
+	  edited fields, cater for new compiler support flags
+	  cb_move_fig_constant_to_numeric and cb_move_fig_quote_to_numeric;
+	  removed the explicit internal change in this case to ALL ZERO
+	* typeck.c, cobc.h, cobc.c: renamed cb_list_system
+	  to cb_list_system_routines
+	* reserved.c, cobc.h, cobc.c: renamed cb_list_mnemonics
+	  to cb_list_system_names
+	* reserved.c: added switch alias-names UPSI-0 to UPSI-8
+	* cobc.c (cobc_enum_explain), codegen.c (output_param), tree.h:
+	  added missing parts for CB_TAG_DECIMAL_LITERAL to fix
+	  cast check errors
+
+2017-07-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c, parser.y, tree.c, codegen.c: checked the now optional fields
+	  cb_return_code, cb_call_params, cb_sort_return before accessing them
+	* flag.def: removed -fsyntax-extension "cb_syntax_extension" because
+	  there's no actual use any more as non-standard switches can now be
+	  activated by compiler configuration and/or command line option
+	  -fsystem-name=SW1
+	* reserved.c: added ACUCOBOL synonym ABSOLUTE-VALUE for function ABS
+
+2017-07-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c: added functions for (de)activating registers, system names,
+	  intrinsics; removed ext_system_table and added its entries as deactived
+	  to system_table
+	* config.c: added options to (de)activate registers, system names,
+	  intrinsics
+	* cobc.c: added --list-registers and -f[no-]intrinsic-function,
+	  -f[no-]system-name, -f[no-]register
+	* parser.y: don't stop parsing on wrong entries in REPOSITORY
+
+2017-07-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: FR #206 added -O3 option
+
+2017-07-09  Edward Hart <edward.dan.hart@gmail.com>
+
+	* reserved.c: output a reserved word's aliases during --list-reserved
+	  (feature request #214).
+
+2017-07-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c: RECORD KEY in SELECT does not support FD in name bug #331
+	* tree.h: added cb_feature_mode for compiler features we can have
+	  activated, disabled (by compiler configuration), or not implemented;
+	  (cb_intrinsic_table): replaced "const int implemented" by
+	  "enum cb_feature_mode active"
+	* reserved.c, tree.c: adjusted cb_intrinsic_table to use cb_feature_mode
+
+2017-07-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, reserved.c, typeck.c, tree.h: added parsing for ACU
+	  extensions DISPLAY WINDOW, CLOSE WINDOW and DESTROY statements
+
+2017-07-05  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c, typeck.c, error.c, parser.y, tree.c, tree.h:
+	  Updates to skip emiting code for IF, WHEN in cases where
+	  the condition is resolved down to TRUE or FALSE at compile time
+	  cb_error reports as 'Error (ignored)' when code is not being emitted
+
+2017-07-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* error.c: don't output "[re]defined here" messages when there
+	  is no actual location to reference
+	* parser.y, reserved.c: added ACU extension USAGE HANDLE (both generic
+	  and typed variants), added parser part for ACU THREADs (started via
+	  CALL/PERFORM) and THREAD statements (SET THREAD PRIORITY and STOP THREAD)
+	  [nothing done in libcob yet]
+	* codegen.c, field.c: changes for USAGE HANDLE
+
+2017-07-03  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c: Move check for cb_warn_parentheses to cb_build_expr routine
+	  so that the check is done before constant expressions get folded
+
+2017-07-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (cb_build_binary_op): raise "invalid expression" for
+	  invalid elements instead of COBC_ABORT
+	* config.def, cobc.c (cb_build_binary_op): added cb_constant_folding
+	  "constant-folding" configuration option to provide a way to disable
+	  this optimization (which is active in nearly all conf-files)
+	* config.def: reordered for nicer help output
+	* warning.def, typeck.c (validate_move): renamed cb_warn_truncate
+	  "-Wtruncate" to cb_warn_pos_truncate "-Wpossible-truncate" and
+	  cb_warn_constant "-Wconstant" to cb_warn_truncate "-Wtruncate"
+	* config.def, scanner.l: renamed cb_acucobol_literals
+	  "acucobol-literals" option to cb_acu_literals "acu-literals"
+	* parser.y: set context CB_CS_ALLOCATE and CB_CS_READ
+
+2017-07-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (cobc_print_usage): added -std=rm and all strict variants
+
+2017-06-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.c: allow support options to be prefixed with '+'
+	  to override the valaue previous set only if it is less strict
+	  ok and +warning => ok, warning and +ok => ok
+	* parser.y (terminator_warning, terminator_error): don't warn/error
+	  for missing terminators that don't exist in the current dialect
+
+2017-06-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, cobc.h, config.def, config.c, reserved.c: replaced
+	  "specify-all-reserved" (cb_specify_all_reserved) by
+	  "reserved-words" (cb_reserved_words)
+	* cobc.c (process_command_line): process -std= and -conf= even when
+	  specified after --list-reserved
+
+2017-06-20  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c: Added CALL cross reference functions.
+	* tree.h: Added CALL cross reference structures.
+	* typeck.c: Added CALL cross reference calls.
+
+2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE
+	* cobc.c, codegen.c, codeoptim.c, error.c, field.c, pplex.l, tree.c
+	  typeck.c: surrounded exception ABORTs that cannot be tested by LCOV_EXCP
+	  markers
+
+2017-06-16  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c (reflow_replaced_fixed_format_text): listings: Fixed multiple
+	  line output.
+
+2017-06-13  Dave Pitts <dpitts@cozx.com>
+
+	* cobc.c (get_next_token): listings: Keep string as a single token.
+
+2017-06-13  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c: #306 check for misplaced operators and report error
+
+2017-06-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.def: renamed "debugging-line" option (cb_debugging_line)
+	  to "debugging-mode" (cb_debugging_mode) because of name conflict
+	  with option -fdebugging-line to activate these lines
+	* parser.y, pplex.l: moved compiler verification for DEBUGGING MODE
+	  from parser.y to pplex.l
+	* pplex.l: actual compiler verification for debugging indicators
+
+2017-06-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l: error on $SET var lit OVERRIDE (as this isn't available it was
+	  interpreted as unknown SET OPTION)
+
+2017-06-09  Ron Norman <rjn@inglenet.com>
+
+	* ppparse.y, scanner.l: pass OVERRIDE thru the
+	  preprocessor to allow variables to be redefined
+
+2017-06-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l: remove trailing spaces and inline comments
+	  for >> DISPLAY and $DISPLAY, remove surrounding quotation symbols
+	* typeck.c (cb_build_const_from): create numeric constant instead
+	  of alphanumeric if the compile-time variable is numeric
+
+2017-06-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* ppparse.y, config.def: only allow extension ">> DEFINE CONSTANT var [AS]"
+	  depending on configuration option define-constant-directive
+	  --> use plain  >> DEFINE var [AS] literal for conditional compilation
+	  and use        01 CONSTANT with/without FROM clause  for constant definitions
+
+2017-05-14  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, config.def: part reverted r837 - allow incorrect
+	  configuration section paragraph order with
+	  incorrect-conf-sec-order option (see bug #224).
+	* parser.y (check_comp_duplicate): removed redundant code checking
+	  for duplicate SOURCE-/OBJECT-COMPUTER paragraphs.
+
+2017-06-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: prevent memory leak when options are specified multiple times
+	* cobc.c (print_program_trailer): correct program order in listing
+	  for both with/without code generation
+	* cobc.c (process_translate): on processing errors set cb_flag_syntax_only
+	  to not loose the information "no codegen occured"
+	* cobc.c: replaced --no-symbols (cb_no_symbols) by
+	  -tsymbols (cb_listing_symbols)
+	* cobc.c: added (cobc_enum_explain_storage) to output
+	  storage note in symbol listing
+
+2017-06-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.def, pplex.l: renamed cb_eject_statement to cb_listing_statements,
+	  added title-statement
+	* pplex.l, ppparse.y: added parsing for *CONTROL statement (PENDING)
+	  and EJECT/SKIP1/SKIP2/SKIP3 + TITLE statements (either "removing" from
+	  further handling [processed in cobc.c directly] or pass for example as
+	  user-defined word)
+	* cobc.c: handle listing-directive statements for listing creation
+
+2017-06-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c, cobc.h, parser.y: added context check for OBJECT-COMPUTER
+	* parser.y: added missing parts to MEMORY SIZE (parsing only)
+	* parser.y: checking of segment values in SEGMENT LIMIT and SECTION,
+	  allow segment numbers in declaratives (PENDING)
+
+2017-05-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l, ppparse.y: removed PAGE_DIRECTIVE (checked in pplex.l,
+	  processed in cobc.c)
+	* pplex.l: don't skip separator period in directives,
+	  combined common parts for directives in a single place,
+	  better error handling for directives
+	* pplex.l: added MF extension $DISPLAY VCS = version string as PENDING
+	* cobc.c: directly pass the source_format to (line_has_page_eject),
+	  (line_has_listing_directive) and process it there
+	* cobc.c: added (get_first_nonspace, get_directive_start) to correctly
+	  process listing related directives
+
+2017-05-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l, ppparse.y: removed undocumented extension
+	  "optional AS in $SET CONSTANT VAR [AS] VAL" - as this is a MF extension
+	  MF doesn't allow the AS at all
+	* pplex.l, ppparse.y: implemented >> LEAP-SECOND directive (while keeping
+	  the ON setting as PENDING)
+
+2017-05-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, typeck.c: adjustments of constant value changes
+
+2017-05-28  Ron Norman <rjn@inglenet.com>
+
+	* field.c, typeck.c: check for misplaced operators in constant expressions
+
+2017-05-26  Ron Norman <rjn@inglenet.com>
+
+	Work on constant values:
+	* checks for application 78 versus internal 78 and allow internal 78
+	  to get handled
+	* add constant-01 and constant-78 compile options
+
+2017-05-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	Work on constant values:
+	* parser.y, typeck.c, tree.h: tightened syntax checks for NEXT /
+	  START OF as 78 VALUE
+	* typeck.c: set correct values for NEXT / START OF as 78 VALUE
+
+2017-05-24  Ron Norman <rjn@inglenet.com>
+
+	Work on constant values:
+	* parser.y, typeck.c, tree.h: 78/CONSTANT accepts VALUE expression
+	* parser.y, typeck.c, tree.h: implemented NEXT / START OF as 78 VALUE
+	* ppparse.y, cobc.c, cobc.h: allow define list to be
+	  searched outside of ppparse
+	* parser.y, typeck.c: implemented CONSTANT FROM
+
+2017-05-22  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: create numeric literals with correct attributes
+	  COB_FLAG_HAVE_SIGN | COB_FLAG_SIGN_SEPARATE | COB_FLAG_SIGN_LEADING
+	  As this is how the literal is coded in the COBOL code.
+
+2017-05-21  Ron Norman <rjn@inglenet.com>
+
+	* parser.y: accept ACUCOBOL SET var TO SIZE OF field, handle as
+	  MOVE LENGTH OF field TO var
+
+2017-05-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c (output_call): for static calls only generate parameters
+	  up to the maximum number of the call, otherwise the static calls
+	  cannot be resolved at compile time.
+	  Note: currently only done for system library calls, we'd need an
+	  external repository for doing this with other calls, too.
+	* typeck.c (cb_emit_call): warn if more than the max parameters is
+	  used for system library calls
+	* typeck.c (cb_list_system): output min/max parameters for system
+	  library entries
+
+2017-05-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: bug #373 - level 78 constants: only allow a single value
+	  and no optional ARE
+	* parser.y: don't check the warning option for cb_warning[_x] twice
+
+2017-05-14  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c (cb_build_binary_op): use integer arithmetic for compile
+	  time configuration instead of (pow)
+
+2017-05-13  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c (validate_move): make warning on numeric literals in VALUE
+	  clause of numeric-edited items configurable (original patch thanks to
+	  David Newall).
+
 2017-05-10  Dave Pitts <dpitts@cozx.com>
 
 	* cobc.c: Added "Too many errors" message to listing.
@@ -34,6 +391,10 @@
 
 	* Makefile.am: using builtin rule for bison and cleaned rule for
 	  flexx, moved hack for _MSC_VER to ../create_win_dist.sh
+
+2017-04-27  Ron Norman <rjn@inglenet.com>
+
+	* field.c: Specific error messages for ANY NUMERIC
 
 2017-04-27 Sergey Kashyrin <ska@kiska.net>
 
@@ -316,8 +677,6 @@
 
 2017-01-09  Edward Hart <edward.dan.hart@gmail.com>
 
-	* typeck.c (cb_expr_shift): fixed bug #321 - parentheses now terminate
-	  abbreviated conditions.
 	* parser.y (expr_token): restricted IS to before ZERO/classes/condition
 	  words.
 
@@ -1345,6 +1704,11 @@
 
 	* cobc.c: correct process_run return code for systems with WEXITSTATUS
 
+2016-05-05  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
+
+	* tree.c: give correct error position (cb_source_file + cb_exp_line)
+	  for expression warnings (did not work with constants before)
+
 2016-05-03  Simon 'sf-mensch/human' Sobisch <sf-mensch@users.sf.net>
 
 	* warning.def, tree.c: added cb_warn_constant_expr for warnings added
@@ -1489,14 +1853,16 @@
 	* cobc.h (noreserve): renamed to reserved_word_list.
 	* tree.h (cobc_reserved): removed const qualifiers from members.
 
+2016-02-23  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* scanner.l, typeck.c (cb_check_word_length), tree.h: moved word length
+	  check out of scanner.l to also check numeric-only words that bypass
+	  the checks in scanner.l
+
 2016-02-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* scanner.l (read_literal): Fix wrong error about max-literal length
 	  when the last position is an escaped literal mark
-
-2016-02-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
-
-	* parser.y, reserved.c: Added ASSIGN TO PRINT/PRINTER-1
 
 2016-02-20  Edward Hart <edward.dan.hart@gmail.com>
 
@@ -1768,6 +2134,11 @@
 	* parser.y, scanner.l: added support for MF's/ACUCOBOL's ON ESCAPE
 	  phrase for ACCEPT.
 
+2015-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, reserved.c: added RM/ACU extension ASSIGN TO PRINT/PRINTER-1,
+	  both with and without assign names
+
 2015-09-24  Edward Hart <edward.dan.hart@gmail.com>
 
 	* scanner.l: added non-standard numeric literals: MF's numeric
@@ -1851,6 +2222,10 @@
 
 	* parser.y: bug #83 - added check for relative LINE/COLUMN clauses in
 	  screen section occurs items.
+
+2015-05-29  Ron Norman <rjn@inglenet.com>
+
+	* parser.y fixed so UNSTRING works with identifier/literal/function
 
 2015-05-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

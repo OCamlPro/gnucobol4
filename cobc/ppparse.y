@@ -26,6 +26,11 @@
 %verbose
 %name-prefix="pp" // recent versions want %api.prefix "pp", older cannot compile this
 
+/* NOTE:
+   support without = was added in Bison 2.4 (released 2008-11-02, we currently use 2.3),
+   bison 3.0 (released 2013-07-25) added a warning if with = is used
+*/
+
 %{
 #include "config.h"
 
@@ -58,8 +63,8 @@ int				current_call_convention;
 
 /* Local variables */
 
-static struct cb_define_struct	*ppp_setvar_list;
-static unsigned int		current_cmd;
+static struct cb_define_struct	*ppp_setvar_list = NULL;
+static unsigned int		current_cmd = 0;
 
 #if	0	/* RXWRXW OPT */
 static const char	* const compopts[] = {
@@ -315,14 +320,14 @@ ppp_define_add (struct cb_define_struct *list, const char *name,
 	for (l = list; l; l = l->next) {
 		if (!strcasecmp (name, l->name)) {
 			if (!override && l->deftype != PLEX_DEF_DEL) {
-				cb_error (_("duplicate define"));
+				cb_error (_("duplicate DEFINE directive '%s'"), name);
 				return NULL;
 			}
 			if (l->value) {
 				l->value = NULL;
 			}
 			if (ppp_set_value (l, text)) {
-				cb_error (_("invalid constant"));
+				cb_error (_("invalid constant in DEFINE directive"));
 				return NULL;
 			}
 			return list;
@@ -332,7 +337,7 @@ ppp_define_add (struct cb_define_struct *list, const char *name,
 	p = cobc_plex_malloc (sizeof (struct cb_define_struct));
 	p->name = cobc_plex_strdup (name);
 	if (ppp_set_value (p, text)) {
-		cb_error (_("invalid constant"));
+		cb_error (_("invalid constant in DEFINE directive"));
 		return NULL;
 	}
 
@@ -364,12 +369,21 @@ ppp_define_del (const char *name)
 	}
 }
 
-static struct cb_define_struct *
+void
+ppp_clear_lists ( void )
+{
+	ppp_setvar_list = NULL;
+}
+
+struct cb_define_struct *
 ppp_search_lists (const char *name)
 {
 	struct cb_define_struct	*p;
 
 	for (p = ppp_setvar_list; p; p = p->next) {
+		if (p->name == NULL) {
+			continue;
+		}
 		if (!strcasecmp (name, p->name)) {
 			if (p->deftype != PLEX_DEF_DEL) {
 				return p;
@@ -535,8 +549,19 @@ ppparse_clear_vars (const struct cb_define_struct *p)
 
 %token GARBAGE		"word"
 
-%token PAGE_DIRECTIVE
 %token LISTING_DIRECTIVE
+%token LISTING_STATEMENT
+%token TITLE_STATEMENT
+
+%token CONTROL_STATEMENT
+%token SOURCE
+%token NOSOURCE
+%token LIST
+%token NOLIST
+%token MAP
+%token NOMAP
+
+%token LEAP_SECOND_DIRECTIVE
 
 %token SOURCE_DIRECTIVE
 %token FORMAT
@@ -627,6 +652,11 @@ statement:
   copy_statement DOT
 | replace_statement DOT
 | directive TERMINATOR
+| listing_statement
+| CONTROL_STATEMENT control_options _dot TERMINATOR
+  {
+	CB_PENDING (_("*CONTROL statement"));
+  }
 ;
 
 directive:
@@ -634,8 +664,8 @@ directive:
 | DEFINE_DIRECTIVE define_directive
 | SET_DIRECTIVE set_directive
 | TURN_DIRECTIVE turn_directive
-| PAGE_DIRECTIVE page_directive
 | LISTING_DIRECTIVE listing_directive
+| LEAP_SECOND_DIRECTIVE leap_second_directive
 | IF_DIRECTIVE
   {
 	current_cmd = PLEX_ACT_IF;
@@ -673,14 +703,15 @@ set_directive:
 ;
 
 set_choice:
-  CONSTANT VARIABLE_NAME _as LITERAL
+  CONSTANT VARIABLE_NAME LITERAL
   {
+	/* note: the old version was _as LITERAL but MF doesn't supports this */
 	struct cb_define_struct	*p;
 
-	p = ppp_define_add (ppp_setvar_list, $2, $4, 1);
+	p = ppp_define_add (ppp_setvar_list, $2, $3, 1);
 	if (p) {
 		ppp_setvar_list = p;
-		fprintf (ppout, "#DEFLIT %s %s\n", $2, $4);
+		fprintf (ppout, "#DEFLIT %s %s\n", $2, $3);
 	}
   }
 | VARIABLE_NAME set_options
@@ -789,9 +820,14 @@ format_type:
 ;
 
 define_directive:
-  VARIABLE_NAME _as OFF
+  VARIABLE_NAME _as LITERAL _override
   {
-	ppp_define_del ($1);
+	struct cb_define_struct	*p;
+
+	p = ppp_define_add (ppp_setvar_list, $1, $3, $4);
+	if (p) {
+		ppp_setvar_list = p;
+	}
   }
 | VARIABLE_NAME _as PARAMETER _override
   {
@@ -827,23 +863,25 @@ define_directive:
 		}
 	}
   }
-| VARIABLE_NAME _as LITERAL _override
+| VARIABLE_NAME _as OFF
   {
-	struct cb_define_struct	*p;
-
-	p = ppp_define_add (ppp_setvar_list, $1, $3, $4);
-	if (p) {
-		ppp_setvar_list = p;
-	}
+	ppp_define_del ($1);
   }
 | CONSTANT VARIABLE_NAME _as LITERAL _override
   {
+  /* OpenCOBOL/GnuCOBOL 2.0 extension: MF $SET CONSTANT in 2002+ style as
+     >> DEFINE CONSTANT var [AS] literal  archaic extension:
+     use plain  >> DEFINE var [AS] literal  for conditional compilation and
+     use        01 CONSTANT with/without FROM clause  for constant definitions */
 	struct cb_define_struct	*p;
 
-	p = ppp_define_add (ppp_setvar_list, $2, $4, $5);
-	if (p) {
-		ppp_setvar_list = p;
-		fprintf (ppout, "#DEFLIT %s %s\n", $2, $4);
+	
+	if (cb_verify (cb_define_constant_directive, ">> DEFINE CONSTANT var")) {
+		p = ppp_define_add (ppp_setvar_list, $2, $4, $5);
+		if (p) {
+			ppp_setvar_list = p;
+			fprintf (ppout, "#DEFLIT %s %s%s\n", $2, $4, $5 ? " OVERRIDE" : "");
+		}
 	}
   }
 | variable_or_literal
@@ -853,14 +891,42 @@ define_directive:
 ;
 
 
-page_directive:
-  {
-	CB_PENDING (_("PAGE directive"));
-  }
+listing_directive:
+  /*  Note: processed in cobc.c */
+  /* empty (ON implied) */
+| ON
+| OFF
 ;
 
-listing_directive:
-  ON
+listing_statement:
+  LISTING_STATEMENT
+| TITLE_STATEMENT LITERAL _dot TERMINATOR
+;
+
+control_options:
+  control_option
+| control_options control_option
+;
+
+control_option:
+  SOURCE
+| NOSOURCE
+| LIST
+| NOLIST
+| MAP
+| NOMAP
+;
+
+_dot:
+| DOT
+;
+
+leap_second_directive:
+/* empty (OFF implied) */
+| ON
+  {
+	CB_PENDING (_("LEAP-SECOND ON directive"));
+  }
 | OFF
 ;
 

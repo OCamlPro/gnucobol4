@@ -924,8 +924,8 @@ AT_CHECK([./prog], [0],
 00000009
 00000004
 ])
-AT_CHECK([$COMPILE -fbinary-byteorder=native prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COMPILE -fbinary-byteorder=native prog.cob -o prog2], [0], [], [])
+AT_CHECK([./prog2], [0],
 [00000001
 00000009
 00000004
@@ -1820,6 +1820,76 @@ AT_CHECK([./prog], [0], [], [])
 AT_CLEANUP
 
 
+AT_SETUP([UNSTRING with FUNCTION / literal])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       01  FILLER.
+         05  TSTUNS PIC X(479).
+         05  PRM    PIC X(16) OCCURS 4 TIMES.
+       PROCEDURE DIVISION.
+           MOVE "The,Quick,Brown,Fox" TO TSTUNS.
+           UNSTRING TSTUNS DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           UNSTRING FUNCTION UPPER-CASE(TSTUNS) DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "Now using UPPER-CASE"
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           UNSTRING "Daddy,was,a,Rolling stone" DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "Now using Literal"
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           UNSTRING FUNCTION LOWER-CASE("Daddy,was,a,Rolling stone")
+                DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "Now using Literal + LOWER-CASE"
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0],
+[PRM(1) is The             :
+PRM(2) is Quick           :
+PRM(3) is Brown           :
+PRM(4) is Fox             :
+Now using UPPER-CASE
+PRM(1) is THE             :
+PRM(2) is QUICK           :
+PRM(3) is BROWN           :
+PRM(4) is FOX             :
+Now using Literal
+PRM(1) is Daddy           :
+PRM(2) is was             :
+PRM(3) is a               :
+PRM(4) is Rolling stone   :
+Now using Literal + LOWER-CASE
+PRM(1) is daddy           :
+PRM(2) is was             :
+PRM(3) is a               :
+PRM(4) is rolling stone   :
+], [])
+
+AT_CLEANUP
+
+
 AT_SETUP([SORT: table sort])
 AT_KEYWORDS([runmisc])
 
@@ -2017,7 +2087,7 @@ AT_DATA([prog.cob], [
            SORT ROW1.
 
            PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
-		     DISPLAY TAB1-NR(K) NO ADVANCING END-DISPLAY
+             DISPLAY TAB1-NR(K) NO ADVANCING END-DISPLAY
            END-PERFORM
 
            STOP RUN.
@@ -4825,7 +4895,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], ignore, [])
+AT_CHECK([COB_EXIT_WAIT=0 ./prog], [0], ignore, [])
 
 AT_CLEANUP
 
@@ -4863,7 +4933,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE  -faccept-display-extensions=error prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], ignore, [])
+AT_CHECK([COB_EXIT_WAIT=0 ./prog], [0], ignore, [])
 
 AT_CLEANUP
 
@@ -5776,7 +5846,7 @@ AT_CLEANUP
 
 
 AT_SETUP([Default Arithmetic])
-AT_KEYWORDS([Runtime])
+AT_KEYWORDS([runmisc])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -5880,7 +5950,7 @@ AT_CLEANUP
 
 
 AT_SETUP([OSVS Arithmetic])
-AT_KEYWORDS([Runtime])
+AT_KEYWORDS([runmisc])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -5996,6 +6066,389 @@ Simple   RSLT    IS 180 RSLTv9  IS 180.0
 Complex  RSLT    IS 180 RSLTv9  IS 180.0
 Reduced  RSLT    IS 180 RSLTv9  IS 180.0
 Using ARITHMETIC-OSVS
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([SET CONSTANT directive])
+AT_KEYWORDS([misc directives extensions])
+
+# The SET CONSTANT directive defines a level78 variable
+# for the current compilation unit
+
+# original MF extension: $SET CONSTANT
+AT_DATA([prog.cob], [
+       $SET CONSTANT DOGGY "Barky"
+       $SET CONSTANT PONY "Blacky"
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       77  MYHORSE   PIC X(7) VALUE PONY.
+       $SET CONSTANT PONY "White"
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           DISPLAY "My Horse is " MYHORSE ";".
+           DISPLAY "My little pony is " PONY ".".
+           STOP RUN.
+])
+
+# OpenCOBOL/GnuCOBOL extension: >>SET CONSTANT
+AT_DATA([prog2.cob], [
+       >>SET CONSTANT DOGGY "Barky"
+       >>SET CONSTANT PONY "Blacky"
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog2.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       77  MYHORSE   PIC X(7) VALUE PONY.
+       >>SET CONSTANT PONY "White"
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           DISPLAY "My Horse is " MYHORSE ";".
+           DISPLAY "My little pony is " PONY ".".
+           STOP RUN.
+])
+
+# OpenCOBOL/GnuCOBOL extension: >>DEFINE CONSTANT
+AT_DATA([prog3.cob], [
+       >>DEFINE CONSTANT DOGGY "Barky"
+       >>DEFINE CONSTANT PONY "Blacky"
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog3.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       77  MYHORSE   PIC X(7) VALUE PONY.
+       >>DEFINE CONSTANT PONY "White" OVERRIDE
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           DISPLAY "My Horse is " MYHORSE ";".
+           DISPLAY "My little pony is " PONY ".".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -std=mf prog.cob], [0], [], [])
+
+# Note: MF does not redefine a value via SET CONSTANT
+# the first definitions wins (we should add a warning)
+AT_CHECK([./prog], [0],
+[Your Dog's name is Barky;
+The Dog's name is Barky ;
+My Horse is Blacky ;
+My little pony is Blacky.
+], [])
+
+AT_CHECK([$COMPILE prog2.cob], [0], [], [])
+
+# Note: MF does not redefine a value via SET CONSTANT
+# the first definitions wins (we should add a warning)
+AT_CHECK([./prog2], [0],
+[Your Dog's name is Barky;
+The Dog's name is Barky ;
+My Horse is Blacky ;
+My little pony is Blacky.
+], [])
+
+AT_CHECK([$COMPILE -fdefine-constant-directive=ok prog3.cob], [0], [], [])
+
+AT_CHECK([./prog3], [0],
+[Your Dog's name is Barky;
+The Dog's name is Barky ;
+My Horse is Blacky ;
+My little pony is White.
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([DEFINE OVERRIDE])
+AT_KEYWORDS([CDF directive])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       >>SET CONSTANT DOGGY "Pluto"
+       >>SET CONSTANT PONY "Piper"
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+
+       >>DEFINE DPONY  AS PARAMETER OVERRIDE
+       >>IF DPONY IS NOT DEFINED
+       >>DEFINE DPONY AS "No Dpony"
+       >>END-IF
+       01  CNSPONY     CONSTANT FROM DPONY.
+
+       >>DEFINE ENVPONY AS PARAMETER OVERRIDE
+       >>IF ENVPONY IS NOT DEFINED
+       >>DEFINE ENVPONY AS "No EnvPony"
+       >>END-IF
+       01  HORSE       CONSTANT FROM ENVPONY.
+       77  MYHORSE    PIC X(12) VALUE HORSE  .
+       77  MYPONYENV  PIC X(12).
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "ENVPONY" UPON ENVIRONMENT-NAME
+           ACCEPT  MYPONYENV FROM ENVIRONMENT-VALUE.
+           DISPLAY "ENVPONY env var set to " MYPONYENV ";".
+           DISPLAY "1st Dog's name is " DOGGY ";".
+           DISPLAY "2nd Dog's name is " PONY ";".
+       >>IF ENVPONY IS DEFINED
+           DISPLAY "ENVPONY is DEFINED as " HORSE ";".
+       >>ELSE
+           DISPLAY "ENVPONY was NOT DEFINED;".
+       >>END-IF
+           DISPLAY "DPONY set to " CNSPONY ";".
+       >>IF ENVPONY = "WHITE" 
+       >>DEFINE CONSTANT PONY AS "White Horse" OVERRIDE
+       >>ELSE
+       >>DEFINE CONSTANT PONY AS "default Dirty" OVERRIDE
+       >>END-IF
+           DISPLAY "My pony is " PONY ";".
+       >>IF DPONY IS DEFINED
+           DISPLAY "DPONY is DEFINED as " CNSPONY ";".
+       >>END-IF
+           STOP RUN.
+])
+
+AT_CHECK([export ENVPONY=WHITE; $COMPILE prog.cob -fdefine-constant-directive=ok -DDPONY=Stallone], [0], [], [])
+
+AT_CHECK([export ENVPONY=WHITE; ./prog], [0],
+[ENVPONY env var set to WHITE       ;
+1st Dog's name is Pluto;
+2nd Dog's name is Piper;
+ENVPONY is DEFINED as WHITE;
+DPONY set to Stallone;
+My pony is White Horse;
+DPONY is DEFINED as Stallone;
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([DEFINE Defaults])
+AT_KEYWORDS([CDF directive])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       >>SET CONSTANT DOGGY "Pluto"
+       >>SET CONSTANT PONY "Piper"
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+
+       >>DEFINE DPONY  AS PARAMETER OVERRIDE
+       >>IF DPONY IS NOT DEFINED
+       >>DEFINE DPONY AS "No Dpony"
+       >>END-IF
+       01  CNSPONY     CONSTANT FROM DPONY.
+
+       >>DEFINE ENVPONY AS PARAMETER OVERRIDE
+       >>IF ENVPONY IS NOT DEFINED
+       >>DEFINE ENVPONY AS "No EnvPony"
+       >>END-IF
+       01  HORSE       CONSTANT FROM ENVPONY.
+       77  MYHORSE    PIC X(12) VALUE HORSE  .
+       77  MYPONYENV  PIC X(12).
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "ENVPONY" UPON ENVIRONMENT-NAME
+           ACCEPT  MYPONYENV FROM ENVIRONMENT-VALUE.
+           DISPLAY "ENVPONY env var set to " MYPONYENV ";".
+           DISPLAY "1st Dog's name is " DOGGY ";".
+           DISPLAY "2nd Dog's name is " PONY ";".
+       >>IF ENVPONY IS DEFINED
+           DISPLAY "ENVPONY is DEFINED as " HORSE ";".
+       >>ELSE
+           DISPLAY "ENVPONY was NOT DEFINED;".
+       >>END-IF
+           DISPLAY "DPONY set to " CNSPONY ";".
+       >>IF ENVPONY = "WHITE" 
+       >>DEFINE CONSTANT PONY AS "White Horse" OVERRIDE
+       >>ELSE
+       >>DEFINE CONSTANT PONY AS "default Dirty" OVERRIDE
+       >>END-IF
+           DISPLAY "My pony is " PONY ";".
+       >>IF DPONY IS DEFINED
+           DISPLAY "DPONY is DEFINED as " CNSPONY ";".
+       >>END-IF
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob -fdefine-constant-directive=ok], [0], [], [])
+
+AT_CHECK([./prog], [0],
+[ENVPONY env var set to             ;
+1st Dog's name is Pluto;
+2nd Dog's name is Piper;
+ENVPONY is DEFINED as No EnvPony;
+DPONY set to No Dpony;
+My pony is default Dirty;
+DPONY is DEFINED as No Dpony;
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([78 VALUE])
+AT_KEYWORDS([CONSTANT misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       78  DOGGY     VALUE "Barky".
+       01  MYREC.
+          05  FLD1   PIC 9(2).
+          05  FLD2   PIC X(7).
+          05  FLD3   PIC X(2) OCCURS 5 TIMES.
+          05  FLD4   PIC X(4).
+          05  FLD5   PIC X(4).
+       01  PICX      PIC XXX VALUE 'Abc'.
+       78  HUN       VALUE 10 * (10 + LENGTH OF PICX) + 12.35-2+3.
+       78  HUN2      VALUE HUN * (10 + LENGTH OF PICX) -4.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       78  DIV1      VALUE 100 / 3.
+       78  NUM2      VALUE 1 + 2 * 3.
+       LINKAGE SECTION.
+       01  XMYREC.
+          05  XFLD1   PIC 9(2).
+          05  XFLD2   PIC X(7).
+             78  XPOS3    VALUE NEXT.
+          05  XFLD3   PIC X(2) OCCURS 5 TIMES.
+             78  XPOS4    VALUE NEXT.
+          05  XFLD4   PIC X(4).
+          05  XFLD5   PIC X(4).
+       78  XSTRT4     VALUE START OF XFLD4.
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "DIV1 is " DIV1.
+           DISPLAY "HUN  is " HUN.
+           DISPLAY "HUN2 is " HUN2.
+           MOVE NUM2 TO FLD1
+           IF FLD1 = 9
+             DISPLAY "NUM2 is " NUM2 " left to right precedence."
+           ELSE
+             DISPLAY "NUM2 is " NUM2 " normal precedence."
+           END-IF.
+           DISPLAY "XFLD3 starts at " XPOS3.
+           DISPLAY "XFLD4 starts at " XSTRT4.
+           DISPLAY "XFLD4 starts at " XPOS4.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([./prog], [0],
+[DIV1 is 33
+HUN  is 143
+HUN2 is 1855
+NUM2 is 9 left to right precedence.
+XFLD3 starts at 9
+XFLD4 starts at 19
+XFLD4 starts at 11
+Your Dog's name is Barky;
+The Dog's name is Barky ;
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([01 CONSTANT])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       >>DEFINE MYDOG AS "Piper"
+       >>DEFINE MYNUM1 AS 11
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  MYREC.
+          05  FLD1   PIC 9(2).
+          05  FLD2   PIC X(7).
+          05  FLD3   PIC X(2) OCCURS 5 TIMES.
+          05  FLD4   PIC X(4).
+          05  FLD5   PIC X(4).
+       01  PICX      PIC XXX VALUE 'Abc'.
+       01  CAT       CONSTANT  'Cat '.
+       01  DOG       CONSTANT  'Dog '.
+       01  YARD      CONSTANT  CAT & "& " & DOG.
+       78  HUN       VALUE 10 * (10 + LENGTH OF PICX) + 12.35-2+3.
+       78  HUN2      VALUE HUN * (10 + LENGTH OF PICX) -4.
+       78  DIV1      VALUE 100 / 3.
+       78  NUM2      VALUE 1 + 2 * 3.
+       01  CON3      CONSTANT (((1 + 2) * NUM2) - 4).
+       01  CON4      CONSTANT AS 3.1416 + CON3.
+       01  CON5      CONSTANT 1 + 2 * 3.
+       01  DOGNAME   CONSTANT FROM MYDOG.
+       01  NUM1      CONSTANT FROM MYNUM1.
+       01  CON6      CONSTANT AS CON5 + NUM1.
+       >> IF NUM2 DEFINED  *> optional passed from command line
+       01  NUM2      CONSTANT FROM MYNUM2.
+       >> END-IF
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "CAT  is '" CAT "'".
+           DISPLAY "Yard is '" YARD "'".
+           DISPLAY "DIV1 is " DIV1.
+           DISPLAY "HUN  is " HUN.
+           DISPLAY "HUN2 is " HUN2.
+           MOVE NUM2 TO FLD1
+           IF FLD1 = 9
+             DISPLAY "78 VALUE has simple left to right precedence."
+           ELSE
+             DISPLAY "78 VALUE is " NUM2 " normal precedence."
+           END-IF.
+           MOVE CON5 TO FLD1
+           IF FLD1 = 7
+             DISPLAY "01 CONSTANT has normal operator precedence."
+           ELSE
+             DISPLAY "01 CONSTANT is " CON5 " left to right precedence."
+           END-IF.
+           DISPLAY "CON3 is " CON3.
+           DISPLAY "CON4 is " CON4 " vs " 3.141596 
+                   " & " -2.189 " & " +12.
+           DISPLAY "CON6 is " CON6 "."
+           DISPLAY "My Dog's name is " DOGNAME ";".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([./prog], [0],
+[CAT  is 'Cat '
+Yard is 'Cat & Dog '
+DIV1 is 33
+HUN  is 143
+HUN2 is 1855
+78 VALUE has simple left to right precedence.
+01 CONSTANT has normal operator precedence.
+CON3 is 23
+CON4 is 26 vs 3.141596 & -2.189 & +12
+CON6 is 18.
+My Dog's name is Piper;
 ], [])
 
 AT_CLEANUP

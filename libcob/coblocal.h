@@ -222,12 +222,15 @@ typedef struct __cob_settings {
 	char		*cob_sys_type;		/* OSTYPE setting from env */
 	char		*cob_debug_log;
 	unsigned int	cob_anim;		/* EB: Animator active */
+	char		*cob_date;		/* Date override for testing purposes / UTC hint */
+	struct cob_time	cob_time_constant;
 
 	/* call.c */
 	unsigned int	cob_physical_cancel;
 	unsigned int	name_convert;
 	char		*cob_preload_str;
 	char		*cob_library_path;
+	char		*cob_preload_str_set;
 
 	size_t		*resolve_size;	/* Array size of resolve_path*/
 	char		*cob_preload_resolved;

@@ -128,6 +128,7 @@ enum cb_format {
 #define	CB_CS_SET			(1U << 20)
 #define	CB_CS_STOP			(1U << 21)
 #define	CB_CS_WITH			(1U << 22)
+#define	CB_CS_OBJECT_COMPUTER		(1U << 23)
 
 /* Support for cobc from stdin */
 #define COB_DASH			"-"
@@ -167,6 +168,7 @@ enum cb_std_def {
 	CB_STD_MVS,
 	CB_STD_BS2000,
 	CB_STD_ACU,
+	CB_STD_RM,
 	/* the following must contain ANSI/ISO standards in order */
 	CB_STD_85,
 	CB_STD_2002,
@@ -467,6 +469,7 @@ extern enum				cb_support var;
 extern int		cb_load_std (const char *);
 extern int		cb_config_entry (char *, const char *, const int);
 extern int		cb_load_conf (const char *, const int);
+extern int		cb_load_words (void);
 
 #ifndef	HAVE_DESIGNATED_INITS
 /* Initialization routines in typeck.c and reserved.c */
@@ -492,6 +495,8 @@ extern void		pp_set_replace_list (struct cb_replace_list *,
 					     const cob_u32_t);
 extern void		ppparse_error (const char *);
 extern void		ppparse_clear_vars (const struct cb_define_struct *);
+extern struct cb_define_struct *ppp_search_lists (const char *name);
+extern void		ppp_clear_lists (void);
 extern void		plex_clear_vars (void);
 extern void		plex_clear_all (void);
 extern void		plex_call_destroy (void);
@@ -561,5 +566,14 @@ extern struct reserved_word_list	*cobc_user_res_list;
 
 extern void		remove_reserved_word (const char *, const char *, const int);
 extern void		add_reserved_word (const char *, const char *, const int);
+
+extern void		remove_register (const char *, const char *, const int);
+extern void		add_register (const char *, const char *, const int);
+
+extern void		deactivate_intrinsic (const char *, const char *, const int);
+extern void		activate_intrinsic (const char *, const char *, const int);
+
+extern void		deactivate_system_name (const char *, const char *, const int);
+extern void		activate_system_name (const char *, const char *, const int);
 
 #endif /* CB_COBC_H */

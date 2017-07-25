@@ -89,7 +89,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf prog.cob], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [21
 18446744073709551615
@@ -114,7 +114,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=acu prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -facu-literals=ok prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [5
 2147483647
@@ -238,6 +238,10 @@ AT_DATA([prog.cob], [
        01 L             PIC 9(4).
        01 I             PIC 9(2) VALUE 10.
        78 I-LEN         VALUE LENGTH OF I.
+       01 TSTDISP.
+         02 FILLER OCCURS 5000.
+           10 T1        PIC X(11).
+           10 T2        PIC X(22).
        PROCEDURE        DIVISION.
            MOVE LENGTH OF X TO L
            IF L NOT = 2
@@ -281,6 +285,9 @@ AT_DATA([prog.cob], [
               DISPLAY "Length 7 " L " - " I
               END-DISPLAY
            END-IF
+           *> one display test
+           DISPLAY LENGTH OF TSTDISP WITH NO ADVANCING
+           END-DISPLAY
            STOP RUN.
        VARME.
            ADD 1 TO L
@@ -288,6 +295,43 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -Wno-constant-expression prog.cob], [0], [], [])
+AT_CHECK([./prog], [0], [165000], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([SET TO SIZE OF])
+AT_KEYWORDS([extensions acu LENGTH])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       01  TST    PIC X(10) VALUE "abcdefghij".
+       01  TST2.
+           05  FILLER OCCURS 5000.
+               10 T2-1    PIC X(11).
+               10 T2-2    PIC X(22).
+       01  LN     PIC 9(06).
+
+       PROCEDURE DIVISION.
+           SET LN TO SIZE OF TST
+           IF LN NOT = 10
+              DISPLAY "SIZE OF TST is " LN UPON SYSERR
+              END-DISPLAY
+           END-IF
+           SET LN TO SIZE OF TST2
+           IF LN NOT = 165000
+              DISPLAY "SIZE OF TST2 is " LN UPON SYSERR
+              END-DISPLAY
+           END-IF
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob ], [0], [], [])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
@@ -306,9 +350,12 @@ AT_DATA([prog.cob], [
            MOVE WHEN-COMPILED TO X.
            INSPECT X CONVERTING "0123456789" TO "9999999999".
            IF X NOT = "99/99/9999.99.99    "
-              DISPLAY X NO ADVANCING
-              END-DISPLAY
-           END-IF.
+              CALL 'CBL_OC_DUMP' USING X 
+                 ON EXCEPTION
+                    DISPLAY X NO ADVANCING
+                    END-DISPLAY
+              END-CALL
+           END-IF
            STOP RUN.
 ])
 
@@ -465,7 +512,7 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=mf -fodoslide prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -fcomplex-odo -fodoslide prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [0606122333
 1010  3  22111
@@ -925,6 +972,7 @@ AT_CHECK([test -e TESTFILE], [0], [], [])
 
 AT_CLEANUP
 
+
 AT_SETUP([CALL unusual PROGRAM-ID.])
 AT_KEYWORDS([extensions])
 
@@ -988,6 +1036,7 @@ AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
 AT_CHECK([./caller], [0], [P1P2P3P4])
 
 AT_CLEANUP
+
 
 AT_SETUP([CALL / GOBACK with LOCAL-STORAGE])
 AT_KEYWORDS([extensions])
@@ -1201,6 +1250,7 @@ AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
 
+
 AT_SETUP([PROGRAM-ID AS clause])
 AT_KEYWORDS([extensions])
 
@@ -1222,6 +1272,7 @@ AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([Quoted PROGRAM-ID])
 AT_KEYWORDS([extensions])
@@ -1275,6 +1326,7 @@ AT_CHECK([./prog], [0], [], [])
 
 AT_CLEANUP
 
+
 AT_SETUP([ASSIGN clause IBM])
 AT_KEYWORDS([extensions])
 
@@ -1302,6 +1354,7 @@ AT_CHECK([./prog], [0], [], [])
 AT_CHECK([test -f FILENAME], [0], [], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([ASSIGN mapping])
 AT_KEYWORDS([extensions])
@@ -1358,6 +1411,7 @@ AT_CHECK([test -f "FILENAME2"], [0], [], [])
 
 AT_CLEANUP
 
+
 AT_SETUP([ASSIGN expansion])
 AT_KEYWORDS([extensions])
 
@@ -1383,6 +1437,7 @@ AT_CHECK([DIR="." ./prog], [0], [], [])
 AT_CHECK([test -f "./FILENAME" && rm -f "./FILENAME"], [0], [], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([ASSIGN with COB_FILE_PATH])
 AT_KEYWORDS([extensions])
@@ -1410,7 +1465,6 @@ AT_CHECK([test -f "../FILENAMEX" && rm -f "../FILENAMEX"], [0], [], [])
 
 AT_CLEANUP
 
-# Number of call parameters
 
 AT_SETUP([NUMBER-OF-CALL-PARAMETERS])
 AT_KEYWORDS([extensions])
@@ -1466,10 +1520,9 @@ AT_CHECK([./caller], [0],
 
 AT_CLEANUP
 
-# TALLY
 
 AT_SETUP([TALLY])
-AT_KEYWORDS([extensions])
+AT_KEYWORDS([extensions register])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1487,9 +1540,50 @@ AT_DATA([prog.cob], [
        END PROGRAM      nested.
 ])
 
+#FIXME: Should get a dialect check in syntax checks,
+#       along with all other special registers
+AT_CHECK([$COMPILE_ONLY -fnot-register=TALLY prog.cob], [1], [],
+[prog.cob: 5: error: 'TALLY' is not defined
+prog.cob: 12: error: 'tally' is not defined
+])
+
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [00001
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Redefining TALLY])
+AT_KEYWORDS([extensions register])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  tally PIC 999 VALUE 1.
+
+       PROCEDURE DIVISION.
+           ADD 1 TO tally
+           DISPLAY tally UPON SYSOUT
+           .
+])
+
+
+#FIXME: Should get a dialect check in syntax checks,
+#       along with all other special registers
+AT_CHECK([$COMPILE -std=ibm-strict prog.cob], [1], [], [ignore])
+AT_CHECK([$COMPILE -std=acu-strict prog.cob], [0], [], [])
+#AT_CHECK([$COMPILE -std=ibm prog.cob], [0], [], [])
+#AT_CHECK([$COMPILE -std=ibm-strict prog.cob], [1], [],
+#[prog.cob: 7: error: redefinition of register 'TALLY'
+#])
+#AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([./prog], [0],
+[002
 ])
 
 AT_CLEANUP
@@ -1695,9 +1789,7 @@ AT_DATA([prog3.cob], [
        PROGRAM-ID.      prog3.
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
-       77  RET          PIC 99 USAGE BINARY.
        PROCEDURE        DIVISION.
-           MOVE 33 TO RET
            STOP RUN 33.
 ])
 
@@ -1807,7 +1899,8 @@ AT_DATA([hello.cob], [
 ])
 
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
-AT_CHECK([$COMPILE_MODULE -std=mvs hello.cob], [0], [], [])
+# TODO: Doesn't work without sticky-linkage which is likely a bug!
+AT_CHECK([$COMPILE_MODULE -fentry-statement=ok -fsticky-linkage hello.cob], [0], [], [])
 AT_CHECK([./caller], [0],
 [Hello, COBOL!
 Bye, COBOL!
@@ -2375,16 +2468,16 @@ AT_DATA([prog.cob], [
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
        PROCEDURE        DIVISION.
-           DISPLAY "OK" NO ADVANCING UPON STDOUT
-           END-DISPLAY.
       D    DISPLAY "KO" NO ADVANCING UPON STDOUT
       D    END-DISPLAY.
+           DISPLAY "OK" NO ADVANCING UPON STDOUT
+           END-DISPLAY.
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -std=acu prog.cob], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
-[OKKO])
+[KOOK])
 
 AT_CLEANUP
 
@@ -2529,7 +2622,8 @@ AT_DATA([prog.cob], [
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE -fsyntax-extension prog.cob], [0], [], [])
+AT_CHECK([$COMPILE -fsystem-name="sw1, SwItCh\ b, SWITCH\ 25" \
+-fsystem-name=SWITCH-32 -fsystem-name="SWITCH\ Z" prog.cob], [0], [], [])
 AT_CHECK([COB_SWITCH_2=1 COB_SWITCH_26=1 COB_SWITCH_32=1 ./prog], [0],
 [OFF ON OFF OFF ON ON], [])
 
@@ -2621,7 +2715,7 @@ AT_CHECK([./prog], [0], [], [])
 AT_CLEANUP
 
 
-AT_SETUP([Obsolete 2002 keywords])
+AT_SETUP([Obsolete 2002 keywords with COBOL2014])
 AT_KEYWORDS([extensions])
 
 AT_DATA([prog.cob], [
@@ -2632,11 +2726,15 @@ AT_DATA([prog.cob], [
        01  TERMINAL     PIC XX VALUE "OK".
        01  SEND         PIC XX VALUE "OK".
        PROCEDURE        DIVISION.
-           DISPLAY TERMINAL SEND
-           END-DISPLAY.
+           DISPLAY TERMINAL SEND.
            STOP RUN.
 ])
 
+AT_CHECK([$COMPILE -std=cobol2002 prog.cob], [1], [],
+[prog.cob: 6: error: syntax error, unexpected TERMINAL
+prog.cob: 7: error: syntax error, unexpected SEND
+prog.cob: 9: error: syntax error, unexpected TERMINAL
+])
 AT_CHECK([$COMPILE -std=cobol2014 prog.cob], [0], [], [])
 AT_CHECK([./prog], [0],
 [OKOK
@@ -2647,48 +2745,45 @@ AT_CLEANUP
 
 #  System routines
 
-AT_SETUP([System routine C$CALLEDBY])
-AT_KEYWORDS([extensions])
+AT_SETUP([System routine with wrong number of parameters])
+AT_KEYWORDS([extensions narg])
 
-AT_DATA([callee.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      callee.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  X            PIC X(6) VALUE "X".
-       PROCEDURE        DIVISION.
-           CALL "C$CALLEDBY" USING X
-           END-CALL.
-           IF RETURN-CODE = 1 AND
-              X = "caller"
-              DISPLAY "OK" NO ADVANCING
-              END-DISPLAY
-           END-IF.
-           EXIT PROGRAM.
-])
-
-AT_DATA([caller.cob], [
+AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
        PROGRAM-ID.      caller.
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
-       01  X            PIC X(6) VALUE "X".
+       01  N            PIC 9 USAGE BINARY.
+       77  X            PIC X.
        PROCEDURE        DIVISION.
-           CALL "C$CALLEDBY" USING X
-           END-CALL.
-           IF RETURN-CODE = 0 AND
-              X = SPACES
-              DISPLAY "OK" NO ADVANCING
+           CALL "C$NARG" USING N X
+           END-CALL
+           IF N NOT = 2
+              DISPLAY "NOTOK " N
               END-DISPLAY
-           END-IF.
-           CALL "callee"
-           END-CALL.
+           END-IF
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE caller.cob], [0], [], [])
-AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([./caller], [1], [OKOK])
+AT_DATA([wrong.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      wrong.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77  X            PIC X.
+       PROCEDURE        DIVISION.
+           CALL "CBL_OR" USING X
+           END-CALL
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE wrong.cob], [1], [],
+[wrong.cob: 8: error: wrong number of CALL parameters for 'CBL_OR', 1 given, 3 expected
+])
+AT_CHECK([$COMPILE prog.cob], [0], [],
+[prog.cob: 9: warning: wrong number of CALL parameters for 'C$NARG', 2 given, 1 expected
+])
+AT_CHECK([./prog 1 2], [0], [], [])
 
 AT_CLEANUP
 
@@ -2808,6 +2903,52 @@ AT_DATA([caller.cob], [
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([./caller], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([System routine C$CALLEDBY])
+AT_KEYWORDS([extensions])
+
+AT_DATA([callee.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      callee.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  X            PIC X(6) VALUE "X".
+       PROCEDURE        DIVISION.
+           CALL "C$CALLEDBY" USING X
+           END-CALL.
+           IF RETURN-CODE = 1 AND
+              X = "caller"
+              DISPLAY "OK" NO ADVANCING
+              END-DISPLAY
+           END-IF.
+           EXIT PROGRAM.
+])
+
+AT_DATA([caller.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      caller.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01  X            PIC X(6) VALUE "X".
+       PROCEDURE        DIVISION.
+           CALL "C$CALLEDBY" USING X
+           END-CALL.
+           IF RETURN-CODE = 0 AND
+              X = SPACES
+              DISPLAY "OK" NO ADVANCING
+              END-DISPLAY
+           END-IF.
+           CALL "callee"
+           END-CALL.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
+AT_CHECK([./caller], [1], [OKOK])
 
 AT_CLEANUP
 
@@ -3828,197 +3969,28 @@ AT_CHECK([./prog 1ARG], [3], [OUT], [ERR])
 AT_CLEANUP
 
 
-AT_SETUP([System routines for directories])
-AT_KEYWORDS([extensions CBL_CREATE_DIR CBL_CHANGE_DIR CBL_DELETE_DIR])
-
-AT_DATA([prog.cob], [
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID. prog.
-        DATA DIVISION.
-        WORKING-STORAGE SECTION.
-        01 DIR PIC X(4) VALUE 'ABCD'.
-
-        PROCEDURE DIVISION.
-        CALL 'CBL_CREATE_DIR' USING DIR END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error creating dir ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_CHANGE_DIR' USING DIR END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error changing dir ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_CHANGE_DIR' USING '..' END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error changing dir up ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_DELETE_DIR' USING DIR END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error deleting dir' END-DISPLAY
-        END-IF
-
-        STOP RUN.
-])
-
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
-AT_CHECK([test -e abcd], [1], [], [])
-
-AT_CLEANUP
-
-
-AT_SETUP([System routines for files])
-AT_KEYWORDS([extensions CBL_CREATE_FILE CBL_WRITE_FILE CBL_FLUSH_FILE
-CBL_OPEN_FILE CBL_READ_FILE CBL_CLOSE_FILE CBL_RENAME_FILE CBL_DELETE_FILE])
-
-AT_DATA([prog.cob], [
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID. prog.
-        DATA DIVISION.
-        WORKING-STORAGE SECTION.
-        01 FNAME PIC X(256) VALUE 'testtext.txt'.
-        01 ACCESS-MODE PIC X USAGE COMP-X VALUE 2.
-        01 HANDLE PIC X(4) USAGE COMP-X.
-
-        01 OFFSET PIC X(8) USAGE COMP-X.
-        01 NBYTES PIC X(4) USAGE COMP-X.
-        01 WRITE-BUFFER PIC X(20).
-
-        PROCEDURE DIVISION.
-        CALL 'CBL_CREATE_FILE' USING
-        FNAME 55 11 22 HANDLE
-        END-CALL
-        IF RETURN-CODE NOT = -1
-            DISPLAY 'Wrong return codes ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_CREATE_FILE' USING
-        FNAME ACCESS-MODE 0 0 HANDLE
-        END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error creating file ...' END-DISPLAY
-        END-IF
-
-        MOVE 'TestText.ABCD' TO WRITE-BUFFER.
-        MOVE 0 TO OFFSET.
-        MOVE 9 TO NBYTES.
-
-        CALL 'CBL_WRITE_FILE' USING
-        HANDLE OFFSET NBYTES '0' WRITE-BUFFER
-        END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error writing file ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_FLUSH_FILE' USING HANDLE END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error flushing file ...' END-DISPLAY
-        END-IF
-
-        STOP RUN.
-])
-
-AT_DATA([prog2.cob], [
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID. prog2.
-        DATA DIVISION.
-        WORKING-STORAGE SECTION.
-        01 FNAME PIC X(256) VALUE 'testtext.txt'.
-        01 RET PIC -9.
-        01 HANDLE PIC X(4) USAGE COMP-X.
-
-        01 OFFSET PIC X(8) USAGE COMP-X.
-        01 NBYTES PIC X(4) USAGE COMP-X.
-        01 READ-BUFFER PIC X(10).
-
-        PROCEDURE DIVISION.
-        CALL 'CBL_OPEN_FILE' USING
-        FNAME 1 0 0 HANDLE
-        END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error opening file ...' END-DISPLAY
-        END-IF
-
-        MOVE SPACES TO READ-BUFFER.
-        MOVE 2 TO OFFSET.
-        MOVE 9 TO NBYTES.
-
-        CALL 'CBL_READ_FILE' USING
-        HANDLE OFFSET NBYTES 0 READ-BUFFER
-        END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error reading file ...' END-DISPLAY
-        END-IF
-        IF READ-BUFFER NOT = 'stText.'
-            DISPLAY 'Wrong readbuffer ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_CLOSE_FILE' USING HANDLE END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error closing file ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_RENAME_FILE' USING FNAME 'foo.txt' END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error renaming file ...' END-DISPLAY
-        END-IF
-
-        CALL 'CBL_DELETE_FILE' USING 'foo.txt' END-CALL
-        IF RETURN-CODE NOT = 0
-            DISPLAY 'error deleting file ...' END-DISPLAY
-        END-IF
-
-        STOP RUN.
-])
-
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COMPILE prog2.cob], [0], [], [])
-AT_CHECK([./prog], [0], [],
-[libcob: prog.cob: 15: warning: call to CBL_CREATE_FILE with wrong file_lock: 11
-libcob: prog.cob: 15: warning: call to CBL_CREATE_FILE with wrong file_dev: 22
-libcob: prog.cob: 15: warning: call to CBL_OPEN_FILE with wrong access mode: 55
-])
-AT_CHECK([./prog2], [0], [], [])
-
-AT_CLEANUP
-
-
-AT_SETUP([System routine CBL_COPY_FILE])
+AT_SETUP([DISPLAY DIRECTIVE and $DISPLAY])
 AT_KEYWORDS([extensions])
 
 AT_DATA([prog.cob], [
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID. prog.
-        DATA DIVISION.
-        WORKING-STORAGE SECTION.
-        PROCEDURE DIVISION.
-        DISPLAY "test" END-DISPLAY
-        STOP RUN.
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       PROCEDURE        DIVISION.
+       >> DISPLAY some text
+       >> DISPLAY   other  text #2  *> comment
+       >> DISPLAY  "literal text  *> no comment"
+       $DISPLAY  MF compile time text  *> without comment
+           GOBACK.
 ])
 
-AT_DATA([prog2.cob], [
-        IDENTIFICATION DIVISION.
-        PROGRAM-ID. prog2.
-        DATA DIVISION.
-        WORKING-STORAGE SECTION.
-        01 FILE1 PIC X(8) VALUE 'prog.cob'.
-        01 FILE2 PIC X(9) VALUE 'prog3.cob'.
-
-        PROCEDURE DIVISION.
-        CALL 'CBL_COPY_FILE' USING
-        FILE1 FILE2
-        END-CALL
-        STOP RUN.
+AT_CHECK([$COMPILE prog.cob], [0],
+[some text
+other  text #2
+literal text  *> no comment
+MF compile time text
 ])
-
-AT_CHECK([$COMPILE prog2.cob], [0], [], [])
-AT_CHECK([./prog2], [0], [], [])
-AT_CHECK([diff prog.cob prog3.cob], [0], [], [])
-
 AT_CLEANUP
 
 
@@ -4150,6 +4122,7 @@ AT_CHECK([$COMPILE -DACTIVATE2 prog.cob], [0],
 ])
 AT_CLEANUP
 
+
 AT_SETUP([Conditional/define directives (6)])
 AT_KEYWORDS([extensions directive])
 
@@ -4174,6 +4147,7 @@ AT_CHECK([$COMPILE prog.cob], [0],
 [X not defined
 ])
 AT_CLEANUP
+
 
 AT_SETUP([Conditional/define directives (7)])
 AT_KEYWORDS([extensions directive])

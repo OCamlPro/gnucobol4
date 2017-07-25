@@ -185,11 +185,8 @@ static int		cob_anim_logging;	/* EB */
 static int		cob_anim_tracing;	/* EB */
 
 #undef	COB_SYSTEM_GEN
-#if 0
-#define	COB_SYSTEM_GEN(x,y,z)		{ x, {(void *(*)())z} },
-#else
-#define	COB_SYSTEM_GEN(x,y,z)		{ x, {(void *(*)(void *))z} },
-#endif
+#define	COB_SYSTEM_GEN(cob_name, pmin, pmax, c_name)	\
+	{ cob_name, {(void *(*)(void *))c_name} },
 
 static const struct system_table	system_tab[] = {
 #include "system.def"
@@ -1501,6 +1498,10 @@ cob_init_call (cob_global *lptr, cob_settings* sptr)
 	if (cobsetptr->cob_preload_str != NULL) {
 
 		p = cob_strdup (cobsetptr->cob_preload_str);
+
+		cob_free (cobsetptr->cob_preload_str);
+		cobsetptr->cob_preload_str = NULL;
+
 		s = strtok (p, PATHSEP_STR);
 		for (; s; s = strtok (NULL, PATHSEP_STR)) {
 #ifdef __OS400__
@@ -1702,7 +1703,6 @@ cob_get_s64_param (int n)
 		cob_move (f, &temp);
 		return val;
 	}
-	return -1;
 }
 
 cob_u64_t
@@ -1756,7 +1756,6 @@ cob_get_u64_param (int n)
 		cob_move (f, &temp);
 		return val;
 	}
-	return 0;
 }
 
 char *

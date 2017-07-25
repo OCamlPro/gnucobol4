@@ -72,6 +72,7 @@ struct sort_list {
 struct system_table {
 	const char		*syst_name;
 	const char		*syst_call;
+	const int		syst_max_params;
 };
 
 struct label_list {
@@ -208,11 +209,11 @@ static char*		debug_source_buffer;
 static char*		debug_line_buffer;
 
 #undef	COB_SYSTEM_GEN
-#define	COB_SYSTEM_GEN(x, y, z)	{ x, #z },
+#define	COB_SYSTEM_GEN(cob_name, pmin, pmax, c_name)	{ cob_name, #c_name, pmax },
 
 static const struct system_table	system_tab[] = {
 #include "libcob/system.def"
-	{ NULL, NULL }
+	{ NULL, NULL, 0 }
 };
 
 #undef	COB_SYSTEM_GEN
@@ -352,7 +353,8 @@ LIST_REVERSE_FUNC (attr_list)
 LIST_REVERSE_FUNC (string_list)
 LIST_REVERSE_FUNC (literal_list)
 
-static int field_cache_cmp (const void *mp1, const void *mp2) {
+static int field_cache_cmp (const void *mp1, const void *mp2)
+{
 	const struct field_list	*fl1;
 	const struct field_list	*fl2;
 	int			ret;
@@ -366,7 +368,8 @@ static int field_cache_cmp (const void *mp1, const void *mp2) {
 	return fl1->f->id - fl2->f->id;
 }
 
-static int base_cache_cmp (const void *mp1, const void *mp2) {
+static int base_cache_cmp (const void *mp1, const void *mp2)
+{
 	const struct base_list	*fl1;
 	const struct base_list	*fl2;
 
@@ -654,8 +657,10 @@ output_base (struct cb_field *f, const cob_u32_t no_output)
 	struct base_list	*bl;
 
 	if (unlikely (f->flag_item_78)) {
-		cobc_err_msg (_ ("unexpected CONSTANT item"));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected CONSTANT item"));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 
 	f01 = real_field_founder (f);
@@ -663,7 +668,7 @@ output_base (struct cb_field *f, const cob_u32_t no_output)
 	/* Base storage */
 
 	if (!f01->flag_base) {
-		if (f01->special_index > 1U) {
+		if (f01->special_index == 2U) {
 			bl = cobc_parse_malloc (sizeof (struct base_list));
 			bl->f = f01;
 			bl->curr_prog = excp_current_program_id;
@@ -759,8 +764,9 @@ output_data (cb_tree x)
 	case CB_TAG_LITERAL:
 		l = CB_LITERAL (x);
 		if (CB_TREE_CLASS (x) == CB_CLASS_NUMERIC) {
-			output ("(cob_u8_ptr)\"%s%s\"", (char *)l->data,
-				(l->sign < 0) ? "-" : (l->sign > 0) ? "+" : "");
+			output ("(cob_u8_ptr)\"%s%s\"", 
+					(l->sign < 0) ? "-" : (l->sign > 0) ? "+" : "",
+					(char *)l->data);
 		} else {
 			output ("(cob_u8_ptr)");
 			output_string (l->data, (int)l->size, l->llit);
@@ -831,8 +837,10 @@ output_data (cb_tree x)
 		}
 		/* Fall through */
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -918,8 +926,10 @@ output_size (const cb_tree x)
 		output ("(int)%s%d.size", CB_PREFIX_FIELD, CB_FIELD (x)->id);
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -1089,7 +1099,7 @@ output_attr (const cb_tree x)
 		if (CB_TREE_CLASS (x) == CB_CLASS_NUMERIC) {
 			flags = COB_FLAG_CONSTANT;
 			if (l->sign != 0) {
-				flags = COB_FLAG_HAVE_SIGN | COB_FLAG_SIGN_SEPARATE;
+				flags = COB_FLAG_HAVE_SIGN | COB_FLAG_SIGN_SEPARATE | COB_FLAG_SIGN_LEADING;
 			}
 			id = lookup_attr (COB_TYPE_NUMERIC_DISPLAY,
 				l->size, l->scale, flags, NULL, 0);
@@ -1180,8 +1190,10 @@ output_attr (const cb_tree x)
 		id = lookup_attr (COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL, 0);
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 
 	output ("&%s%d", CB_PREFIX_ATTR, id);
@@ -1743,7 +1755,7 @@ output_local_base_cache (void)
 
 	local_base_cache = list_cache_sort (local_base_cache, &base_cache_cmp);
 	for (blp = local_base_cache; blp; blp = blp->next) {
-		if (blp->f->special_index > 1) {
+		if (blp->f->special_index == 2U) {
 			output_local ("int		%s%d;",
 				CB_PREFIX_BASE, blp->f->id);
 		} else if (blp->f->special_index) {
@@ -2441,9 +2453,11 @@ output_integer (cb_tree x)
 			}
 			break;
 		default:
-			cobc_err_msg (_ ("unexpected cast type: %d"),
-				(int)cp->cast_type);
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("unexpected cast type: %d"),
+				 (int)cp->cast_type);
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		break;
 	case CB_TAG_REFERENCE:
@@ -2456,6 +2470,14 @@ output_integer (cb_tree x)
 				return;
 			}
 			/* Fall through */
+		case CB_USAGE_HNDL:
+		case CB_USAGE_HNDL_WINDOW:
+		case CB_USAGE_HNDL_SUBWINDOW:
+		case CB_USAGE_HNDL_FONT:
+		case CB_USAGE_HNDL_THREAD:
+		case CB_USAGE_HNDL_MENU:
+		case CB_USAGE_HNDL_VARIANT:
+		case CB_USAGE_HNDL_LM:
 		case CB_USAGE_LENGTH:
 			output ("(*(int *) (");
 			output_data (x);
@@ -2606,7 +2628,7 @@ output_integer (cb_tree x)
 
 		default:
 			break;
-			}
+		}
 
 		output_func_1 ("cob_get_int", x);
 		break;
@@ -2616,10 +2638,12 @@ output_integer (cb_tree x)
 		output (")");
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
-		}
+		/* LCOV_EXCL_STOP */
 	}
+}
 
 #if 0
 }
@@ -2696,9 +2720,11 @@ output_long_integer (cb_tree x)
 			}
 			break;
 		default:
-			cobc_err_msg (_ ("unexpected cast type: %d"),
-				(int)cp->cast_type);
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("unexpected cast type: %d"),
+				 (int)cp->cast_type);
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		break;
 	case CB_TAG_REFERENCE:
@@ -2711,6 +2737,14 @@ output_long_integer (cb_tree x)
 				return;
 			}
 			/* Fall through */
+		case CB_USAGE_HNDL:
+		case CB_USAGE_HNDL_WINDOW:
+		case CB_USAGE_HNDL_SUBWINDOW:
+		case CB_USAGE_HNDL_FONT:
+		case CB_USAGE_HNDL_THREAD:
+		case CB_USAGE_HNDL_MENU:
+		case CB_USAGE_HNDL_VARIANT:
+		case CB_USAGE_HNDL_LM:
 		case CB_USAGE_LENGTH:
 			output ("(cob_s64_t)(*(int *) (");
 			output_data (x);
@@ -2841,7 +2875,7 @@ output_long_integer (cb_tree x)
 
 		default:
 			break;
-			}
+		}
 
 		output_func_1 ("cob_get_llint", x);
 		break;
@@ -2851,10 +2885,12 @@ output_long_integer (cb_tree x)
 		output (")");
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
-		}
+		/* LCOV_EXCL_STOP */
 	}
+}
 
 static void
 output_index (cb_tree x)
@@ -3013,7 +3049,7 @@ output_param (cb_tree x, int id)
 		output ("d%d", CB_DECIMAL (x)->id);
 		break;
 	case CB_TAG_DECIMAL_LITERAL:
-		output ("%s%d", CB_PREFIX_DEC_CONST, CB_DECIMAL (x)->id);
+		output ("%s%d", CB_PREFIX_DEC_CONST, CB_DECIMAL_LITERAL (x)->id);
 		break;
 	case CB_TAG_FILE:
 		output ("%s%s", CB_PREFIX_FILE, CB_FILE (x)->cname);
@@ -3039,9 +3075,11 @@ output_param (cb_tree x, int id)
 		if (r->check) {
 			inside_stack[inside_check++] = 0;
 			if (inside_check >= COB_INSIDE_SIZE) {
-				cobc_err_msg (_ ("internal statement stack depth exceeded: %d"),
-					COB_INSIDE_SIZE);
+				/* LCOV_EXCL_START */
+				cobc_err_msg (_("internal statement stack depth exceeded: %d"),
+						COB_INSIDE_SIZE);
 				COBC_ABORT ();
+				/* LCOV_EXCL_STOP */
 			}
 			output ("\n");
 			output_prefix ();
@@ -3108,11 +3146,13 @@ output_param (cb_tree x, int id)
 		}
 
 		if (!CB_FIELD_P (r->value)) {
+			/* LCOV_EXCL_START */
 			cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
 				"output_param", "x");
 			cobc_err_msg (_("%s is not a field"), r->word->name);
 			cobc_err_msg (_("Please report this!"));
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 
 		f = CB_FIELD (r->value);
@@ -3139,8 +3179,8 @@ output_param (cb_tree x, int id)
 				fl->f = f;
 				fl->curr_prog = excp_current_program_id;
 				if (!f->flag_cached) {
-					if (f->special_index != 2 && (f->flag_is_global ||
-				    current_prog->flag_file_global)) {
+					if (f->special_index != 2U && (f->flag_is_global ||
+					    current_prog->flag_file_global)) {
 						fl->next = field_cache;
 						field_cache = fl;
 					} else {
@@ -3303,8 +3343,10 @@ output_param (cb_tree x, int id)
 		output_funcall (x);
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -3356,8 +3398,10 @@ output_funcall (cb_tree x)
 			}
 			break;
 		default:
-			cobc_err_msg (_ ("unexpected function: %s"), p->name);
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("unexpected function: %s"), p->name);
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		return;
 	}
@@ -3415,8 +3459,10 @@ output_cond (cb_tree x, const int save_flag)
 		} else if (x == cb_false) {
 			output ("0");
 		} else {
-			cobc_err_msg (_ ("unexpected constant"));
+			/* LCOV_EXCL_START */
+			cobc_err_msg ("invalid constant");
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		break;
 	case CB_TAG_BINARY_OP:
@@ -3493,9 +3539,11 @@ output_cond (cb_tree x, const int save_flag)
 		}
 		inside_stack[inside_check++] = 0;
 		if (inside_check >= COB_INSIDE_SIZE) {
-			cobc_err_msg (_ ("internal statement stack depth exceeded: %d"),
-				COB_INSIDE_SIZE);
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("internal statement stack depth exceeded: %d"),
+					COB_INSIDE_SIZE);
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		output ("(\n");
 		for (; x; x = CB_CHAIN (x)) {
@@ -3510,8 +3558,10 @@ output_cond (cb_tree x, const int save_flag)
 		}
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -3541,8 +3591,10 @@ deduce_initialize_type (struct cb_initialize *p, struct cb_field *f,
 	int		type;
 
 	if (f->flag_item_78) {
-		cobc_err_msg (_ ("unexpected CONSTANT item"));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected CONSTANT item"));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 
 	if (f->flag_external && !p->flag_init_statement) {
@@ -4078,9 +4130,11 @@ output_initialize_one (struct cb_initialize *p, cb_tree x)
 			output_move (cb_space, x);
 			break;
 		default:
-			cobc_err_msg (_ ("unexpected tree category: %d"),
-				(int)CB_TREE_CATEGORY (x));
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("unexpected tree category: %d"),
+				 (int)CB_TREE_CATEGORY (x));
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 	}
 }
@@ -4250,10 +4304,14 @@ output_search_whens (cb_tree table, struct cb_field *p, cb_tree stmt,
 	cb_tree		l;
 	cb_tree		idx = NULL;
 
+	COB_UNUSED(table);	/* to be handled later */
+
 	if (!p->index_list) {
-		cobc_err_msg (_ ("call to '%s' with invalid parameter '%s'"),
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
 			"output_search", "table");
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 
 	/* Determine the index to use */
@@ -4310,6 +4368,8 @@ output_search_all (cb_tree table, struct cb_field *p, cb_tree stmt,
 	cb_tree cond, cb_tree when)
 {
 	cb_tree		idx;
+
+	COB_UNUSED(table);	/* to be handled later */
 
 	idx = CB_VALUE (p->index_list);
 	/* Header */
@@ -4455,8 +4515,10 @@ output_call_protocast (cb_tree x, cb_tree l)
 				output ("cob_u64_t");
 				return;
 			default:
-				cobc_err_msg (_ ("unexpected size: %d"), CB_SIZES_INT (l));
+				/* LCOV_EXCL_START */
+				cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 				COBC_ABORT ();
+				/* LCOV_EXCL_STOP */
 			}
 		}
 		val = cb_get_long_long (x);
@@ -4480,8 +4542,10 @@ output_call_protocast (cb_tree x, cb_tree l)
 			output ("cob_s64_t");
 			return;
 		default:
-			cobc_err_msg (_ ("unexpected size: %d"), CB_SIZES_INT (l));
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		return;
 	default:
@@ -4674,8 +4738,10 @@ output_call_by_value_args (cb_tree x, cb_tree l)
 				output (CB_FMT_LLU_F, uval);
 				return;
 			default:
-				cobc_err_msg (_ ("unexpected size: %d"), CB_SIZES_INT (l));
+				/* LCOV_EXCL_START */
+				cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 				COBC_ABORT ();
+				/* LCOV_EXCL_STOP */
 			}
 		}
 		val = cb_get_long_long (x);
@@ -4704,8 +4770,10 @@ output_call_by_value_args (cb_tree x, cb_tree l)
 			output (CB_FMT_LLD_F, val);
 			return;
 		default:
-			cobc_err_msg (_ ("unexpected size: %d"), CB_SIZES_INT (l));
+			/* LCOV_EXCL_START */
+			cobc_err_msg (_("unexpected size: %d"), CB_SIZES_INT (l));
 			COBC_ABORT ();
+			/* LCOV_EXCL_STOP */
 		}
 		return;
 	default:
@@ -4806,6 +4874,14 @@ output_call_by_value_args (cb_tree x, cb_tree l)
 			output (")");
 			return;
 		case CB_USAGE_INDEX:
+		case CB_USAGE_HNDL:
+		case CB_USAGE_HNDL_WINDOW:
+		case CB_USAGE_HNDL_SUBWINDOW:
+		case CB_USAGE_HNDL_FONT:
+		case CB_USAGE_HNDL_THREAD:
+		case CB_USAGE_HNDL_MENU:
+		case CB_USAGE_HNDL_VARIANT:
+		case CB_USAGE_HNDL_LM:
 		case CB_USAGE_LENGTH:
 		case CB_USAGE_POINTER:
 		case CB_USAGE_PROGRAM_POINTER:
@@ -4919,8 +4995,7 @@ output_call (struct cb_call *p)
 	cb_tree				l;
 	const char			*name_str;
 	struct nested_list		*nlp;
-	char				*system_call = NULL;
-	const struct system_table	*psyst;
+	const struct system_table	*psyst = NULL;
 	const char			*convention;
 	struct cb_text_list		*ctl;
 	const char			*s;
@@ -4953,7 +5028,6 @@ output_call (struct cb_call *p)
 	/* System routine entry points */
 	if (p->is_system) {
 		psyst = &system_tab[p->is_system - 1];
-		system_call = (char *)psyst->syst_call;
 		dynamic_link = 0;
 	}
 
@@ -5026,8 +5100,8 @@ output_call (struct cb_call *p)
 					output_indent ("{");
 				}
 				output_line ("void *ptr_%u;", n);
-			} else if (CB_TREE_TAG (x) != CB_TAG_INTRINSIC 
-				&& x != cb_null 
+			} else if (CB_TREE_TAG (x) != CB_TAG_INTRINSIC
+				&& x != cb_null
 				&& !(CB_CAST_P (x))) {
 				if (!need_brace) {
 					need_brace = 1;
@@ -5231,7 +5305,8 @@ output_call (struct cb_call *p)
 #endif
 			output (" = cob_unifunc.funcptr");
 		} else {
-			if (p->convention & CB_CONV_NO_RET_UPD) {
+			if (p->convention & CB_CONV_NO_RET_UPD
+			||  !current_prog->cb_return_code) {
 				output ("(void)cob_unifunc.funcint");
 			} else {
 				output_integer (current_prog->cb_return_code);
@@ -5248,15 +5323,16 @@ output_call (struct cb_call *p)
 				output_integer (p->call_returning);
 #endif
 				output (" = (void *)");
-			} else if (!(p->convention & CB_CONV_NO_RET_UPD)) {
+			} else if (!(p->convention & CB_CONV_NO_RET_UPD)
+			       &&  current_prog->cb_return_code) {
 				output_integer (current_prog->cb_return_code);
 				output (" = ");
 			} else {
 				output ("(void)");
 			}
 		}
-		if (system_call) {
-			output ("%s", system_call);
+		if (psyst) {
+			output ("%s", (char *)psyst->syst_call);
 		} else {
 			s = get_program_id_str (p->name);
 			name_str = cb_encode_program_id (s);
@@ -5343,7 +5419,8 @@ output_call (struct cb_call *p)
 			output (" = ((void *(*)");
 		} else {
 			if (p->call_returning != cb_null) {
-				if (p->convention & CB_CONV_NO_RET_UPD) {
+				if (p->convention & CB_CONV_NO_RET_UPD
+				|| !current_prog->cb_return_code) {
 					output ("((int (*)");
 				} else {
 					output_integer (current_prog->cb_return_code);
@@ -5437,6 +5514,13 @@ output_call (struct cb_call *p)
 		default:
 			break;
 		}
+		/* early exit if call parameters don't match, this is actually
+		needed for all static calls, but only possible with an
+		external program repository, so just do so for system calls
+		*/
+		if (psyst && psyst->syst_max_params == n) {
+			break;
+		}
 		if (CB_CHAIN (l)) {
 			output (", ");
 		}
@@ -5444,7 +5528,9 @@ output_call (struct cb_call *p)
 
 	output (");\n");
 
-	if (p->call_returning && (!(p->convention & CB_CONV_NO_RET_UPD))) {
+	if (p->call_returning
+	&& (!(p->convention & CB_CONV_NO_RET_UPD))
+	&& current_prog->cb_return_code) {
 		if (p->call_returning == cb_null) {
 			output_prefix ();
 			output_integer (current_prog->cb_return_code);
@@ -6142,8 +6228,10 @@ get_ec_code_for_handler (const enum cb_handler_type handler_type)
 	case INVALID_KEY_HANDLER:
 		return CB_EXCEPTION_CODE (COB_EC_I_O_INVALID_KEY);
 	default:
-		cobc_err_msg (_ ("unexpected handler type: %d"), (int)handler_type);
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected handler type: %d"), (int) handler_type);
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -6379,8 +6467,10 @@ output_ec_condition_for_handler (const enum cb_handler_type handler_type)
 		break;
 
 	default:
-		cobc_err_msg (_ ("unexpected handler type: %d"), (int)handler_type);
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected handler type: %d"), (int) handler_type);
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -6425,7 +6515,7 @@ output_stmt (cb_tree x)
 	struct cb_cast		*cp;
 #endif
 	size_t			size;
-	int			code;
+	int			code, skip_else;
 	unsigned char	jmp_c = ' '; /* EB */
 
 	stack_id = 0;
@@ -6434,8 +6524,10 @@ output_stmt (cb_tree x)
 		return;
 	}
 	if (unlikely (x == cb_error_node)) {
-		cobc_err_msg (_ ("unexpected error_node parameter"));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected error_node parameter"));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 
 	if (inside_check != 0) {
@@ -6671,9 +6763,11 @@ output_stmt (cb_tree x)
 					}
 					break;
 				default:
-					cobc_err_msg (_ ("unexpected cast type: %d"),
-						cp->cast_type);
+					/* LCOV_EXCL_START */
+					cobc_err_msg (_("unexpected cast type: %d"),
+							cp->cast_type);
 					COBC_ABORT ();
+					/* LCOV_EXCL_STOP */
 				}
 				output (";\n");
 			} else {
@@ -6689,9 +6783,11 @@ output_stmt (cb_tree x)
 				/* SET ADDRESS OF var ... */
 				cp = CB_CAST (ap->var);
 				if (cp->cast_type != CB_CAST_ADDRESS) {
-					cobc_err_msg (_ ("unexpected tree type: %d"),
-						cp->cast_type);
+					/* LCOV_EXCL_START */
+					cobc_err_msg (_("unexpected tree type: %d"),
+							cp->cast_type);
 					COBC_ABORT ();
+					/* LCOV_EXCL_STOP */
 				}
 				output_data (cp->val);
 				output (" = temp_ptr;\n");
@@ -6751,6 +6847,15 @@ output_stmt (cb_tree x)
 		break;
 	case CB_TAG_IF:
 		ip = CB_IF (x);
+		if (ip->stmt1 == NULL
+		 && ip->stmt2 == NULL) {
+			if (!ip->is_if) {
+				output_line ("/* WHEN has code omitted */");
+			} else {
+				output_line ("/* IF has code omitted */");
+			}
+			break;
+		}
 		if (!ip->is_if) {
 			output_newline ();
 			output_line ("/* WHEN */");
@@ -6759,27 +6864,35 @@ output_stmt (cb_tree x)
 		gen_if_level++;
 		code = 0;
 		output_prefix ();
-		output ("if (");
-		output_cond (ip->test, 0);
-		output (")\n");
-		output_line ("{");
-		output_indent_level += 2;
-		if (ip->stmt1) {
-			output_stmt (ip->stmt1);
+		if (ip->test == cb_false
+		 && ip->stmt1 == NULL) {
+			output_line (" /* FALSE condition and code omitted */");
+			skip_else = 1;
 		} else {
-			output_line ("; /* Nothing */");
-		}
-		if (gen_if_level > cb_if_cutoff) {
-			if (ip->stmt2) {
-				code = cb_id++;
-				output_line ("goto l_%d;", code);
+			skip_else = 0;
+			output ("if (");
+			output_cond (ip->test, 0);
+			output (")\n");
+			output_line ("{");
+			output_indent_level += 2;
+			if (ip->stmt1) {
+				output_stmt (ip->stmt1);
+			} else {
+				output_line ("; /* Nothing */");
 			}
+			if (gen_if_level > cb_if_cutoff) {
+				if (ip->stmt2) {
+					code = cb_id++;
+					output_line ("goto l_%d;", code);
+				}
+			}
+			output_indent_level -= 2;
+			output_line ("}");
 		}
-		output_indent_level -= 2;
-		output_line ("}");
 		if (ip->stmt2) {
 			if (gen_if_level <= cb_if_cutoff) {
-				output_line ("else");
+				if (!skip_else)
+					output_line ("else");
 				output_line ("{");
 				output_indent_level += 2;
 			}
@@ -6884,8 +6997,10 @@ output_stmt (cb_tree x)
 			CB_DEBUG_CALL (x)->target);
 		break;
 	default:
-		cobc_err_msg (_ ("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
+		/* LCOV_EXCL_START */
+		cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -6972,15 +7087,15 @@ output_file_initialization (struct cb_file *f)
 		strcpy(key_ptr,"NULL");
 	}
 	if (f->flag_external) {
-		output_line ("cob_file_external_addr (\"%s\", &%s%s, %s, %d, %d);", 
+		output_line ("cob_file_external_addr (\"%s\", &%s%s, %s, %d, %d);",
 							f->cname,
-							CB_PREFIX_FILE, f->cname, 
+							CB_PREFIX_FILE, f->cname,
 							key_ptr, nkeys, f->linage?1:0);
 		output_line ("if (cob_glob_ptr->cob_initial_external)");
 		output_indent ("{");
 	} else {
-		output_line ("cob_file_malloc (&%s%s, %s, %d, %d);", 
-							CB_PREFIX_FILE, f->cname, 
+		output_line ("cob_file_malloc (&%s%s, %s, %d, %d);",
+							CB_PREFIX_FILE, f->cname,
 							key_ptr, nkeys, f->linage?1:0);
 	}
 	nkeys = 1;
@@ -8253,9 +8368,8 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	}
 
 	/* ANY LENGTH items */
-	i = 0;
 	anyseen = 0;
-	for (l = parameter_list; l; l = CB_CHAIN (l), i++) {
+	for (l = parameter_list; l; l = CB_CHAIN (l)) {
 		f = cb_code_field (CB_VALUE (l));
 		if (f->flag_any_length) {
 			anyseen = 1;
@@ -8414,8 +8528,10 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 				continue;
 			}
 			if (f->flag_item_78) {
-				cobc_err_msg (_ ("unexpected CONSTANT item"));
+				/* LCOV_EXCL_START */
+				cobc_err_msg (_("unexpected CONSTANT item"));
 				COBC_ABORT ();
+				/* LCOV_EXCL_STOP */
 			}
 			f->flag_local_storage = 1;
 			f->flag_local_alloced = 1;
@@ -8555,8 +8671,8 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	}
 
 	/* Call parameters */
-	if (cb_code_field (prog->cb_call_params)->count) {
-		output_line ("/* Set NUMBER-OF-CALL-PARAMETERS (independant from LINKAGE) */");
+	if (prog->cb_call_params && cb_code_field (prog->cb_call_params)->count) {
+		output_line ("/* Set NUMBER-OF-CALL-PARAMETERS (independent from LINKAGE) */");
 		output_prefix ();
 		output_integer (prog->cb_call_params);
 		output (" = cob_glob_ptr->cob_call_params;\n");
@@ -8869,16 +8985,15 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	}
 
 	output_line ("/* Program return */");
-#if	1	/* RXWRXW - PROCRET */
-	if (prog->returning) {
+	if (prog->returning && prog->cb_return_code) {
 		output_move (prog->returning, prog->cb_return_code);
 	}
-#endif
+
 	output_prefix ();
 	output ("return ");
 	if (prog->prog_type == CB_FUNCTION_TYPE) {
 		output_param (prog->returning, -1);
-	} else {
+	} else if (prog->cb_return_code) {
 		output_integer (prog->cb_return_code);
 	}
 	output (";\n");
@@ -8926,8 +9041,10 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 				continue;
 			}
 			if (f->flag_item_78) {
-				cobc_err_msg (_ ("unexpected CONSTANT item"));
+				/* LCOV_EXCL_START */
+				cobc_err_msg (_("unexpected CONSTANT item"));
 				COBC_ABORT ();
+				/* LCOV_EXCL_STOP */
 			}
 			if (f->flag_is_global) {
 				f->mem_offset = working_mem;
@@ -9201,7 +9318,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	}
 
 	/* Clear RETURN-CODE */
-	if (!prog->nested_level) {
+	if (!prog->nested_level && prog->cb_return_code) {
 		output_prefix ();
 		output_integer (current_prog->cb_return_code);
 		output (" = 0;\n");
@@ -9524,9 +9641,11 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 	l = CB_PURPOSE (CB_VALUE (entry));
 	if (!l || !(CB_INTEGER_P (l) || CB_NUMERIC_LITERAL_P (l))) {
 		/* not translated as it is an unlikely internal abort, remove the check later */
+		/* LCOV_EXCL_START */
 		cobc_err_msg ("Missing/wrong internal entry convention!");
 		cobc_err_msg (_("Please report this!"));
 		COBC_ABORT ();
+		/* LCOV_EXCL_STOP */
 	} else if (CB_INTEGER_P (l)) {
 		entry_convention = CB_INTEGER (l)->val;
 	} else if (CB_NUMERIC_LITERAL_P (l)) {

@@ -118,7 +118,7 @@ $to_kill{OBNC1M} = 1;
 
 # NC114M test the compiler listing along to other parts.
 my %cobc_flags;
-$cobc_flags{NC114M} = "-t NC114M.lst --no-symbols";
+$cobc_flags{NC114M} = "-t NC114M.lst";
 
 # NC302M tests the compiler flagging of obsolete features, including STOP literal.
 $cobc_flags{NC302M} = "-Wobsolete";
@@ -148,7 +148,6 @@ $comp_only{DB205A} = 1;
 
 # Programs that do not produce any meaningful test results
 # However they must execute successfully
-
 my %no_output;
 $no_output{NC110M} = 1;
 $no_output{NC214M} = 1;
@@ -170,6 +169,16 @@ $no_output{DB305M} = 1;
 $no_output{IF402M} = 1;
 
 $cobc_flags{SM206A} = "-fdebugging-line";
+
+# Programs that won't run correctly with enabled runtime checks
+# TODO for later: only deactivate specific checks by -fno-ec-...
+my %no_debug;
+$no_debug{DB101A} = 1;
+$no_debug{DB104A} = 1;
+$no_debug{DB201A} = 1;
+$no_debug{DB202A} = 1;
+$no_debug{DB203A} = 1;
+$no_debug{DB204A} = 1;
 
 # Programs that need to be "visual" inspected
 # NC113M: inspected additional to normal tests for output of hex values
@@ -228,6 +237,9 @@ foreach $in (sort (glob("*.{CBL,SUB}"))) {
 	}
 	if ($exe =~ /^SM/) {
 		$compile_current = "$compile_current -I ../copy";
+	}
+	if (!$no_debug{$exe}) {
+		$compile_current = "$compile_current -debug";
 	}
 	$compile_current = "$compile_current $in";
 	if ($comp_only{$exe}) {
@@ -304,7 +316,11 @@ foreach $in (sort (glob("*.{CBL,SUB}"))) {
 	}
 
 testrepeat:
-	$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; $cmd > $exe.out");
+	if (!$to_kill{$exe}) {
+		$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; $cmd > $exe.out");
+	} else {
+		$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; $cmd > $exe.out 2>/dev/null");
+	}
 
 	if ($ret != 0 && !($ret >> 2 && $to_kill{$exe})) {
 		if (($ret >> 8) == 77) {

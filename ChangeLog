@@ -1,4 +1,32 @@
 
+2017-07-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: version bump to 2.2rc
+	* general: temporarily disabled code-coverage because of portability issues	
+	* create_win_dist.sh: fixed creation of zip archive to root directory
+
+2017-07-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac [_BSD_SOURCE]: set COB_HAS_UTC_OFFSET to "yes" if C compiler
+	  defines _BSD_SOURCE as we can access the offset directly in this case
+	* configure.ac: output detailed version information for BDB, if available
+
+2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: added --enable-code-coverage and test for code-coverage
+	  tools if enabled by AX_CODE_COVERAGE,
+	  always check if user specified optimization options in CFLAGS,
+	  not only when --enable-debug is active,
+	  compile with -O0 for both --enable-debug and --enable-code-coverage
+	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE
+	  which provides new target `make check-code-coverage`
+
+2017-06-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added .PHONY to correctly declare logical targets that
+	  always have to be executed and don't result in a file,
+	  define prerequisites to fix parallel builds
+
 2017-05-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* configure.ac: change in library check for BDB - prefer library
@@ -145,7 +173,7 @@
 2015-06-08  Luke Smith <cobcoder@users.sourceforge.net>
 
 	* Add WITH SIZE to extended ACCEPT and DISPLAY. (see wish list #37)
-	  Updated the info gnucobol and added Index at end. 
+	  Updated the info gnucobol and added Index at end.
 	* cobc/parser.y:
 	* cobc/reserved.c:
 	* cobc/tree.c:
@@ -189,7 +217,7 @@
 
 2014-09-09  Philipp Böhme <phi.boehme@googlemail.com>
 
-	* configure.ac : new check for mp_get_memory_functions in 
+	* configure.ac : new check for mp_get_memory_functions in
 	  libgmp and new preprocessor define HAVE_MP_GET_MEMORY_FUNCTIONS
 
 2014-08-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
@@ -236,7 +264,7 @@
 
 20??-??-??  Roger While <simrw@sim-basis.de>
 
-	* General : Affecting directories bin and cobc - use a 
+	* General : Affecting directories bin and cobc - use a
 	  modified version of getopt_long_long (placed in lib)
 
 2010-06-28  Roger While <simrw@sim-basis.de>
@@ -382,7 +410,7 @@
 	* All : Update Coypright info on all files
 	* README : Update - SORT does not require BDB; Fix typo
 	* cpucheck.c : Uck, Intel, in their infinite wisdom, decided
-		to assign the same family to Core 2 Duo as 
+		to assign the same family to Core 2 Duo as
 		Pentium (pro/2/3). Check the model number.
 
 2006-10-25  Roger While <simrw@sim-basis.de>
@@ -721,7 +749,7 @@
 
 	* configure.ac: Generate libcob/cobconfig.h using AM_CONFIG_HEADER.
 	Check db.h as well as db1/db.h.
-	
+
 2002-09-12  Keisuke Nishida  <knishida@netlab.jp>
 
 	* configure.ac: Add check for regex.

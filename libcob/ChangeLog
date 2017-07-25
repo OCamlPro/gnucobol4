@@ -1,5 +1,80 @@
 
-2017-05-12	Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+2017-07-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* screenio.c: moved cob_sys_get_char and added parts for !COB_GEN_SCREENIO
+
+2017-07-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.h [__MINGW32__]: added missing defines
+
+2017-07-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.h: increased MAX_FD_RECORD to 64MB and introduced
+	  MAX_FD_RECORD_IDX with the old 64KB limit
+
+2017-07-16  Edward Hart <edward.dan.hart@gmail.com>
+
+	* exception.def: update to COBOL 2014 and added finalizer exception.
+
+2017-07-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c: checked the now optional sort-return before accessing it
+
+2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE
+	* general:
+	  surrounded exception ABORTs that cannot be tested by LCOV_EXCP markers
+
+2017-06-04  Ron Norman <rjn@inglenet.com>
+
+	* common.c: Improved 'cobcrun -r' display for when
+	  unsetenv is used in runtime.cfg to show environment variable
+	  was removed and runtime.cfg variable was then present
+
+2017-05-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* system.def: replaced misleading name C$PRINTABLE (OC-extension,
+	  not a C$ -> ACUCOBOL extension!) by CBL_GC_PRINTABLE (old name
+	  still supported for legacy reasons)
+
+2017-05-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c: renamed cob_get_current_date_and_time to
+	  cob_get_current_date_and_time_from_os
+	* common.c, coblocal.c: store datetime from COB_CURRENT_DATE as
+	  cob_time and check for this in cob_get_current_date_and_time
+	  instead of in every function
+	* common.c: allow partial replace of datetime (including offset only)
+	  by COB_CURRENT_DATE
+
+2017-05-24  Edward Hart <edward.dan.hart@gmail.com>
+
+	* common.c: fixed minor style issues, mostly missing spaces around
+	  operators.
+
+2017-05-22  Ron Norman <rjn@inglenet.com>
+
+	* termio.c (pretty_display_numeric):  handle
+	  SIGN_SEPARATE  TRAILING & LEADING
+
+2017-05-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* system.def: added maximum call parameters for system library calls
+
+2017-05-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c: correctly update file status for DELETE FILE statement
+	  (we always returned 00 until now)
+	* fileio.c:
+
+2017-05-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* screenio.c (cob_move): return the status returned by (move)
+	* screenio.c: FR #191 only set flag pending_accept when cob_move
+	  returns no error
+
+2017-05-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* common.c (cob_sys_oc_nanosleep): prefer HAVE_NANO_SLEEP over _WIN32
 
@@ -7,6 +82,11 @@
 
 	* screenio.c (screen_display): FR #191 set flag pending_accept
 	  for DISPLAY screen, too
+
+2017-05-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_sig_handler, cob_set_signal): added code for SIGBUS
+	  in correspondence to SIGSEGV code
 
 2017-04-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -342,6 +422,10 @@
 	* common.h, move.c, termio.c: replaced PICTURE strings containing packed
 	  ints with array of (cob_pic_symbol) structs which are easier to use.
 
+2016-05-01 Ron Norman <rjn@inglenet.com>
+
+	* common.c fixed incorrect reporting of error for undefined environment variables
+
 2016-04-26  Brian Tiffin <btiffin@gnu.org>
 
 	* common.c, common.h: Re-fixed CBL_OC_HOSTED tzname, timezone, daylight
@@ -380,6 +464,11 @@
 
 	* common.c (cob_set_location, cob_trace_section, cob_exit_common): fix for
 	  bug #216 - store a duplicate of cob_last_sfile for tracing, free on exit
+
+2016-03-15  Ron Norman <rjn@inglenet.com>
+
+	* common.c: display COB_PRE_LOAD as set and as evaluated
+	* call.c: clear COB_PRE_LOAD value before evaluating
 
 2016-03-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -566,8 +655,14 @@
 	* call.c (cob_init_call): Don't add the current directory "." to resolve_path
 	  if it's already set (either via runtime configuration or default value)
 
-2015-07-07  Ron Norman
+2015-07-07  Ron Norman <rjn@inglenet.com>
 
+	* Accept env var COB_CURRENT_DATE/COB_DATE and runtime.cfg current_date
+	  to specify a date override for the application.
+	  All ACCEPT FROM DATE, DAY, TIME will the use the value defined
+	  rather than the current system time.
+	  This will be a useful feature for application testing.
+	* common.c (cb_config_entry): keyword "reset": reset data pointer in gc_conf
 	* common.c (cob_expand_env_string): copy SPACE, LR, CR, HT, VT as spaces,
 	  the first implementation dropped them completely
 	* fileio.c fixed to avoid core dump when COB_SYNC and using BDB
@@ -822,6 +917,13 @@
 
 	* fileio.c (cob_new_item): cleanup
 
+2010-10-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* screenio.c (!COB_GEN_SCREENIO): Make cob_sys_sound_bell usable via
+	  cob_speaker_beep
+	* common.c:  Add possibility to disable the bell via
+	  COB_BELL=NO/NONE/0/OFF (currently only the first char is checked)
+
 2010-09-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* screenio.c: Added cob_convert_key for converting keys according to used
@@ -835,6 +937,14 @@
 2010-05-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
    * strings.c: Fixing cob_unstring_into bug (#139)
+
+2010-03-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c, screenio.c: New env var COB_BELL for controlling WITH BEEP,
+	  possible values (standard BEEP):
+	  BEEP    (curses beep on soundcard/pc-speaker, fallback terminal flash)
+	  FLASH   (curses terminal flash, fallback beep on soundcard/pc-speaker)
+	  SPEAKER (printf("\a"))
 
 20??-??-??  Roger While <simrw@sim-basis.de>
 
