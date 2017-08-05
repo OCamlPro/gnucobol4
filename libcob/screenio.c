@@ -72,6 +72,13 @@
 extern void	_nc_freeall (void);
 #endif
 
+/**
+This struct will hold ACCEPT fields, it is processed at the end of an ACCEPT
+call and it is also be sorted by qsort as it needs to be in order by
+screen position and not the order fields were added to it because the user will 
+need to be able to use tab and arrow keys to switch between 
+fields based on position and not on order fields were added
+**/
 struct cob_inp_struct {
 	cob_screen		*scr;
 	size_t			up_index;
@@ -80,6 +87,9 @@ struct cob_inp_struct {
 	int			this_x;
 };
 
+/**
+memory is allocated for allocated for all the realistic fields a user might have
+**/
 #define	COB_INP_FLD_MAX		512U
 
 #define	COB_INP_SIZE	(COB_INP_FLD_MAX * sizeof(struct cob_inp_struct))
@@ -90,11 +100,18 @@ struct cob_inp_struct {
 
 /* Local variables */
 
+/**
+stores global settings in a struct
+**/
 static cob_global		*cobglobptr;
 static cob_settings		*cobsetptr;
 
-/* Local variables when screenio activated */
 
+/* much of this file is divided by compiler directives that
+separate code that uses ncurses from codes that operates without 
+ncurses support, there will be a very large directive below */
+
+/* Local variables when screenio activated */
 #ifdef	COB_GEN_SCREENIO
 static const cob_field_attr	const_alpha_attr =
 				{COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL};
@@ -115,9 +132,17 @@ static int			accept_cursor_x;
 static int			pending_accept;
 static int			got_sys_char;
 
-//active window
+/**
+active window
+**/
 WINDOW * actwin ;
+/**
+ stores X and Y of the whole screen
+**/
 MEVENT global_mevent ;
+/**
+X and Y of a child screen set as active window
+**/
 MEVENT local_mevent ;
 
 #endif
@@ -142,6 +167,7 @@ cob_speaker_beep (void)
 	}
 }
 
+
 static COB_INLINE COB_A_INLINE void
 init_cob_screen_if_needed (void)
 {
@@ -154,6 +180,11 @@ init_cob_screen_if_needed (void)
 	}
 #endif
 }
+
+/* this is the start of a large compiler directive, the first part will 
+be functions to support screen and enhanced display while the "else"
+portion much further down will contain stubs that match the names of
+these functions but do little to nothing */
 
 #ifdef	COB_GEN_SCREENIO
 
@@ -176,9 +207,7 @@ cob_beep (void)
 }
 
 /**
-
-this will normalize keypresses, we might have ASCII or EBNIC
-
+this will normalize key presses, we might have ASCII or EBNIC
 **/
 static void
 cob_convert_key (int *keyp, const cob_u32_t field_accept)
@@ -307,7 +336,9 @@ cob_convert_key (int *keyp, const cob_u32_t field_accept)
 	}
 }
 
-
+/**
+boundary checks with moves
+**/
 static void
 raise_ec_on_invalid_line_or_col (const int line, const int column)
 {
@@ -322,7 +353,9 @@ raise_ec_on_invalid_line_or_col (const int line, const int column)
 		cob_set_exception (COB_EC_SCREEN_STARTING_COLUMN);
 	}
 }
-
+/**
+wraps ncurses move() adds boundary checks
+**/
 static int
 cob_move_cursor (const int line, const int column)
 {
@@ -340,7 +373,9 @@ cob_set_cursor_pos (int line, int column)
 	init_cob_screen_if_needed ();
 	(void) move (line, column);
 }
-
+/**
+checks screen width, moves to end of it
+**/
 static void
 cob_move_to_beg_of_last_line (void)
 {
@@ -354,11 +389,18 @@ cob_move_to_beg_of_last_line (void)
 	wmove (actwin, max_y, 0);
 }
 
+/**
+These are basically of IDs that changes the way a screen is processed,
+**/
 enum screen_statement {
 	ACCEPT_STATEMENT,
 	DISPLAY_STATEMENT
 };
 
+/**
+parse styles and apply with attron, set background colour,
+blank screen if need or clear lines etc
+**/
 static void
 cob_screen_attr (cob_field *fgc, cob_field *bgc, const cob_flags_t attr,
 		 const enum screen_statement stmt)
@@ -503,7 +545,13 @@ cob_screen_attr (cob_field *fgc, cob_field *bgc, const cob_flags_t attr,
 		cob_beep ();
 	}
 }
-
+/**read some env variables
+flush stdout and stderr
+set globals values such as global_return, to default values.
+setup ncurses including mouse support if available.
+set attributes to normal.
+get screen size.
+**/
 static void
 cob_screen_init (void)
 {
@@ -601,7 +649,25 @@ cob_screen_init (void)
 	wattrset (actwin, A_NORMAL);
 	getmaxyx (actwin, COB_MAX_Y_COORD, COB_MAX_X_COORD);
 }
+/**
+we might need to update crt status
+we might need to update cob-cursor in the special names.
+cob-cursor could be pic 9(2) or 9(3), we need to be prepared for either.
+if mouse support is enabled, the mouse X and Y will be copied to CURSOR 
 
+ 
+here are the status codes
+         set screen accept crt status codes
+         1000           = Enter key pressed
+         1001-1064      = F1–F64    pressed
+         2001,2002      = PgUp,PgDn
+         2003,2004,2006 = Up-Arrow, Down-Arrow, PrtScr
+         2005           = ESC
+         3000           = Mouse Single Left Click 
+         8000           = no data is available on screen accept
+         9000           = fatal screen i/o error
+
+**/
 static void
 cob_check_pos_status (const int fret)
 {
@@ -621,20 +687,9 @@ cob_check_pos_status (const int fret)
 		return;
 	}
 
-        /**
-
+        /*
          this will copy values to update CRT-STATUS available in SPECIAL-NAMES
-
-         set screen accept crt status codes
-         1000           = Enter key pressed
-         1001-1064      = F1–F64    pressed
-         2001,2002      = PgUp,PgDn
-         2003,2004,2006 = Up-Arrow, Down-Arrow, PrtScr
-         2005           = ESC
-         3000           = Mouse Single Left Click 
-         8000           = no data is available on screen accept
-         9000           = fatal screen i/o error
-        **/
+       */
 
 
 	if (COB_MODULE_PTR->crt_status) {
@@ -646,7 +701,7 @@ cob_check_pos_status (const int fret)
 				(size_t)4);
 		}
 
-        /**
+        /*
          this will update CURSOR in SPECIAL-NAMES. The user could have defined :
 
         01 COB-CURSOR  .
@@ -662,9 +717,7 @@ cob_check_pos_status (const int fret)
         with the addition of multiple windows, we need a way to handle
         clicks that occur outside of the window if the active window is a smaller window that does not cover the whole
         screen ncurses will only return Y and X from the whole terminal.
-
-
-        **/
+        */
 
 
 	if (COB_MODULE_PTR->cursor_pos) {  
@@ -678,8 +731,8 @@ cob_check_pos_status (const int fret)
                  sline   = local_mevent.y ;
                  scolumn = local_mevent.x ;
              } else {
-               //if the local screen in not clicked on, we want to return zeros4
-              //by placing them at -1, they will be zero after the increment below
+               /* if the local screen in not clicked on, we want to return zeros */
+               /* by placing them at -1, they will be zero after the increment below */
   	       getyx (actwin, sline, scolumn);
                sline = sline - 1 ;
                scolumn = scolumn - 1 ;
@@ -690,14 +743,14 @@ cob_check_pos_status (const int fret)
   	 	getyx (actwin, sline, scolumn);
           }
 
-          //COBOL starts at 1
+          /* COBOL starts at 1 */
           sline ++;
           scolumn ++ ;
 	}
 
 
 
-       // the actual cursor values are asigned here
+       /* the actual cursor values are assigned here */
 	if (COB_MODULE_PTR->cursor_pos) {
 		f = COB_MODULE_PTR->cursor_pos;
 		if (COB_FIELD_IS_NUMERIC (f) &&
@@ -723,7 +776,9 @@ cob_check_pos_status (const int fret)
 }
 
 
-
+/**
+boundary checks for strings
+**/
 static void
 raise_ec_on_truncation (const int item_size)
 {
@@ -742,7 +797,9 @@ raise_ec_on_truncation (const int item_size)
 		cob_set_exception (COB_EC_SCREEN_ITEM_TRUNCATED);
 	}
 }
-
+/**
+wraps addstr adding boundary checks
+**/
 static void
 cob_addnstr (const char *data, const int size)
 {
@@ -750,6 +807,9 @@ cob_addnstr (const char *data, const int size)
 	waddnstr (actwin, data, size);
 }
 
+/**
+wraps addch adding boundary checks
+**/
 static void
 cob_addch (const chtype c)
 {
@@ -775,6 +835,9 @@ cob_addnch (const int n, const chtype c)
 	}
 }
 
+/**
+used with user navigation between fields
+**/
 static int
 is_first_screen_item (cob_screen *s)
 {
@@ -788,6 +851,9 @@ is_first_screen_item (cob_screen *s)
 	return 1;
 }
 
+/**
+used with user navigation between fields
+**/
 static cob_screen *
 get_last_child (cob_screen * const s)
 {
@@ -802,6 +868,9 @@ get_last_child (cob_screen * const s)
 	}
 }
 
+/**
+used with user navigation between fields
+**/
 static cob_screen *
 get_prev_screen_item (cob_screen * const s)
 {
@@ -849,6 +918,10 @@ get_size (cob_screen *s)
 	}
 
 }
+/**
+extract the line and column values from a screen field or if they are not defined,
+base them on the current position
+**/
 static void
 get_screen_item_line_and_col (cob_screen * s, int * const line,
 			      int * const col)
@@ -900,7 +973,11 @@ get_screen_item_line_and_col (cob_screen * s, int * const line,
 	*line += origin_y;
 	*col += origin_x;
 }
-
+/**
+move to current position and update globals that track X and Y.
+set screen attributes.If screen is ACCEPT and if screen is secure, add * chars instead of data, add 
+prompt character if no data fills that spot etc. If screen is DISPLAY, add string 
+**/
 static void
 cob_screen_puts (cob_screen *s, cob_field *f, const cob_u32_t is_input,
 		 const enum screen_statement stmt)
@@ -956,7 +1033,7 @@ cob_screen_puts (cob_screen *s, cob_field *f, const cob_u32_t is_input,
 
 	wrefresh (actwin);
 }
-
+/** constraint/type check **/
 static COB_INLINE COB_A_INLINE int
 cob_field_is_numeric_or_numeric_edited (cob_field *field)
 {
@@ -964,6 +1041,7 @@ cob_field_is_numeric_or_numeric_edited (cob_field *field)
 		|| COB_FIELD_TYPE (field) == COB_TYPE_NUMERIC_EDITED);
 }
 
+/** constraint/type check **/
 static int
 field_is_empty (cob_screen *s)
 {
@@ -980,6 +1058,7 @@ field_is_empty (cob_screen *s)
 	return 1;
 }
 
+/** constraint/type check **/
 static int
 field_is_zero (cob_screen *s)
 {
@@ -998,6 +1077,7 @@ field_is_zero (cob_screen *s)
 	return 1;
 }
 
+/** constraint/type check **/
 static int
 pic_has_zero_suppression (const cob_pic_symbol *pic)
 {
@@ -1016,6 +1096,7 @@ pic_has_zero_suppression (const cob_pic_symbol *pic)
 	return 0;
 }
 
+/** constraint/type check **/
 static int
 get_num_int_digits_for_no_zero_sup (const cob_pic_symbol *pic)
 {
@@ -1040,6 +1121,7 @@ get_num_int_digits_for_no_zero_sup (const cob_pic_symbol *pic)
 	return num_digits;
 }
 
+/** constraint/type check **/
 static int
 field_is_zero_or_no_zero_suppression (cob_screen *s)
 {
@@ -1073,6 +1155,7 @@ field_is_zero_or_no_zero_suppression (cob_screen *s)
 	return num_digits_seen >= num_integer_digits;
 }
 
+/** constraint/type check **/
 /* Assuming s->field is alphanumeric */
 static int
 field_is_full (cob_screen *s)
@@ -1084,6 +1167,7 @@ field_is_full (cob_screen *s)
 	return !isspace (*data) && !isspace (*(data + size - 1));
 }
 
+/** constraint/type check **/
 static int
 satisfied_full_clause (cob_screen *s)
 {
@@ -1100,6 +1184,7 @@ satisfied_full_clause (cob_screen *s)
 	}
 }
 
+/** constraint/type check **/
 static int
 satisfied_required_clause (cob_screen *s)
 {
@@ -1114,6 +1199,7 @@ satisfied_required_clause (cob_screen *s)
 	}
 }
 
+/** constraint/type check **/
 static int
 valid_field_data (cob_field *field)
 {
@@ -1125,7 +1211,7 @@ valid_field_data (cob_field *field)
 		return 1;
 	}
 }
-
+/** redraw screen **/
 static void
 refresh_field (cob_screen *s)
 {
@@ -1136,7 +1222,11 @@ refresh_field (cob_screen *s)
 	cob_screen_puts (s, s->field, cobsetptr->cob_legacy, ACCEPT_STATEMENT);
 	cob_move_cursor (y, x);
 }
-
+/**
+We copy the data into another field and move it back to format the
+numeric data neatly, rather than re-implement that logic here. We
+assume the data is valid. This function contains the actual commit of data.
+**/
 static void
 format_field (cob_screen *s)
 {
@@ -1144,11 +1234,6 @@ format_field (cob_screen *s)
 	size_t		size = s->field->size;
 	unsigned char	*data;
 
-	/*
-	  We copy the data into another field and move it back to format the
-	  numeric data neatly, rather than re-implement that logic here. We
-	  assume the data is valid.
-	*/
 	data = cob_malloc (size);
 	memcpy (data, s->field->data, size);
 	COB_FIELD_INIT (size, data, s->field->attr);
@@ -1164,7 +1249,9 @@ format_field (cob_screen *s)
 	refresh_field (s);
 }
 
-/* Finalize field on leaving it: checks and conversions */
+/**
+Finalize field on leaving it: checks and conversions
+**/
 static int
 finalize_field_input (cob_screen *s)
 {
@@ -1182,7 +1269,9 @@ finalize_field_input (cob_screen *s)
 
 	return 0;
 }
-
+/**
+call finalize on all fields
+**/
 static int
 finalize_all_fields (struct cob_inp_struct *sptr, const size_t total_idx)
 {
@@ -1196,7 +1285,13 @@ finalize_all_fields (struct cob_inp_struct *sptr, const size_t total_idx)
 
 	return 0;
 }
-
+/**
+process attributes. accept keypress and based on this possibly assign
+different values to screen_return while also potentially converting
+keys. Certain keys will also cause different screen struts to be
+acted on instead, for instance, a tab key will cause the next screen to 
+be processed instead.
+**/
 static void
 cob_screen_get_all (const int initial_curs, const int gettimeout)
 {
@@ -1494,7 +1589,10 @@ cob_screen_get_all (const int initial_curs, const int gettimeout)
 screen_return:
 	wrefresh (actwin);
 }
-
+/**
+this will be called by qsort later. It will assist to sort fields by screen position
+rather then the order they were assigned to cob_base_inp
+**/
 static int
 compare_yx (const void *m1, const void *m2)
 {
@@ -1517,7 +1615,10 @@ compare_yx (const void *m1, const void *m2)
 	}
 	return 0;
 }
-
+/**
+This will move the cursor and update the globals
+that track X and Y.
+**/
 static void
 cob_screen_moveyx (cob_screen *s)
 {
@@ -1568,7 +1669,13 @@ cob_screen_moveyx (cob_screen *s)
 		cob_current_x = column;
 	}
 }
-
+/**
+cob_screen is perhaps a bit of a problematic name. They are not full
+screens but rather fields of a full screen. cob_screens are linked lists or parts of them
+This function might process these linked lists by calling itself recursively 
+and calling cob_screen_puts on type matches or by calling cob_screen_puts directly.
+cob_prep_input is only called by screen_accept or itself
+**/
 static size_t
 cob_prep_input (cob_screen *s)
 {
@@ -1616,7 +1723,12 @@ cob_prep_input (cob_screen *s)
 	}
 	return 0;
 }
-
+/**
+cob_screen_iterate is similar to cob_prep_input. It is only called by
+screen_display or itself. It's purpose is the same. It may call itself if
+there is a group or it will call cob_screen_puts or cob_screen_attr
+to set attributes.
+**/
 static void
 cob_screen_iterate (cob_screen *s)
 {
@@ -1649,7 +1761,11 @@ cob_screen_iterate (cob_screen *s)
 		break;
 	}
 }
-
+/**
+ this is used to support extract_line_and_col_vals.
+ line actually contains both the line and field
+ numbers.
+**/
 static void
 get_line_and_col_from_num (cob_field *pos, int *line, int *column)
 {
@@ -1671,12 +1787,15 @@ get_line_and_col_from_num (cob_field *pos, int *line, int *column)
 		max_line_column = 1000;
 	} else {
 		/* Throw an exception? EC-SCREEN-IMP-LINE-VAR-LENGTH? */
-		max_line_column = 1; /* set to some value that don't chrash */
+		max_line_column = 1; /* set to some value that don't crash */
 	}
 	*line = (pos_val / max_line_column);
 	*column = (pos_val % max_line_column);
 }
 
+/**
+ this is used to support extract_line_and_col_vals.
+**/
 static void
 get_line_column (cob_field *fline, cob_field *fcol, int *line, int *col)
 {
@@ -1693,18 +1812,30 @@ get_line_column (cob_field *fline, cob_field *fcol, int *line, int *col)
 	}
 }
 
+/**
+ this is used to support extract_line_and_col_vals. In the event
+that col == 0, it will be called to figure out what to assign
+**/
 static COB_INLINE COB_A_INLINE int
 col_where_last_stmt_ended (const enum screen_statement stmt)
 {
 	return stmt == DISPLAY_STATEMENT ? display_cursor_x : accept_cursor_x;
 }
 
+/**
+ this is used to support extract_line_and_col_vals. In the event
+that line == 0, it will be called to figure out what to assign
+**/
 static COB_INLINE COB_A_INLINE int
 line_where_last_stmt_ended (const enum screen_statement stmt)
 {
 	return stmt == DISPLAY_STATEMENT ? display_cursor_y : accept_cursor_y;
 }
-
+/**
+This function will extract line and column from cob_fields but
+it will also set values in the event that either or both of these
+are missing.
+**/
 static void
 extract_line_and_col_vals (cob_field *line, cob_field *column,
 			   const enum screen_statement stmt,
@@ -1766,7 +1897,12 @@ extract_line_and_col_vals (cob_field *line, cob_field *column,
 
 	/* TO-DO: If scolumn == max_x + 1, go to start of next line */
 }
-
+/**
+cob_screen_display is an entry point into the runtime, it basically
+just calls extract_line_and_col_values and this function, which
+in turn is mostly just responsible for calling cob_screen_iterate
+which is responsible most of the action actually takes place.
+**/
 static void
 screen_display (cob_screen *s, const int line, const int column)
 {
@@ -1784,6 +1920,23 @@ screen_display (cob_screen *s, const int line, const int column)
 	wrefresh (actwin);
 }
 
+/**
+calls cob_prep_input
+if not done already, it allocates memory for the global
+cob_base_inp, which is a location reserved that is big enough to hold 
+all of the screens. After this, qsort, sorts screens stored in 
+cob_base_inp so that they are arranged in a way that makes sense for screen
+navigation. The user needs to be able to tab to different fields and those
+tabbed movements need to take the user to the next field on the screen
+not necessarily the next field that was assigned to cob_base_inp.
+
+Currently there is no support timeout in the SCREEN SECTION and cobc will
+assign a default value.
+
+The call to cob_screen_get_all is critical, this will in turn call 
+finalize_all_fields which in turn calls finalize_field input which in
+turn calls format_field, which is where there is an actual commit of data
+**/
 static void
 screen_accept (cob_screen *s, const int line, const int column,
 	       cob_field *ftimeout)
@@ -1879,7 +2032,19 @@ screen_accept (cob_screen *s, const int line, const int column,
 	cob_screen_get_all (initial_curs, gettimeout);
 	cob_check_pos_status (global_return);
 }
+/**
+field display and field accept are perhaps more all-in-one and easier to follow
+than their screen display and screen accept cousins. screen_display's 
+flow of execution is similar to field_display's which is:
 
+Initialize if needed
+Deal with scroll attribute if present(screen_display does not do this)
+figure out lines and columns and move accordingly 
+call out to assign attributes
+add string
+update global line and column values
+refresh the screen
+**/
 static void
 field_display (cob_field *f, const int line, const int column, cob_field *fgc,
 	       cob_field *bgc, cob_field *fscroll, cob_field *size_is,
@@ -1958,6 +2123,37 @@ field_display (cob_field *f, const int line, const int column, cob_field *fgc,
 	}
 	wrefresh (actwin);
 }
+/**
+As stated above, field display and field accept are perhaps more
+all-in-one and easier to follow than their screen_display and
+screen_accept cousins. screen_accept's flow of execution is similar
+to field_accept's which is:
+
+Figure out prompt character
+Initialize if needed
+Deal with timeout if present(screen accept doesn't really do this)
+Deal with scroll attribute if present(screen accept also does not really do this)
+move to correct line and column  
+call out assignment of attributes
+figure out size of field that is to be drawn to screen
+get screen size
+update global line and column values
+add string or chars and handle potential errors. Add secure or prompt char accordingly etc
+move to the correct position
+refresh
+accept user input
+convert keys if needed
+update global_return on certain key presses, these will be available in SPECIAL-NAMES later
+on certain key presses change the screen being acted on and update cursor position
+handle errors that might happen
+
+The final line:
+ cob_move (&temp, f);
+
+is critical, this is the commit of data. With screen_accept, we are committing
+to a cob_field contained in cob_screen, here we are committing directly to 
+a cob_field, in this case f.
+**/
 
 static void
 field_accept (cob_field *f, const int sline, const int scolumn, cob_field *fgc,
@@ -2585,6 +2781,11 @@ field_display_at_curpos (cob_field *f,
 
 /* Global functions */
 
+/**
+This is an entry point into the runtime. If a screen is defined in the
+SCREEN SECTION and a display statement is used to display it to the screen,
+this is the function that will be called.
+**/
 void
 cob_screen_display (cob_screen *s, cob_field *line, cob_field *column,
 		    const int zero_line_col_allowed)
@@ -2596,6 +2797,12 @@ cob_screen_display (cob_screen *s, cob_field *line, cob_field *column,
 				   zero_line_col_allowed, &sline, &scolumn);
 	screen_display (s, sline, scolumn);
 }
+
+/**
+This is an entry point into the runtime. If a screen is defined in the
+SCREEN SECTION and an accept statement is used to accept input,
+this is the function that will be called.
+**/
 void
 cob_screen_accept (cob_screen *s, cob_field *line, cob_field *column,
 		   cob_field *ftimeout, const int zero_line_col_allowed)
@@ -2607,6 +2814,12 @@ cob_screen_accept (cob_screen *s, cob_field *line, cob_field *column,
 				   zero_line_col_allowed, &sline, &scolumn);
 	screen_accept (s, sline, scolumn, ftimeout);
 }
+/**
+This is an entry point into the runtime. If a DISPLAY FOO AT statement is used to accept input,
+this is the function that will be called, the enhanced display and accept are
+procedural statements that define col and line, etc characteristics directly 
+within the statement itself, rather then the SCREEN SECTION
+**/
 
 void
 cob_field_display (cob_field *f, cob_field *line, cob_field *column,
@@ -2626,6 +2839,12 @@ cob_field_display (cob_field *f, cob_field *line, cob_field *column,
 				   &scolumn);
 	field_display (f, sline, scolumn, fgc, bgc, fscroll, size_is, fattr);
 }
+/**
+As above, This is an entry point into the runtime. If ACCEPT FOO AT statement is used to accept input,
+this is the function that will be called, the enhanced display and accept are
+procedural statements that define col and etc line characteristics directly 
+within the statement itself, rather then the SCREEN SECTION
+**/
 
 void
 cob_field_accept (cob_field *f, cob_field *line, cob_field *column,
@@ -2753,12 +2972,14 @@ cob_display_formatted_text (const char *fmt, ...)
 
 	return 0;
 }
-
+/**
+clean up and exit, memory is freed, windows are destroyed etc
+we don't want to localize these ncurses calls, we want a full screen shutdown, not just a window
+**/
 void
 cob_exit_screen (void)
 {
 
-        // we don't want to localize these calls, we want a full screen shutdown, not just a window
 	cob_flags_t	flags;
 	char		exit_msg[COB_MINI_BUFF];
 
@@ -2793,7 +3014,14 @@ cob_exit_screen (void)
 	COB_ACCEPT_STATUS = 0;
 }
 
+/*this is the "else portion" of the large compiler directive that spans most of the file */
+
 #else	/* COB_GEN_SCREENIO */
+
+/* below are largely non-functional stub versions of the functions above
+for those that do not have ncurses and might call functions that
+depend on ncurses
+*/
 
 void
 cob_exit_screen (void)
@@ -2867,7 +3095,17 @@ cob_sys_clear_screen (void)
 	return 0;
 }
 
+/* the end of the large compiler directive that splits most of the file */
+
 #endif	/* COB_GEN_SCREENIO */
+
+
+
+/* while the large compiler directive split functional functions
+from the largely non-functional ones above, these functions are more of a 2 for 1,
+with compiler directives splitting the functions themselves into stub and 
+truly functional halves.
+*/
 
 void
 cob_screen_line_col (cob_field *f, const int l_or_c)
