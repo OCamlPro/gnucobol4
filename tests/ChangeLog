@@ -1,4 +1,10 @@
 
+2017-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_valgrind, atlocal_win: export COB_HAS_64_BIT_POINTER
+	* testsuite.src/data_pointer.at, testsuite.src/listings.at: check
+	  COB_HAS_64_BIT_POINTER instead of indirect test from COBOL
+
 2017-06-17  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* atlocal.in: include builddir in COB_CFLAGS to point to correct libcob.h

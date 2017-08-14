@@ -421,11 +421,13 @@ AC_ARG_WITH([varseq],
 
 AC_DEFINE_UNQUOTED([WITH_VARSEQ], [$with_varseq])
 
+# Checks for mpir.
 AC_ARG_WITH([mpir],
   [AS_HELP_STRING([--with-mpir],
     [(GnuCOBOL C++) Use MPIR instead of GMP])],
   [ if test "$with_mpir" = "yes"
     then
+	AC_MSG_NOTICE([Checks for MPIR ...])
 	AC_CHECK_HEADERS([mpirxx.h], [],
 		AC_MSG_ERROR([mpirxx.h is required for MPIR]))
 	AC_CHECK_LIB([mpir], [__gmpz_init],
@@ -437,6 +439,7 @@ AC_ARG_WITH([mpir],
 
 if test "$with_mpir" = "yes"
 then
+
 # Check just major/minor levels between header and library
 MYOLDLIBS=$LIBS
 LIBS="$MYOLDLIBS -lmpir"
@@ -471,7 +474,7 @@ AC_CHECK_HEADERS([gmpxx.h], [], AC_MSG_ERROR([gmpxx.h (GMP) is required]), [])
 
 AC_CHECK_LIB([gmp], [__gmpz_init],
 	[LIBCOB_LIBS="$LIBCOB_LIBS -lgmp"],
-	AC_MSG_ERROR([GMP is required]), [])
+	AC_MSG_ERROR([GMP library is required]), [])
 
 # Check just major/minor levels between header and library
 MYOLDLIBS=$LIBS
@@ -887,13 +890,16 @@ AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	[])
 
 
+COB_HAS_64_BIT_POINTER="no"
 AC_MSG_CHECKING([if pointer is longer than 32 bits])
 AC_RUN_IFELSE([AC_LANG_PROGRAM([[]], [[
 	if (sizeof (void *) > 4U)
 		return 0;
 	return 1;
 	]])],
-	[AC_DEFINE([COB_64_BIT_POINTER], [1]) AC_MSG_RESULT([yes])],
+	[COB_HAS_64_BIT_POINTER="yes"
+	 AC_DEFINE([COB_64_BIT_POINTER], [1])
+	 AC_MSG_RESULT([yes])],
 	[AC_MSG_RESULT([no])],
 	[])
 
@@ -1200,7 +1206,8 @@ AC_SUBST([COB_KEYWORD_INLINE])
 AC_SUBST([COB_HAS_ISAM])
 AC_SUBST([COB_HAS_CURSES])
 AC_SUBST([COB_HAS_UTC_OFFSET])
-AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level])
+AC_SUBST([COB_HAS_64_BIT_POINTER])
+AC_SUBST([COB_PATCH_LEVEL], [$with_patch_level]) # needed for bin/cob-config
 
 AC_CONFIG_FILES([bin/cob-config Makefile libcob/Makefile lib/Makefile
 	cobc/Makefile bin/Makefile po/Makefile.in doc/Makefile
