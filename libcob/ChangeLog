@@ -1,4 +1,9 @@
 
+2017-08-15 Sergey Kashyrin <ska@kiska.net>
+
+	* fileio.cpp, call.cpp, common.cpp, intrinsic.cpp: fixes for VS2017.
+	* common.cpp: corrected sprintf format strings in get_config_val
+
 2017-06-19 Sergey Kashyrin <ska@kiska.net>
 
 	* fileio.cpp: fixes for BDB line - small cast issue + small failure while merging C branch.

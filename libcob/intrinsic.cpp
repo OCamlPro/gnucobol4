@@ -21,6 +21,10 @@
 
 #include "config.h"
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -829,7 +833,7 @@ cob_mpf_exp(mpf_t dst_val, const mpf_t src_val)
 		is_negative = false;
 	}
 
-#if defined(_WIN64)
+#if defined(_WIN64) && ((defined(__MPIR_VERSION) && __MPIR_VERSION < 3) || (defined(__GNU_MP_VERSION) && __GNU_MP_VERSION < 6))
 	cob_s64_t expon;
 #else
 	cob_sli_t expon;
@@ -887,7 +891,7 @@ cob_mpf_log(mpf_t dst_val, const mpf_t src_val)
 	mpf_init2(vf4, COB_MPF_PREC);
 
 	mpf_set_ui(dst_temp, 0UL);
-#if defined(_WIN64)
+#if defined(_WIN64) && ((defined(__MPIR_VERSION) && __MPIR_VERSION < 3) || (defined(__GNU_MP_VERSION) && __GNU_MP_VERSION < 6))
 	cob_s64_t expon;
 #else
 	cob_sli_t expon;

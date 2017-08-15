@@ -23,6 +23,10 @@
 #include "defaults.h"
 #include "tarstamp.h"
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -4408,31 +4412,31 @@ get_config_val(char * value, int pos, char * orgvalue)
 	strcpy(orgvalue, "");
 	if((data_type & ENV_INT)) {				/* Integer data */
 		cob_s64_t numval = get_value(data, data_len);
-		sprintf(value, "%ld", numval);
+		sprintf(value, "%lld", numval);
 
 	} else if((data_type & ENV_SIZE)) {			/* Size: integer with K, M, G */
 		cob_s64_t numval = get_value(data, data_len);
 		double dval = (double) numval;
 		if(numval > (1024 * 1024 * 1024)) {
 			if((numval % (1024 * 1024 * 1024)) == 0) {
-				sprintf(value, "%ld GB", numval / (1024 * 1024 * 1024));
+				sprintf(value, "%lld GB", numval / (1024 * 1024 * 1024));
 			} else {
 				sprintf(value, "%.2f GB", dval / (1024.0 * 1024.0 * 1024.0));
 			}
 		} else if(numval > (1024 * 1024)) {
 			if((numval % (1024 * 1024)) == 0) {
-				sprintf(value, "%ld MB", numval / (1024 * 1024));
+				sprintf(value, "%lld MB", numval / (1024 * 1024));
 			} else {
 				sprintf(value, "%.2f MB", dval / (1024.0 * 1024.0));
 			}
 		} else if(numval > 1024) {
 			if((numval % 1024) == 0) {
-				sprintf(value, "%ld KB", numval / 1024);
+				sprintf(value, "%lld KB", numval / 1024);
 			} else {
 				sprintf(value, "%.2f KB", dval / 1024.0);
 			}
 		} else {
-			sprintf(value, "%ld", numval);
+			sprintf(value, "%lld", numval);
 		}
 
 	} else if((data_type & ENV_BOOL)) {	/* Boolean: Yes/No,True/False,... */

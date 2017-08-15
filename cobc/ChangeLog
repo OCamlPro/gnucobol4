@@ -1,4 +1,13 @@
 
+2017-08-15 Sergey Kashyrin <ska@kiska.net>
+
+	* cobc.cpp, typeck.cpp: fixes for VS2017.
+
+2017-07-24 Sergey Kashyrin <ska@kiska.net>
+
+	* codegen.cpp: allow recursion only for RECURSIVE programs.
+	  extremely hard to find memory corruptions otherwise.
+
 2017-06-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* Makefile.am: added CODE_COVERAGE parts as provided by AX_CODE_COVERAGE

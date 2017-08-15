@@ -22,6 +22,10 @@
 
 #include "config.h"
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#endif
+
 #define _LFS64_LARGEFILE		1
 #define _LFS64_STDIO			1
 #define _FILE_OFFSET_BITS		64

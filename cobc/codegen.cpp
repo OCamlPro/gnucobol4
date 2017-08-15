@@ -6944,8 +6944,7 @@ output_internal_function(cb_program * prog, cb_tree parameter_list)
 	}
 
 	/* Check INITIAL programms being non-recursive */
-	if(CB_EXCEPTION_ENABLE(COB_EC_PROGRAM_RECURSIVE_CALL)
-			&& prog->flag_initial) {
+	if(CB_EXCEPTION_ENABLE(COB_EC_PROGRAM_RECURSIVE_CALL) && !prog->flag_recursive) {
 		str += output_line("/* Check active count */");
 		str += output_line("if (unlikely(module->module_active)) {");
 		/* FIXME: Should raise COB_EC_PROGRAM_RECURSIVE_CALL instead */

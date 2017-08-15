@@ -23,6 +23,10 @@
 #include "config.h"
 #include "defaults.h"
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#endif
+
 #ifndef	_GNU_SOURCE
 	#define _GNU_SOURCE	1
 #endif

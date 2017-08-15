@@ -21,6 +21,10 @@
 
 #include "config.h"
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
