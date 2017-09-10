@@ -1,4 +1,9 @@
 
+2017-09-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added "buildtest" target to compile the test programs,
+	  make sure to use cobc we have build instead of the installed one
+
 2016-11-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* testprog2.cob: added occurs / lvl88 to the sample

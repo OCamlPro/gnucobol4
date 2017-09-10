@@ -1,7 +1,7 @@
 #
 # Makefile gnucobol/gc-debugger
 #
-# Copyright (C) 2014-2016 Free Software Foundation
+# Copyright (C) 2014-2017 Free Software Foundation
 #
 # This file is part of GnuCOBOL.
 #
@@ -21,8 +21,11 @@
 animdir = @COB_LIBRARY_PATH@
 anim_DATA = gc-debugger.$(COB_MODULE_EXT)
 
-EXTRA_DIST = $(debugger_sources)
-CLEANFILES = $(extras_DATA)
+EXTRA_DIST = $(debugger_sources) $(testprogs_sources)
+CLEANFILES = $(anim_DATA) $(testprogs_modules)
+
+# targets that are only logical targets instead of files
+.PHONY: testprogs runtest
 
 debugger_sources = \
 	gc-debugger.cob \
@@ -33,6 +36,24 @@ debugger_sources = \
 	fulltext-search.cpy \
 	watchpoints.cpy
 
+testprogs_sources = \
+	testprog.cob \
+	testprog2.cob \
+	testprog3.cob
+
+testprogs_modules = \
+	testprog.$(COB_MODULE_EXT) \
+	testprog2.$(COB_MODULE_EXT) \
+	testprog3.$(COB_MODULE_EXT)
+
 gc-debugger.$(COB_MODULE_EXT) : $(debugger_sources)
-	. $(top_builddir)/tests/atconfig; . $(top_builddir)/tests/atlocal; \
-		cobc -m -Wall -O -o debugger.$(COB_MODULE_EXT) -I $(srcdir) $(srcdir)/gc-debugger.cob
+	. $(top_builddir)/tests/atconfig && . $(top_builddir)/tests/atlocal debugger-$@ \
+		&& $$COBC -m -Wall -O -o $@ $(srcdir)/gc-debugger.cob
+
+
+SUFFIXES = .cob .$(COB_MODULE_EXT)
+.cob.$(COB_MODULE_EXT):
+	. $(top_builddir)/tests/atconfig && . $(top_builddir)/tests/atlocal debugtest-$@ \
+		&& $$COBC -anim -Wall -O -o $@ $<
+
+buildtest : all $(testprogs_modules)

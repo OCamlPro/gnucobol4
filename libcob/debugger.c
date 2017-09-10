@@ -1,3 +1,23 @@
+/*
+   Copyright (C) 2016-2017 Free Software Foundation, Inc.
+   Written by Philipp Böhme, Simon Sobisch
+
+   This file is part of GnuCOBOL.
+
+   The GnuCOBOL runtime library is free software: you can redistribute it
+   and/or modify it under the terms of the GNU Lesser General Public License
+   as published by the Free Software Foundation, either version 3 of the
+   License, or (at your option) any later version.
+
+   GnuCOBOL is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public License
+   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -114,12 +134,12 @@ void anidata(anim_field* caf, anim_field* cafl, anim_field* cafg, interface_bloc
 	char work[12];
 	if((!caf && !cafl && !cafg) || !ib || !f_name) {
 		caf = &empty_anim_field;
-		sprintf(work, "%02d", caf->usage);
+		sprintf(work, "%02d", (int)caf->usage);
 		memcpy(ib->dtf_usage, work, 2);
 		sprintf(work, "%03d", 0);
 		memcpy(ib->dtf_length, work, 3);
 		memset(ib->dtf_value, 0x20, 280);
-		memcpy(ib->dtf_value, "Not found", caf->size);
+		memcpy(ib->dtf_value, "Not found", (int)caf->size);
 		return;
 	}
 
@@ -147,9 +167,9 @@ void anidata(anim_field* caf, anim_field* cafl, anim_field* cafg, interface_bloc
 		if(strncmp(caf_field_name_cpy, f_name_cpy, strlen(caf_field_name_cpy)) == 0 && strncmp(caf->program_id, orig_program_id, strlen(caf->program_id)) == 0) {
 			if(subscript) subscript_shift = calculate_subscript_shift(subscript, caf);
 			
-			sprintf(work, "%02d", caf->usage);
+			sprintf(work, "%02d", (int)caf->usage);
 			memcpy(ib->dtf_usage, work, 2);
-			sprintf(work, "%03d", caf->size);
+			sprintf(work, "%03d", (int)caf->size);
 			memcpy(ib->dtf_length, work, 3);
 			memset(ib->dtf_value, 0x20, 280);
 			if(caf->src_field && caf->src_field->data) {
@@ -200,9 +220,9 @@ void anidata(anim_field* caf, anim_field* cafl, anim_field* cafg, interface_bloc
 		if(strncmp(cafl_field_name_cpy, f_name_cpy, strlen(cafl_field_name_cpy)) == 0 && strncmp(cafl->program_id, orig_program_id, strlen(cafl->program_id)) == 0) {
 			if(subscript) subscript_shift = calculate_subscript_shift(subscript, cafl);
 
-			sprintf(work, "%02d", cafl->usage);
+			sprintf(work, "%02d", (int)cafl->usage);
 			memcpy(ib->dtf_usage, work, 2);
-			sprintf(work, "%03d", cafl->size);
+			sprintf(work, "%03d", (int)cafl->size);
 			memcpy(ib->dtf_length, work, 3);
 			memset(ib->dtf_value, 0x20, 280);
 			if(cafl->src_field && cafl->src_field->data) {
@@ -244,9 +264,9 @@ void anidata(anim_field* caf, anim_field* cafl, anim_field* cafg, interface_bloc
 		if(strncmp(cafg_field_name_cpy, f_name_cpy, strlen(cafg_field_name_cpy)) == 0 && strncmp(cafg->program_id, orig_program_id, strlen(cafg->program_id)) == 0) {
 			if(subscript) subscript_shift = calculate_subscript_shift(subscript, cafg);
 			
-			sprintf(work, "%02d", cafg->usage);
+			sprintf(work, "%02d", (int)cafg->usage);
 			memcpy(ib->dtf_usage, work, 2);
-			sprintf(work, "%03d", cafg->size);
+			sprintf(work, "%03d", (int)cafg->size);
 			memcpy(ib->dtf_length, work, 3);
 			memset(ib->dtf_value, 0x20, 280);
 			if(cafg->src_field && cafg->src_field->data) {

@@ -15,7 +15,7 @@ void trim(char* str) {
 }
 
 void rtrim(char* str) {
-	int i;
+	unsigned int i;
 	if(!str) return;
 
 	for(i = strlen(str) - 1; i >= 0; i--) {
@@ -25,7 +25,7 @@ void rtrim(char* str) {
 }
 
 void ltrim(char* str) {
-	int i, j;
+	unsigned int i, j;
 	if(!str) return;
 
 	for(i = 0; i < strlen(str); i++) {
@@ -41,7 +41,7 @@ void ltrim(char* str) {
 }
 
 void all_to_upper(char* str) {
-	int i;
+	unsigned int i;
 	if(!str) return;
 
 	for(i = 0; i < strlen(str); i++) {

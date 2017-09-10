@@ -223,11 +223,11 @@ static int			do_anim_init = 0;		/* EB */
 int					end_decl_line;			/* EB */
 size_t				in_procedure;			/* EB */
 size_t				in_data;				/* EB */
-int					comm_source_line;		/* EB */
+unsigned int		comm_source_line;		/* EB */
 int					in_of_seen;				/* EB */
-int					debug_source_lines;		/* EB */
-int					anim_first_stmt;		/* EB */
-int					anim_gotoline = 0;		/* EB */
+unsigned int		debug_source_lines;		/* EB */
+unsigned int		anim_first_stmt;		/* EB */
+unsigned int		anim_gotoline = 0;		/* EB */
 char				workdata[80];			/* EB */
 char				workkey[16];			/* EB */
 int					has_external = 0;
@@ -6418,10 +6418,10 @@ output_alter_check (struct cb_label *lp)
 }
 
 static void
-_update_debugger_source_buffer (int source_line, char c) {
+_update_debugger_source_buffer (unsigned int source_line, char c) {
 	char* eol;
 	char* work_ptr;
-	int i;
+	unsigned int i;
 
 	if ((source_line >= debug_source_lines)
 		|| (source_line < anim_first_stmt))
@@ -10178,7 +10178,8 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	struct literal_list	*m;
 	struct cb_program	*cp;
 	struct tm		*loctime;
-	int			i, len;
+	unsigned int		i;
+	int			len;
 	enum cb_optim		optidx;
 	time_t			sectime;
 
