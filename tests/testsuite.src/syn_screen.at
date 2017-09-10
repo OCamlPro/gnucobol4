@@ -1,4 +1,4 @@
-## Copyright (C) 2014-2016 Free Software Foundation, Inc.
+## Copyright (C) 2014-2017 Free Software Foundation, Inc.
 ## Written by Simon Sobisch, Edward Hart
 ##
 ## This file is part of GnuCOBOL.
@@ -176,7 +176,7 @@ AT_DATA([prog.cob], [
 
        SCREEN SECTION.
        01  scr.
-           03  y PIC 99 LINE 3 COLUMN 5.
+           03  y PIC 99 FROM x LINE 3 COLUMN 5.
 
        PROCEDURE DIVISION.
            DISPLAY "hello" AT 0000
@@ -243,13 +243,13 @@ AT_DATA([prog.cob], [
        DATA             DIVISION.
        SCREEN           SECTION.
        *> Valid numbers
-       01  a            LINE 1.
-       01  b            LINE +1.
-       01  c            LINE 0.
+       01  a            VALUE "-" LINE 1.
+       01  b            VALUE "-" LINE +1.
+       01  c            VALUE "-" LINE 0.
 
        *> invalid numbers
-       01  d            LINE -1.
-       01  e            LINE 1.0.
+       01  d            VALUE "-" LINE -1.
+       01  e            VALUE "-" LINE 1.0.
        PROCEDURE        DIVISION.
            STOP RUN.
 ])
@@ -409,6 +409,41 @@ prog.cob: 24: error: cannot specify both HIGHLIGHT and LOWLIGHT
 AT_CLEANUP
 
 
+AT_SETUP([Optional SCREEN for BLANK / ERASE])
+AT_KEYWORDS([screen])
+
+# SCREEN is currently not optional in the parser but at least with ACUCOBOL
+AT_XFAIL_IF(true)
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+
+       DATA             DIVISION.
+
+       SCREEN           SECTION.
+       01  scr.
+           03  VALUE "foo1" BLANK SCREEN.
+       01  scr2.
+           03  VALUE "foo2" BLANK.
+       01  scr3.
+           03  VALUE "foo3" ERASE EOS.
+       01  scr4.
+           03  VALUE "foo4" ERASE.
+
+       PROCEDURE        DIVISION.
+           DISPLAY "one" BLANK SCREEN.
+           DISPLAY "two" BLANK.
+           DISPLAY " 3 " ERASE TO END OF SCREEN.
+           DISPLAY " 4 " ERASE
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+
+AT_CLEANUP
+
+
 AT_SETUP([Redundant screen clauses])
 AT_KEYWORDS([screen])
 
@@ -451,7 +486,7 @@ AT_DATA([prog.cob], [
        DATA             DIVISION.
        SCREEN           SECTION.
        01 x-scr.
-          03 x PIC X OCCURS 10.
+          03 x PIC X VALUE "a" OCCURS 10.
 ])
 
 AT_DATA([prog2.cob], [
@@ -460,9 +495,9 @@ AT_DATA([prog2.cob], [
        DATA             DIVISION.
        SCREEN           SECTION.
        01 x-scr.
-          03 x PIC X OCCURS 10 COL  10.
+          03 x PIC X VALUE "a" OCCURS 10 COL  10.
        01 y-scr.
-          03 y PIC X OCCURS 10 LINE 10.
+          03 y PIC X VALUE "a" OCCURS 10 LINE 10.
 ])
 
 AT_DATA([prog3.cob], [
@@ -471,27 +506,36 @@ AT_DATA([prog3.cob], [
        DATA             DIVISION.
        SCREEN           SECTION.
        01 x-scr.
-          03 x PIC X OCCURS 10 COL  + 10.
+          03 x PIC X VALUE "a" OCCURS 10 COL  + 10.
        01 y-scr.
-          03 y PIC X OCCURS 10 LINE - 10.
+          03 y PIC X VALUE "a" OCCURS 10 LINE - 10.
        01 a-scr.
-          03 a PIC X OCCURS 10 COL  PLUS 10.
+          03 a PIC X VALUE "a" OCCURS 10 COL  PLUS 10.
        01 b-scr.
-          03 b PIC X OCCURS 10 LINE MINUS 10.
+          03 b PIC X VALUE "a" OCCURS 10 LINE MINUS 10.
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
-[prog.cob: 7: error: relative LINE/COLUMN clause required with OCCURS
+[prog.cob: 7: warning: OCCURS screen items is not implemented
+prog.cob: 7: error: relative LINE/COLUMN clause required with OCCURS
 ])
 
 AT_CHECK([$COMPILE_ONLY prog2.cob], [1], [],
-[prog2.cob: 7: error: relative LINE/COLUMN clause required with OCCURS
+[prog2.cob: 7: warning: OCCURS screen items is not implemented
+prog2.cob: 7: error: relative LINE/COLUMN clause required with OCCURS
+prog2.cob: 9: warning: OCCURS screen items is not implemented
 prog2.cob: 9: error: relative LINE/COLUMN clause required with OCCURS
 ])
 
-AT_CHECK([$COMPILE_ONLY prog3.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY prog3.cob], [0], [],
+[prog3.cob: 7: warning: OCCURS screen items is not implemented
+prog3.cob: 9: warning: OCCURS screen items is not implemented
+prog3.cob: 11: warning: OCCURS screen items is not implemented
+prog3.cob: 13: warning: OCCURS screen items is not implemented
+])
 
 AT_CLEANUP
+
 
 AT_SETUP([VALUE clause missing])
 AT_KEYWORDS([screen])
@@ -512,6 +556,30 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 9: error: syntax error, unexpected Literal
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([FULL on numeric item])
+AT_KEYWORDS([screen])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  num PIC 999.
+
+       SCREEN SECTION.
+       01  scr.
+           03  full-pointless PIC 999 TO num FULL.
+           03  full-useful PIC ZZZ TO num FULL.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 11: warning: FULL has no effect on numeric items; you may want REQUIRED or PIC Z
 ])
 
 AT_CLEANUP

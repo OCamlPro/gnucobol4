@@ -48,8 +48,8 @@ extern int call_line_number;
 
 struct system_table {
 	const char		*const syst_name;
-	const int		syst_params_min;
-	const int		syst_params_max;
+	const unsigned int	syst_params_min;
+	const unsigned int	syst_params_max;
 };
 
 struct optim_table {
@@ -587,7 +587,7 @@ cb_validate_one (cb_tree x)
 			if (f->odo_level > 1) {
 				/* to enable this take care of the FIXME entries in (output_size) */
 				cb_error_x (x, _("%s is not implemented"),
-					_("reference to item containing nested ODO"));
+					_("reference to item containing nested OCCURS DEPENDING ON"));
 				return 1;
 			}
 #endif
@@ -871,8 +871,11 @@ usage_is_thread_handle (cb_tree x)
 	struct cb_field *f;
 	f = CB_FIELD_PTR (x);
 
-	return (f->usage == CB_USAGE_HNDL ||
-		f->usage == CB_USAGE_HNDL_THREAD);
+	if (f->usage == CB_USAGE_HNDL ||
+		f->usage == CB_USAGE_HNDL_THREAD) {
+		return 1;
+	}
+	return 0;
 }
 
 static int
@@ -881,10 +884,17 @@ usage_is_window_handle (cb_tree x)
 	struct cb_field *f;
 	f = CB_FIELD_PTR (x);
 
-	/* FIXME: may also be a PIC X(10) item */
-	return (f->usage == CB_USAGE_HNDL ||
+	if (f->usage == CB_USAGE_HNDL ||
 		f->usage == CB_USAGE_HNDL_WINDOW ||
-		f->usage == CB_USAGE_HNDL_SUBWINDOW);
+		f->usage == CB_USAGE_HNDL_SUBWINDOW) {
+		return 1;
+	}
+	if (f->usage == CB_USAGE_DISPLAY &&
+		f->pic->category == CB_CATEGORY_ALPHANUMERIC &&
+		f->size == 10){
+		return 1;
+	}
+	return 0;
 }
 
 /* List system routines */
@@ -1160,7 +1170,7 @@ cb_build_register_when_compiled (const char *name, const char *definition)
 	char		buff[32]; /* 32: make the compiler happy as "unsigned short" *could*
 						         have more digits than we "assume" */
 	size_t lit_size;
-	
+
 	if (!definition) {
 		definition = cb_get_register_definition (name);
 		if (!definition) {
@@ -1204,7 +1214,7 @@ static void
 cb_build_register_tally (const char *name, const char *definition)
 {
 	cb_tree field;
-	
+
 	if (!definition) {
 		definition = cb_get_register_definition (name);
 		if (!definition) {
@@ -1233,7 +1243,7 @@ cb_build_single_register (const char *name, const char *definition)
 {
 	/* TODO: parse definition here or in sub-functions */
 
-	/* registers that are currently created elsewhere 
+	/* registers that are currently created elsewhere
 	   TODO: move them here */
 	/* FIXME: LENGTH OF (must have different results depending on compiler configuration) */
 	if (!strcasecmp (name, "ADDRESS OF")
@@ -1527,6 +1537,8 @@ cb_build_section_name (cb_tree name, const int sect_or_para)
 	return name;
 }
 
+/* build name for ASSIGN, to be resolved later as we don't have any
+   field info at this point (postponed to cb_validate_program_data) */
 cb_tree
 cb_build_assignment_name (struct cb_file *cfile, cb_tree name)
 {
@@ -1612,8 +1624,7 @@ cb_build_address (cb_tree x)
 	cb_tree			v;
 	struct cb_reference	*r;
 	const char		*name;
-	int			numsubs;
-	int			refsubs;
+	unsigned int	numsubs, refsubs;
 
 	if (x == cb_error_node) {
 		return cb_error_node;
@@ -1732,7 +1743,9 @@ cb_build_identifier (cb_tree x, const int subchk)
 			p = p->redefines;
 		}
 		if (p == f) {
-			sprintf(full_name, "'%s'", name);
+			/* TRANSLATORS: This msgid is used when a variable name
+			   or label is referenced in a compiler message. */
+			sprintf(full_name, _("'%s'"), name);
 		} else {
 			sprintf(full_name, _("'%s' (accessed by '%s')"), p->name, name);
 		}
@@ -1742,7 +1755,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 		    !current_statement->flag_no_based) {
 			if (p->flag_item_based ||
 			   (p->storage == CB_STORAGE_LINKAGE &&
-				  (!p->flag_is_pdiv_parm || p->flag_is_pdiv_opt))) {
+				  (!(p->flag_is_pdiv_parm || p->flag_is_returning) || p->flag_is_pdiv_opt))) {
 				current_statement->null_check = CB_BUILD_FUNCALL_2 (
 					"cob_check_based",
 					cb_build_address (cb_build_field_reference (p, NULL)),
@@ -1870,7 +1883,7 @@ cb_build_identifier (cb_tree x, const int subchk)
 	}
 
 	/* Reference modification check */
-	if ( f->usage == CB_USAGE_NATIONAL ) {
+	if (f->usage == CB_USAGE_NATIONAL ) {
 		pseudosize = f->size / 2;
 	} else {
 		pseudosize = f->size;
@@ -2840,6 +2853,45 @@ validate_record_depending (cb_tree x)
 	}
 }
 
+static void
+validate_relative_key_field (struct cb_file *file)
+{
+	struct cb_field	*key_field = CB_FIELD_PTR (file->key);
+
+	if (CB_TREE_CATEGORY (key_field) != CB_CATEGORY_NUMERIC) {
+		cb_error_x (file->key,
+			    _("file %s: RELATIVE KEY %s is not numeric"),
+			    file->name, key_field->name);
+	}
+
+	/* TO-DO: Check if key_field is an integer based on USAGE */
+	if (key_field->pic != NULL) {
+		if (key_field->pic->category == CB_CATEGORY_NUMERIC
+		    && key_field->pic->scale != 0) {
+			cb_error_x (file->key,
+				    _("file %s: RELATIVE KEY %s must be integer"),
+				    file->name, key_field->name);
+		}
+		if (key_field->pic->have_sign) {
+			cb_error_x (file->key,
+				    _("file %s: RELATIVE KEY %s must be unsigned"),
+				    file->name, key_field->name);
+		}
+	}
+
+	if (key_field->flag_occurs) {
+		cb_error_x (file->key,
+			    _("file %s: RELATIVE KEY %s cannot have OCCURS"),
+			    file->name, key_field->name);
+	}
+
+	if (cb_field_founder (key_field)->file == file) {
+		cb_error_x (file->key,
+			    _("RELATIVE KEY %s cannot be in file record belonging to %s"),
+			    key_field->name, file->name);
+	}
+}
+
 void
 cb_validate_program_data (struct cb_program *prog)
 {
@@ -2849,11 +2901,11 @@ cb_validate_program_data (struct cb_program *prog)
 	struct cb_field		*p;
 	struct cb_field		*q;
 	struct cb_field		*depfld;
-	struct cb_file		*f;
+	struct cb_file		*file;
 	struct cb_report	*rep;
 	unsigned char		*c;
 	char			buff[COB_MINI_BUFF];
-	unsigned int	odo_level;
+	unsigned int		odo_level;
 
 	current_program->report_list = cb_list_reverse (current_program->report_list);
 
@@ -2883,9 +2935,9 @@ cb_validate_program_data (struct cb_program *prog)
 	current_program->file_list = cb_list_reverse (current_program->file_list);
 
 	for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
-		f = CB_FILE (CB_VALUE (l));
-		if (!f->flag_finalized) {
-			finalize_file (f, NULL);
+		file = CB_FILE (CB_VALUE (l));
+		if (!file->flag_finalized) {
+			finalize_file (file, NULL);
 		}
 	}
 
@@ -2930,8 +2982,30 @@ cb_validate_program_data (struct cb_program *prog)
 			}
 			if (CB_REFERENCE_P (assign)) {
 				x = cb_ref (assign);
-				if (CB_FIELD_P (x) && CB_FIELD (x)->level == 88) {
-					cb_error_x (assign, _("ASSIGN data item '%s' invalid"), CB_NAME (assign));
+				if (CB_FIELD_P (x)) {
+					if (CB_FIELD (x)->level == 88) {
+						cb_error_x (assign, _("ASSIGN data item '%s' is invalid"),
+							CB_NAME (assign));
+					} else if (CB_FIELD (x)->storage != CB_STORAGE_WORKING &&
+						CB_FIELD (x)->storage != CB_STORAGE_LOCAL) {
+						/* FIXME: Should be allowed, but needs changes to codegen,
+						          including a check for the LINKAGE item */
+						if (CB_FIELD (x)->storage == CB_STORAGE_LINKAGE) {
+							CB_PENDING_X (assign,
+								_("ASSIGN data item defined in LINKAGE"));
+						}
+						cb_error_x (assign,
+							_("ASSIGN data item '%s' is invalid"),
+							CB_NAME (assign));
+					} else if (CB_FIELD (x)->flag_item_based) {
+						/* FIXME: Should be allowed, but needs changes to codegen,
+						          including a check for the BASED item */
+						CB_PENDING_X (assign,
+							_("ASSIGN data item with BASED clause"));
+						cb_error_x (assign,
+							_("ASSIGN data item '%s' is invalid"),
+							CB_NAME (assign));
+					}
 				}
 			}
 		}
@@ -2957,6 +3031,7 @@ cb_validate_program_data (struct cb_program *prog)
 			prog->crt_status = NULL;
 		}
 	} else {
+		/* TO-DO: Add to registers list */
 		l = cb_build_reference ("COB-CRT-STATUS");
 		p = CB_FIELD (cb_build_field (l));
 		p->usage = CB_USAGE_DISPLAY;
@@ -3010,7 +3085,7 @@ cb_validate_program_data (struct cb_program *prog)
 			for (; p->sister; p = p->sister) {
 				if (p->sister == depfld) {
 						cb_error_x (x,
-							    _("'%s' ODO field item invalid here"),
+							    _("'%s' OCCURS DEPENDING ON field item invalid here"),
 							    p->sister->name);
 				}
 				if (!p->sister->redefines) {
@@ -3028,7 +3103,7 @@ cb_validate_program_data (struct cb_program *prog)
 		/* If the field is GLOBAL, then the ODO must also be GLOBAL */
 		if (q->flag_is_global && depfld) {
 			if (!depfld->flag_is_global) {
-				cb_error_x (x, _("'%s' ODO item must have GLOBAL attribute"),
+				cb_error_x (x, _("'%s' OCCURS DEPENDING ON item must have GLOBAL attribute"),
 					depfld->name);
 			}
 		}
@@ -3038,9 +3113,13 @@ cb_validate_program_data (struct cb_program *prog)
 
 	/* file definition checks */
 	for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
-		f = CB_FILE (CB_VALUE (l));
-		if (CB_VALID_TREE(f->record_depending)) {
-			validate_record_depending (f->record_depending);
+		file = CB_FILE (CB_VALUE (l));
+		if (CB_VALID_TREE (file->record_depending)) {
+			validate_record_depending (file->record_depending);
+		}
+		if (file->organization == COB_ORG_RELATIVE && file->key
+		    && cb_ref (file->key) != cb_error_node) {
+			validate_relative_key_field (file);
 		}
 	}
 }
@@ -3791,8 +3870,8 @@ decimal_alloc (void)
 
 	x = cb_build_decimal (current_program->decimal_index);
 	current_program->decimal_index++;
+	/* LCOV_EXCL_START */
 	if (current_program->decimal_index >= COB_MAX_DEC_STRUCT) {
-		/* LCOV_EXCL_START */
 		cobc_err_msg (_("internal decimal structure size exceeded: %d"),
 				COB_MAX_DEC_STRUCT);
 		if (strcmp(current_statement->name, "COMPUTE") == 0) {
@@ -3800,8 +3879,8 @@ decimal_alloc (void)
 							 "or split into multiple computations."));
 		}
 		COBC_ABORT ();
-		/* LCOV_EXCL_STOP */
 	}
+	/* LCOV_EXCL_STOP */
 	if (current_program->decimal_index > current_program->decimal_index_max) {
 		current_program->decimal_index_max = current_program->decimal_index;
 	}
@@ -3910,15 +3989,14 @@ decimal_expand (cb_tree d, cb_tree x)
 	}
 	switch (CB_TREE_TAG (x)) {
 	case CB_TAG_CONST:
-		if (x == cb_zero) {
-			dpush (CB_BUILD_FUNCALL_2 ("cob_decimal_set_llint", d,
-				cb_int0));
-		} else {
-			/* LCOV_EXCL_START */
+		/* LCOV_EXCL_START */
+		if (x != cb_zero) {
 			cobc_err_msg (_("unexpected constant expansion"));
 			COBC_ABORT ();
-			/* LCOV_EXCL_STOP */
 		}
+		/* LCOV_EXCL_STOP */
+		dpush (CB_BUILD_FUNCALL_2 ("cob_decimal_set_llint", d,
+			cb_int0));
 		break;
 	case CB_TAG_LITERAL:
 		/* Set d, N */
@@ -4635,6 +4713,8 @@ cb_true_side (void)
 {
 	if (cond_fixed == 1) {
 		cb_set_ignore_error (1);
+	} else {
+		cb_set_ignore_error (0);
 	}
 }
 
@@ -5026,6 +5106,116 @@ cb_emit_move_corresponding (cb_tree source, cb_tree target_list)
 	}
 }
 
+static unsigned int
+emit_accept_external_form (cb_tree x)
+{
+	struct cb_field *f;
+	cb_tree		t, o, m, n;
+	int		i;
+	char		buff[32];
+	unsigned int	found;
+
+	found = 0;
+	for (f = CB_FIELD_PTR (x)->children; f; f = f->sister) {
+		if (!f->redefines) {
+			if (f->children) {
+				t = cb_build_field_reference (f, x);
+				found += emit_accept_external_form (t);
+			} else {
+				if (f->external_form_identifier) {
+					m = f->external_form_identifier;
+				} else {
+					m = cb_build_alphanumeric_literal (f->name, strlen (f->name)); 
+				}
+				if (f->flag_occurs) {
+					for (i = 1; i <= f->occurs_max; i++) {
+						sprintf (buff, "%d", i);
+						n = cb_build_numeric_literal(0, buff, 0); 
+
+						o = cb_build_field_reference (f, x);
+						CB_REFERENCE (o)->subs = CB_LIST_INIT (n);
+
+#if 0 /* TODO: implement CGI runtime, see Patch #27 */
+						cb_emit (CB_BUILD_FUNCALL_3 ("cob_cgi_getCgiValue", m, n, o));
+#else
+						COB_UNUSED (m);
+#endif
+					}
+				} else {
+					n = cb_build_numeric_literal(0, "1", 0);
+#if 0 /* TODO: implement CGI runtime, see Patch #27 */
+					cb_emit (CB_BUILD_FUNCALL_3 ("cob_cgi_getCgiValue", m, n, t));
+#endif
+				}
+				found++;
+			}
+		}
+	}
+	return found;
+}
+
+static void
+cb_emit_accept_external_form (cb_tree x1)
+{
+	cb_tree		x2;
+
+	x2 = cb_check_group_name (x1);
+	if (cb_validate_one (x2)) {
+		return;
+	}
+	if (!emit_accept_external_form (x2)) {
+		cb_warning_x (COBC_WARN_FILLER, x1, _("no items to ACCEPT found"));
+	}
+}
+
+static unsigned int
+emit_display_external_form (cb_tree x)
+{
+	struct cb_field *f;
+	cb_tree		t, m;
+	unsigned int	found;
+
+	COB_UNUSED (m);
+	
+	found = 0;
+	for (f = CB_FIELD_PTR (x)->children; f; f = f->sister) {
+		if (!f->redefines && !f->flag_occurs) {
+			t = cb_build_field_reference (f, x);
+			if (f->children) {
+				found += emit_display_external_form (t);
+			} else {
+				if (CB_FIELD (cb_ref (t))->external_form_identifier) {
+					m = CB_FIELD (cb_ref (t))->external_form_identifier;
+				} else {
+					m = cb_build_alphanumeric_literal (CB_FIELD (cb_ref (t))->name,
+						strlen((CB_FIELD (cb_ref (t))->name))); 
+				}
+#if 0 /* TODO: implement CGI runtime, see Patch #27 */
+				cb_emit (CB_BUILD_FUNCALL_2 ("cob_cgi_addTplVar", m, t));
+#else
+				COB_UNUSED (m);
+#endif
+				found++;
+			}
+		}
+	}
+	return found;
+}
+
+static void
+cb_emit_display_external_form (cb_tree x1)
+{
+	cb_tree		x2;
+
+	x2 = cb_check_group_name (x1);
+	if (cb_validate_one (x2)) {
+		return;
+	}
+	if (!emit_display_external_form (x2)) {
+		cb_warning_x (COBC_WARN_FILLER, x1, _("no items to DISPLAY found"));
+	}
+}
+
 static void
 output_screen_from (struct cb_field *p, const unsigned int sisters)
 {
@@ -5274,6 +5464,13 @@ cb_emit_accept (cb_tree var, cb_tree pos, struct cb_attr_struct *attr_ptr)
 				return;
 			}
 		}
+	}
+
+	/* CGI: ACCEPT external-form */
+	/* TODO: CHECKME, see Patch #27 */
+	if (CB_REF_OR_FIELD_P (var) && CB_FIELD (cb_ref (var))->flag_is_external_form) {
+		cb_emit_accept_external_form (var);
+		return;
 	}
 
 #if	0	/* RXWRXW - Screen */
@@ -5692,7 +5889,7 @@ cb_emit_call (cb_tree prog, cb_tree par_using, cb_tree returning,
 	cob_u32_t			is_sys_idx;
 	int				error_ind;
 	int				call_conv;
-	int				numargs;
+	unsigned int		numargs;
 	const int			prog_is_literal_or_prototype
 		= CB_LITERAL_P (prog) || (CB_REFERENCE_P (prog)
 					  && CB_PROTOTYPE_P (cb_ref (prog)));
@@ -6133,11 +6330,11 @@ cb_emit_display_window (cb_tree type, cb_tree own_handle, cb_tree upon_handle,
 		return;
 	}
 
-	if (own_handle && !usage_is_window_handle(own_handle)) {
-		cb_error_x (own_handle, _("HANDLE must be either a generic or a WINDOW HANDLE"));
+	if (own_handle && !usage_is_window_handle (own_handle)) {
+		cb_error_x (own_handle, _("HANDLE must be either a generic or a WINDOW HANDLE or X(10)"));
 	}
-	if (upon_handle && !usage_is_window_handle(upon_handle)) {
-		cb_error_x (upon_handle, _("HANDLE must be either a generic or a WINDOW HANDLE"));
+	if (upon_handle && !usage_is_window_handle (upon_handle)) {
+		cb_error_x (upon_handle, _("HANDLE must be either a generic or a WINDOW HANDLE or X(10)"));
 	}
 
 #if 0 /* TODO, likely as multiple functions */
@@ -6151,12 +6348,16 @@ cb_emit_display_window (cb_tree type, cb_tree own_handle, cb_tree upon_handle,
 */
 
 void
-cb_emit_close_window (cb_tree handle)
+cb_emit_close_window (cb_tree handle, cb_tree no_display)
 {
-	if (handle && !usage_is_window_handle(handle)) {
-		cb_error_x (handle, _("HANDLE must be either a generic or a WINDOW handle"));
+	if (handle && !usage_is_window_handle (handle)) {
+		cb_error_x (handle, _("HANDLE must be either a generic or a WINDOW HANDLE or X(10)"));
 	}
-	cb_emit (CB_BUILD_FUNCALL_1 ("cob_close_window", handle));
+	if (no_display) {
+		cb_emit (CB_BUILD_FUNCALL_1 ("cob_close_window", handle));
+	} else {
+		cb_emit_destroy (handle);
+	}
 }
 
 
@@ -6278,7 +6479,7 @@ emit_device_display (cb_tree values, cb_tree upon, cb_tree no_adv)
 	cb_tree	p;
 
 	p = CB_BUILD_FUNCALL_3 ("cob_display", upon, no_adv, values);
-	CB_FUNCALL (p)->varcnt = cb_list_length (values);
+	CB_FUNCALL (p)->varcnt = (int)cb_list_length (values);
 	CB_FUNCALL (p)->nolitcast = 1;
 	cb_emit (p);
 }
@@ -6486,19 +6687,24 @@ emit_field_display_for_last (cb_tree values, cb_tree line_column, cb_tree fgc,
 			     cob_flags_t disp_attrs,
 			     const int is_first_display_list)
 {
-	cb_tree	l;
-	cb_tree last_elt;
+	cb_tree		l;
+	cb_tree		last_elt;
 	int	is_first_item;
 
-	for (l = values; l && CB_CHAIN (l); l = CB_CHAIN (l));
-	if (!l) {
+	/* DISPLAY OMITTED ? */
+	if (values == cb_null) {
+		l = last_elt = cb_null;
+	} else {
+		for (l = values; l && CB_CHAIN (l); l = CB_CHAIN (l));
 		/* LCOV_EXCL_START */
-		cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
-			"emit_field_display_for_last", "values");
-		COBC_ABORT ();
+		if (!l) {
+			cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
+				"emit_field_display_for_last", "values");
+			COBC_ABORT ();
+		}
 		/* LCOV_EXCL_STOP */
+		last_elt = CB_VALUE (l);
 	}
-	last_elt = CB_VALUE (l);
 
 	if (line_column == NULL) {
 		is_first_item = is_first_display_list && l == values;
@@ -6522,12 +6728,17 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv,
 	cb_tree		size_is;	/* WITH SIZE IS */
 	cob_flags_t		disp_attrs;
 
+	cb_tree		m;
+	struct cb_field	*f = NULL;
+
 	/* Validate upon and values */
-	if (upon == cb_error_node
-	    || !values
-	    || cb_validate_list (values)
-	    || validate_types_of_display_values (values)) {
-		return;
+	if (values != cb_null) /* DISPLAY OMITTED */ {
+		if (upon == cb_error_node
+			|| !values
+			|| cb_validate_list (values)
+			|| validate_types_of_display_values (values)) {
+			return;
+		}
 	}
 
 	/* Validate line_column and the attributes */
@@ -6539,6 +6750,34 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv,
 	/* Emit appropriate function call(s) */
 	switch (display_type) {
 	case DEVICE_DISPLAY:
+
+		/* CGI: DISPLAY external-form */
+		/* TODO: CHECKME, see Patch #27 */
+		m = CB_VALUE(values);
+		if (CB_REF_OR_FIELD_P (m)) {
+			f = CB_FIELD (cb_ref (m));
+		}
+		if (f && (f->flag_is_external_form || f->external_form_identifier)) {
+			/* static content has both attributes */
+			if (f->flag_is_external_form && f->external_form_identifier) {
+#if 0 /* TODO: implement CGI runtime, see Patch #27 */
+				cb_emit (CB_BUILD_FUNCALL_1 ("cob_cgi_static", f->external_form_identifier));
+#endif
+				return;
+			}
+			cb_emit_display_external_form (m);
+			/* TODO: CHECKME, DISPLAY without identifier (template) is a "debug display" */
+			if (f->external_form_identifier) {
+				m = f->external_form_identifier;
+			} else {
+				m = cb_build_alphanumeric_literal (f->name, strlen(f->name)); 
+			}
+#if 0 /* TODO: implement CGI runtime, see Patch #27 */
+			cb_emit (CB_BUILD_FUNCALL_1 ("cob_cgi_renderTpl", m));
+#endif
+			return;
+		}
+
 		if (upon == NULL) {
 			upon = cb_int0;
 		}
@@ -6551,8 +6790,11 @@ cb_emit_display (cb_tree values, cb_tree upon, cb_tree no_adv,
 		break;
 
 	case FIELD_ON_SCREEN_DISPLAY:
-		emit_default_field_display_for_all_but_last (values, size_is,
-							     is_first_display_list);
+		/* no DISPLAY OMITTED */
+		if (values != cb_null) {
+			emit_default_field_display_for_all_but_last (values, size_is,
+									 is_first_display_list);
+		}
 		emit_field_display_for_last (values, line_column, fgc, bgc,
 					     scroll, size_is, disp_attrs,
 					     is_first_display_list);
@@ -9706,12 +9948,12 @@ cb_emit_sort_init (cb_tree name, cb_tree keys, cb_tree col)
 		if (current_program->cb_sort_return) {
 			CB_FIELD_PTR (current_program->cb_sort_return)->count++;
 			cb_emit (CB_BUILD_FUNCALL_5 ("cob_file_sort_init", cb_ref (name),
-						     cb_int (cb_list_length (keys)), col,
+						     cb_int ((int)cb_list_length (keys)), col,
 						     CB_BUILD_CAST_ADDRESS (current_program->cb_sort_return),
 						     CB_FILE(cb_ref (name))->file_status));
 		} else {
 			cb_emit (CB_BUILD_FUNCALL_5 ("cob_file_sort_init", cb_ref (name),
-						     cb_int (cb_list_length (keys)), col,
+						     cb_int ((int)cb_list_length (keys)), col,
 						     cb_null, CB_FILE(cb_ref (name))->file_status));
 
 		}
@@ -9728,7 +9970,7 @@ cb_emit_sort_init (cb_tree name, cb_tree keys, cb_tree col)
 			cb_error_x (name, _("%s is not implemented"), _("table SORT without keys"));
 		}
 		cb_emit (CB_BUILD_FUNCALL_2 ("cob_table_sort_init",
-					     cb_int (cb_list_length (keys)), col));
+					     cb_int ((int)cb_list_length (keys)), col));
 		for (l = keys; l; l = CB_CHAIN (l)) {
 			cb_emit (CB_BUILD_FUNCALL_3 ("cob_table_sort_init_key",
 					CB_VALUE (l),
@@ -10040,7 +10282,7 @@ cb_emit_unstring (cb_tree name, cb_tree delimited, cb_tree into,
 		return;
 	}
 	cb_emit (CB_BUILD_FUNCALL_3 ("cob_unstring_init", name, pointer,
-		cb_int (cb_list_length (delimited))));
+		cb_int ((int)cb_list_length (delimited))));
 	cb_emit_list (delimited);
 	cb_emit_list (into);
 	if (tallying) {

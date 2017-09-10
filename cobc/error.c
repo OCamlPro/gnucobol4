@@ -67,9 +67,9 @@ print_error (const char *file, int line, const char *prefix,
 			if (file) {
 				fprintf (stderr, "%s: ", file);
 			}
-			fputs (_("in section"), stderr);
-			fprintf (stderr, " '%s':\n",
+			fprintf (stderr, _("in section '%s':"),
 				(char *)current_section->name);
+			fputs ("\n", stderr);
 		}
 		last_section = current_section;
 	}
@@ -78,9 +78,9 @@ print_error (const char *file, int line, const char *prefix,
 			if (file) {
 				fprintf (stderr, "%s: ", file);
 			}
-			fputs (_("in paragraph"), stderr);
-			fprintf (stderr, " '%s':\n",
+			fprintf (stderr, _("in paragraph '%s':"),
 				(char *)current_paragraph->name);
+			fputs ("\n", stderr);
 		}
 		last_paragraph = current_paragraph;
 	}
@@ -209,9 +209,6 @@ cb_error (const char *fmt, ...)
 	va_list ap;
 
 	cobc_in_repository = 0;
-#if	0	/* RXWRXW - Is this right? */
-	cobc_cs_check = 0;
-#endif
 	va_start (ap, fmt);
 	print_error (NULL, 0, ignore_error ?
 		_("error (ignored): "):_("error: "), fmt, ap);

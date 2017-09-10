@@ -51,7 +51,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -91,7 +91,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -158,7 +158,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -207,7 +207,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CHECK([cat result.txt], [0], [                              hello world ], [])
 
 AT_CLEANUP
@@ -259,7 +259,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CHECK([cat result.txt], [0], [
 
 
@@ -317,7 +317,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CHECK([cat test.txt], [0], [
 
 bla
@@ -358,7 +358,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CHECK([cat SORT-OUT], [0], [], [])
 
 AT_CLEANUP
@@ -386,19 +386,20 @@ AT_DATA([prog.cob], [
        LOCAL-STORAGE    SECTION.
        01  path         PIC X(10) VALUE "test.txt".
        PROCEDURE        DIVISION.
-           OPEN INPUT test-file.
-           READ test-file   END-READ.
-           DISPLAY test-rec END-DISPLAY.
-           CLOSE test-file.
+           OPEN INPUT test-file
+           READ test-file   END-READ
+           IF test-rec NOT = "hello"
+              DISPLAY test-rec END-DISPLAY
+           END-IF
+           CLOSE test-file
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE prog.cob])
-AT_CHECK([./prog], [0],
-[hello
-], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
+
 
 AT_SETUP([ASSIGN with LOCAL-STORAGE item and INITIAL prog])
 AT_KEYWORDS([runfile])
@@ -425,17 +426,60 @@ AT_DATA([prog.cob], [
        LOCAL-STORAGE    SECTION.
        01  path         PIC X(10) VALUE "test.txt".
        PROCEDURE        DIVISION.
-           OPEN INPUT test-file.
-           READ test-file   END-READ.
-           DISPLAY test-rec END-DISPLAY.
-           CLOSE test-file.
+           OPEN INPUT test-file
+           READ test-file   END-READ
+           IF test-rec NOT = "hello"
+              DISPLAY test-rec END-DISPLAY
+           END-IF
+           CLOSE test-file
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE prog.cob])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([ASSIGN with BASED data item])
+AT_KEYWORDS([runfile])
+
+# TODO 2.3 - SIGSEGV - either dissallow or fix...
+AT_XFAIL_IF(true)
+ 
+AT_DATA([TEST-FILE],
 [hello
-], [])
+])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT      DIVISION.
+       INPUT-OUTPUT     SECTION.
+       FILE-CONTROL.
+       SELECT test-file ASSIGN path
+                        ORGANIZATION LINE SEQUENTIAL.
+       DATA             DIVISION.
+       FILE	            SECTION.
+       FD  test-file.
+       01  test-rec     PIC X(5).
+       WORKING-STORAGE    SECTION.
+       01  path         BASED PIC X(10).
+       PROCEDURE        DIVISION.
+           ALLOCATE path
+           MOVE "test.txt" TO path
+           OPEN INPUT test-file
+           FREE path
+           READ test-file   END-READ
+           IF test-rec NOT = "hello"
+              DISPLAY test-rec END-DISPLAY
+           END-IF
+           CLOSE test-file
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -448,7 +492,7 @@ AT_DATA([prog.cob], [
        PROGRAM-ID. prog.
        ENVIRONMENT DIVISION.
        CONFIGURATION SECTION.
-      
+
        INPUT-OUTPUT SECTION.
        FILE-CONTROL.
            SELECT FLATFILE ASSIGN EXTERNAL RELFIX
@@ -465,43 +509,43 @@ AT_DATA([prog.cob], [
        FILE SECTION.
        FD  FLATFILE
            BLOCK CONTAINS 5 RECORDS.
-      
+
        01  TSPFL-RECORD.
            10  CM-CUST-NUM                     PICTURE X(8).
            10  CM-COMPANY                      PICTURE X(25).
            10  CM-DISK                         PICTURE X(8).
            10  CM-NO-TERMINALS                 PICTURE 9(4).
-      
+
        FD  FLATFILE2
            BLOCK CONTAINS 5 RECORDS.
-      
+
        01  TSP2-RECORD.
            10  C2-CUST-NUM                     PICTURE X(8).
            10  C2-COMPANY                      PICTURE X(25).
            10  C2-DISK                         PICTURE X(8).
            10  C2-NO-TERMINALS                 PICTURE 9(4).
-      
+
        WORKING-STORAGE SECTION.
-      
+
        77  MAX-SUB           VALUE  6          PICTURE 9(4) COMP SYNC.
        77  CUST-STAT                           PICTURE X(2).
        77  REC-NUM           VALUE  1          PICTURE 9(4).
-      
+
        01  TEST-DATA.
-      
+
          02  DATA-CUST-NUM-TBL.
-      
+
            05  FILLER PIC X(8) VALUE "ALP00000".
            05  FILLER PIC X(8) VALUE "BET00000".
            05  FILLER PIC X(8) VALUE "DEL00000".
            05  FILLER PIC X(8) VALUE "EPS00000".
            05  FILLER PIC X(8) VALUE "FOR00000".
            05  FILLER PIC X(8) VALUE "GAM00000".
-      
+
          02  DATA-CUST-NUM REDEFINES DATA-CUST-NUM-TBL
                                        PIC X(8) OCCURS 6.
          02  DATA-COMPANY-TBL.
-      
+
            05  FILLER PIC X(25) VALUE "ALPHA ELECTRICAL CO. LTD.".
            05  FILLER PIC X(25) VALUE "BETA SHOE MFG. INC.      ".
            05  FILLER PIC X(25) VALUE "DELTA LUGGAGE REPAIRS    ".
@@ -511,7 +555,7 @@ AT_DATA([prog.cob], [
          02  DATA-COMPANY  REDEFINES DATA-COMPANY-TBL
                                        PIC X(25) OCCURS 6.
          02  DATA-ADDRESS-2-TBL.
-      
+
            05  FILLER PIC X(10) VALUE "ATLANTA   ".
            05  FILLER PIC X(10) VALUE "CALGARY   ".
            05  FILLER PIC X(10) VALUE "NEW YORK  ".
@@ -522,21 +566,21 @@ AT_DATA([prog.cob], [
                                        PIC X(10) OCCURS 6.
 
          02  DATA-NO-TERMINALS-TBL.
-      
+
            05  FILLER PIC 9(3) COMP-3 VALUE 10.
            05  FILLER PIC 9(3) COMP-3 VALUE 13.
            05  FILLER PIC 9(3) COMP-3 VALUE 75.
            05  FILLER PIC 9(3) COMP-3 VALUE 10.
            05  FILLER PIC 9(3) COMP-3 VALUE 90.
            05  FILLER PIC 9(3) COMP-3 VALUE 254.
-      
+
          02  DATA-NO-TERMINALS REDEFINES DATA-NO-TERMINALS-TBL
                                        PIC 9(3) COMP-3 OCCURS 6.
        01  WORK-AREA.
            05  SUB                             PICTURE 9(4) COMP SYNC.
                88  ODD-RECORD                  VALUE 1 3 5.
-      
-      
+
+
        PROCEDURE DIVISION.
 
            PERFORM LOADFILE.
@@ -549,7 +593,7 @@ AT_DATA([prog.cob], [
            ADD 1 TO C2-NO-TERMINALS
            REWRITE FILE FLATFILE2 FROM TSP2-RECORD
            READ FLATFILE2
-           DISPLAY "REWROTE " C2-CUST-NUM " Sts:" CUST-STAT 
+           DISPLAY "REWROTE " C2-CUST-NUM " Sts:" CUST-STAT
                    " Trms:" C2-NO-TERMINALS.
            CLOSE FLATFILE2.
            STOP RUN.
@@ -557,25 +601,25 @@ AT_DATA([prog.cob], [
        LOADFILE.
            DISPLAY "Loading sample program data file."
                             UPON CONSOLE.
-      
+
            OPEN OUTPUT FLATFILE.
-      
+
            PERFORM LOAD-RECORD
-                        VARYING SUB FROM 1 BY 1 
+                        VARYING SUB FROM 1 BY 1
                           UNTIL SUB > MAX-SUB.
-      
+
            DISPLAY "Sample program data file load complete."
                             UPON CONSOLE.
            CLOSE FLATFILE.
-      
+
        LOAD-RECORD.
-      
+
            MOVE SPACES                       TO TSPFL-RECORD.
            MOVE DATA-CUST-NUM      (SUB)     TO CM-CUST-NUM.
            MOVE DATA-COMPANY       (SUB)     TO CM-COMPANY.
            MOVE DATA-NO-TERMINALS  (SUB)     TO CM-NO-TERMINALS.
            IF  ODD-RECORD
-               MOVE "8417"                   TO CM-DISK 
+               MOVE "8417"                   TO CM-DISK
            ELSE
                MOVE "8470"                   TO CM-DISK.
            WRITE FILE FLATFILE FROM TSPFL-RECORD.
@@ -583,7 +627,7 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [Loading sample program data file.
 Sample program data file load complete.
 Read    BET00000 Sts:00 Trms:0013
@@ -613,7 +657,7 @@ AT_DATA([prog.cob], [
        FD  TEST-FILE.
        01  TEST-REC     PIC X(4).
        WORKING-STORAGE  SECTION.
-       01  TESTKEY      USAGE BINARY-LONG.
+       01  TESTKEY      USAGE BINARY-LONG UNSIGNED.
        01  TESTSTAT     PIC XX.
            88  V-OK     VALUE "00" "05".
        PROCEDURE        DIVISION.
@@ -636,7 +680,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -662,7 +706,7 @@ AT_DATA([prog.cob], [
        FD  TEST-FILE.
        01  TEST-REC     PIC X(4).
        WORKING-STORAGE  SECTION.
-       01  TESTKEY      USAGE BINARY-LONG.
+       01  TESTKEY      USAGE BINARY-LONG UNSIGNED.
        01  TESTSTAT     PIC XX.
            88  V-OK     VALUE "00" "05".
            88  V-ZERO   VALUE "00".
@@ -713,13 +757,13 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
 
 AT_SETUP([Read on optional missing file])
-AT_KEYWORDS([FILEIO])
+AT_KEYWORDS([runfile])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -771,9 +815,44 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 
-AT_CHECK([./prog], [0], [1st Read on missing optional file = 10 OK
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [1st Read on missing optional file = 10 OK
 2nd Read on missing optional file = 46 OK
 ], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([EXTERNAL RELATIVE file])
+AT_KEYWORDS([runfile])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT my-file
+               ASSIGN TO "blahblah"
+               ORGANIZATION IS RELATIVE
+               RELATIVE KEY IS my-key.
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD my-file EXTERNAL.
+       01 my-record.
+           03 my-record-data PIC X(80).
+
+       WORKING-STORAGE SECTION.
+       01  my-key PIC 9.
+
+       PROCEDURE DIVISION.
+           CONTINUE
+           .
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -814,7 +893,7 @@ AT_DATA([prog.cob], [
 
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CHECK([test -e abcd], [1], [], [])
 
 AT_CLEANUP
@@ -980,12 +1059,12 @@ AT_DATA([prog2.cob], [
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COMPILE prog2.cob], [0], [], [])
-AT_CHECK([./prog], [0], [],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [],
 [libcob: prog.cob: 15: warning: call to CBL_CREATE_FILE with wrong file_lock: 11
 libcob: prog.cob: 15: warning: call to CBL_CREATE_FILE with wrong file_dev: 22
 libcob: prog.cob: 15: warning: call to CBL_OPEN_FILE with wrong access mode: 55
 ])
-AT_CHECK([./prog2], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog2], [0], [], [])
 
 AT_CLEANUP
 
@@ -1019,8 +1098,7 @@ AT_DATA([prog2.cob], [
 ])
 
 AT_CHECK([$COMPILE prog2.cob], [0], [], [])
-AT_CHECK([./prog2], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog2], [0], [], [])
 AT_CHECK([diff prog.cob prog3.cob], [0], [], [])
 
 AT_CLEANUP
-

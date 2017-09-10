@@ -271,11 +271,8 @@ static const unsigned char	pvalid_char[] =
 /* Local functions */
 
 static void
-set_resolve_error (const char *msg, const char *entry)
+set_resolve_error (void)
 {
-	resolve_error_buff[CALL_BUFF_MAX] = 0;
-	snprintf (resolve_error_buff, (size_t)CALL_BUFF_MAX,
-		  "%s '%s'", msg, entry);
 	resolve_error = resolve_error_buff;
 	cob_set_exception (COB_EC_PROGRAM_NOT_FOUND);
 }
@@ -374,9 +371,11 @@ do_cancel_module (struct call_hash *p, struct call_hash **base_hash,
 		nocancel = 1;
 	}
 	/* This should be impossible */
+	/* LCOV_EXCL_START */
 	if (p->module->module_active) {
 		nocancel = 1;
 	}
+	/* LCOV_EXCL_STOP */
 	if (p->module->module_ref_count &&
 	    *(p->module->module_ref_count)) {
 		nocancel = 1;
@@ -620,9 +619,11 @@ cob_resolve_internal (const char *name, const char *dirent,
 	}
 
 
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_set_exception (0);
 
 	/* Search the cache */
@@ -743,9 +744,10 @@ cob_resolve_internal (const char *name, const char *dirent,
 	}
 
 	/* Search external modules */
+	resolve_error_buff[CALL_BUFF_MAX] = 0;
 #ifdef	__OS400__
 	strcpy (call_filename_buff, s);
-	for(p = call_filename_buff; *p; ++p) {
+	for (p = call_filename_buff; *p; ++p) {
 		*p = (cob_u8_t)toupper(*p);
 	}
 	handle = lt_dlopen (call_filename_buff);
@@ -765,7 +767,9 @@ cob_resolve_internal (const char *name, const char *dirent,
 			  "%s%s.%s", dirent, (char *)s, COB_MODULE_EXT);
 		call_filename_buff[COB_NORMAL_MAX] = 0;
 		if (access (call_filename_buff, R_OK) != 0) {
-			set_resolve_error (_("cannot find module"), name);
+			snprintf (resolve_error_buff, (size_t)CALL_BUFF_MAX,
+				  "module '%s' not found", name);
+			set_resolve_error ();
 			if(cob_anim_tracing) fclose(anilog);
 			return NULL;
 		}
@@ -782,8 +786,9 @@ cob_resolve_internal (const char *name, const char *dirent,
 				return func;
 			}
 		}
-		set_resolve_error (_("cannot find entry point"),
-				   (const char *)s);
+		snprintf (resolve_error_buff, (size_t)CALL_BUFF_MAX,
+			  "entry point '%s' not found", (const char *)s);
+		set_resolve_error ();
 		if(cob_anim_tracing) fclose(anilog);
 		return NULL;
 	}
@@ -828,8 +833,9 @@ cob_resolve_internal (const char *name, const char *dirent,
 					return func;
 				}
 			}
-			set_resolve_error (_("cannot find entry point"),
-					   (const char *)s);
+			snprintf (resolve_error_buff, (size_t)CALL_BUFF_MAX,
+				  "entry point '%s' not found", (const char *)s);
+			set_resolve_error ();
 
 			if (cob_anim_tracing) {
 				fprintf(anilog, "Cannot find module '%s'\n", name);
@@ -841,8 +847,9 @@ cob_resolve_internal (const char *name, const char *dirent,
 		}
 	}
 #endif
-
-	set_resolve_error (_("cannot find module"), name);
+	snprintf (resolve_error_buff, (size_t)CALL_BUFF_MAX,
+		  "module '%s' not found", name);
+	set_resolve_error ();
 	return NULL;
 }
 
@@ -1008,9 +1015,11 @@ cob_call_field (const cob_field *f, const struct cob_call_struct *cs,
 	char				*dirent;
 	int				len;
 
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
+	/* LCOV_EXCL_STOP */
 
 	buff = cob_get_buff (f->size + 1);
 	cob_field_to_string (f, buff, f->size);
@@ -1073,6 +1082,7 @@ cob_cancel (const char *name)
 	struct call_hash	**q;
 	struct call_hash	*r;
 
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
@@ -1080,6 +1090,7 @@ cob_cancel (const char *name)
 		cob_runtime_error (_("NULL parameter passed to '%s'"), "cob_cancel");
 		cob_stop_run (1);
 	}
+	/* LCOV_EXCL_STOP */
 	entry = cob_chk_dirp (name);
 
 #ifdef	COB_ALT_HASH
@@ -1108,9 +1119,11 @@ cob_cancel_field (const cob_field *f, const struct cob_call_struct *cs)
 
 	int	(*cancel_func)(const int, void *, void *, void *, void *);
 
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
+	/* LCOV_EXCL_STOP */
 	if (!f || f->size == 0) {
 		return;
 	}
@@ -1144,6 +1157,7 @@ cob_call (const char *name, const int argc, void **argv)
 	cob_call_union		unifunc;
 	int			i;
 
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
@@ -1155,6 +1169,7 @@ cob_call (const char *name, const int argc, void **argv)
 		cob_runtime_error (_("NULL parameter passed to '%s'"), "cob_call");
 		cob_stop_run (1);
 	}
+	/* LCOV_EXCL_STOP */
 	unifunc.funcvoid = cob_resolve_cobol (name, 0, 1);
 	pargv = cob_malloc (MAX_CALL_FIELD_PARAMS * sizeof(void *));
 	/* Set number of parameters */
@@ -1262,6 +1277,7 @@ cob_func (const char *name, const int argc, void **argv)
 void *
 cob_savenv (struct cobjmp_buf *jbuf)
 {
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
@@ -1273,6 +1289,7 @@ cob_savenv (struct cobjmp_buf *jbuf)
 		cob_runtime_error (_("multiple call to 'cob_setjmp'"));
 		cob_stop_run (1);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_jmp_primed = 1;
 	return jbuf->cbj_jmp_buf;
 }
@@ -1288,6 +1305,7 @@ cob_savenv2 (struct cobjmp_buf *jbuf, const int jsize)
 void
 cob_longjmp (struct cobjmp_buf *jbuf)
 {
+	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
 		cob_fatal_error (COB_FERROR_INITIALIZED);
 	}
@@ -1299,6 +1317,7 @@ cob_longjmp (struct cobjmp_buf *jbuf)
 		cob_runtime_error (_("call to 'cob_longjmp' with no prior 'cob_setjmp'"));
 		cob_stop_run (1);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_jmp_primed = 0;
 	longjmp (jbuf->cbj_jmp_buf, 1);
 }

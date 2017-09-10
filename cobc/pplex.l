@@ -137,7 +137,7 @@ static int			listing_line = 0;
 static int			requires_listing_line;
 static int			requires_new_line = 0;
 
-static char	msg[PPLEX_BUFF_LEN];
+static char	display_msg[PPLEX_BUFF_LEN];
 
 static struct cb_replace_list	*current_replace_list = NULL;
 static struct cb_replace_list	*save_current_replace = NULL;
@@ -157,7 +157,7 @@ static void	switch_to_buffer	(const int, const char *,
 					 const YY_BUFFER_STATE);
 static void	check_listing		(const char *, const unsigned int);
 static void	skip_to_eol		(void);
-static void display_finish		(void);
+static void	display_finish		(void);
 static void	set_print_replace_list	(struct cb_replace_list *list);
 static void	get_new_listing_file	(void);
 
@@ -207,7 +207,7 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 
 ^[ ]*">>"[ ]?"DISPLAY"[ ]+ {
 	/* OpenCOBOL/GnuCOBOL 1.0 extension: display message during compilation */
-	msg[0] = 0;
+	display_msg[0] = 0;
 	BEGIN DISPLAY_DIRECTIVE_STATE;
 }
 
@@ -321,7 +321,7 @@ DEFNUM_LITERAL	[+-]?[0-9]*[\.]*[0-9]+
 
 ^[ ]*"$DISPLAY"[ ]+		{
 	/* MF extension: display message during compilation */
-	msg[0] = 0;
+	display_msg[0] = 0;
 	BEGIN DISPLAY_DIRECTIVE_STATE;
 }
 
@@ -555,12 +555,12 @@ CONTROL_STATEMENT_STATE>{
 
   {ALNUM_LITERAL} {
 	yytext[yyleng - 1] = 0;
-	strncat (msg, yytext + 1, (size_t)(PPLEX_BUFF_LEN - 1));
+	strncat (display_msg, yytext + 1, (size_t)(PPLEX_BUFF_LEN - 1));
   }
 
   [x21-\xFF]	|
   [ #A-Z0-9\x80-\xFF]+ {
-	strncat (msg, yytext, (size_t)(PPLEX_BUFF_LEN - 1));
+	strncat (display_msg, yytext, (size_t)(PPLEX_BUFF_LEN - 1));
   }
 }
 
@@ -586,7 +586,7 @@ CONTROL_STATEMENT_STATE>{
 
 <CONTROL_STATEMENT_STATE>{
   "SOURCE"		{ return SOURCE; }
-  "NOSOURCE"	{ return NOSOURCE; }
+  "NOSOURCE"		{ return NOSOURCE; }
   "LIST"		{ return LIST; }
   "NOLIST"		{ return NOLIST; }
   "MAP"			{ return MAP; }
@@ -1912,15 +1912,17 @@ skip_to_eol (void)
 }
 
 static void
-display_finish (void) {
-	int msglen;
+display_finish (void)
+{
+	int	msg_len;
+	
 	if (!plex_skip_input) {
-		msglen = strlen (msg) - 1;
-		while (msglen != 0 && msg[msglen] == ' ') {
-			msg[msglen--] = 0;
+		msg_len = strlen (display_msg) - 1;
+		while (msg_len != 0 && display_msg[msg_len] == ' ') {
+			display_msg[msg_len--] = 0;
 		}
-		puts (msg);
-		msg[0] = 0;
+		puts (display_msg);
+		display_msg[0] = 0;
 	}
 	unput ('\n');
 }

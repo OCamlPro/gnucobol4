@@ -1,6 +1,7 @@
 /*
    Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch, Edward Hart
+   Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch,
+   Edward Hard
 
    This file is part of GnuCOBOL.
 
@@ -151,6 +152,12 @@ enum tallying_phrase {
 	VALUE_REGION_PHRASE
 };
 
+enum key_clause_type {
+	NO_KEY,
+	RECORD_KEY,
+	RELATIVE_KEY
+};
+	 
 static struct cb_statement	*main_statement;
 
 static cb_tree			current_expr;
@@ -210,6 +217,7 @@ static cob_flags_t		header_check;
 static unsigned int		call_nothing;
 static enum tallying_phrase	previous_tallying_phrase;
 static cb_tree			default_rounded_mode;
+static enum key_clause_type	key_type;
 
 static enum cb_display_type	display_type;
 static int			is_first_display_item;
@@ -638,7 +646,7 @@ setup_occurs_min_max (cb_tree occurs_min, cb_tree occurs_max)
 		current_field->occurs_min = 1; /* CHECKME: why using 1 ? */
 		current_field->occurs_max = cb_get_int (occurs_min);
 		if (current_field->depending) {
-			cb_verify (cb_odo_without_to, _ ("ODO without TO phrase"));
+			cb_verify (cb_odo_without_to, _ ("OCCURS DEPENDING ON without TO phrase"));
 		}
 	}
 }
@@ -1607,6 +1615,7 @@ deduce_display_type (cb_tree x_list, cb_tree local_upon_value, cb_tree local_lin
 	int	using_default_device_which_is_crt =
 		local_upon_value == NULL && get_default_display_device () == cb_null;
 
+	/* TODO: Seperate CGI DISPLAYs here */
 	if (contains_only_screen_fields ((struct cb_list *) x_list)) {
 		if (!contains_one_screen_field ((struct cb_list *) x_list)
 		    || attr_ptr) {
@@ -1729,6 +1738,9 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token AUTOMATIC
 %token AWAY_FROM_ZERO		"AWAY-FROM-ZERO"
 %token BACKGROUND_COLOR		"BACKGROUND-COLOR"
+%token BACKGROUND_HIGH		"BACKGROUND-HIGH"
+%token BACKGROUND_LOW		"BACKGROUND-LOW"
+%token BACKGROUND_STANDARD		"BACKGROUND-STANDARD"
 %token BASED
 %token BEFORE
 %token BELL
@@ -1742,6 +1754,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token BLINK
 %token BLOCK
 %token BOTTOM
+%token BOX
+%token BOXED
 %token BY
 %token BYTE_LENGTH		"BYTE-LENGTH"
 %token CALL
@@ -1765,6 +1779,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token CODE_SET			"CODE-SET"
 %token COLLATING
 %token COL
+%token COLOR
 %token COLS
 %token COLUMN
 %token COLUMNS
@@ -1885,6 +1900,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token EXPONENTIATION		"exponentiation operator"
 %token EXTEND
 %token EXTERNAL
+%token EXTERNAL_FORM		"EXTERNAL-FORM"
 %token F
 %token FD
 %token FILE_CONTROL		"FILE-CONTROL"
@@ -1933,7 +1949,9 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token HEADING
 %token HIGHLIGHT
 %token HIGH_VALUE		"HIGH-VALUE"
+%token ICON
 %token ID
+%token IDENTIFIED
 %token IDENTIFICATION
 %token IF
 %token IGNORE
@@ -2063,6 +2081,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token PERFORM
 %token PH
 %token PF
+%token PHYSICAL
 %token PICTURE
 %token PICTURE_SYMBOL		"PICTURE SYMBOL"
 %token PLUS
@@ -2155,6 +2174,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token SEQUENTIAL
 %token SET
 %token SEVENTY_EIGHT		"78"
+%token SHADOW
 %token SHARING
 %token SIGN
 %token SIGNED
@@ -2210,6 +2230,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token TIME
 %token TIME_OUT			"TIME-OUT"
 %token TIMES
+%token TITLE
 %token TO
 %token TOK_AMPER		"&"
 %token TOK_CLOSE_PAREN		")"
@@ -2278,6 +2299,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token WORD			"Identifier"
 %token WORDS
 %token WORKING_STORAGE		"WORKING-STORAGE"
+%token WRAP
 %token WRITE
 %token YYYYDDD
 %token YYYYMMDD
@@ -3735,9 +3757,20 @@ file_control_entry:
 		current_program->file_list
 			= CB_CHAIN (current_program->file_list);
 	}
+        key_type = NO_KEY;
   }
   _select_clauses_or_error
   {
+	if (current_file->organization == COB_ORG_INDEXED
+	    && key_type == RELATIVE_KEY) {
+		cb_error_x (current_file->key,
+			    _("Cannot use RELATIVE KEY clause on INDEXED files"));
+	} else if (current_file->organization == COB_ORG_RELATIVE
+		   && key_type == RECORD_KEY) {
+		cb_error_x (current_file->key,
+			    _("Cannot use RECORD KEY clause on RELATIVE files"));
+	}
+	  
 	if (CB_VALID_TREE ($3)) {
 		validate_file (current_file, $3);
 	}
@@ -3984,13 +4017,13 @@ collating_sequence_clause:
 alphabet_name:
   WORD
   {
-	  if (CB_ALPHABET_NAME_P (cb_ref ($1))) {
-		  $$ = $1;
-	  } else {
-		  cb_error_x ($1, _("'%s' is not an alphabet-name"),
-			      cb_name ($1));
-		  $$ = cb_error_node;
-	  }
+	if (CB_ALPHABET_NAME_P (cb_ref ($1))) {
+		$$ = $1;
+	} else {
+		cb_error_x ($1, _("'%s' is not an alphabet-name"),
+			cb_name ($1));
+		$$ = cb_error_node;
+	}
   }
 ;
 
@@ -4110,6 +4143,7 @@ record_key_clause:
   {
 	check_repeated ("RECORD KEY", SYN_CLAUSE_9, &check_duplicate);
 	current_file->key = $4;
+	key_type = RECORD_KEY;
   }
 ;
 
@@ -4126,6 +4160,7 @@ relative_key_clause:
   {
 	check_repeated ("RELATIVE KEY", SYN_CLAUSE_10, &check_duplicate);
 	current_file->key = $4;
+	key_type = RELATIVE_KEY;
   }
 ;
 
@@ -5270,6 +5305,8 @@ data_description_clause:
 | based_clause
 | value_clause
 | any_length_clause
+| external_form_clause
+| identified_by_clause
 ;
 
 
@@ -5934,6 +5971,49 @@ any_length_clause:
   }
 ;
 
+/* EXTERNAL-FORM clause */
+
+external_form_clause:
+  _is EXTERNAL_FORM
+  {
+	check_repeated ("EXTERNAL-FORM", SYN_CLAUSE_2, &check_pic_duplicate);
+	CB_PENDING("EXTERNAL-FORM");
+	if (current_storage != CB_STORAGE_WORKING) {
+		cb_error (_("%s not allowed here"), "EXTERNAL-FORM");
+	} else if (current_field->level != 1) {	/* docs say: at group level */
+		cb_error (_("%s only allowed at 01 level"), "EXTERNAL-FORM");
+	} else if (!qualifier) {
+		cb_error (_("%s requires a data name"), "EXTERNAL-FORM");
+	} else if (current_field->redefines) {
+		cb_error (_("%s and %s combination not allowed"), "EXTERNAL-FORM", "REDEFINES");
+	} else {
+		current_field->flag_is_external_form = 1;
+	}
+  }
+;
+
+/* IDENTIFIED BY clause */
+
+identified_by_clause:
+  /* minimal glitch: IS should only be usable if EXTERNAL-FORM comes directly before */
+  /* glitch: EXTERNAL-FORM clause can come after IDENTIFIED BY clause */
+  _is IDENTIFIED _by id_or_lit
+  {
+	check_repeated ("IDENTIFIED BY", SYN_CLAUSE_3, &check_pic_duplicate);
+	if (!current_field->flag_is_external_form) {
+		CB_PENDING("EXTERNAL-FORM (IDENTIFIED BY)");
+		if (current_storage != CB_STORAGE_WORKING) {
+			cb_error (_("%s not allowed here"), "IDENTIFIED BY");
+		} else if (!qualifier) {
+			cb_error (_("%s requires a data name"), "IDENTIFIED BY");
+		} else if (current_field->redefines) {
+			cb_error (_("%s and %s combination not allowed"), "IDENTIFIED BY", "REDEFINES");
+		}
+	}
+	current_field->external_form_identifier = $4;
+  }
+;
+
 /* LOCAL-STORAGE SECTION */
 
 _local_storage_section:
@@ -6427,7 +6507,7 @@ screen_option:
 	set_screen_attr_with_conflict ("BLANK LINE", COB_SCREEN_BLANK_LINE,
 				       "BLANK SCREEN", COB_SCREEN_BLANK_SCREEN);
   }
-| BLANK SCREEN
+| BLANK SCREEN	/* FIXME: this SCREEN is optional! */
   {
 	set_screen_attr_with_conflict ("BLANK SCREEN", COB_SCREEN_BLANK_SCREEN,
 				       "BLANK LINE", COB_SCREEN_BLANK_LINE);
@@ -6460,9 +6540,36 @@ screen_option:
 	set_screen_attr_with_conflict ("LOWLIGHT", COB_SCREEN_LOWLIGHT,
 				       "HIGHLIGHT", COB_SCREEN_HIGHLIGHT);
   }
+| STANDARD /* ACU extension to reset a group HIGH/LOW */
+  {
+	CB_PENDING("STANDARD intensity");
+#if 0 /* in general we could simply remove high/low, but for syntax checks
+	we still need a flag */
+	set_screen_attr_with_conflict ("LOWLIGHT", COB_SCREEN_LOWLIGHT,
+				       "HIGHLIGHT", COB_SCREEN_HIGHLIGHT);
+#endif
+  }
+| BACKGROUND_HIGH
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
+| BACKGROUND_LOW
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
+| BACKGROUND_STANDARD
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
 | reverse_video
   {
 	set_screen_attr ("REVERSE-VIDEO", COB_SCREEN_REVERSE);
+  }
+| SIZE _is integer
+  {
+	/* set_screen_attr ("SIZE", COB_SCREEN_SIZE); */
+	CB_PENDING ("SIZE clause");
+	current_field->size = cb_get_int ($3);
   }
 | UNDERLINE
   {
@@ -6536,6 +6643,17 @@ screen_option:
   {
 	check_repeated ("COLUMN", SYN_CLAUSE_17, &check_pic_duplicate);
   }
+| COLOR _is num_id_or_lit
+  {
+#if 0 /* TODO: implement, and add reverse to BACKGROUND/FOREGROUND-COLOR */
+	check_repeated ("COLOR", SYN_CLAUSE_19, &check_pic_duplicate);
+	set_screen_attr_with_conflict ("COLOR", COB_SCREEN_COLOR,
+				       "BACKGROUND-COLOR", COB_SCREEN_BACKGROUND_COLOR);
+	set_screen_attr_with_conflict ("COLOR", COB_SCREEN_COLOR,
+				       "FOREGROUND-COLOR", FOREGROUND_COLOR);
+#endif
+	CB_PENDING ("COLOR clause");
+  }
 | FOREGROUND_COLOR _is num_id_or_lit
   {
 	check_repeated ("FOREGROUND-COLOR", SYN_CLAUSE_18, &check_pic_duplicate);
@@ -6585,7 +6703,7 @@ eol:
 
 eos:
   EOS
-| _end_of SCREEN
+| _end_of SCREEN /* FIXME: this SCREEN is optional! */
 ;
 
 plus_plus:
@@ -6649,6 +6767,7 @@ _screen_col_plus_minus:
 screen_occurs_clause:
   OCCURS integer _times
   {
+	CB_PENDING (_("OCCURS screen items"));
 	check_repeated ("OCCURS", SYN_CLAUSE_23, &check_pic_duplicate);
 	current_field->occurs_max = cb_get_int ($2);
 	current_field->occurs_min = current_field->occurs_max;
@@ -7387,6 +7506,17 @@ accept_body:
 	cobc_cs_check = 0;
 	cb_emit_accept ($1, line_column, current_statement->attr_ptr);
   }
+| identifier FROM SCREEN
+  {
+	  check_duplicate = 0;
+	  check_line_col_duplicate = 0;
+	  line_column = NULL;
+  }
+  accept_from_screen_clauses
+  {
+	cobc_cs_check = 0;
+	CB_PENDING ("ACCEPT FROM SCREEN");
+  }
 | identifier FROM lines_or_number
   {
 	cb_emit_accept_line_or_col ($1, 0);
@@ -7507,6 +7637,17 @@ accept_clause:
   }
 ;
 
+accept_from_screen_clauses:
+  accept_from_screen_clause
+| accept_from_screen_clauses accept_from_screen_clause
+;
+
+accept_from_screen_clause:
+  /* FIXME: could be optional FROM instead of optional AT */
+  at_line_column
+| SIZE _is pos_num_id_or_lit /* ignored, as ACCEPT FROM is pending */
+;
+
 lines_or_number:
   LINES
 | LINE NUMBER
@@ -7606,12 +7747,6 @@ accp_attr:
 	check_repeated ("FULL", SYN_CLAUSE_10, &check_duplicate);
 	set_dispattr (COB_SCREEN_FULL);
   }
-| HIGHLIGHT
-  {
-	check_repeated ("HIGHLIGHT", SYN_CLAUSE_11, &check_duplicate);
-	set_dispattr_with_conflict ("HIGHLIGHT", COB_SCREEN_HIGHLIGHT,
-				    "LOWLIGHT", COB_SCREEN_LOWLIGHT);
-  }
 | LEFTLINE
   {
 	check_repeated ("LEFTLINE", SYN_CLAUSE_12, &check_duplicate);
@@ -7623,11 +7758,33 @@ accp_attr:
 	set_dispattr_with_conflict ("LOWER", COB_SCREEN_LOWER,
 				    "UPPER", COB_SCREEN_UPPER);
   }
+| HIGHLIGHT
+  {
+	check_repeated ("HIGHLIGHT", SYN_CLAUSE_11, &check_duplicate);
+	set_dispattr_with_conflict ("HIGHLIGHT", COB_SCREEN_HIGHLIGHT,
+				    "LOWLIGHT", COB_SCREEN_LOWLIGHT);
+  }
 | LOWLIGHT
   {
 	check_repeated ("LOWLIGHT", SYN_CLAUSE_14, &check_duplicate);
 	set_dispattr_with_conflict ("LOWLIGHT", COB_SCREEN_LOWLIGHT,
 				    "HIGHLIGHT", COB_SCREEN_HIGHLIGHT);
+  }
+| STANDARD /* ACU extension to reset a group HIGH/LOW */
+  {
+	CB_PENDING("STANDARD intensity");
+  }
+| BACKGROUND_HIGH
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
+| BACKGROUND_LOW
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
+| BACKGROUND_STANDARD
+  {
+	CB_PENDING("BACKGROUND intensity");
   }
 | no_echo
   {
@@ -7671,12 +7828,12 @@ accp_attr:
 	set_dispattr_with_conflict ("SECURE", COB_SCREEN_SECURE,
 				    "NO-ECHO", COB_SCREEN_NO_ECHO);
   }
-| PROTECTED SIZE _is num_id_or_lit
+| PROTECTED SIZE _is positive_id_or_lit
   {
 	check_repeated ("SIZE", SYN_CLAUSE_21, &check_duplicate);
 	set_attribs (NULL, NULL, NULL, NULL, NULL, $4, 0);
   }
-| SIZE _is num_id_or_lit
+| SIZE _is pos_num_id_or_lit
   {
 	check_repeated ("SIZE", SYN_CLAUSE_21, &check_duplicate);
 	set_attribs (NULL, NULL, NULL, NULL, NULL, $3, 0);
@@ -7703,6 +7860,12 @@ accp_attr:
 	check_repeated ("UPPER", SYN_CLAUSE_25, &check_duplicate);
 	set_dispattr_with_conflict ("UPPER", COB_SCREEN_UPPER,
 				    "LOWER", COB_SCREEN_LOWER);
+  }
+| COLOR _is num_id_or_lit
+  {
+	check_repeated ("FOREGROUND-COLOR", SYN_CLAUSE_26, &check_duplicate);
+	check_repeated ("BACKGROUND-COLOR", SYN_CLAUSE_27, &check_duplicate);
+	CB_PENDING ("COLOR");
   }
 | FOREGROUND_COLOR _is num_id_or_lit
   {
@@ -8310,15 +8473,11 @@ close_window:
   WINDOW
   {
 	CB_PENDING ("GRAPHICAL WINDOW");
-	current_statement->name = "DISPLAY WINDOW";
+	current_statement->name = "CLOSE WINDOW";
   }
   identifier _close_display_option
   {
-	if ($3) {
-		cb_emit_close_window ($2);
-	} else {
-		cb_emit_destroy ($2);
-	}
+	cb_emit_close_window ($3, $4);
   }
 ;
 
@@ -8520,6 +8679,7 @@ display_body:
 	cb_emit_command_line ($1);
   }
 | screen_or_device_display _display_exception_phrases
+| display_message_box
 | display_window
 | display_floating_window
 | display_initial_window
@@ -8560,9 +8720,8 @@ display_atom:
   {
 	if ($1 == cb_null) {
 		/* Emit DISPLAY OMITTED. */
-		CB_UNFINISHED ("DISPLAY OMITTED");
+		CB_UNFINISHED_X (CB_TREE(current_statement), "DISPLAY OMITTED");
 		error_if_no_advancing_in_screen_display (advancing_value);
-		$1 = cb_low;
 	}
 
 	/* Emit device or screen DISPLAY. */
@@ -8599,7 +8758,6 @@ disp_list:
   }
 | OMITTED
   {
-	CB_PENDING ("DISPLAY OMITTED");
 	$$ = cb_null;
   }
 ;
@@ -8651,6 +8809,46 @@ crt_under:
 | CRT_UNDER
 ;
 
+display_message_box:
+  MESSAGE _box x_list
+  {
+	CB_UNFINISHED_X (CB_TREE(current_statement), "DISPLAY MESSAGE");
+	upon_value = NULL;  
+  }
+  _display_message_clauses
+  {
+	/* for now: minimal support for display and prompt only */
+	if (upon_value) {
+		cb_emit_display (CB_LIST_INIT (upon_value), NULL, NULL, NULL,
+				 NULL, 1, FIELD_ON_SCREEN_DISPLAY);
+	}
+	cb_emit_display ($3, NULL, NULL, NULL,
+			 NULL, 1, FIELD_ON_SCREEN_DISPLAY);
+	cb_emit_accept (cb_null, NULL, NULL);
+  }
+;
+
+_display_message_clauses:
+  /* empty */
+| display_message_clauses
+;
+
+display_message_clauses:
+  display_message_clause
+| display_message_clauses display_message_clause
+;
+
+display_message_clause:
+  TITLE _is_equal x
+  {
+	upon_value = $3;
+  }
+| TYPE _is_equal x
+| ICON _is_equal x
+| DEFAULT _is_equal x
+| return_give x
+;
+
 display_window:
   sub_or_window
   {
@@ -8666,7 +8864,7 @@ display_window:
   }
   display_window_clauses
   {
-	cb_emit_display_window (NULL, upon_value, $2, line_column,
+	cb_emit_display_window (NULL, upon_value, $3, line_column,
 			 current_statement->attr_ptr);
   }
 ;
@@ -8757,8 +8955,22 @@ display_window_clause:
 	/* TODO: store */
   }
 | at_line_column
+| TITLE _is x
+| shadow_boxed
+| no_scroll_wrap
 | _with disp_attr
 ;
+
+no_scroll_wrap:
+  _with NO SCROLL
+| _with NO WRAP
+;
+
+shadow_boxed:
+  SHADOW
+| BOXED
+;
+
 
 pop_up_or_handle:
   pop_up_area
@@ -8843,6 +9055,22 @@ disp_attr:
 	set_dispattr_with_conflict ("LOWLIGHT", COB_SCREEN_LOWLIGHT,
 				    "HIGHLIGHT", COB_SCREEN_HIGHLIGHT);
   }
+| STANDARD /* ACU extension to reset a group HIGH/LOW */
+  {
+	CB_PENDING("STANDARD intensity");
+  }
+| BACKGROUND_HIGH
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
+| BACKGROUND_LOW
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
+| BACKGROUND_STANDARD
+  {
+	CB_PENDING("BACKGROUND intensity");
+  }
 | OVERLINE
   {
 	check_repeated ("OVERLINE", SYN_CLAUSE_13, &check_duplicate);
@@ -8862,6 +9090,12 @@ disp_attr:
   {
 	check_repeated ("UNDERLINE", SYN_CLAUSE_16, &check_duplicate);
 	set_dispattr (COB_SCREEN_UNDERLINE);
+  }
+| COLOR _is num_id_or_lit
+  {
+	check_repeated ("FOREGROUND-COLOR", SYN_CLAUSE_17, &check_duplicate);
+	check_repeated ("BACKGROUND-COLOR", SYN_CLAUSE_18, &check_duplicate);
+	CB_PENDING ("COLOR");
   }
 | FOREGROUND_COLOR _is num_id_or_lit
   {
@@ -9006,6 +9240,9 @@ evaluate_statement:
 		eval_inc = 0;
 		eval_inc2 = 0;
 	}
+	cb_end_cond (cb_any);
+	cb_save_cond ();
+	cb_true_side ();
   }
   evaluate_body
   end_evaluate
@@ -9051,7 +9288,7 @@ evaluate_subject:
 | TOK_FALSE
   {
 	$$ = cb_false;
-	eval_check[eval_level][eval_inc++] = NULL;
+	eval_check[eval_level][eval_inc++] = cb_false;
 	if (eval_inc >= EVAL_DEPTH) {
 		cb_error (_("maximum evaluate depth exceeded (%d)"),
 			  EVAL_DEPTH);
@@ -9130,7 +9367,8 @@ evaluate_object:
 	e2 = $2;
 	x = NULL;
 	parm1 = $1;
-	if (eval_check[eval_level][eval_inc2]) {
+	if (eval_check[eval_level][eval_inc2]
+	 && eval_check[eval_level][eval_inc2] != cb_false) {
 		/* Check if the first token is NOT */
 		/* It may belong to the EVALUATE, however see */
 		/* below when it may be part of a partial expression */
@@ -9176,13 +9414,21 @@ evaluate_object:
 
 	/* Build expr now */
 	e1 = cb_build_expr (parm1);
+
+	eval_inc2++;
+	$$ = CB_BUILD_PAIR (not0, CB_BUILD_PAIR (e1, e2));
+
+	if (eval_check[eval_level][eval_inc2-1] == cb_false) {
+		/* It was  EVALUATE FALSE; So flip condition */
+		if (e1 == cb_true)
+			e1 = cb_false;
+		else if (e1 == cb_false)
+			e1 = cb_true;
+	}
 	cb_terminate_cond ();
 	cb_end_cond (e1);
 	cb_save_cond ();
 	cb_true_side ();
-
-	eval_inc2++;
-	$$ = CB_BUILD_PAIR (not0, CB_BUILD_PAIR (e1, e2));
   }
 | ANY				{ $$ = cb_any; eval_inc2++; }
 | TOK_TRUE			{ $$ = cb_true; eval_inc2++; }
@@ -12808,6 +13054,8 @@ num_id_or_lit:
   }
 ;
 
+/* literal not allowing zero */
+/* FIXME: expressions would be allowed in most cases, too */
 positive_id_or_lit:
   sub_identifier
   {
@@ -12816,6 +13064,8 @@ positive_id_or_lit:
 | report_integer
 ;
 
+/* literal allowing zero */
+/* FIXME: expressions would be allowed in most cases, too */
 pos_num_id_or_lit:
   sub_identifier
   {
@@ -13177,6 +13427,11 @@ function:
   {
 	$$ = cb_build_intrinsic ($1, $3, NULL, 0);
   }
+| LENGTH_FUNC TOK_OPEN_PAREN length_arg PHYSICAL TOK_CLOSE_PAREN
+  {
+	CB_PENDING (_("PHYSICAL argument for LENGTH functions"));
+	$$ = cb_build_intrinsic ($1, $3, NULL, 0);
+  }
 | NUMVALC_FUNC TOK_OPEN_PAREN numvalc_args TOK_CLOSE_PAREN
   {
 	$$ = cb_build_intrinsic ($1, $3, NULL, 0);
@@ -13526,6 +13781,10 @@ error_stmt_recover:
   {
 	cobc_repeat_last_token = 1;
   }
+| ELSE
+  {
+	cobc_repeat_last_token = 0;
+  }
 | scope_terminator
   {
 	cobc_repeat_last_token = 0;
@@ -13546,7 +13805,6 @@ verb:
 | DELETE
 | DISPLAY
 | DIVIDE
-| ELSE
 | ENTRY
 | EVALUATE
 | EXIT
@@ -13621,13 +13879,14 @@ _as:		| AS ;
 _at:		| AT ;
 _before:	| BEFORE ;
 _binary:	| BINARY ;
+_box:		| BOX ;
 _by:		| BY ;
 _character:	| CHARACTER ;
 _characters:	| CHARACTERS ;
 _contains:	| CONTAINS ;
 _controls:	| CONTROLS ;
 _data:		| DATA ;
-_end_of:	| END _of ;
+_end_of:	| _to END _of ;
 _file:		| TOK_FILE ;
 _final:		| FINAL ;
 _for:		| FOR ;
@@ -13639,6 +13898,7 @@ _indicate:	| INDICATE ;
 _initial:	| TOK_INITIAL ;
 _into:		| INTO ;
 _is:		| IS ;
+_is_equal:		| IS | TOK_EQUAL;
 _is_are:	| IS | ARE ;
 _is_in:		| IS | IN ;
 _key:		| KEY ;

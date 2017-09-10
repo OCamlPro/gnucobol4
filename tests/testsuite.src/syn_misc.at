@@ -75,8 +75,13 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE_ONLY -w -Wconstant-expression prog.cob], [0], [],
 [prog.cob: 5: warning: expression '3' EQUALS '1' is always FALSE
 prog.cob: 6: warning: expression '3' EQUALS '2' is always FALSE
+prog.cob: 6: warning: expression is always FALSE
+prog.cob: 6: warning: expression '3' EQUALS '3' is always TRUE
+prog.cob: 6: warning: expression is always TRUE
 prog.cob: 10: warning: expression '3' EQUALS '1' is always FALSE
 prog.cob: 11: warning: expression '3' EQUALS '2' is always FALSE
+prog.cob: 11: warning: expression '3' EQUALS '3' is always TRUE
+prog.cob: 11: warning: expression is always FALSE
 ])
 
 AT_CLEANUP
@@ -90,75 +95,190 @@ AT_DATA([prog.cob], [
        PROGRAM-ID. prog.
        DATA DIVISION.
        WORKING-STORAGE SECTION.
-       01 WS-LINE-NUMBER PIC 9(3) VALUE ZERO.
-       01 WS-NUMBER      PIC 9(3)V99 VALUE ZERO.
-       01 WS-TEXT        PIC X(5) VALUE 'CAT'.
-       78 CONST1         VALUE 'CAT     '.
-       01 CONST2         CONSTANT AS 00000001234.
+       01 WS-LINE-NUMBER    PIC 9(3) VALUE ZERO.
+       01 WS-NUMBER         PIC 9(3)V99 VALUE ZERO.
+       01 WS-TEXT           PIC X(5) VALUE 'CAT'.
+       01 PIC-9-SIGNED      PIC S9(2) VALUE 5.
+       01 PIC-9-NOT-SIGNED  PIC 9(3) VALUE 5.
+       01 PIC-9-NOT-DECIMAL PIC 9(3) VALUE 5.
+       01 XX                PIC 9(2) VALUE 2.
+       01 PIC-9-DECIMAL     PIC 9(3)V9 VALUE 5.
+       01 COMPUTE-1         PIC 999V9999 VALUE 654.1873.
+       01 GROUP-ITEM-X6     PIC X(6) VALUE 'CAT'.
+       78 CONST1            VALUE 'CAT     '.
+       01 CONST2            CONSTANT AS 00000001234.
+       01 IF-D16            PIC PP99 VALUE .0012.
        PROCEDURE DIVISION.
-       IF WS-LINE-NUMBER > '123'
-          CONTINUE.
-       IF WS-TEXT > 'DOGGY'
-          CONTINUE.
-       IF WS-NUMBER > 123.999
-          CONTINUE.
-       IF WS-LINE-NUMBER > 1234
-          CONTINUE.
-       IF WS-LINE-NUMBER <= 1234
-          CONTINUE.
-       IF WS-LINE-NUMBER > '1234'
-          CONTINUE.
-       IF 1234 < WS-LINE-NUMBER 
-          CONTINUE.
-       IF 1234 >= WS-LINE-NUMBER 
-          CONTINUE.
-       IF WS-TEXT > 'DOGGY++'
-          CONTINUE.
-       IF WS-TEXT > 3141596
-          CONTINUE.
-       IF 'DOG+CAT' NOT = WS-TEXT
-          CONTINUE.
-       IF WS-TEXT = 'CAT+DOG'
-          CONTINUE.
-       EVALUATE TRUE
-          WHEN 'DOG+CAT' = WS-TEXT
-             CONTINUE
-          WHEN CONST1 = 'CAT+DOG'
-             CONTINUE
-          WHEN CONST1 = 'CAT'
-             CONTINUE
-          WHEN CONST2 = 1234
-             CONTINUE
-       END-EVALUATE
-       IF WS-LINE-NUMBER > 0000234
-          CONTINUE.
-       IF WS-TEXT = 'CAT         '
-          CONTINUE.
-       STOP RUN.
+       MAIN.
+           IF GROUP-ITEM-X6 = '1234567' 
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL = 1.1
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL = 1.0
+               CONTINUE.
+           IF PIC-9-DECIMAL = 1.01
+               CONTINUE.
+           IF PIC-9-DECIMAL = 1.100
+               CONTINUE.
+           IF PIC-9-SIGNED NOT = 11.0
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED < 0
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED < ZERO
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED < (25 - 50)
+               CONTINUE.
+           IF PIC-9-DECIMAL = (2.24 / 2)
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL = "123"
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL = "1B0"
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL (1:3) = "1B0"
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL (1:3) NOT = "Hot Doggy"
+               CONTINUE.
+           IF PIC-9-NOT-DECIMAL (1:XX) NOT = "Hi"
+               CONTINUE.
+           IF WS-LINE-NUMBER > '123'
+              CONTINUE.
+           IF WS-TEXT > 'DOGGY'
+              CONTINUE.
+           IF WS-NUMBER > 123.999
+              CONTINUE.
+           IF WS-LINE-NUMBER > 2345
+              CONTINUE.
+           IF WS-LINE-NUMBER <= 1234
+              CONTINUE.
+           IF WS-LINE-NUMBER > '1234'
+              CONTINUE.
+           IF 5432 < WS-LINE-NUMBER 
+              CONTINUE.
+           IF 7855 >= WS-LINE-NUMBER 
+              CONTINUE.
+           IF 1234 < WS-LINE-NUMBER 
+              CONTINUE.
+           IF 5432 >= WS-LINE-NUMBER 
+              CONTINUE.
+           IF WS-TEXT > 'DOGGY++'
+              CONTINUE.
+           IF WS-TEXT > 3141596
+              CONTINUE.
+           IF WS-TEXT > 3.141596
+              CONTINUE.
+           IF WS-TEXT = 3.141596
+              CONTINUE.
+           IF 'DOG+CAT' NOT = WS-TEXT
+              CONTINUE.
+           IF WS-TEXT = 'CAT+DOG'
+              CONTINUE.
+           EVALUATE TRUE
+              WHEN 'DOG+CAT' = WS-TEXT
+                 CONTINUE
+              WHEN CONST1 = 'CAT+DOG'
+                 CONTINUE
+              WHEN CONST1 = 'CAT'
+                 CONTINUE
+              WHEN CONST2 = 1234
+                 CONTINUE
+           END-EVALUATE
+           IF WS-LINE-NUMBER > 0000234
+              CONTINUE.
+           IF WS-TEXT = 'CAT         '
+              CONTINUE.
+           IF ( COMPUTE-1 < 654.20038) AND 
+              ( COMPUTE-1 > 654.17422) THEN
+              CONTINUE.
+           IF ( COMPUTE-1 < 5654.20)
+              CONTINUE.
+           IF ( COMPUTE-1 > 5654.20)
+              CONTINUE.
+           IF ( 5654.20 > COMPUTE-1)
+              CONTINUE.
+           IF ( 5654.20 < COMPUTE-1)
+              CONTINUE.
+           IF IF-D16 POSITIVE
+              CONTINUE.
+           IF IF-D16 NOT POSITIVE
+              CONTINUE.
+           IF IF-D16 NEGATIVE
+              CONTINUE.
+           IF IF-D16 NOT NEGATIVE
+              CONTINUE.
+           IF PIC-9-NOT-SIGNED > (25 - 50)
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED >= -1
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED > 0.0
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED > ZERO
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED >= 0.0
+               CONTINUE.
+           IF PIC-9-NOT-SIGNED >= ZERO
+               CONTINUE.
+           STOP RUN.
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
-[prog.cob: 18: warning: literal is longer than field
-prog.cob: 18: warning: expression is always FALSE
-prog.cob: 20: warning: literal is longer than field
-prog.cob: 20: warning: expression is always TRUE
-prog.cob: 22: warning: literal is longer than field
-prog.cob: 22: warning: expression is always FALSE
-prog.cob: 24: warning: literal is longer than field
-prog.cob: 24: warning: expression is always FALSE
-prog.cob: 26: warning: literal is longer than field
-prog.cob: 26: warning: expression is always TRUE
-prog.cob: 28: warning: literal is longer than field
-prog.cob: 30: warning: literal is longer than field
-prog.cob: 32: warning: literal is longer than field
-prog.cob: 32: warning: expression is always TRUE
-prog.cob: 34: warning: literal is longer than field
-prog.cob: 34: warning: expression is always FALSE
-prog.cob: 37: warning: literal is longer than field
-prog.cob: 37: warning: expression is always FALSE
-prog.cob: 39: warning: expression 'CAT     ' EQUALS 'CAT+DOG' is always FALSE
-prog.cob: 41: warning: expression 'CAT     ' EQUALS 'CAT' is always TRUE
-prog.cob: 43: warning: expression '00000001234' EQUALS '1234' is always TRUE
+[prog.cob: in paragraph 'MAIN':
+prog.cob: 21: warning: literal '1234567' is longer than GROUP-ITEM-X6
+prog.cob: 21: warning: expression is always FALSE
+prog.cob: 23: warning: literal '1.1' has more decimals than PIC-9-NOT-DECIMAL
+prog.cob: 23: warning: expression is always FALSE
+prog.cob: 27: warning: literal '1.01' has more decimals than PIC-9-DECIMAL
+prog.cob: 27: warning: expression is always FALSE
+prog.cob: 33: warning: unsigned 'PIC-9-NOT-SIGNED' may not be LESS THAN ZERO
+prog.cob: 35: warning: unsigned 'PIC-9-NOT-SIGNED' may not be LESS THAN ZERO
+prog.cob: 38: warning: unsigned 'PIC-9-NOT-SIGNED' may not be LESS THAN -25
+prog.cob: 40: warning: literal '1.12' has more decimals than PIC-9-DECIMAL
+prog.cob: 40: warning: expression is always FALSE
+prog.cob: 43: warning: literal '1B0' is alphanumeric but PIC-9-NOT-DECIMAL is numeric
+prog.cob: 55: warning: literal '123.999' has more decimals than WS-NUMBER
+prog.cob: 57: warning: literal '2345' has more digits than WS-LINE-NUMBER
+prog.cob: 57: warning: expression is always FALSE
+prog.cob: 59: warning: literal '1234' has more digits than WS-LINE-NUMBER
+prog.cob: 59: warning: expression is always TRUE
+prog.cob: 61: warning: literal '1234' has more digits than WS-LINE-NUMBER
+prog.cob: 61: warning: expression is always FALSE
+prog.cob: 63: warning: literal '5432' has more digits than WS-LINE-NUMBER
+prog.cob: 63: warning: expression is always FALSE
+prog.cob: 65: warning: literal '7855' has more digits than WS-LINE-NUMBER
+prog.cob: 65: warning: expression is always TRUE
+prog.cob: 67: warning: literal '1234' has more digits than WS-LINE-NUMBER
+prog.cob: 67: warning: expression is always FALSE
+prog.cob: 69: warning: literal '5432' has more digits than WS-LINE-NUMBER
+prog.cob: 69: warning: expression is always TRUE
+prog.cob: 71: warning: literal 'DOGGY++' is longer than WS-TEXT
+prog.cob: 73: warning: literal '3141596' is longer than WS-TEXT
+prog.cob: 75: warning: literal '3.141596' is longer than WS-TEXT
+prog.cob: 77: warning: literal '3.141596' is longer than WS-TEXT
+prog.cob: 77: warning: expression is always FALSE
+prog.cob: 79: warning: literal 'DOG+CAT' is longer than WS-TEXT
+prog.cob: 79: warning: expression is always TRUE
+prog.cob: 81: warning: literal 'CAT+DOG' is longer than WS-TEXT
+prog.cob: 81: warning: expression is always FALSE
+prog.cob: 84: warning: literal 'DOG+CAT' is longer than WS-TEXT
+prog.cob: 84: warning: expression is always FALSE
+prog.cob: 86: warning: expression 'CAT     ' EQUALS 'CAT+DOG' is always FALSE
+prog.cob: 88: warning: expression 'CAT     ' EQUALS 'CAT' is always TRUE
+prog.cob: 90: warning: expression '00000001234' EQUALS '1234' is always TRUE
+prog.cob: 97: warning: literal '654.20038' has more decimals than COMPUTE-1
+prog.cob: 98: warning: literal '654.17422' has more decimals than COMPUTE-1
+prog.cob: 100: warning: literal '5654.20' has more digits than COMPUTE-1
+prog.cob: 100: warning: expression is always TRUE
+prog.cob: 102: warning: literal '5654.20' has more digits than COMPUTE-1
+prog.cob: 102: warning: expression is always FALSE
+prog.cob: 104: warning: literal '5654.20' has more digits than COMPUTE-1
+prog.cob: 104: warning: expression is always TRUE
+prog.cob: 106: warning: literal '5654.20' has more digits than COMPUTE-1
+prog.cob: 106: warning: expression is always FALSE
+prog.cob: 112: warning: unsigned 'IF-D16' may not be LESS THAN ZERO
+prog.cob: 114: warning: unsigned 'IF-D16' may not be LESS THAN ZERO
+prog.cob: 117: warning: unsigned 'PIC-9-NOT-SIGNED' may always be GREATER THAN -25
+prog.cob: 118: warning: unsigned 'PIC-9-NOT-SIGNED' may always be GREATER OR EQUAL -1
+prog.cob: 124: warning: unsigned 'PIC-9-NOT-SIGNED' may always be GREATER OR EQUAL ZERO
+prog.cob: 126: warning: unsigned 'PIC-9-NOT-SIGNED' may always be GREATER OR EQUAL ZERO
 ])
 
 AT_CLEANUP
@@ -1023,7 +1143,7 @@ prog.cob: 64: error: 'SWIT2-ON' is not defined
 prog.cob: 70: error: 'SWIT26-ON' is not defined
 prog.cob: 76: error: 'SWIT32-OFF' is not defined
 ])
-# There should be an additional
+# FIXME: There should be an additional
 #prog.cob: 19: error: duplicate definition of 'SWITCH-25'
 #prog.cob: 15: error: 'SWITCH-25' previously defined here
 #
@@ -1031,7 +1151,7 @@ AT_CHECK([$COMPILE_ONLY -std=acu-strict -fsystem-name=SW1 -fno-relax-syntax-chec
 [prog.cob: 33: error: duplicate ON clause
 prog.cob: 76: error: 'SWIT32-OFF' is not defined
 ])
-# There should be an additional
+# FIXME: There should be an additional
 #prog.cob: 19: error: duplicate definition of 'SWITCH-25'
 #prog.cob: 15: error: 'SWITCH-25' previously defined here
 #prog.cob: 23: error: duplicate definition of 'SWITCH 25'
@@ -1171,7 +1291,7 @@ AT_CLEANUP
 
 
 AT_SETUP([ACCEPT WITH AUTO / TAB])
-AT_KEYWORDS([AUTO-SKIP AUTOTERMINATE misc extensions])
+AT_KEYWORDS([AUTO-SKIP AUTOTERMINATE misc extensions screen])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1195,8 +1315,30 @@ AT_CHECK([$COMPILE_ONLY -faccept-auto prog.cob], [0], [], [])
 AT_CLEANUP
 
 
+AT_SETUP([ACCEPT WITH LOWER / UPPER])
+AT_KEYWORDS([misc extensions screen])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 X             PIC X(05).
+       PROCEDURE        DIVISION.
+           ACCEPT X WITH LOWER     END-ACCEPT.
+           ACCEPT X WITH UPPER     END-ACCEPT.
+           ACCEPT X      LOWER
+           ACCEPT X      UPPER
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+
+AT_CLEANUP
+
+
 AT_SETUP([ACCEPT WITH SIZE])
-AT_KEYWORDS([PROTECTED SIZE misc extensions])
+AT_KEYWORDS([PROTECTED SIZE misc extensions screen])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1210,7 +1352,12 @@ AT_DATA([prog.cob], [
            ACCEPT X WITH           SIZE IS 1 END-ACCEPT.
            ACCEPT X WITH PROTECTED SIZE    2 END-ACCEPT.
            ACCEPT X WITH PROTECTED SIZE IS 3 END-ACCEPT.
-           ACCEPT X WITH           SIZE    Y END-ACCEPT.
+           ACCEPT X                SIZE    Y END-ACCEPT.
+           ACCEPT X                SIZE    0
+           ACCEPT X                SIZE IS 1
+           ACCEPT X      PROTECTED SIZE    2
+           ACCEPT X      PROTECTED SIZE IS 3
+           ACCEPT X                SIZE    Y
            STOP RUN.
 ])
 
@@ -1220,7 +1367,7 @@ AT_CLEANUP
 
 
 AT_SETUP([DISPLAY WITH SIZE])
-AT_KEYWORDS([SIZE misc extensions])
+AT_KEYWORDS([SIZE misc extensions screen])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -1233,6 +1380,9 @@ AT_DATA([prog.cob], [
            DISPLAY X AT 0101 WITH SIZE    5 END-DISPLAY.
            DISPLAY X AT 0101 WITH SIZE IS 6 END-DISPLAY.
            DISPLAY X AT 0101 WITH SIZE IS Y END-DISPLAY.
+           DISPLAY X AT 0101      SIZE    5 END-DISPLAY.
+           DISPLAY X AT 0101      SIZE IS 6 END-DISPLAY.
+           DISPLAY X AT 0101      SIZE IS Y END-DISPLAY.
            STOP RUN.
 ])
 
@@ -2188,7 +2338,7 @@ PROCEDURE        DIVISION.
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [MFCOMMENTASTERISK
 MFCOMMENTSLASH
 NOMFCOMMENTASTERISK
@@ -2205,7 +2355,7 @@ prog2.cob: 17: error: invalid symbol '|' - skipping word
 AT_CHECK([$COMPILE -fmfcomment prog.cob], [0], [],
 [])
 
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [NOMFCOMMENTASTERISK
 NOMFCOMMENTSLASH
 NOFLOATING
@@ -2219,7 +2369,7 @@ prog2.cob: 17: error: invalid symbol '|' - skipping word
 
 AT_CHECK([$COMPILE -facucomment prog.cob], [0], [], [])
 
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [MFCOMMENTASTERISK
 MFCOMMENTSLASH
 NOMFCOMMENTASTERISK
@@ -2229,7 +2379,7 @@ NOFLOATING
 
 AT_CHECK([$COMPILE -facucomment prog2.cob], [0], [], [])
 
-AT_CHECK([./prog2], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog2], [0],
 [MFCOMMENTASTERISK
 MFCOMMENTSLASH
 NOMFCOMMENTASTERISK
@@ -3158,7 +3308,7 @@ AT_CLEANUP
 
 
 AT_SETUP([ACUCOBOL WINDOW statements])
-AT_KEYWORDS([misc acu extensions])
+AT_KEYWORDS([misc acu extensions screen])
 
 # TODO: need a better tests when we implement this,
 #       likely splitted into multiple ones
@@ -3174,7 +3324,7 @@ AT_DATA([prog.cob], [
        PROCEDURE DIVISION.
        MAIN.
            DISPLAY WINDOW, LINE 1, COLUMN 29, SIZE 51, LINES 12,
-               ERASE, POP-UP AREA IS WINDOW-HANDLE
+               ERASE SCREEN BOXED SHADOW, POP-UP AREA IS WINDOW-HANDLE
            END-DISPLAY
            DISPLAY "THIS IS TEXT IN A WINDOW"
            DISPLAY FLOATING WINDOW UPON WINDOW-HANDLE,
@@ -3197,12 +3347,130 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE_ONLY -std=acu-strict prog.cob], [1], [],
 [prog.cob: in paragraph 'MAIN':
 prog.cob: 11: warning: GRAPHICAL WINDOW is not implemented
-prog.cob: 12: error: syntax error, unexpected POP-UP, expecting LINE or SCREEN
 prog.cob: 15: warning: GRAPHICAL WINDOW is not implemented
 prog.cob: 20: warning: GRAPHICAL WINDOW is not implemented
 prog.cob: 21: warning: GRAPHICAL WINDOW is not implemented
-prog.cob: 23: error: HANDLE must be either a generic or a WINDOW HANDLE
+prog.cob: 23: error: HANDLE must be either a generic or a WINDOW HANDLE or X(10)
 prog.cob: 25: warning: GRAPHICAL CONTROL is not implemented
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([DISPLAY MESSAGE BOX])
+AT_KEYWORDS([misc acu extensions screen])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE SECTION.
+       77  my-text             pic x(10) value "TEXT".
+       78  MB-OK               VALUE 1.
+       78  MB-YES-NO           VALUE 2.
+       78  MB-OK-CANCEL        VALUE 3.
+       78  MB-YES-NO-CANCEL    VALUE 4.
+       78  MB-YES              VALUE 1.
+       78  MB-NO               VALUE 2.
+       78  MB-CANCEL           VALUE 3.
+       78  MB-DEFAULT-ICON     VALUE 1.
+       78  MB-WARNING-ICON     VALUE 2.
+       78  MB-ERROR-ICON       VALUE 3.
+       PROCEDURE DIVISION.
+           DISPLAY MESSAGE "Important"
+                   TITLE "Very important"
+                   TYPE = MB-OK
+                   ICON IS MB-WARNING-ICON
+           DISPLAY MESSAGE "This is" space "my" space my-text
+           DISPLAY MESSAGE BOX "More messages?"
+                   TYPE  MB-YES-NO
+                   TITLE = "box title"
+                   DEFAULT IS MB-YES
+                   RETURNING RETURN-CODE
+      *
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY -std=acu-strict prog.cob], [0], [],
+[prog.cob: 18: warning: handling of DISPLAY MESSAGE is unfinished; implementation is likely to be changed
+prog.cob: 22: warning: handling of DISPLAY MESSAGE is unfinished; implementation is likely to be changed
+prog.cob: 23: warning: handling of DISPLAY MESSAGE is unfinished; implementation is likely to be changed
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([DISPLAY OMITTED])
+AT_KEYWORDS([misc extensions screen])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       PROCEDURE DIVISION.
+           DISPLAY OMITTED WITH BELL
+           DISPLAY OMITTED LINE 10 COL 15 ERASE EOL
+      *
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+[prog.cob: 5: warning: handling of DISPLAY OMITTED is unfinished; implementation is likely to be changed
+prog.cob: 6: warning: handling of DISPLAY OMITTED is unfinished; implementation is likely to be changed
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([CGI: EXTERNAL-FORM])
+AT_KEYWORDS([misc acu extensions accept display])
+
+# TODO: need a better tests when we implement this,
+#       likely splitted into multiple ones
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       DATA             DIVISION.
+       WORKING-STORAGE SECTION.
+       01  GNUCOBOL-URL IS EXTERNAL-FORM 
+                IDENTIFIED BY "http://www.gnu.org/software/gnucobol/".
+       01  WEB-PAGE-1 EXTERNAL-FORM,
+                IDENTIFIED "cgipage1".
+       01  SIMPLE-FORM IS EXTERNAL-FORM.
+           03  SIMPLE-FORM-VAR1  PIC X(10).
+           03  SIMPLE-FORM-VAR2  PIC 9(5).
+       01  MY-FORM EXTERNAL-FORM.
+           03  CGI-VAR1 PIC X(20) IDENTIFIED "Name".
+           03  CGI-VAR2 PIC X(50) IDENTIFIED BY CGI-VAR1.
+       
+       PROCEDURE DIVISION.
+       MAIN.
+      *>   CGI display of static content (full URL)
+           DISPLAY GNUCOBOL-URL
+      *>   CGI display of static content (current URL + "cgipage1" + ".html")
+           DISPLAY WEB-PAGE-1
+      *>   CGI display of output form
+           DISPLAY MY-FORM
+      *>   CGI display of input  form (docs say: used for debugging purposes)
+           DISPLAY SIMPLE-FORM
+      *>   CGI accept
+           ACCEPT SIMPLE-FORM
+      *>   normal accept
+           ACCEPT SIMPLE-FORM-VAR1
+      *>   CGI accept with first var (with cgi identifier Name)
+      *>   setting the cgi identifier of the second
+           ACCEPT MY-FORM
+      *
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY -std=acu-strict prog.cob], [0], [],
+[prog.cob: 6: warning: EXTERNAL-FORM is not implemented
+prog.cob: 8: warning: EXTERNAL-FORM is not implemented
+prog.cob: 10: warning: EXTERNAL-FORM is not implemented
+prog.cob: 13: warning: EXTERNAL-FORM is not implemented
+prog.cob: 14: warning: EXTERNAL-FORM (IDENTIFIED BY) is not implemented
+prog.cob: 15: warning: EXTERNAL-FORM (IDENTIFIED BY) is not implemented
 ])
 
 AT_CLEANUP
@@ -3326,7 +3594,10 @@ AT_DATA([prog.cob], [
        SOURCE-COMPUTER. b.
 ])
 
-AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+# MF extension, supported by GnuCOBOL
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+# note: testing with lax configuration, otherwise there would be an error
+AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [],
 [prog.cob: 8: warning: incorrect order of SOURCE- and OBJECT-COMPUTER paragraphs used
 ])
 AT_CLEANUP
@@ -3384,7 +3655,10 @@ AT_DATA([prog.cob], [
        END PROGRAM prog4.
 ])
 
-AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+# MF extension, supported by GnuCOBOL
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+# note: testing with lax configuration, otherwise there would be an error
+AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [],
 [prog.cob: 12: warning: incorrect order of CONFIGURATION SECTION paragraphs used
 prog.cob: 24: warning: incorrect order of CONFIGURATION SECTION paragraphs used
 prog.cob: 35: warning: incorrect order of CONFIGURATION SECTION paragraphs used
@@ -3514,6 +3788,39 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
 [prog.cob: 6: warning: ignoring redundant .
 prog.cob: 12: warning: ignoring redundant .
 ])
+AT_CLEANUP
+
+
+AT_SETUP([IF-ELSE statement with invalid syntax])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  a-variable PIC 9.
+
+       PROCEDURE DIVISION.
+           IF a-variable = 1
+               ACCEPT a-variable, not-a-variable
+                   ON EXCEPTION
+                       CONTINUE
+               END-ACCEPT
+           ELSE
+               CONTINUE
+           END-IF
+           .
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 11: error: syntax error, unexpected Identifier
+prog.cob: 14: error: syntax error, unexpected END-ACCEPT
+prog.cob: 15: error: syntax error, unexpected ELSE
+prog.cob: 17: error: syntax error, unexpected END-IF
+])
+
 AT_CLEANUP
 
 
@@ -3823,11 +4130,11 @@ prog.cob: 9: error: '/' operator misplaced
 ])
 
 AT_CHECK([$COMPILE -std=mf-strict prog.cob], [1], [],
-[prog.cob: 6: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
-prog.cob: 7: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
-prog.cob: 8: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
-prog.cob: 9: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
-prog.cob: 10: error: syntax error, unexpected Identifier, expecting EXTERNAL or GLOBAL
+[prog.cob: 6: error: syntax error, unexpected Identifier, expecting EXTERNAL or EXTERNAL-FORM or GLOBAL or IDENTIFIED
+prog.cob: 7: error: syntax error, unexpected Identifier, expecting EXTERNAL or EXTERNAL-FORM or GLOBAL or IDENTIFIED
+prog.cob: 8: error: syntax error, unexpected Identifier, expecting EXTERNAL or EXTERNAL-FORM or GLOBAL or IDENTIFIED
+prog.cob: 9: error: syntax error, unexpected Identifier, expecting EXTERNAL or EXTERNAL-FORM or GLOBAL or IDENTIFIED
+prog.cob: 10: error: syntax error, unexpected Identifier, expecting EXTERNAL or EXTERNAL-FORM or GLOBAL or IDENTIFIED
 ])
 
 AT_CHECK([$COMPILE -std=mf-strict -freserved=CONSTANT prog.cob], [1], [],
@@ -4011,29 +4318,34 @@ AT_DATA([prog.cob], [
                  to var (17 - var-len:var-len - 8)
            WHEN  var-len > 16
                move othervar to var
+           WHEN  A = B
+               move var      to othervar
            WHEN OTHER
-               move othervar to var
+               CONTINUE
            END-EVALUATE
 
-           EVALUATE var-len
-           WHEN  15
-           WHEN 115
-               move A to B
-               move B to C
-           WHEN  > 16
+           EVALUATE FALSE
+           WHEN  var-len < 16
+               move othervar (1:var-len - 9)
+                 to var (16 - var-len:var-len - 9)
+           WHEN  var-len > 16
                move othervar to var
+           WHEN  A = B
+               move var      to othervar
            WHEN OTHER
-               move othervar to var
-           END-EVALUATE
+               CONTINUE
+           END-EVALUATE.
 
            IF 15 = var-len
-           OR var-len = 15
                move othervar to var.
+
+           IF var-len = 15
+               move var      to othervar.
 
            STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 15: warning: expression '115' LESS THAN '16' is always FALSE
 prog.cob: 17: error (ignored): offset of 'var' out of bounds: -98
 prog.cob: 22: warning: expression '2' EQUALS '3' is always FALSE
@@ -4055,11 +4367,13 @@ prog.cob: 54: warning: PERFORM ONCE since UNTIL is always TRUE
 prog.cob: 59: warning: expression '115' LESS THAN '16' is always FALSE
 prog.cob: 61: error (ignored): offset of 'var' out of bounds: -98
 prog.cob: 62: warning: expression '115' GREATER THAN '16' is always TRUE
-prog.cob: 73: warning: expression '115' GREATER THAN '16' is always TRUE
-prog.cob: 69: warning: expression '115' EQUALS '15' is always FALSE
-prog.cob: 70: warning: expression '115' EQUALS '115' is always TRUE
-prog.cob: 79: warning: expression '15' EQUALS '115' is always FALSE
-prog.cob: 80: warning: expression '115' EQUALS '15' is always FALSE
+prog.cob: 71: warning: expression '115' LESS THAN '16' is always FALSE
+prog.cob: 73: error: offset of 'var' out of bounds: -99
+prog.cob: 74: warning: expression '115' GREATER THAN '16' is always TRUE
+prog.cob: 74: warning: expression is always TRUE
+prog.cob: 74: warning: expression is always FALSE
+prog.cob: 82: warning: expression '15' EQUALS '115' is always FALSE
+prog.cob: 85: warning: expression '115' EQUALS '15' is always FALSE
 ])
 
 AT_CLEANUP
@@ -4068,12 +4382,12 @@ AT_CLEANUP
 AT_SETUP([Constant Expressions (2)])
 AT_KEYWORDS([conditions refmod IF EVALUATE])
 
-# we currently don't have a way to show the correct line numbers
-# when we compare two constants
+# we currently only get the last line of an expression when we compare two constants
 
 # we currently do the comparision checks for EVALUATE from last WHEN to first one
 # to get the line numbers in order we'd need to have to postpone the check
 # until the list of WHENs is reversed
+
 AT_XFAIL_IF(true)
 
 AT_DATA([prog.cob], [
@@ -4102,20 +4416,22 @@ AT_DATA([prog.cob], [
                  to var (17 - const1:const1 - 8)
            WHEN  > 16
                display othervar
-           *> actually WHEN OTHER is also FALSE in this case (115 = 16),
-           *> but this is too complex to check
+       *> actually WHEN OTHER is also FALSE in this case (115 = 16),
+       *> but this is too complex to check
            WHEN OTHER
                display othervar
            END-EVALUATE
+
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
 [prog.cob: 13: warning: expression '115' EQUALS '200' is always FALSE
 prog.cob: 14: warning: expression '200' EQUALS '115' is always FALSE
-prog.cob: 13: warning: expression is always FALSE
+prog.cob: 14: warning: expression is always FALSE
 prog.cob: 19: warning: expression '115' EQUALS '15' is always FALSE
 prog.cob: 20: warning: expression '115' EQUALS '115' is always TRUE
+prog.cob: 20: warning: expression is always TRUE
 prog.cob: 22: warning: expression '115' LESS THAN '16' is always FALSE
 prog.cob: 24: error (ignored): offset of 'var' out of bounds: -98
 prog.cob: 25: warning: expression '115' GREATER THAN '16' is always TRUE
@@ -4123,3 +4439,35 @@ prog.cob: 25: warning: expression '115' GREATER THAN '16' is always TRUE
 
 AT_CLEANUP
 
+AT_SETUP([ANY LENGTH/NUMERIC with incorrect PIC])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    prog.
+       
+       DATA           DIVISION.
+       LINKAGE        SECTION.
+       *> Valid
+       01  valid-1    PIC X ANY LENGTH.
+       01  valid-2    PIC N ANY LENGTH.
+       01  valid-3    PIC 9 ANY NUMERIC.
+
+       *> Invalid
+       01  invalid-1  PIC A ANY LENGTH.
+       01  invalid-2  PIC Z ANY LENGTH.
+       01  invalid-3  PIC 9 ANY LENGTH.
+       01  invalid-4  PIC X ANY NUMERIC.
+       01  invalid-5  PIC XX ANY LENGTH.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 9: warning: handling of USAGE NATIONAL is unfinished; implementation is likely to be changed                                                       
+prog.cob: 18: error: 'invalid-1' ANY LENGTH must be PIC X or PIC N
+prog.cob: 18: error: 'invalid-2' ANY LENGTH must be PIC X or PIC N
+prog.cob: 18: error: 'invalid-3' ANY LENGTH must be PIC X or PIC N
+prog.cob: 18: error: 'invalid-4' ANY NUMERIC must be PIC 9
+prog.cob: 17: error: 'invalid-5' ANY LENGTH has invalid definition
+])
+
+AT_CLEANUP

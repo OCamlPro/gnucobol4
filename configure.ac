@@ -3,7 +3,8 @@
 # Process this file with autoconf to produce a configure script.
 #
 # Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
-# Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch
+# Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch,
+# Edward Hart
 #
 # This file is part of GnuCOBOL.
 #
@@ -23,11 +24,11 @@
 AC_PREREQ([2.64])
 
 AC_INIT([GnuCOBOL],
-	[2.2-anim],
+	[2.3-anim],
 	[bug-gnucobol@gnu.org],
 	[gnucobol],
 	[https://www.gnu.org/software/gnucobol/])
-AC_REVISION([GnuCOBOL snapshot $Revision: 1286 $])
+AC_REVISION([GnuCOBOL snapshot $Revision: 2073 $])
 AC_CONFIG_SRCDIR([libcob.h])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_TESTDIR([tests])

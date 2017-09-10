@@ -498,7 +498,7 @@ where it doesn't directly conflict with the specified dialect, including reserve
 COBOL sources compiled with these dialects therefore may work only with GnuCOBOL.
 COBOL sources may need a change because of reserved words in GnuCOBOL, otherwise
 offending words may be removed by @code{-fno-reserved=word}.@*
-COBOL-85, @w{COBOL 2002} and @w{COBOL 2014} are always "strict".
+COBOL-85, X/Open COBOL, @w{COBOL 2002} and @w{COBOL 2014} are always "strict".
 
 @item -std=default
 GnuCOBOL dialect, supporting many of the @w{COBOL 2002} and @w{COBOL 2014} features,
@@ -932,7 +932,9 @@ This chapter describes how to combine C programs with COBOL programs.
 @node Main C program, Static C to COBOL, C interface, C interface
 @subsection Writing Main Program in C
 
-Include @file{libcob.h} in your C program and call @code{cob_init} before using any COBOL module:
+Include @file{libcob.h} in your C program and call @code{cob_init} before using any COBOL module.
+Do a cleanup afterwards, either by calling @code{cob_stop_run} (if your program should terminate)
+or by calling @code{cob_tidy} (if your program should go on without any further COBOL calls).
 
 @example
 #include <libcob.h>
@@ -1013,9 +1015,14 @@ main()
   char hello[8] = "Hello, ";
   char world[7] = "world!";
 
+  /* initialize the COBOL run-time library */
   cob_init(0, NULL);
 
+  /* call the static module and store its return code */
   ret = say(hello, world);
+
+  /* shutdown the COBOL run-time library, keep program running */
+  (void)cob_tidy();
 
   return ret;
 @}
@@ -1056,6 +1063,7 @@ int main()
   char hello[8] = "Hello, ";
   char world[7] = "world!";
 
+  /* initialize the COBOL run-time library */
   cob_init(0, NULL);
 
   /* Find the module with PROGRAM-ID "say". */
@@ -1067,10 +1075,11 @@ int main()
     exit(1);
   @}
 
-  /* Call the module found and exit with the return code. */
+  /* Call the module found ... */
   ret = say(hello, world);
 
-  return ret;
+  /* ...and exit with the return code. */
+  cob_stop_run(ret);
 @}
 ----------------------------------------
 @end example

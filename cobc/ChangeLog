@@ -1,8 +1,165 @@
 
+2017-09-05  Edward Hart <edward.dan.hart@gmail.com>
+
+	* tree.c (cb_int): add bitmask to suppress runtime loss-of-data warning
+	  on Windows.
+
+2017-09-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c (cb_validate_program_data): temporarily disabled ASSIGN
+	  fields with changing address (BASED + LINKAGE) to prevent SIGSEGV
+	  until code generation is changed, see bug #421
+	* codegen.c: changed generated newlines/comments for file initialization
+
+2017-09-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c, tree.c, tree.h, typeck.c: started to change compiler
+	  internal variables to be unsigned int instead of int to prevent
+	  C compiler warnings about a possible negative access to arrays
+	  and sign mismatches in comparisons
+	* codegen.c: output comment for decimal constants only if we have
+	  actually generate decimal constants
+
+2017-09-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c: adjusted some missing context-sensitive options
+	* reserved.c, parser.y: added parsing of PHYSICAL attribute in
+	  LENGTH functions
+
+2017-08-28  Edward Hart <edward.dan.hart@gmail.com>
+
+	* field.c (validate_field_1): refactored.
+
+2017-08-23  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.c (cobc_clean_up): added calls to (plex_call_destroy) and
+	  (ylex_call_destroy), *actually* fixing bug #407.
+	* pplex.l (ylex_clear_all): added calls to (cb_reset_78) and
+	  (cb_reset_global_78) to prevent memory leak on abort (bug #417).
+
+2017-08-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c: work on expression warning messages and added more
+
+2017-08-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c, flag.def, warnings.def, cobc.h: changed handling for
+	  cobc --help, mainly to provide translators with context for msgids
+	* field.c: adjusted message for cb_warn_ignored_initial_val
+
+2017-08-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* flag.def: always activate cb_flag_recursive_check by CB_FLAG_ON
+	* tree.c, codegen.c: assume RECURSIVE for -fno-recursive-check
+
+2017-08-18  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: emit code for CALL to handle ON EXCEPTION
+
+2017-08-17  Ron Norman <rjn@inglenet.com>
+
+	* scanner.l: Added SET_LOCATION when returning 'literal'
+	             which is a 78/01 constant
+	* codegen.c: Emit cob_module_global_entry instead of cob_module_enter and
+	  pass the 'entry' value (currently only set in rw-branch).
+
+2017-08-17  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c: work on expression warning messages
+
+2017-08-18  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (screen_occurs_clause): marked as pending.
+
+2017-08-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c: bug #413 don't generate cob_check_based for UDF return fields
+	* cobc.c (xref_print): output marker for receiving references
+
+2017-08-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.c: fixed tree cast error for literals
+
+2017-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: added cobc_early_exit and adjusted exit calls to fix missing free
+	* ppparse.y: CDF: warn if compiler flag is unknown
+
+2017-08-12  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: Place all code to clear Decimal Constant values under
+	  label P_clear_decimal and invoke that code when 'entry' is -20
+
+2017-08-11  Edward Hart <edward.dan.hart@gmail.com>
+
+	* reserved.c: implemented (not-)register: DIALECT-ALL.
+	* codegen.c (output_internal_function): fixed C compile error when
+	  RETURN-CODE register is disabled.
+
+2017-08-10  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.c (cobc_clean_up): added calls to (plex_clear_all) and
+	  (ylex_clear_all), fixing bug #407.
+
+2017-08-09  Edward Hart <edward.dan.hart@gmail.com>
+
+	* config.c (cb_config_entry): removed extraneous free (bug #409).
+	* config.c (cb_config_entry): fixed indentation.
+
+2017-08-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, reserved.c, typeck.c, tree.h: adjusted and included
+	  Patch #27 by Wim Niemans 2016-06-13 for FR #100 as PENDING
+	* field.c, tree.c: adjustments for EXTERNAL-FORM
+	* cobc.c, error.c, parser.y, typeck.c: msgid specific changes
+
+2017-08-07  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c: moved RELATIVE KEY validating code to
+	  (validate_relative_key), called in (cb_validate_program_data).
+	* typeck.c (validate_relative_key): altered to check key is not the
+	  associated file's records and improved category check.
+	* parser.y: added check that correct KEY clause is used with
+	  RELATIVE/INDEXED files (bug #405).
+
+2017-07-29  Edward Hart <edward.dan.hart@gmail.com>
+
+	* reserved.c (system_name_table): added switches USW-0 thru USW-31.
+	* field.c (validate_field_1): added warning for useless FULL clause on
+	  numeric items.
+	* parser.y (error_stmt_recover): removed ELSE from list of verbs,
+	  preventing recursion on syntax error in IF statements (bug #403).
+
+2017-07-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c: fixed bug #402 - optional WITH clause functional
+	* parser.y, reserved.c: FR #78 more phrases for DISPLAY WINDOW
+	* parser.y, typeck.c: FR #77 fixed HANDLE references
+	* parser.y, reserved.c: FR #190 minimal support for DISPLAY MESSAGE BOX
+	* parser.y, typeck.c: fixed SIGSEGV in cobc for DISPLAY OMITTED
+
+2017-07-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, reserved.c: added clauses COLOR and SIZE as PENDING
+	* parser.y: added ACCEPT FROM SCREEN as PENDING
+
+2017-07-27  Ron Norman <rjn@inglenet.com>
+
+	* tree.c:
+	  Improve warning messages for comparing literals to fields
+
+
 2017-07-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* codegen.c (output_internal_function): generate goto table
 	  as switch and added fatal error raising if line is no code line
+
+2017-07-23  Ron Norman <rjn@inglenet.com>
+
+	* tree.c: Improve line number used in warnings about 'always TRUE/FALSE'
+	  Check for IF/WHEN with NOT condition to resolve compile time expr
+	* typeck.c: Turn off ignore of errors as required
+	* codegen.c: Emit line # in C code for WHEN statements
 
 2017-07-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -766,6 +923,11 @@
 	* typeck.c: disabled nested ODO as the current implementation
 	  has too many flaws (see re-opened FR #99)
 
+2016-12-27  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c: Added checks for RELATIVE KEY field being
+	  integer in WORKING-STORAGE and having no OCCURS
+
 2016-12-27  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	integrating patch #30 by Frank Swarbrick and make sure it works
@@ -1037,9 +1199,11 @@
 2016-10-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* codegen.c: fixed missing initialization of static_call_cache
-	* flags.def, cobc.c, codegen.c: added new cb_flag_c_decl_for_static_call,
-	  normally active, to create the option to disable the auto-generation of
-	  C function declarations for static CALLs
+	* flags.def, cobc.c: added CB_FLAG_ON for compiler flags that are
+	  active by default
+	* flags.def, codegen.c: added new cb_flag_c_decl_for_static_call as
+	  CB_FLAG_ON, to create the option for disabling the auto-generation
+	  of C function declarations for static CALLs
 
 2016-10-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -1628,6 +1792,12 @@
 	* reserved.c (default_reserved_words): moved uncommon, non-standard
 	  aliases (e.g., AUTOTERMINATE for AUTO) to config files.
 	* parser.y: renamed TIMEOUT token to TIME-OUT.
+
+2016-06-13  Wim Niemans <niemans@nlbox.com>
+
+	* parser.y, reserved.c, typeck.c, tree.h: added ACUCOBOL CGI extension
+	  EXTERNAL-FORM / IDENTIFIED BY as DATA DIVISION clauses processed in
+	  handling of DISPLAY / ACCEPT statements
 
 2016-06-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -2484,8 +2654,7 @@
 
 2014-01-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
-	* codegen.c: Fixing Bug #55
-	  UDF with no parameters do not compile
+	* codegen.c: Fixing Bug #55 UDF with no parameters does not compile
 
 201?-??-??  Sergey Kashyrin <ska@kiska.net>
 
@@ -4191,7 +4360,7 @@
 
 2005-05-13  Roger While <simrw@sim-basis.de>
 
-	* cobc.c : Allow multiple input files when producing executable.
+	* cobc.c: Allow multiple input files when producing executable.
 
 2005-05-03  Roger While <simrw@sim-basis.de>
 
@@ -4233,13 +4402,12 @@
 
 2005-03-03  Roger While <simrw@sim-basis.de>
 
-	* cobc.h, tree.h, parser.y, reserved.c, cobc.c,
-	  tree.c, codegen.c, typeck.c :
+	* cobc.h, tree.h, parser.y, reserved.c, cobc.c, tree.c, codegen.c,
+	  typeck.c :
 	  Implement LINAGE
 	  Implement -Os
 	  Implement stripping of main/modules with O2 or Os
-	  Fix dangling preprocess file after non-existent
-	  file
+	  Fix dangling preprocess file after non-existent file
 	  Fix ASSIGN implicit data-item when not referenced
 	  Implement some options for gcc >= 3
 	  Change an incorrect long to int
@@ -4248,7 +4416,7 @@
 2005-02-22  Roger While <simrw@sim-basis.de>
 
 	* codegen.c : Generated C code indentation
-	  typeck.c : Check usage of 66 level with pointer
+	* typeck.c : Check usage of 66 level with pointer
 
 2005-02-15  Roger While <simrw@sim-basis.de>
 
@@ -4350,7 +4518,7 @@
 	* typeck.c, parser.y, error.c, field.c config.c, tree.c, tree.h,
 	  pplex.l : Replace back-tick "'" with quote "'"
 	* codegen.c : specify aligned(4) and not just aligned. On IA32,
-	  wth gcc, default alignment is 16 which is non-optimal.
+	  with gcc, default alignment is 16 which is non-optimal.
 	  For 64-bit non-Intel platforms we may need 8 here to cater
 	  for eventual direct casts for pointers and COMP-1/2 fields.
 
@@ -4388,7 +4556,7 @@
 
 	* parser.y (procedure_division, entry_statement): Use using_clause.
 	* codegen.c (codegen, output_entry_function): Handle using_list
-	with BY REFERENCE/CONTENT/VALUE.
+	  with BY REFERENCE/CONTENT/VALUE.
 	* typeck.c, tree.h (cb_build_using_list): Removed.
 	* cobc.c (process_translate): Do not call codegen when no entry.
 
@@ -4400,10 +4568,10 @@
 2004-05-04  Keisuke Nishida  <knishida@opencobol.org>
 
 	* typeck.c (cb_build_move_field): Optimize when the usage of src
-	and dst are the same, not only when they are DISPLAY.
-	(cb_build_move_high, cb_build_move_low): Really move low/high
-	values to numeric fields.
-	(cb_build_move): Do not convert 0 literal to ZERO.
+	  and dst are the same, not only when they are DISPLAY.
+	  (cb_build_move_high, cb_build_move_low): Really move low/high
+	  values to numeric fields.
+	  (cb_build_move): Do not convert 0 literal to ZERO.
 
 2004-04-19  Keisuke Nishida  <knishida@opencobol.org>
 
