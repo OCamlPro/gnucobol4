@@ -1,4 +1,9 @@
 
+2017-09-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* debugger.c, common.h: removed function string_contains as COBOL can
+	  handle this itself...
+
 2017-09-10  Edward Hart <edward.dan.hart@gmail.com>
 
 	* screenio.c (field_display, field_accept): fixed SIZE not working if it

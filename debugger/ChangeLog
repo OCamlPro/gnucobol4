@@ -1,4 +1,18 @@
 
+2017-09-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* gc-debugger.cob: replaced inp-crt-status and magic numbers by
+	  constants defined in GnuCOBOL's screenio.cpy
+	* gc-debugger.cob: moved headline setup to set-headline section
+	* gc-debugger.cob: new command "S" for step
+	* helpers.cpy: replaced string lookup done in libcob by INSPECT
+	* general: removed unnecessary separator periods,
+	  translated last comments from German to English
+	* gc-debugger.cob, screen.cpy, view-variable.cpy: removed
+	  empty-screen/EMPTYLINE as these aren't necessary for GnuCOBOL 2.x
+	* gc-debugger.cob, watchpoints.cob, view-variable.cpy:
+	  moved similar code to extract-option-from-command section
+
 2017-09-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* Makefile.am: added "buildtest" target to compile the test programs,

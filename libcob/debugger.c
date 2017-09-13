@@ -305,22 +305,3 @@ void anidata(anim_field* caf, anim_field* cafl, anim_field* cafg, interface_bloc
 	//if(cafl_field_name_cpy) free(cafl_field_name_cpy);
 	//if(cafg_field_name_cpy) free(cafg_field_name_cpy);
 }
-
-int string_contains(char* str1, char* str2) {
-	char *str1_dup, *str2_dup;
-	int return_value = 0;
-
-	str1_dup = cob_strdup(str1);
-	str2_dup = cob_strdup(str2);
-
-	rtrim(str1_dup);
-	rtrim(str2_dup);
-
-	if(strstr(str1_dup, str2_dup) != NULL) 
-			return_value = 1;
-
-	cob_free(str1_dup);
-	cob_free(str2_dup);
-
-	return return_value;
-}

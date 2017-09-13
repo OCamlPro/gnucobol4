@@ -4,23 +4,13 @@
 
       ***************************************************************
         view-variable section.
-            if tmp-command-input-buffer (2:1) = space
-               unstring tmp-command-input-buffer delimited by space
-                   into dummy tmp-unstring-buffer
-               end-unstring
-            else
-               move 2 to tmp-unstring-ptr
-               unstring tmp-command-input-buffer delimited by space
-                   into tmp-unstring-buffer
-                   with pointer tmp-unstring-ptr
-               end-unstring
-            end-if
+            perform extract-option-from-command
             if tmp-unstring-buffer (1:1) = space
                exit section
             end-if
 
       *>    CHECKME: does it work to replace the first space, too?
-            move low-value to tmp-unstring-buffer(30:1).
+            move low-value to tmp-unstring-buffer(30:1)
       *>> IF ENABLE-LOGGING DEFINED
       *      if cob-ENABLE-LOGGING = 'Y'
       *          move "After unstring..." to tmp-log-line
@@ -45,30 +35,30 @@
             call ANIDATA using "G" interface-block
             tmp-unstring-buffer end-call
 
-            display empty-screen end-display
+            display spaces upon crt end-display
 
-            move tmp-unstring-buffer to name-vv-content.
-            move dtf-length to size-vv-content.
-            move dtf-usage to usage-vv-content.
-            move dtf-value(1:60) to content-vv-l1.
-            move dtf-value(61:60) to content-vv-l2.
-            move dtf-value(121:60) to content-vv-l3.
-            move dtf-value(181:60) to content-vv-l4.
-            move dtf-value(241:40) to content-vv-l5.
+            move tmp-unstring-buffer to name-vv-content
+            move dtf-length to size-vv-content
+            move dtf-usage  to usage-vv-content
+            move dtf-value(001:60) to content-vv-l1
+            move dtf-value(061:60) to content-vv-l2
+            move dtf-value(121:60) to content-vv-l3
+            move dtf-value(181:60) to content-vv-l4
+            move dtf-value(241:40) to content-vv-l5
             display view-variable-screen end-display
 
-            move 0 to dtf-length, dtf-usage.
-            move spaces to dtf-value.
+            move 0 to dtf-length, dtf-usage
+            move spaces to dtf-value
 
-            move "Back" to func1.
-            move spaces to func2, func3, func4, func5.
+            move "Back" to func1
+            move spaces to func2, func3, func4, func5
             display footline-2 end-display
             display footline end-display
 
        >> IF ENABLE-LOGGING DEFINED
-            move "After calling animdata..." to tmp-log-line.
-            perform log-msg.
-            perform log-interface-block.
+            move "After calling animdata..." to tmp-log-line
+            perform log-msg
+            perform log-interface-block
        >> END-IF
 
             accept tmp-command-input-buffer line 23 col 10 end-accept
@@ -80,10 +70,10 @@
       **************************************************************
         goback-from-vv section.
 
-            display empty-screen end-display
-            perform do-screen-init.
+            display spaces upon crt end-display
+            perform do-screen-init
             display animator-screen end-display
-            perform display-current-breakpoints.
-            perform display-active-line.
+            perform display-current-breakpoints
+            perform display-active-line
 
             continue.

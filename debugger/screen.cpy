@@ -111,18 +111,18 @@
                         LINE line-cursor-position
                         COL 6.
 
-                03 status-line pic x(80) 
+                03 status-line pic x(80)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 22
                     COL 1.
-                        
-                03 command-input-line pic x(50) 
+
+                03 command-input-line pic x(50)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 23
                     COL 1.
-                            
+
                 03 footline
                     BACKGROUND-COLOR COB-COLOR-BLACK.
                     04 func1 pic x(15)
@@ -209,7 +209,7 @@
                         BACKGROUND-COLOR COB-COLOR-WHITE
                         FOREGROUND-COLOR COB-COLOR-BLACK
                         LINE 4
-                        COL 12.                
+                        COL 12.
                 03 size-vv.
                     04 size-vv-head pic x(10)
                         BACKGROUND-COLOR COB-COLOR-BLACK
@@ -221,7 +221,7 @@
                         BACKGROUND-COLOR COB-COLOR-WHITE
                         FOREGROUND-COLOR COB-COLOR-BLACK
                         LINE 5
-                        COL 12.                
+                        COL 12.
                 03 content-vv.
                     04 content-vv-head pic x(10)
                         BACKGROUND-COLOR COB-COLOR-BLACK
@@ -254,10 +254,7 @@
                         FOREGROUND-COLOR COB-COLOR-BLACK
                         LINE 10
                         COL 12.
-                       
-            01 empty-screen.
-                03 filler pic x(2100) LINE 1 COL 1 using EMPTYLINE.
-                
+
             01 search-screen.
                 03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
@@ -265,7 +262,7 @@
                     LINE 11
                     COL 20
                     using SEARCH-SCREEN-HEADLINE.
-                03 filler pic x(40) 
+                03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 12
@@ -277,31 +274,31 @@
                     LINE 13
                     COL 20
                     using SEARCH-SCREEN-MIDLINE-2.
-                03 filler pic x(40) 
+                03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 14
                     COL 20
                     using SEARCH-SCREEN-MIDLINE.
-                03 filler pic x(40) 
+                03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 15
                     COL 20
                     using SEARCH-SCREEN-MIDLINE-3.
-                03 filler pic x(40) 
+                03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 16
                     COL 20
                     using SEARCH-LAST-SEARCH.
-                03 filler pic x(40) 
+                03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 17
                     COL 20
                     using SEARCH-SCREEN-MIDLINE.
-                03 filler pic x(40) 
+                03 filler pic x(40)
                     BACKGROUND-COLOR COB-COLOR-BLACK
                     FOREGROUND-COLOR COB-COLOR-WHITE
                     LINE 18

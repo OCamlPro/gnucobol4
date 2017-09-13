@@ -68,6 +68,7 @@
             01 step-over-module             pic x(30).
             01 f6-hit                       pic 9.
 
+      *     place holder for skipping data in UNSTRING
             77 dummy                        pic x.
 
        >> IF ENABLE-LOGGING DEFINED
@@ -105,8 +106,6 @@
             77 VV-SIZE                  pic x(10) value "Length:".
             77 VV-CONTENT               pic x(10) value "Data:".
 
-            77 EMPTYLINE                pic x(2100) value spaces.
-
             01 SEARCH-SCREEN-HEADLINE   pic x(40)
                 value "########################################".
             01 SEARCH-SCREEN-MIDLINE    pic x(40)
@@ -128,11 +127,6 @@
             01 module-line-count        pic 9(5) value 0.
             01 goto-linenumber          pic 9(5).
 
-
-      ***************************************************************
-      ** Key input processing                                      **
-      ***************************************************************
-            01 inp-crt-status           pic 9(4).
 
       ***************************************************************
       ** Buffers and temporary used fields                         **
@@ -271,7 +265,7 @@
         copy "screen.cpy".
 
         procedure division using interface-block anim-stmt-type.
-            perform process-interface-block.
+            perform process-interface-block
 
             perform forever
                 accept tmp-command-input-buffer
@@ -336,32 +330,33 @@
                 initialize watchpoint-lst, wp-count
             end-if
 
-            move 1 to global-init-flag.
+            move 1 to global-init-flag
 
-            set DEBUG-SCREEN-MODE to true.
+            set DEBUG-SCREEN-MODE to true
 
       *      display "end do-init..." upon syserr end-display
 
-            move 1 to return-code.
+            move 1 to return-code
             if anim-stmt-type = 'X' or  '0'
-                goback.
+                goback
+             end-if
 
             continue.
 
       ***************************************************************
         do-screen-init section.
-            move "    " to func1.
-            move "F1" to func1-2.
-            move "Search" to func2.
-            move "F4" to func2-2.
-            move "Step" to func3.
-            move "F5" to func3-2.
-            move "Step Over" to func4.
-            move "F6" to func4-2.
-            move "Go" to func5.
-            move "F7" to func5-2.
+            move "    " to func1
+            move "F1" to func1-2
+            move "Search" to func2
+            move "F4" to func2-2
+            move "Step" to func3
+            move "F5" to func3-2
+            move "Step Over" to func4
+            move "F6" to func4-2
+            move "Go" to func5
+            move "F7" to func5-2
 
-            move "Command: " to command-input-line.
+            move "Command: " to command-input-line
 
             continue.
 
@@ -369,9 +364,9 @@
 
         do-module-init section.
 
-            move spaces to GETLINE.
-            move spaces to GETLINECOUNT.
-            move spaces to ANIDATA.
+            move spaces to GETLINE
+            move spaces to GETLINECOUNT
+            move spaces to ANIDATA
 
             string "get_aniline_" delimited by size
                    cobol-src-name delimited by spaces
@@ -389,19 +384,14 @@
             end-string
 
             call GETLINECOUNT end-call
-            move return-code to module-line-count.
+            move return-code to module-line-count
 
       *      call "C$SLEEP" using 20 end-call
-            initialize  codelines-data.
+            initialize  codelines-data
 
-            move spaces to headline.
-            string "GnuCOBOL 2.0 Debugger  --  "
-                   cobol-src-name
-                   delimited by size
-                into headline
-            end-string
+            perform set-headline
 
-            move headline to headline-vv.
+            move headline to headline-vv
 
             perform varying tmp-linenumber from 1 by 1
                     until   tmp-linenumber > MAX-ROWS or
@@ -418,39 +408,35 @@
                         to sourceline(tmp-linenumber)
             end-perform
 
-            move 1 to module-init-flag.
+            move 1 to module-init-flag
 
             continue.
 
       ***************************************************************
 
         process-function-key section.
-            move COB-CRT-STATUS to inp-crt-status.
-
-            evaluate inp-crt-status
-                when 1003 perform fulltext-search-continue
-                when 1004 perform fulltext-search
-                when 1005 perform do-single-step
-                when 1006 perform do-step-over
-                when 1007 perform do-go
-                when 2005 perform quit-debugger
-                when 2001 perform page-up
-                when 2002 perform page-down
-                when 2003 perform line-up
-                when 2004 perform line-down
+            evaluate COB-CRT-STATUS
+                when COB-SCR-F3        perform fulltext-search-continue
+                when COB-SCR-F4        perform fulltext-search
+                when COB-SCR-F5        perform do-single-step
+                when COB-SCR-F6        perform do-step-over
+                when COB-SCR-F7        perform do-go
+                when COB-SCR-ESC       perform quit-debugger
+                when COB-SCR-PAGE-UP   perform page-up
+                when COB-SCR-PAGE-DOWN perform page-down
+                when COB-SCR-KEY-UP    perform line-up
+                when COB-SCR-KEY-DOWN  perform line-down
             end-evaluate
 
             continue.
 
       ***************************************************************
         process-function-key-vv section.
-            move COB-CRT-STATUS to inp-crt-status.
-
-            evaluate inp-crt-status
-                when 2005
+            evaluate COB-CRT-STATUS
+                when COB-SCR-ESC
                      perform quit-debugger
-      *         when 0
-      *         when 1001
+      *         when COB-SCR-OK
+      *         when COB-SCR-F1
                 when other
                      perform goback-from-vv
             end-evaluate
@@ -459,27 +445,29 @@
 
       ***************************************************************
         process-input-buffer section.
+      *     uppercase first character
             call "C$TOUPPER" using tmp-command-input-buffer
             by value 1 end-call
 
             evaluate tmp-command-input-buffer(1:1)
+                when 'S' perform do-single-step
                 when 'B' perform set-unset-breakpoint
                 when 'G' perform goto-line
                 when 'V' perform view-variable
                 when 'W' perform watchpoint-action
             end-evaluate
 
-            move spaces to tmp-command-input-buffer.
+            move spaces to tmp-command-input-buffer
 
             continue.
 
       ***************************************************************
         process-interface-block section.
        >> IF ENABLE-LOGGING DEFINED
-            perform log-interface-block.
+            perform log-interface-block
        >> END-IF
 
-            perform process-interface-block-cdepth.
+            perform process-interface-block-cdepth
 
             if SINGLE-STEP-MODE
        >> IF ENABLE-LOGGING DEFINED
@@ -605,12 +593,7 @@
                       move 0 to f6-hit
                   end-if
 
-                  move spaces to headline
-                  string "GnuCOBOL 2.0 Debugger  --  "
-                         cobol-src-name
-                         delimited by size
-                      into headline
-                  end-string
+                  perform set-headline
 
                   goback
 
@@ -620,10 +603,10 @@
 
       ***************************************************************
         display-active-line section.
-            move active-line-if to goto-linenumber.
-            move spaces to tmp-command-input-buffer.
+            move active-line-if to goto-linenumber
+            move spaces to tmp-command-input-buffer
 
-            perform goto-line.
+            perform goto-line
 
             compute active-line-onscreen = active-line-if
                 - linenumber(1) + 1 end-compute
@@ -645,6 +628,17 @@
       *          perform log-msg
       *      end-if
       *>> END-IF
+
+            continue.
+
+      ***************************************************************
+        set-headline section.
+            move spaces to headline
+            string "GnuCOBOL Debugger  --  "
+                   cobol-src-name
+                   delimited by size
+                into headline
+            end-string
 
             continue.
 
@@ -690,8 +684,8 @@
       ***************************************************************
         refresh-screen section.
             display animator-screen end-display
-            perform display-current-breakpoints.
-            perform display-active-line-if-visible.
+            perform display-current-breakpoints
+            perform display-active-line-if-visible
 
             continue.
 
@@ -707,7 +701,7 @@
       *              line-cursor-position
       *              into tmp-log-line
       *          end-string
-      *          perform log-msg.
+      *          perform log-msg
       *      end-if
       *>> END-IF
 
@@ -734,13 +728,12 @@
                 col tmp-line-position end-accept
 
                 if function
-                    upper-case(tmp-command-input-buffer(1:1))
-                    = 'J' or 'Y'
+      *             upper-case(tmp-command-input-buffer(1:1)) = 'J'
+                    upper-case(tmp-command-input-buffer(1:1)) = 'Y'
 
                     perform flush-breakpoints
-      *              Doesn't work in GC 1.1
-      *              display spaces upon crt end-display
-                    display empty-screen end-display
+      *             No need to display as curses screen will be closed
+      *             display spaces upon crt end-display
                     stop run
                 end-if
 
@@ -754,7 +747,7 @@
 
       ***************************************************************
         do-single-step section.
-            set SINGLE-STEP-MODE to true.
+            set SINGLE-STEP-MODE to true
             goback.
 
       ***************************************************************
@@ -780,7 +773,34 @@
 
       ***************************************************************
         do-go section.
-            set GO-MODE to true.
+            set GO-MODE to true
+            goback.
+
+      ***************************************************************
+      * extract the option given on the command
+      * in:  tmp-command-input-buffer
+      *        complete command entered
+      *      tmp-unstring-ptr (optional, defaults to 2):
+      *        place to start looking for the option
+      * out: tmp-unstring-buffer
+      *        option entered
+        extract-option-from-command section.
+            if tmp-unstring-ptr = 0
+               move 2 to tmp-unstring-ptr
+            end-if
+
+            if tmp-command-input-buffer (tmp-unstring-ptr:1) = space
+               unstring tmp-command-input-buffer delimited by space
+                   into dummy tmp-unstring-buffer
+               end-unstring
+            else
+               unstring tmp-command-input-buffer delimited by space
+                   into tmp-unstring-buffer
+                   with pointer tmp-unstring-ptr
+               end-unstring
+            end-if
+
+            move 0 to tmp-unstring-ptr
             goback.
 
       ***************************************************************
@@ -793,13 +813,9 @@
                 end-add
             else
                 if tmp-command-input-buffer(1:1) = "G"
-                    move 3 to tmp-unstring-ptr
-                    unstring tmp-command-input-buffer delimited by " "
-                        into tmp-unstring-buffer
-                        with pointer tmp-unstring-ptr
-                    end-unstring
-
-                    move tmp-unstring-buffer to goto-linenumber
+                   perform extract-option-from-command
+                   move function numval (tmp-unstring-buffer)
+                     to goto-linenumber
                 end-if
 
                 compute tmp-linenumber-2 = module-line-count - MAX-ROWS
@@ -863,7 +879,7 @@
             end-if
 
             display animator-screen end-display
-            perform display-current-breakpoints.
+            perform display-current-breakpoints
 
             continue.
 
@@ -872,11 +888,11 @@
             compute goto-linenumber = linenumber(10) - MAX-ROWS
             end-compute
 
-            move spaces to tmp-command-input-buffer.
+            move spaces to tmp-command-input-buffer
 
-            perform goto-line.
-            perform display-current-breakpoints.
-            perform display-active-line-if-visible.
+            perform goto-line
+            perform display-current-breakpoints
+            perform display-active-line-if-visible
 
             continue.
 
@@ -885,11 +901,11 @@
             compute goto-linenumber = linenumber(10) + MAX-ROWS
             end-compute
 
-            move spaces to tmp-command-input-buffer.
+            move spaces to tmp-command-input-buffer
 
-            perform goto-line.
-            perform display-current-breakpoints.
-            perform display-active-line-if-visible.
+            perform goto-line
+            perform display-current-breakpoints
+            perform display-active-line-if-visible
 
             continue.
 
@@ -908,8 +924,8 @@
                 end-if
             end-if
 
-            perform display-current-breakpoints.
-            perform display-active-line-if-visible.
+            perform display-current-breakpoints
+            perform display-active-line-if-visible
 
             continue.
 
@@ -930,8 +946,8 @@
                 end-if
             end-if
 
-            perform display-current-breakpoints.
-            perform display-active-line-if-visible.
+            perform display-current-breakpoints
+            perform display-active-line-if-visible
 
             continue.
 
@@ -959,10 +975,10 @@
             call GETLINE using tmp-linenumber-bin
             tmp-source-line-buffer end-call
 
-            move spaces to sourceline(MAX-ROWS).
+            move spaces to sourceline(MAX-ROWS)
             move function trim (tmp-source-line-buffer, trailing) to
-                sourceline(MAX-ROWS).
-            move tmp-linenumber to linenumber(MAX-ROWS).
+                sourceline(MAX-ROWS)
+            move tmp-linenumber to linenumber(MAX-ROWS)
 
             display animator-screen end-display
 
@@ -994,16 +1010,16 @@
             call GETLINE using tmp-linenumber-bin
             tmp-source-line-buffer end-call
 
-            move spaces to sourceline(1).
+            move spaces to sourceline(1)
             move function trim (tmp-source-line-buffer, trailing) to
-                sourceline(1).
-            move tmp-linenumber to linenumber(1).
+                sourceline(1)
+            move tmp-linenumber to linenumber(1)
 
             display animator-screen end-display
 
             continue.
 
-      * Binde ausgelagerte Programmbestandteile ein
+      *    copybooks for functional groups:
         copy "breakpoints.cpy".
         copy "view-variable.cpy".
        >> IF ENABLE-LOGGING DEFINED

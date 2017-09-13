@@ -1978,7 +1978,6 @@ COB_EXPIMP cob_field *cob_intr_integer_of_formatted_date	(cob_field *,
 /* Functions in debugger.c */
 
 COB_EXPIMP void anidata(anim_field*, anim_field*, anim_field*, interface_block*, char*, char*, char*);
-COB_EXPIMP int string_contains(char*, char*);
 
 /*******************************/
 
