@@ -94,9 +94,14 @@ pretty_display_numeric(cob_field * f, FILE * fp)
 	cob_field temp(size, q, &attr);
 	cob_pic_symbol * p = pic;
 	if(COB_FIELD_HAVE_SIGN(f)) {
-		p->symbol = '+';
-		p->times_repeated = 1;
-		++p;
+		if(COB_FIELD_SIGN_SEPARATE(f)
+				&& !COB_FIELD_SIGN_LEADING(f)) {
+			/* done later */
+		} else {
+			p->symbol = '+';
+			p->times_repeated = 1;
+			++p;
+		}
 	}
 	if(scale > 0) {
 		if(digits - scale > 0) {
@@ -114,6 +119,14 @@ pretty_display_numeric(cob_field * f, FILE * fp)
 		p->symbol = '9';
 		p->times_repeated = digits;
 		++p;
+	}
+	if(COB_FIELD_HAVE_SIGN(f)) {
+		if(COB_FIELD_SIGN_SEPARATE(f)
+				&& !COB_FIELD_SIGN_LEADING(f)) {
+			p->symbol = '+';
+			p->times_repeated = 1;
+			++p;
+		}
 	}
 	p->symbol = 0;
 

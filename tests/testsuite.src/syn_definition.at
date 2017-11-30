@@ -38,6 +38,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 
 AT_CLEANUP
 
+
 AT_SETUP([Invalid PROGRAM-ID type clause (1)])
 AT_KEYWORDS([definition])
 
@@ -53,6 +54,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([invalid PROGRAM-ID type clause (2)])
 AT_KEYWORDS([definition])
@@ -121,6 +123,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 
 AT_CLEANUP
 
+
 AT_SETUP([Undefined group name])
 AT_KEYWORDS([definition])
 
@@ -141,6 +144,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Undefined data name in group])
 AT_KEYWORDS([definition])
@@ -164,6 +168,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], ,
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Reference not a group name])
 AT_KEYWORDS([definition])
@@ -253,6 +258,7 @@ prog.cob: 6: warning: 'X' previously defined here
 
 AT_CLEANUP
 
+
 AT_SETUP([Redefinition of 01 and 02 items])
 AT_KEYWORDS([definition])
 
@@ -271,6 +277,7 @@ prog.cob: 6: warning: 'X' previously defined here
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Redefinition of 02 items])
 AT_KEYWORDS([definition])
@@ -292,6 +299,7 @@ prog.cob: 7: warning: 'X' previously defined here
 
 AT_CLEANUP
 
+
 AT_SETUP([Redefinition of 77 items])
 AT_KEYWORDS([definition])
 
@@ -311,6 +319,7 @@ prog.cob: 6: warning: 'X' previously defined here
 
 AT_CLEANUP
 
+
 AT_SETUP([Redefinition of 01 and 77 items])
 AT_KEYWORDS([definition])
 
@@ -329,6 +338,7 @@ prog.cob: 6: warning: 'X' previously defined here
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Redefinition of 88 items])
 AT_KEYWORDS([definition])
@@ -470,6 +480,142 @@ prog.cob: 12: error: syntax error, unexpected user function name
 ])
 AT_CLEANUP
 
+
+# Disallow PROCEDURE DIVISION RETURNING OMITTED for main
+AT_SETUP([PROCEDURE DIVISION RETURNING OMITTED: main])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       PROCEDURE        DIVISION RETURNING OMITTED.
+           MOVE 42 TO RETURN-CODE
+           GOBACK.
+])
+
+
+AT_CHECK([$COMPILE_MODULE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE prog.cob], [1], [],
+[prog.cob: 4: error: RETURNING clause cannot be OMITTED for main program
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([PROCEDURE DIVISION RETURNING OMITTED: FUNCTION])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func.
+       PROCEDURE        DIVISION RETURNING OMITTED.
+           MOVE 42 TO RETURN-CODE
+           GOBACK.
+       END FUNCTION     func.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
+[prog.cob: 4: error: RETURNING clause cannot be OMITTED for a FUNCTION
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([PROCEDURE DIVISION RETURNING item])
+AT_KEYWORDS([runmisc])
+
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func.
+       DATA             DIVISION.
+       LINKAGE          SECTION.
+       01 PAR-OUT       PIC 9.
+       PROCEDURE        DIVISION RETURNING PAR-OUT.
+           MOVE 4 TO PAR-OUT
+           GOBACK.
+       END FUNCTION     func.
+])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       01 PAR-OUT       PIC 9.
+       PROCEDURE        DIVISION RETURNING PAR-OUT.
+           MOVE 4 TO PAR-OUT
+           GOBACK.
+       END FUNCTION     func.
+])
+
+AT_DATA([prog3.cob], [
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func.
+       DATA             DIVISION.
+       LINKAGE          SECTION.
+       01 PAR-OUT       PIC 9 OCCURS 10.
+       PROCEDURE        DIVISION RETURNING PAR-OUT.
+           MOVE 4 TO PAR-OUT (1)
+           GOBACK.
+       END FUNCTION     func.
+])
+
+AT_DATA([prog4.cob], [
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func.
+       DATA             DIVISION.
+       LINKAGE          SECTION.
+       01 PAR.
+          02 PAR-OUT    PIC 9.
+       PROCEDURE        DIVISION RETURNING PAR-OUT.
+           MOVE 4 TO PAR-OUT
+           GOBACK.
+       END FUNCTION     func.
+])
+
+AT_DATA([prog5.cob], [
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func.
+       DATA             DIVISION.
+       LINKAGE          SECTION.
+       01 PAR           PIC 9.
+       PROCEDURE        DIVISION USING PAR RETURNING PAR.
+           MOVE 4 TO PAR
+           GOBACK.
+       END FUNCTION     func.
+
+       IDENTIFICATION   DIVISION.
+       FUNCTION-ID.     func2.
+       DATA             DIVISION.
+       LINKAGE          SECTION.
+       01 PAR-IN        PIC 9.
+       01 PAR-OUT       REDEFINES PAR-IN PIC 9.
+       PROCEDURE        DIVISION USING PAR-IN RETURNING PAR-OUT.
+           MOVE 4 TO PAR-OUT
+           GOBACK.
+       END FUNCTION     func2.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY prog2.cob], [1], [],
+[prog2.cob: 7: error: RETURNING item is not defined in LINKAGE SECTION
+])
+AT_CHECK([$COMPILE_ONLY prog3.cob], [1], [],
+[prog3.cob: 7: error: RETURNING item should not have OCCURS
+prog3.cob: 9: error: 'PAR-OUT' requires one subscript
+])
+AT_CHECK([$COMPILE_ONLY prog4.cob], [1], [],
+[prog4.cob: 8: error: RETURNING item must have level 01
+])
+AT_CHECK([$COMPILE_ONLY prog5.cob], [1], [],
+[prog5.cob: 7: error: 'PAR' USING item duplicates RETURNING item
+prog5.cob: 18: error: 'PAR-OUT' REDEFINES field not allowed here
+])
+
+AT_CLEANUP
+
+
 AT_SETUP([Data item with same name as program-name])
 AT_KEYWORDS([definition])
 
@@ -523,6 +669,7 @@ prog.cob: 9: error: 'X IN G2' defined here
 
 AT_CLEANUP
 
+
 AT_SETUP([Ambiguous reference to 02 and 03 items])
 AT_KEYWORDS([definition])
 
@@ -547,6 +694,7 @@ prog.cob: 8: error: 'X IN X IN G' defined here
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Ambiguous reference with qualification])
 AT_KEYWORDS([definition])
@@ -653,6 +801,7 @@ prog.cob: 5: error: 'L' previously defined here
 
 AT_CLEANUP
 
+
 AT_SETUP([Redefinition of section and paragraph names])
 AT_KEYWORDS([definition])
 
@@ -672,6 +821,7 @@ prog.cob: 5: error: 'L' previously defined here
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([Redefinition of paragraph names])
 AT_KEYWORDS([definition])
@@ -698,6 +848,7 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
 
 AT_CLEANUP
 
+
 AT_SETUP([Ambiguous reference to paragraph name])
 AT_KEYWORDS([definition])
 
@@ -723,6 +874,7 @@ prog.cob: 8: error: 'L IN S-2' defined here
 
 AT_CLEANUP
 
+
 AT_SETUP([Non-matching level numbers (extension)])
 AT_KEYWORDS([definition])
 
@@ -745,6 +897,7 @@ AT_CHECK([$COMPILE_ONLY -frelax-level-hierarchy prog.cob], [0], [],
 ])
 
 AT_CLEANUP
+
 
 AT_SETUP([CALL BY VALUE alphanumeric item (extension)])
 AT_KEYWORDS([definition])
@@ -783,7 +936,58 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 AT_CLEANUP
 
 
-AT_SETUP([Invalid environment division order])
+AT_SETUP([RETURNING in STOP RUN / GOBACK / EXIT PROGRAM])
+AT_KEYWORDS([definition RETURN-CODE])
+
+AT_DATA([prog1.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog1.
+       PROCEDURE        DIVISION.
+           EXIT PROGRAM RETURNING -1.
+])
+
+AT_DATA([prog2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog2.
+       PROCEDURE        DIVISION.
+           GOBACK GIVING 2.
+])
+
+AT_DATA([prog3.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog3.
+       PROCEDURE        DIVISION.
+           STOP RUN GIVING 0.
+])
+
+AT_DATA([prog4.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog4.
+       PROCEDURE        DIVISION.
+           MOVE 42 TO RETURN-CODE
+           GOBACK.
+])
+
+AT_DATA([prog5.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog5.
+       PROCEDURE        DIVISION.
+           GOBACK.
+])
+
+AT_CHECK([$COMPILE prog1.cob prog2.cob prog3.cob prog4.cob prog5.cob],
+[0], [], [])
+AT_CHECK([$COMPILE -fnot-register=return-code \
+prog1.cob prog2.cob prog3.cob prog4.cob prog5.cob], [1], [],
+[prog1.cob: 5: error: RETURNING/GIVING not allowed for non-returning sources
+prog2.cob: 5: error: RETURNING/GIVING not allowed for non-returning sources
+prog4.cob: 5: error: 'RETURN-CODE' is not defined
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Invalid ENVIRONMENT DIVISION order])
 AT_KEYWORDS([definition])
 
 AT_DATA([prog.cob], [
@@ -1131,6 +1335,7 @@ prog.cob: 8: error: 'y' cannot have * in PICTURE string and BLANK WHEN ZERO
 ])
 AT_CLEANUP
 
+
 AT_SETUP([PICTURE strings invalid with USAGE])
 AT_KEYWORDS([definition])
 
@@ -1283,6 +1488,6 @@ AT_CHECK([$COMPILE_ONLY -std=cobol2014 prog.cob], [1], [],
 prog.cob: 8: error: RENAMES of 01-, 66- and 77-level items does not conform to COBOL 2014
 prog.cob: 11: error: RENAMES of 01-, 66- and 77-level items does not conform to COBOL 2014
 ])
-AT_CHECK([$COMPILE_ONLY -std=mf prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_ONLY -frenames-uncommon-levels=ok prog.cob], [0], [], [])
 
 AT_CLEANUP

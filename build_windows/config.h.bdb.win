@@ -22,7 +22,7 @@
 /* #undef AC_APPLE_UNIVERSAL_BUILD */
 
 /* Executable extension */
-#define COB_EXEEXT ".exe"
+#define COB_EXE_EXT ".exe"
 
 /* Enable experimemental code (Developers only!) */
 /* #undef COB_EXPERIMENTAL */
@@ -31,7 +31,7 @@
 #define COB_EXPORT_DYN ""
 
 /* Keyword for inline */
-#define COB_KEYWORD_INLINE __inline
+#define COB_KEYWORD_INLINE inline
 
 /* long int is long long */
 /* #undef COB_LI_IS_LL */
@@ -53,6 +53,13 @@
 
 /* Strip command */
 /* #undef COB_STRIP_CMD */
+
+/* define if you want to use the fall-back to GetUserName
+   for ACCEPT var FROM USER NAME
+   note: only active if %USERNAME% is not set, needs an additional
+   library for each invocation of libcob, even if not used...
+*/
+#define HAVE_GETUSERNAME 1
 
 /* Define to one of `_getb67', `GETB67', `getb67' for Cray-2 and Cray-YMP
    systems. This function is required for `alloca.c' support on those systems.
@@ -95,6 +102,9 @@
 
 /* Define to 1 if you have the <curses.h> header file. */
 #define HAVE_CURSES_H 1
+
+/* curses library for extended SCREEN I/O */
+#define WITH_CURSES "pdcurses"
 
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
@@ -302,29 +312,32 @@
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 /* #undef NO_MINUS_C_MINUS_O */
 
+/* Define maximum parameters for CALL */
+#define MAX_CALL_FIELD_PARAMS 36
+
 /* Name of package */
-#define PACKAGE "gnu-cobol-cpp"
+#define PACKAGE "gnucobolcpp"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "open-cobol-list@lists.sourceforge.net"
+#define PACKAGE_BUGREPORT "bug-gnucobol@gnu.org"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "GNU Cobol C++"
+#define PACKAGE_NAME "GNUCobolCPP"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU Cobol C++ 2.0"
+#define PACKAGE_STRING "GNUCobolCPP 2.2"
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "gnu-cobol-cpp"
+#define PACKAGE_TARNAME "gnucobolcpp"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "http://sourceforge.net/projects/open-cobol"
+#define PACKAGE_URL "https://www.gnu.org/software/gnucobol/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.0"
+#define PACKAGE_VERSION "2.2"
 
 /* Define a patch level */
-#define PATCH_LEVEL 20131031
+#define PATCH_LEVEL COB_NUM_TAR_DATE
 
 /* If using the C implementation of alloca, define if you know the
    direction of stack growth for your system; otherwise it will be
@@ -366,7 +379,7 @@
 
 
 /* Version number of package */
-#define VERSION "2.0"
+#define VERSION "2.2"
 
 /* Use CISAM as ISAM handler */
 /* #undef WITH_CISAM */

@@ -23,7 +23,7 @@
 #include "config.h"
 
 #ifdef _MSC_VER
-#define NOMINMAX
+	#define NOMINMAX
 #endif
 
 #define _LFS64_LARGEFILE		1
@@ -833,7 +833,7 @@ cob_file_write_opt(cob_file * f, const int opt)
 		int i = opt & COB_WRITE_MASK;
 		if(!i) {
 			/* AFTER/BEFORE 0 */
-			putc(0x0d, (FILE *)f->file);
+			putc('\r', (FILE *)f->file);
 		} else {
 			for(; i > 0; --i) {
 				putc('\n', (FILE *)f->file);
@@ -2056,7 +2056,7 @@ join_environment(void)
 #endif
 #endif
 	bdb_env->set_cachesize(bdb_env, 0, 2 * 1024 * 1024, 0);
-	bdb_env->set_alloc(bdb_env, (void *(*)(size_t))cob_malloc, realloc, cob_free);
+	bdb_env->set_alloc(bdb_env, (void * (*)(size_t))cob_malloc, realloc, cob_free);
 	cob_u32_t flags = DB_CREATE | DB_INIT_MPOOL | DB_INIT_CDB;
 	ret = bdb_env->open(bdb_env, cobsetptr->bdb_home, flags, 0);
 	if(ret) {
@@ -4218,7 +4218,7 @@ cob_file_external_addr(const char * exname,
 	}
 
 	if(nkeys > 0
-			&& fl->keys != NULL) {
+			&& fl->keys == NULL) {
 		fl->keys = (cob_file_key *) cob_cache_malloc(sizeof(cob_file_key) * nkeys);
 	}
 	if(pky != NULL) {
@@ -4730,11 +4730,7 @@ cob_delete_file(cob_file * f, cob_field * fnstatus)
 		return;
 	}
 
-	if(unlikely(COB_FILE_STDIN(f))) {
-		save_status(f, fnstatus, COB_STATUS_30_PERMANENT_ERROR);
-		return;
-	}
-	if(unlikely(COB_FILE_STDOUT(f))) {
+	if(unlikely(COB_FILE_STDIN(f)) || unlikely(COB_FILE_STDOUT(f))) {
 		save_status(f, fnstatus, COB_STATUS_30_PERMANENT_ERROR);
 		return;
 	}
@@ -5852,7 +5848,9 @@ cob_file_sort_giving(cob_file * sort_file, const size_t varcnt, ...)
 				sort_file->file_status[1] = '0';
 			} else {
 				cobsort * hp = (cobsort *) sort_file->file;
-				*(int *)(hp->sort_return) = 16;
+				if(hp->sort_return) {
+					*(int *)(hp->sort_return) = 16;
+				}
 				sort_file->file_status[0] = '3';
 				sort_file->file_status[1] = '0';
 			}
@@ -5899,8 +5897,10 @@ cob_file_sort_init(cob_file * f, const unsigned int nkeys,
 		p->chunk_size += p->alloc_size - (p->chunk_size % p->alloc_size);
 	}
 	p->pointer = f;
-	p->sort_return = sort_return;
-	*(int *)sort_return = 0;
+	if(sort_return) {
+		p->sort_return = sort_return;
+		*(int *)sort_return = 0;
+	}
 	p->mem_base = new sort_mem_struct;
 	p->mem_base->mem_ptr = new unsigned char[p->chunk_size];
 	p->mem_base->next = NULL;
@@ -5962,7 +5962,7 @@ cob_file_release(cob_file * f)
 		save_status(f, fnstatus, COB_STATUS_00_SUCCESS);
 		return;
 	}
-	if(likely(hp)) {
+	if(likely(hp && hp->sort_return)) {
 		*(int *)(hp->sort_return) = 16;
 	}
 	save_status(f, fnstatus, COB_STATUS_30_PERMANENT_ERROR);
@@ -5985,7 +5985,7 @@ cob_file_return(cob_file * f)
 		save_status(f, fnstatus, COB_STATUS_10_END_OF_FILE);
 		return;
 	}
-	if(likely(hp)) {
+	if(likely(hp && hp->sort_return)) {
 		*(int *)(hp->sort_return) = 16;
 	}
 	save_status(f, fnstatus, COB_STATUS_30_PERMANENT_ERROR);

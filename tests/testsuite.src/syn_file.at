@@ -1,4 +1,4 @@
-## Copyright (C) 2003-2012, 2014, 2016 Free Software Foundation, Inc.
+## Copyright (C) 2003-2012, 2014, 2016-2017 Free Software Foundation, Inc.
 ## Written by Keisuke Nishida, Roger While, Simon Sobisch
 ##
 ## This file is part of GnuCOBOL.
@@ -266,7 +266,57 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 AT_CLEANUP
 
 
-AT_SETUP([key items])
+AT_SETUP([valid key items])
+AT_KEYWORDS([file record alternate])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       ENVIRONMENT      DIVISION.
+       INPUT-OUTPUT     SECTION.
+       FILE-CONTROL.
+       SELECT TEST-SOME ASSIGN TO 'FILE-TEST'
+                        ORGANIZATION  IS INDEXED
+                        ACCESS MODE   IS DYNAMIC
+                        RECORD    KEY IS TEST-P2 IN TEST-SOME
+                        ALTERNATE KEY IS TEST-P3 IN TEST-SOME.
+       SELECT TEST-FILE ASSIGN TO 'FILE-TEST2'
+                        ORGANIZATION  IS INDEXED
+                        ACCESS MODE   IS DYNAMIC
+                        RECORD    KEY IS TEST-P1
+                        ALTERNATE KEY IS TEST-P4.
+       DATA             DIVISION.
+       FILE             SECTION.
+       FD TEST-SOME.
+       01  SOME-REC.
+           05  TEST-P2   PIC S9(4) COMP.
+           05  TEST-P3   PIC S9(5) COMP-3.
+       FD TEST-FILE.
+       01  TEST-REC.
+           05 TEST-P1   PIC X(4).
+           05 FILLER    PIC X(4).
+           05 TEST-P4   PIC X(4).
+       WORKING-STORAGE  SECTION.
+       01  WS-REC.
+           05  TEST-P2   PIC S9(4) COMP.
+           05  TEST-P3   PIC S9(5) COMP-3.
+       PROCEDURE        DIVISION.
+           OPEN  INPUT TEST-FILE
+           CLOSE TEST-FILE
+           OPEN  OUTPUT TEST-SOME
+           MOVE CORRESPONDING WS-REC TO SOME-REC
+           WRITE SOME-REC
+           CLOSE TEST-SOME
+      *
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([invalid key items])
 AT_KEYWORDS([file record alternate])
 
 AT_DATA([prog.cob], [
@@ -483,14 +533,14 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 20: error: 'RECORDSIZE' is not defined
 prog.cob: 26: error: RECORD DEPENDING must reference a data-item
-prog.cob: 34: error: RECORD DEPENDING item 'RECORDSIZE3' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE section
-prog.cob: 40: error: RECORD DEPENDING item 'RECORDSIZE4' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE section
+prog.cob: 34: error: RECORD DEPENDING item 'RECORDSIZE3' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE SECTION
+prog.cob: 40: error: RECORD DEPENDING item 'RECORDSIZE4' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE SECTION
 ])
 AT_CHECK([$COMPILE_ONLY -frelax-syntax-checks prog.cob], [1], [],
 [prog.cob: 20: error: 'RECORDSIZE' is not defined
 prog.cob: 26: error: RECORD DEPENDING must reference a data-item
-prog.cob: 34: warning: RECORD DEPENDING item 'RECORDSIZE3' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE section
-prog.cob: 40: warning: RECORD DEPENDING item 'RECORDSIZE4' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE section
+prog.cob: 34: warning: RECORD DEPENDING item 'RECORDSIZE3' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE SECTION
+prog.cob: 40: warning: RECORD DEPENDING item 'RECORDSIZE4' should be defined in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE SECTION
 ])
 
 AT_CLEANUP
@@ -806,4 +856,89 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 [prog.cob: 11: error: syntax error, unexpected Identifier, expecting DYNAMIC or RANDOM or SEQUENTIAL
 prog.cob: 13: warning: 'filename' will be implicitly defined
 ])
+AT_CLEANUP
+
+
+AT_SETUP([RELATIVE KEY type checks])
+AT_KEYWORDS([RELATIVE FILE])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+            SELECT FILE1 ASSIGN DISK
+            ORGANIZATION RELATIVE ACCESS MODE RANDOM
+            RELATIVE KEY FILE1-KEY.
+            SELECT FILE2 ASSIGN DISK
+            ORGANIZATION RELATIVE ACCESS MODE RANDOM
+            RELATIVE KEY FILE2-KEY.
+            SELECT FILE3 ASSIGN DISK
+            ORGANIZATION RELATIVE ACCESS MODE RANDOM
+            RELATIVE KEY FILE3-KEY.
+            SELECT FILE4 ASSIGN DISK
+            ORGANIZATION RELATIVE ACCESS MODE RANDOM
+            RELATIVE KEY FILE4-KEY.
+            SELECT FILE5 ASSIGN DISK
+            ORGANIZATION RELATIVE ACCESS MODE RANDOM
+            RELATIVE KEY FILE5-KEY.
+       DATA DIVISION.
+       FILE SECTION.
+       FD FILE1.
+            01  FILE1-REC PIC X.
+       FD FILE2.
+            01  FILE2-REC PIC X.
+       FD FILE3.
+            01  FILE3-REC PIC X.
+       FD FILE4.
+            01  FILE4-REC.
+               05  FLD1      PIC X.
+               05  FILE4-KEY PIC 999.
+       FD FILE5.
+            01  FILE5-REC PIC X.
+       WORKING-STORAGE SECTION.
+            77  FILE1-KEY PIC XXXX.
+            01  FILE2-KEY.
+                05  F2-KEY PIC 9(5).
+            01  F3-KEY.
+                05  FILE3-KEY PIC 9(5) OCCURS 2 TIMES.
+            77  FILE5-KEY PIC 999V9.
+       PROCEDURE DIVISION.
+            STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [1], [],
+[prog.cob: 9: error: file FILE1: RELATIVE KEY FILE1-KEY is not numeric
+prog.cob: 12: error: file FILE2: RELATIVE KEY FILE2-KEY is not numeric
+prog.cob: 15: error: file FILE3: RELATIVE KEY FILE3-KEY cannot have OCCURS
+prog.cob: 18: error: RELATIVE KEY FILE4-KEY cannot be in file record belonging to FILE4
+prog.cob: 21: error: file FILE5: RELATIVE KEY FILE5-KEY must be integer
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Mismatched KEY clause])
+AT_KEYWORDS([file RELATIVE INDEXED])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+            SELECT file-1 ASSIGN DISK,
+                INDEXED, RELATIVE KEY file-1-key.
+            SELECT file-2 ASSIGN DISK,
+                RELATIVE, RECORD KEY file-2-key.
+])
+
+AT_CHECK([$COMPILE prog.cob], [1], [],
+[prog.cob: 8: error: Cannot use RELATIVE KEY clause on INDEXED files
+prog.cob: 10: error: Cannot use RECORD KEY clause on RELATIVE files
+prog.cob: 8: error: 'file-1-key' is not defined
+prog.cob: 10: error: 'file-2-key' is not defined
+])
+
 AT_CLEANUP

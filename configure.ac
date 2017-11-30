@@ -23,7 +23,7 @@
 AC_PREREQ([2.64])
 
 AC_INIT([GnuCOBOL C++],
-	[2.0],
+	[2.2],
 	[bug-gnucobol@gnu.org],
 	[gnucobolcpp],
 	[https://www.gnu.org/software/gnucobol/])
@@ -96,6 +96,7 @@ AH_TEMPLATE([HAVE_CURSES_FREEALL], [ncurses has _nc_freeall function])
 AH_TEMPLATE([HAVE_USE_LEGACY_CODING], [ncurses has use_legacy_coding function])
 AH_TEMPLATE([HAVE_NANO_SLEEP], [Has nanosleep function])
 AH_TEMPLATE([HAVE_CLOCK_GETTIME], [Has clock_gettime function and CLOCK_REALTIME])
+AH_TEMPLATE([HAVE_ISFINITE], [Has isfinite function])
 #AH_TEMPLATE([HAVE_RAISE], [Has raise function])
 AH_TEMPLATE([HAVE_FINITE_IEEEFP_H],
 	[Declaration of finite function in ieeefp.h instead of math.h])
@@ -137,7 +138,7 @@ AC_ARG_ENABLE([param-check],
 
 AC_ARG_WITH([patch-level],
   [AS_HELP_STRING([--with-patch-level],
-    [(GnuCOBOL C++) Define a patch level (default 0), numeric, max. 8 digits])],
+    [(GnuCOBOL C++) Define a patch level (default TAR date), numeric, max. 8 digits])],
   [case $with_patch_level in  
     yes)	AC_MSG_ERROR([[You must give --with-patch-level an argument.]])
 		;;
@@ -151,7 +152,7 @@ AC_ARG_WITH([patch-level],
     *)		AC_MSG_ERROR([[You must use a numeric patch level]])
 		;;
   esac],
-  [with_patch_level=0])
+  [with_patch_level=COB_NUM_TAR_DATE])
 
 AC_DEFINE_UNQUOTED([PATCH_LEVEL], [$with_patch_level])
   
@@ -406,7 +407,7 @@ AC_ARG_WITH([dl],
 
 AC_ARG_WITH([varseq],
   [AS_HELP_STRING([--with-varseq],
-    [(GnuCOBOL C++) Define variable sequential format (default 0)])],
+    [(GnuCOBOL C++) Define variable sequential format (default 1)])],
   [case $with_varseq in  
     yes)	AC_MSG_ERROR([[You must give --with-varseq an argument.]])
 		;;
@@ -417,7 +418,7 @@ AC_ARG_WITH([varseq],
     *)		AC_MSG_ERROR([[Invalid --with-varseq argument]])
 		;;
   esac],
-  [with_varseq=0])
+  [with_varseq=1])
 
 AC_DEFINE_UNQUOTED([WITH_VARSEQ], [$with_varseq])
 
@@ -528,6 +529,12 @@ AC_MSG_CHECKING([for clock_gettime and CLOCK_REALTIME])
 AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <time.h>]],
   [[clock_gettime (CLOCK_REALTIME, NULL);]])],
   [AC_DEFINE([HAVE_CLOCK_GETTIME], [1]) AC_MSG_RESULT([yes])],
+  [AC_MSG_RESULT([no])])
+
+AC_MSG_CHECKING([for isfinite ])
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <math.h>]],
+  [[isfinite ( 1.0 );]])],
+  [AC_DEFINE([HAVE_ISFINITE], [1]) AC_MSG_RESULT([yes])],
   [AC_MSG_RESULT([no])])
 
 # Check for raise (optional) --> done via AC_CHECK_FUNCS
@@ -1121,6 +1128,7 @@ case $host_os in
 		COB_LIBS="-xstrconst -xmemalign=1i $COB_LIBS"
 		LDFLAGS="$LDFLAGS -xmemalign=1i"
 		COB_SHARED_OPT="-G"
+		LIBCOB_LIBS="$LIBCOB_LIBS -lCstd -lCrun"
 	fi
 	;;
 esac

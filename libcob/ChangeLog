@@ -1,3 +1,7 @@
+2017-11-28 Sergey Kashyrin <ska@kiska.net>
+	* Catch up with Release 2.2
+	* So far probably only one important difference - call by content is passing COMP-4
+	*  as opposite of COMP-5 in main release.
 
 2017-08-15 Sergey Kashyrin <ska@kiska.net>
 

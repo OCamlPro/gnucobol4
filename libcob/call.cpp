@@ -24,7 +24,7 @@
 #include "defaults.h"
 
 #ifdef _MSC_VER
-#define NOMINMAX
+	#define NOMINMAX
 #endif
 
 #ifndef	_GNU_SOURCE
@@ -184,11 +184,7 @@ static cob_field_attr	const_binll_attr(COB_TYPE_NUMERIC_BINARY, 18, 0, COB_FLAG_
 static cob_field_attr	const_binull_attr(COB_TYPE_NUMERIC_BINARY, 18, 0, 0, NULL);
 
 #undef	COB_SYSTEM_GEN
-#if 1
-	#define	COB_SYSTEM_GEN(x,y,z)		{ x, {(void *(*)(...))z} },
-#else
-	#define	COB_SYSTEM_GEN(x,y,z)		{ x, {(void *(*)(void *))z} },
-#endif
+#define	COB_SYSTEM_GEN(cob_name, pmin, pmax, c_name) { cob_name, {(void *(*)(...))c_name} },
 
 static const system_table system_tab[] = {
 #include "system.def"
@@ -205,11 +201,8 @@ static const unsigned char	pvalid_char[] =
 /* Local functions */
 
 static void
-set_resolve_error(const char * msg, const char * entry)
+set_resolve_error()
 {
-	resolve_error_buff[CALL_BUFF_MAX] = 0;
-	snprintf(resolve_error_buff, (size_t)CALL_BUFF_MAX,
-			 "%s '%s'", msg, entry);
 	resolve_error = resolve_error_buff;
 	cob_set_exception(COB_EC_PROGRAM_NOT_FOUND);
 }
@@ -295,9 +288,11 @@ do_cancel_module(call_hash * p, call_hash ** base_hash, call_hash * prev)
 		nocancel = true;
 	}
 	/* This should be impossible */
+	/* LCOV_EXCL_START */
 	if(p->module->module_active) {
 		nocancel = true;
 	}
+	/* LCOV_EXCL_STOP */
 	if(p->module->module_ref_count && *(p->module->module_ref_count)) {
 		nocancel = true;
 	}
@@ -522,9 +517,11 @@ static void *
 cob_resolve_internal(const char * name, const char * dirent,
 					 const int fold_case)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_set_exception(0);
 
 	/* Search the cache */
@@ -642,6 +639,7 @@ cob_resolve_internal(const char * name, const char * dirent,
 	}
 
 	/* Search external modules */
+	resolve_error_buff[CALL_BUFF_MAX] = 0;
 #ifdef	__OS400__
 	strcpy(call_filename_buff, s);
 	for(p = call_filename_buff; *p; ++p) {
@@ -664,7 +662,9 @@ cob_resolve_internal(const char * name, const char * dirent,
 		snprintf(call_filename_buff, (size_t)COB_NORMAL_MAX,
 				 "%s%s.%s", dirent, (char *)s, COB_MODULE_EXT);
 		if(access(call_filename_buff, R_OK) != 0) {
-			set_resolve_error(_("cannot find module"), name);
+			snprintf(resolve_error_buff, (size_t)CALL_BUFF_MAX,
+					 "module '%s' not found", name);
+			set_resolve_error();
 			return NULL;
 		}
 		lt_dlhandle handle = lt_dlopen(call_filename_buff);
@@ -679,8 +679,9 @@ cob_resolve_internal(const char * name, const char * dirent,
 				return func;
 			}
 		}
-		set_resolve_error(_("cannot find entry point"),
-						  (const char *)s);
+		snprintf(resolve_error_buff, (size_t)CALL_BUFF_MAX,
+				 "entry point '%s' not found", (const char *)s);
+		set_resolve_error();
 		return NULL;
 	}
 	for(int i = 0; i < resolve_size; ++i) {
@@ -706,14 +707,17 @@ cob_resolve_internal(const char * name, const char * dirent,
 					return func;
 				}
 			}
-			set_resolve_error(_("cannot find entry point"),
-							  (const char *)s);
+			snprintf(resolve_error_buff, (size_t)CALL_BUFF_MAX,
+					 "entry point '%s' not found", (const char *)s);
+			set_resolve_error();
 			return NULL;
 		}
 	}
 #endif
 
-	set_resolve_error(_("cannot find module"), name);
+	snprintf(resolve_error_buff, (size_t)CALL_BUFF_MAX,
+			 "module '%s' not found", name);
+	set_resolve_error();
 	return NULL;
 }
 
@@ -859,9 +863,11 @@ void *
 cob_call_field(const cob_field * f, const cob_call_struct * cs,
 			   const unsigned int errind, const int fold_case)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
+	/* LCOV_EXCL_STOP */
 
 	char * buff = cob_get_buff(f->size + 1);
 	cob_field_to_string(f, buff, f->size);
@@ -920,6 +926,7 @@ cob_call_field(const cob_field * f, const cob_call_struct * cs,
 void
 cob_cancel(const char * name)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
@@ -927,6 +934,7 @@ cob_cancel(const char * name)
 		cob_runtime_error(_("NULL parameter passed to 'cob_cancel'"));
 		cob_stop_run(1);
 	}
+	/* LCOV_EXCL_STOP */
 	const char * entry = cob_chk_dirp(name);
 
 	call_hash ** q;
@@ -948,9 +956,11 @@ cob_cancel(const char * name)
 void
 cob_cancel_field(const cob_field * f, const cob_call_struct * cs)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
+	/* LCOV_EXCL_STOP */
 	if(!f || f->size == 0) {
 		return;
 	}
@@ -975,6 +985,7 @@ cob_cancel_field(const cob_field * f, const cob_call_struct * cs)
 int
 cob_call(const char * name, const int argc, void ** argv)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
@@ -986,6 +997,7 @@ cob_call(const char * name, const int argc, void ** argv)
 		cob_runtime_error(_("NULL parameter passed to '%s'"), "cob_call");
 		cob_stop_run(1);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_call_union unifunc;
 	unifunc.funcvoid = cob_resolve_cobol(name, 0, 1);
 	void ** pargv = new void * [MAX_CALL_FIELD_PARAMS];
@@ -1094,6 +1106,7 @@ cob_func(const char * name, const int argc, void ** argv)
 void *
 cob_savenv(cobjmp_buf * jbuf)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
@@ -1105,6 +1118,7 @@ cob_savenv(cobjmp_buf * jbuf)
 		cob_runtime_error(_("Multiple call to 'cob_setjmp'"));
 		cob_stop_run(1);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_jmp_primed = 1;
 	return jbuf->cbj_jmp_buf;
 }
@@ -1120,6 +1134,7 @@ cob_savenv2(cobjmp_buf * jbuf, const int jsize)
 void
 cob_longjmp(cobjmp_buf * jbuf)
 {
+	/* LCOV_EXCL_START */
 	if(unlikely(!cobglobptr)) {
 		cob_fatal_error(COB_FERROR_INITIALIZED);
 	}
@@ -1131,6 +1146,7 @@ cob_longjmp(cobjmp_buf * jbuf)
 		cob_runtime_error(_("call to 'cob_longjmp' with no prior 'cob_setjmp'"));
 		cob_stop_run(1);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_jmp_primed = 0;
 	longjmp(jbuf->cbj_jmp_buf, 1);
 }
@@ -1300,6 +1316,10 @@ cob_init_call(cob_global * lptr, cob_settings * sptr)
 
 	if(cobsetptr->cob_preload_str != NULL) {
 		char * p = cob_strdup(cobsetptr->cob_preload_str);
+
+		delete [] cobsetptr->cob_preload_str;
+		cobsetptr->cob_preload_str = NULL;
+
 		char * s = strtok(p, PATHSEP_STR);
 		for(; s; s = strtok(NULL, PATHSEP_STR)) {
 #ifdef __OS400__

@@ -104,6 +104,10 @@ COB_EXCEPTION(0306, COB_EC_DATA_NOT_DECIMAL_ENCODING,
 COB_EXCEPTION(0307, COB_EC_DATA_NOT_FINITE,
 			  "EC-DATA-NOT-FINITE", 1)
 
+/* Exponent overflow during MOVE to item with floating-point usage */
+COB_EXCEPTION(0308, COB_EC_DATA_OVERFLOW,
+			  "EC-DATA-OVERFLOW", 1)
+
 
 /* Execution control flow violation */
 COB_EXCEPTION(0400, COB_EC_FLOW,
@@ -268,6 +272,10 @@ COB_EXCEPTION(0807, COB_EC_OO_UNIVERSAL,
 /* Argument omitted */
 COB_EXCEPTION(0808, COB_EC_OO_ARG_OMITTED,
 			  "EC-OO-ARG-OMITTED", 1)
+
+/* Invalid assignment of finalizable/finalized object reference */
+COB_EXCEPTION(0809, COB_EC_OO_FINALIZABLE,
+			  "EC-OO-FINALIZABLE", 1)
 
 
 /* Ordering exception */

@@ -24,7 +24,7 @@
 #include "tarstamp.h"
 
 #ifdef _MSC_VER
-#define NOMINMAX
+	#define NOMINMAX
 #endif
 
 #include <stdio.h>
@@ -114,7 +114,15 @@
 
 /* C version info */
 #ifdef	__VERSION__
-	#define OC_C_VERSION_PRF	""
+	#if !defined(_MSC_VER)
+		#define OC_C_VERSION_PRF	""
+	#elif defined(__c2__)
+		#define OC_C_VERSION_PRF	"(Microsoft C2) "
+	#elif defined (__llvm__)
+		#define OC_C_VERSION_PRF	"(LLVM / MSC) "
+	#else
+		#define OC_C_VERSION_PRF	"(Microsoft) "
+	#endif
 	#define OC_C_VERSION	CB_XSTRINGIFY(__VERSION__)
 #elif	defined(__xlc__)
 	#define OC_C_VERSION_PRF	"(IBM XL C/C++) "
@@ -151,6 +159,11 @@ struct cob_alloc_cache {
 	size_t				size;			/* Item size */
 };
 
+struct cob_alloc_module {
+	cob_alloc_module *	next;		/* Pointer to next */
+	void		*	cob_pointer;	/* Pointer to malloced space */
+};
+
 /* EXTERNAL structure */
 
 struct cob_external {
@@ -165,10 +178,12 @@ struct cob_external {
 /* Local variables */
 
 static int				cob_initialized = 0;
-static int				cob_argc;
-static char 	**		cob_argv;
-static cob_alloc_cache * cob_alloc_base;
-static const char 	*	cob_last_sfile;
+static int				cob_argc = 0;
+static char 	**		cob_argv = NULL;
+static cob_alloc_cache * cob_alloc_base = NULL;
+static cob_alloc_module	* cob_module_list = NULL;
+static cob_module	*	cob_module_err = NULL;
+static const char 	*	cob_last_sfile = NULL;
 
 static cob_global 	*	cobglobptr = NULL;
 static cob_settings *	cobsetptr = NULL;
@@ -323,6 +338,8 @@ static struct config_tbl gc_conf[] = {
 	{"COB_LEGACY", "legacy",			NULL,	NULL, GRP_SCREEN, ENV_BOOL, SETPOS(cob_legacy)},
 	{"COB_EXIT_WAIT", "exit_wait",		"1",	NULL, GRP_SCREEN, ENV_BOOL, SETPOS(cob_exit_wait)},
 	{"COB_EXIT_MSG", "exit_msg",		_("end of program, please press a key to exit"), NULL, GRP_SCREEN, ENV_STR, SETPOS(cob_exit_msg)},
+	{"COB_CURRENT_DATE", "current_date",	NULL,	NULL, GRP_MISC, ENV_STR, SETPOS(cob_date)},
+	{"COB_DATE", "date",			NULL,	NULL, GRP_HIDE, ENV_STR, SETPOS(cob_date)},
 	{NULL, NULL, 0, 0}
 };
 #define NUM_CONFIG (sizeof(gc_conf)/sizeof(struct config_tbl)-1)
@@ -432,6 +449,9 @@ cob_exit_common(void)
 					*data = NULL;
 				}
 			}
+		}
+		if(cobsetptr->cob_preload_str_set) {
+			delete [] cobsetptr->cob_preload_str_set;
 		}
 		delete cobsetptr;
 		cobsetptr = NULL;
@@ -543,6 +563,11 @@ cob_sig_handler(int sig)
 #ifdef	SIGSEGV
 	case SIGSEGV:
 		signal_name = "SIGSEGV";
+		break;
+#endif
+#ifdef	SIGBUS
+	case SIGBUS:
+		signal_name = "SIGBUS";
 		break;
 #endif
 	default:
@@ -689,6 +714,11 @@ cob_set_signal(void)
 	(void)sigemptyset(&sa.sa_mask);
 	(void)sigaction(SIGSEGV, &sa, NULL);
 #endif
+#ifdef	SIGBUS
+	/* Take direct control of bus error */
+	(void)sigemptyset(&sa.sa_mask);
+	(void)sigaction(SIGBUS, &sa, NULL);
+#endif
 
 #else
 
@@ -719,7 +749,11 @@ cob_set_signal(void)
 #endif
 #ifdef	SIGSEGV
 	/* Take direct control of segmentation violation */
-	(void)signal(SIGSEGV, cob_sig_handler);
+//	(void)signal(SIGSEGV, cob_sig_handler);
+#endif
+#ifdef	SIGBUS
+	/* Take direct control of bus error */
+	(void)signal(SIGBUS, cob_sig_handler);
 #endif
 
 #endif
@@ -1171,13 +1205,7 @@ cob_rescan_env_vals(void)
 				gc_conf[i].data_type = old_type;
 
 				/* Remove invalid setting */
-#if HAVE_SETENV
-				(void) unsetenv(gc_conf[i].env_name);
-#else
-				env = cob_malloc(strlen(gc_conf[i].env_name) + 2);
-				sprintf(env, "%s=", gc_conf[i].env_name);
-				(void) putenv(env);
-#endif
+				(void)cob_unsetenv(gc_conf[i].env_name);
 			} else if(gc_conf[i].env_group == GRP_HIDE) {
 				/* Any alias present? */
 				for(int j = 0; j < NUM_CONFIG; j++) {
@@ -1538,6 +1566,68 @@ cob_get_global_ptr(void)
 	return cobglobptr;
 }
 
+int
+cob_module_global_enter(cob_module ** module, cob_global ** mglobal,
+						const int auto_init, const int entry, const unsigned int * name_hash)
+{
+	cob_module	* mod;
+	const int	MAX_ITERS = 10240;
+	int		k;
+	struct cob_alloc_module	* mod_ptr;
+
+
+	/* Check initialized */
+	if(unlikely(!cob_initialized)) {
+		if(auto_init) {
+			cob_init(0, NULL);
+		} else {
+			cob_fatal_error(COB_FERROR_INITIALIZED);
+		}
+	}
+
+	/* Set global pointer */
+	*mglobal = cobglobptr;
+
+	/* LCOV_EXCL_LINE */
+	COB_UNUSED(name_hash);
+
+	/* Check module pointer */
+	if(!*module) {
+		*module = (cob_module *) cob_cache_malloc(sizeof(cob_module));
+		/* Add to list of all modules activated */
+		mod_ptr = (cob_alloc_module *) cob_malloc(sizeof(struct cob_alloc_module));
+		mod_ptr->cob_pointer = *module;
+		mod_ptr->next = cob_module_list;
+		cob_module_list = mod_ptr;
+	} else if(entry == 0) {
+		for(k = 0, mod = COB_MODULE_PTR; mod && k < MAX_ITERS; mod = mod->next, k++) {
+			if(*module == mod) {
+				if(cobglobptr->cob_stmt_exception) {
+					/* CALL has ON EXCEPTION so return to caller */
+					cob_set_exception(COB_EC_PROGRAM_RECURSIVE_CALL);
+					cobglobptr->cob_stmt_exception = 0;
+					return 1;
+				}
+				cob_module_err = mod;
+				cob_fatal_error(COB_FERROR_RECURSIVE);
+			}
+		}
+	}
+
+	/* Save parameter count, get number from argc if main program */
+	if(!COB_MODULE_PTR) {
+		cobglobptr->cob_call_params = cob_argc - 1;
+	}
+
+	(*module)->module_num_params = cobglobptr->cob_call_params;
+
+	/* Push module pointer */
+	(*module)->next = COB_MODULE_PTR;
+	COB_MODULE_PTR = *module;
+	cobglobptr->cob_stmt_exception = 0;
+	return 0;
+}
+
 void
 cob_module_enter(cob_module ** module, cob_global ** mglobal,
 				 const int auto_init)
@@ -1577,6 +1667,31 @@ cob_module_leave(cob_module * module)
 	COB_UNUSED(module);
 	/* Pop module pointer */
 	COB_MODULE_PTR = COB_MODULE_PTR->next;
+}
+
+void
+cob_module_free(cob_module ** module)
+{
+	struct cob_alloc_module	* ptr, *prv;
+	if(*module != NULL) {
+		prv = NULL;
+		/* Remove from list of all modules activated */
+		for(ptr = cob_module_list; ptr; ptr = ptr->next) {
+			if(ptr->cob_pointer == *module) {
+				if(prv == NULL) {
+					cob_module_list = ptr->next;
+				} else {
+					prv->next = ptr->next;
+				}
+				cob_free(ptr);
+				break;
+			}
+			prv = ptr;
+		}
+
+		cob_cache_free(*module);
+		*module = NULL;
+	}
 }
 
 cob_func_loc *
@@ -1633,7 +1748,7 @@ cob_restore_func(cob_func_loc * fl)
 void
 cob_check_version(const char * prog, const char * packver, const int patchlev)
 {
-	if(strcmp(packver, PACKAGE_VERSION) || patchlev > PATCH_LEVEL) {
+	if(strcmp(packver, PACKAGE_VERSION) > 0 || patchlev > PATCH_LEVEL) {
 		cob_runtime_error(_("error - version mismatch"));
 		cob_runtime_error(_("%s has version/patch level %s/%d"), prog,
 						  packver, patchlev);
@@ -2108,12 +2223,12 @@ cob_is_numeric(const cob_field * f)
 	case COB_TYPE_NUMERIC_FLOAT: {
 		float fpf;
 		memcpy(&fpf, f->data, sizeof(float));
-		return !finite((double)fpf);
+		return !ISFINITE((double)fpf);
 	}
 	case COB_TYPE_NUMERIC_DOUBLE: {
 		double fpd;
 		memcpy(&fpd, f->data, sizeof(double));
-		return !finite(fpd);
+		return !ISFINITE(fpd);
 	}
 	case COB_TYPE_NUMERIC_PACKED: {
 		/* Check digits */
@@ -2415,8 +2530,8 @@ get_function_ptr_for_precise_time()
 #endif
 
 #if defined (_WIN32) /* cygwin does not define _WIN32 */
-struct cob_time
-cob_get_current_date_and_time()
+static cob_time
+cob_get_current_date_and_time_from_os()
 {
 	SYSTEMTIME	local_time;
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
@@ -2443,13 +2558,12 @@ cob_get_current_date_and_time()
 	cb_time.year = local_time.wYear;
 	cb_time.month = local_time.wMonth;
 	cb_time.day_of_month = local_time.wDay;
-	cb_time.day_of_week = one_indexed_day_of_week_from_monday(local_time.wDayOfWeek);
-	cb_time.day_of_year = -1 /* calculate similar to intrinsic.c if needed */;
+	/* day_of_week, day_of_year and is_daylight_saving_time
+	   are set in cob_get_current_date_and_time */
 	cb_time.hour = local_time.wHour;
 	cb_time.minute = local_time.wMinute;
 	cb_time.second = local_time.wSecond;
 	cb_time.nanosecond = local_time.wMilliseconds * 1000000;
-	cb_time.is_daylight_saving_time = -1;
 #if defined(_MSC_VER) && COB_USE_VC2008_OR_GREATER
 	set_cob_time_ns_from_filetime(filetime, &cb_time);
 #endif
@@ -2458,8 +2572,8 @@ cob_get_current_date_and_time()
 	return cb_time;
 }
 #else
-struct cob_time
-cob_get_current_date_and_time(void)
+static cob_time
+cob_get_current_date_and_time_from_os(void)
 {
 #if defined (HAVE_CLOCK_GETTIME)
 	struct timespec	time_spec;
@@ -2484,10 +2598,6 @@ cob_get_current_date_and_time(void)
 	curtime = time(NULL);
 #endif
 	tmptr = localtime(&curtime);
-	/* Leap seconds ? */
-	if(tmptr->tm_sec >= 60) {
-		tmptr->tm_sec = 59;
-	}
 
 	cb_time.year = tmptr->tm_year + 1900;
 	cb_time.month = tmptr->tm_mon + 1;
@@ -2543,67 +2653,521 @@ cob_get_current_date_and_time(void)
 }
 #endif
 
+cob_time
+cob_get_current_date_and_time(void)
+{
+	int		needs_calculation = 0;
+	cob_time	cb_time = cob_get_current_date_and_time_from_os();
+
+#if _WIN32
+	needs_calculation = 1;	/* WIN32 allways needs a recalculation (doesn't set all items) */
+#endif
+
+	/* do we have a constant time? */
+	if(cobsetptr != NULL
+			&& cobsetptr->cob_time_constant.year != 0) {
+		if(cobsetptr->cob_time_constant.hour != -1) {
+			cb_time.hour = cobsetptr->cob_time_constant.hour;
+		}
+		if(cobsetptr->cob_time_constant.minute != -1) {
+			cb_time.minute = cobsetptr->cob_time_constant.minute;
+		}
+		if(cobsetptr->cob_time_constant.second != -1) {
+			cb_time.second = cobsetptr->cob_time_constant.second;
+		}
+		if(cobsetptr->cob_time_constant.nanosecond != -1) {
+			cb_time.nanosecond = cobsetptr->cob_time_constant.nanosecond;
+		}
+		if(cobsetptr->cob_time_constant.year != -1) {
+			cb_time.year = cobsetptr->cob_time_constant.year;
+			needs_calculation = 1;
+		}
+		if(cobsetptr->cob_time_constant.month != -1) {
+			cb_time.month = cobsetptr->cob_time_constant.month;
+			needs_calculation = 1;
+		}
+		if(cobsetptr->cob_time_constant.day_of_month != -1) {
+			cb_time.day_of_month = cobsetptr->cob_time_constant.day_of_month;
+			needs_calculation = 1;
+		}
+		if(cobsetptr->cob_time_constant.offset_known) {
+			cb_time.offset_known = cobsetptr->cob_time_constant.offset_known;
+			cb_time.utc_offset = cobsetptr->cob_time_constant.utc_offset;
+		}
+	}
+
+	/* Leap seconds ? */
+	if(cb_time.second >= 60) {
+		cb_time.second = 59;
+	}
+
+	/* set day_of_week, day_of_year, is_daylight_saving_time, if necessary */
+	if(needs_calculation) {
+		/* allocate tmptr (needs a correct time) */
+		time_t t = time(NULL);
+		struct tm * tmptr = localtime(&t);
+		tmptr->tm_isdst = -1;
+		tmptr->tm_sec	= cb_time.second;
+		tmptr->tm_min	= cb_time.minute;
+		tmptr->tm_hour	= cb_time.hour;
+		tmptr->tm_year	= cb_time.year - 1900;
+		tmptr->tm_mon	= cb_time.month - 1;
+		tmptr->tm_mday	= cb_time.day_of_month;
+		tmptr->tm_wday	= -1;
+		tmptr->tm_yday	= -1;
+		(void)mktime(tmptr);
+		cb_time.day_of_week = one_indexed_day_of_week_from_monday(tmptr->tm_wday);
+		cb_time.day_of_year = tmptr->tm_yday + 1;
+		cb_time.is_daylight_saving_time = tmptr->tm_isdst;
+	}
+
+	return cb_time;
+}
+
+static void
+check_current_date()
+{
+	int		yr, mm, dd, hh, mi, ss, ns;
+	int		offset = 9999;
+	int		i, j, ret;
+	time_t		t;
+	struct tm	* tmptr;
+	char		iso_timezone[7] = { '\0' };
+	char		nanoseconds[10];
+	char	*	iso_timezone_ptr = (char *)&iso_timezone;
+
+	if(cobsetptr == NULL
+			|| cobsetptr->cob_date == NULL) {
+		return;
+	}
+
+	j = ret = 0;
+	yr = mm = dd = hh = mi = ss = ns = -1;
+
+	/* skip non-digits like quotes */
+	while(cobsetptr->cob_date[j] != 0
+			&&     cobsetptr->cob_date[j] != 'Y'
+			&&     !isdigit(cobsetptr->cob_date[j])) {
+		j++;
+	}
+
+	/* extract date */
+	if(cobsetptr->cob_date[j] != 0) {
+		yr = 0;
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				yr = yr * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			} else {
+				break;
+			}
+			if(++i == 4) {
+				j++;
+				break;
+			}
+		}
+		if(i != 2 && i != 4) {
+			if(cobsetptr->cob_date[j] == 'Y') {
+				while(cobsetptr->cob_date[j] == 'Y') {
+					j++;
+				}
+			} else {
+				ret = 1;
+			}
+			yr = -1;
+		} else if(yr < 100) {
+			yr += 2000;
+		}
+		while(cobsetptr->cob_date[j] == '/'
+				||    cobsetptr->cob_date[j] == '-') {
+			j++;
+		}
+	}
+	if(cobsetptr->cob_date[j] != 0) {
+		mm = 0;
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				mm = mm * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			} else {
+				break;
+			}
+			if(++i == 2) {
+				j++;
+				break;
+			}
+		}
+		if(i != 2) {
+			if(cobsetptr->cob_date[j] == 'M') {
+				while(cobsetptr->cob_date[j] == 'M') {
+					j++;
+				}
+			} else {
+				ret = 1;
+			}
+			mm = -1;
+		} else if(mm < 1 || mm > 12) {
+			ret = 1;
+		}
+		while(cobsetptr->cob_date[j] == '/'
+				||    cobsetptr->cob_date[j] == '-') {
+			j++;
+		}
+	}
+	if(cobsetptr->cob_date[j] != 0) {
+		dd = 0;
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				dd = dd * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			} else {
+				break;
+			}
+			if(++i == 2) {
+				j++;
+				break;
+			}
+		}
+		if(i != 2) {
+			if(cobsetptr->cob_date[j] == 'D') {
+				while(cobsetptr->cob_date[j] == 'D') {
+					j++;
+				}
+			} else {
+				ret = 1;
+			}
+			dd = -1;
+		} else if(dd < 1 || dd > 31) {
+			ret = 1;
+		}
+	}
+
+	/* extract time */
+	if(cobsetptr->cob_date[j] != 0) {
+		hh = 0;
+		while(isspace(cobsetptr->cob_date[j])) {
+			j++;
+		}
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				hh = hh * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			} else {
+				break;
+			}
+			if(++i == 2) {
+				j++;
+				break;
+			}
+		}
+
+		if(i != 2) {
+			if(cobsetptr->cob_date[j] == 'H') {
+				while(cobsetptr->cob_date[j] == 'H') {
+					j++;
+				}
+			} else {
+				ret = 1;
+			}
+			hh = -1;
+		} else if(hh > 23) {
+			ret = 1;
+		}
+		while(cobsetptr->cob_date[j] == ':'
+				||    cobsetptr->cob_date[j] == '-') {
+			j++;
+		}
+	}
+	if(cobsetptr->cob_date[j] != 0) {
+		mi = 0;
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				mi = mi * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			} else {
+				break;
+			}
+			if(++i == 2) {
+				j++;
+				break;
+			}
+		}
+		if(i != 2) {
+			if(cobsetptr->cob_date[j] == 'M') {
+				while(cobsetptr->cob_date[j] == 'M') {
+					j++;
+				}
+			} else {
+				ret = 1;
+			}
+			mi = -1;
+		} else if(mi > 59) {
+			ret = 1;
+		}
+		while(cobsetptr->cob_date[j] == ':'
+				||    cobsetptr->cob_date[j] == '-') {
+			j++;
+		}
+	}
+
+	if(cobsetptr->cob_date[j] != 0
+			&&	cobsetptr->cob_date[j] != 'Z'
+			&&	cobsetptr->cob_date[j] != '+'
+			&&	cobsetptr->cob_date[j] != '-') {
+		ss = 0;
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				ss = ss * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			} else {
+				break;
+			}
+			if(++i == 2) {
+				j++;
+				break;
+			}
+		}
+		if(i != 2) {
+			if(cobsetptr->cob_date[j] == 'S') {
+				while(cobsetptr->cob_date[j] == 'S') {
+					j++;
+				}
+			} else {
+				ret = 1;
+			}
+			ss = -1;
+			/* leap second would be 60 */
+		} else  if(ss > 60) {
+			ret = 1;
+		}
+	}
+
+	if(cobsetptr->cob_date[j] != 0
+			&&	cobsetptr->cob_date[j] != 'Z'
+			&&	cobsetptr->cob_date[j] != '+'
+			&&	cobsetptr->cob_date[j] != '-') {
+		ns = 0;
+		if(cobsetptr->cob_date[j] == '.'
+				||  cobsetptr->cob_date[j] == ':') {
+			j++;
+		}
+		strcpy(nanoseconds, "000000000");
+		for(i = 0; cobsetptr->cob_date[j] != 0; j++) {
+			if(isdigit(cobsetptr->cob_date[j])) {
+				nanoseconds[i] = cobsetptr->cob_date[j];
+			} else {
+				break;
+			}
+			if(++i == 9) {
+				j++;
+				break;
+			}
+		}
+		ns = atoi(nanoseconds);
+	}
+
+	/* extract UTC offset */
+	if(cobsetptr->cob_date[j] == 'Z') {
+		offset = 0;
+		iso_timezone[0] = 'Z';
+	} else if(cobsetptr->cob_date[j] == '+'
+			  || cobsetptr->cob_date[j] == '-') {
+		strncpy(iso_timezone_ptr, cobsetptr->cob_date + j, 6);
+		iso_timezone[6] = 0;	/* just to keep the analyzer happy */
+		if(strlen(iso_timezone_ptr) == 3) {
+			strcpy(iso_timezone_ptr + 3, "00");
+		} else if(iso_timezone[3] == ':') {
+			strncpy(iso_timezone_ptr + 3, cobsetptr->cob_date + j + 4, 3);
+		}
+		for(i = 1; iso_timezone[i] != 0; i++) {
+			if(!isdigit(iso_timezone[i])) {
+				break;
+			}
+			if(++i == 4) {
+				break;
+			}
+		}
+		if(i == 4) {
+			offset = cob_ctoi(iso_timezone[1]) * 60 * 10
+					 + cob_ctoi(iso_timezone[2]) * 60
+					 + cob_ctoi(iso_timezone[3]) * 10
+					 + cob_ctoi(iso_timezone[4]);
+			if(iso_timezone[0] == '-') {
+				offset *= -1;
+			}
+		} else {
+			ret = 1;
+			iso_timezone[0] = '\0';
+		}
+	}
+
+	if(ret != 0) {
+		cob_runtime_error(_("COB_CURRENT_DATE '%s' is invalid"), cobsetptr->cob_date);
+	}
+
+	/* get local time, allocate tmptr */
+	time(&t);
+	tmptr = localtime(&t);
+
+	/* override given parts in time */
+	if(ss != -1) {
+		tmptr->tm_sec	= ss;
+	}
+	if(mi != -1) {
+		tmptr->tm_min	= mi;
+	}
+	if(hh != -1) {
+		tmptr->tm_hour	= hh;
+	}
+	if(yr != -1) {
+		tmptr->tm_year	= yr - 1900;
+	}
+	if(mm != -1) {
+		tmptr->tm_mon	= mm - 1;
+	}
+	if(dd != -1) {
+		tmptr->tm_mday	= dd;
+	}
+	tmptr->tm_isdst = -1;
+
+	/* nornmalize if needed (for example 40 October is changed into 9 November),
+	   set tm_wday, tm_yday and tm_isdst */
+	t = mktime(tmptr);
+
+	/* set datetime constant */
+
+	if(hh != -1) {
+		cobsetptr->cob_time_constant.hour	= tmptr->tm_hour;
+	} else {
+		cobsetptr->cob_time_constant.hour	= -1;
+	}
+	if(mi != -1) {
+		cobsetptr->cob_time_constant.minute	= tmptr->tm_min;
+	} else {
+		cobsetptr->cob_time_constant.minute	= -1;
+	}
+	if(ss != -1) {
+		cobsetptr->cob_time_constant.second	= tmptr->tm_sec;
+	} else {
+		cobsetptr->cob_time_constant.second	= -1;
+	}
+	if(ns != -1) {
+		cobsetptr->cob_time_constant.nanosecond	= ns;
+	} else {
+		cobsetptr->cob_time_constant.nanosecond	= -1;
+	}
+	if(yr != -1) {
+		cobsetptr->cob_time_constant.year = tmptr->tm_year + 1900;
+	} else {
+		cobsetptr->cob_time_constant.year = -1;
+	}
+	if(mm != -1) {
+		cobsetptr->cob_time_constant.month = tmptr->tm_mon + 1;
+	} else {
+		cobsetptr->cob_time_constant.month = -1;
+	}
+	if(dd != -1) {
+		cobsetptr->cob_time_constant.day_of_month = tmptr->tm_mday;
+	} else {
+		cobsetptr->cob_time_constant.day_of_month = -1;
+	}
+
+	/* the following are only set in "current" instances, not in the constant */
+	cobsetptr->cob_time_constant.day_of_week = -1;
+	cobsetptr->cob_time_constant.day_of_year = -1;
+	cobsetptr->cob_time_constant.is_daylight_saving_time = -1;
+
+	if(iso_timezone[0] != '\0') {
+		cobsetptr->cob_time_constant.offset_known = 1;
+		cobsetptr->cob_time_constant.utc_offset = offset;
+	} else {
+		cobsetptr->cob_time_constant.offset_known = 0;
+		cobsetptr->cob_time_constant.utc_offset = 0;
+	}
+}
+
 /* Extended ACCEPT/DISPLAY */
 
 void
-cob_accept_date(cob_field * f)
+cob_accept_date(cob_field * field)
 {
-	time_t t = time(NULL);
-	char s[8];
-	strftime(s, (size_t)7, "%y%m%d", localtime(&t));
-	cob_memcpy(f, s, (size_t)6);
+	struct cob_time	time;
+	char		buff[16]; /* 16: make the compiler happy as "unsigned short" *could*
+						         have more digits than we "assume" */
+
+	time = cob_get_current_date_and_time();
+
+	snprintf(buff, sizeof(buff), "%2.2d%2.2d%2.2d",
+			 (cob_u16_t) time.year % 100,
+			 (cob_u16_t) time.month,
+			 (cob_u16_t) time.day_of_month);
+	cob_memcpy(field, buff, (size_t)6);
 }
 
 void
-cob_accept_date_yyyymmdd(cob_field * f)
+cob_accept_date_yyyymmdd(cob_field * field)
 {
-	time_t t = time(NULL);
-	char s[12];
-	strftime(s, (size_t)9, "%Y%m%d", localtime(&t));
-	cob_memcpy(f, s, (size_t)8);
+	struct cob_time	time;
+	char		buff[16]; /* 16: make the compiler happy as "unsigned short" *could*
+						         have more digits than we "assume" */
+
+	time = cob_get_current_date_and_time();
+
+	snprintf(buff, sizeof(buff), "%4.4d%2.2d%2.2d",
+			 (cob_u16_t) time.year,
+			 (cob_u16_t) time.month,
+			 (cob_u16_t) time.day_of_month);
+	cob_memcpy(field, buff, (size_t)8);
 }
 
 void
-cob_accept_day(cob_field * f)
+cob_accept_day(cob_field * field)
 {
-	time_t t = time(NULL);
-	char s[8];
-	strftime(s, (size_t)6, "%y%j", localtime(&t));
-	cob_memcpy(f, s, (size_t)5);
+	struct cob_time	time;
+	char		buff[11]; /* 11: make the compiler happy as "unsigned short" *could*
+						         have more digits than we "assume" */
+
+	time = cob_get_current_date_and_time();
+	snprintf(buff, sizeof(buff), "%2.2d%3.3d",
+			 (cob_u16_t) time.year % 100,
+			 (cob_u16_t) time.day_of_year);
+	cob_memcpy(field, buff, (size_t)5);
 }
 
 void
-cob_accept_day_yyyyddd(cob_field * f)
+cob_accept_day_yyyyddd(cob_field * field)
 {
-	time_t t = time(NULL);
-	char s[12];
-	strftime(s, (size_t)8, "%Y%j", localtime(&t));
-	cob_memcpy(f, s, (size_t)7);
+	struct cob_time	time;
+	char		buff[11]; /* 11: make the compiler happy as "unsigned short" *could*
+						         have more digits than we "assume" */
+
+	time = cob_get_current_date_and_time();
+	snprintf(buff, sizeof(buff), "%4.4d%3.3d",
+			 (cob_u16_t) time.year,
+			 (cob_u16_t) time.day_of_year);
+	cob_memcpy(field, buff, (size_t)7);
 }
 
 void
-cob_accept_day_of_week(cob_field * f)
+cob_accept_day_of_week(cob_field * field)
 {
-	time_t t = time(NULL);
-	struct tm * tm = localtime(&t);
-	unsigned char c;
-	if(tm->tm_wday == 0) {
-		c = (unsigned char)'7';
-	} else {
-		c = (unsigned char)(tm->tm_wday + '0');
-	}
-	cob_memcpy(f, &c, 1);
+	struct cob_time	time;
+	unsigned char		day;
+
+	time = cob_get_current_date_and_time();
+	day = (unsigned char)(time.day_of_week + '0');
+	cob_memcpy(field, &day, (size_t)1);
 }
 
 void
 cob_accept_time(cob_field * field)
 {
-	cob_time time = cob_get_current_date_and_time();
-	char str[9];
-	snprintf(str, 9, "%2.2d%2.2d%2.2d%2.2d", time.hour, time.minute,
-			 time.second, time.nanosecond / 10000000);
+	struct cob_time	time;
+	char		buff[21]; /* 11: make the compiler happy as "unsigned short" *could*
+						         have more digits than we "assume" */
 
-	cob_memcpy(field, str, (size_t)8);
+	time = cob_get_current_date_and_time();
+	snprintf(buff, sizeof(buff), "%2.2d%2.2d%2.2d%2.2d",
+			 (cob_u16_t) time.hour,
+			 (cob_u16_t) time.minute,
+			 (cob_u16_t) time.second,
+			 (cob_u16_t)(time.nanosecond / 10000000));
+
+	cob_memcpy(field, buff, (size_t)8);
 }
 
 void
@@ -2692,7 +3256,53 @@ cob_accept_arg_value(cob_field * f)
 	current_arg++;
 }
 
-/* Environment variable */
+/* Environment variable handling */
+
+#ifdef	_MSC_VER
+/* _MSC does *NOT* have `setenv` (!)
+   But as the handling of the fallback `putenv` is different in POSIX and _MSC
+   (POSIX stores no duplicate of `putenv`, where _MSC does), we pretend to
+   have support for `setenv` and define it here with the same behaviour: */
+
+static COB_INLINE COB_A_INLINE int
+setenv(const char * name, const char * value, int overwrite)
+{
+	/* remark: _putenv_s does always overwrite, add a check for overwrite = 1 if necessary later */
+	COB_UNUSED(overwrite);
+	return _putenv_s(name, value);
+}
+static COB_INLINE COB_A_INLINE int
+unsetenv(const char * name)
+{
+	return _putenv_s(name, "");
+}
+#endif
+
+int
+cob_setenv(const char * name, const char * value, int overwrite)
+{
+#if defined (HAVE_SETENV) && HAVE_SETENV
+	return setenv(name, value, overwrite);
+#else
+	COB_UNUSED(overwrite);
+	size_t	len = strlen(name) + strlen(value) + 2U;
+	char * env = cob_malloc(len);
+	sprintf(env, "%s=%s", name, value);
+	return putenv(env);
+#endif
+}
+
+int
+cob_unsetenv(const char * name)
+{
+#if defined(HAVE_SETENV) && HAVE_SETENV
+	return unsetenv(name);
+#else
+	char * env = cob_malloc(strlen(name) + 2U);
+	sprintf(env, "%s=", name);
+	return putenv(env);
+#endif
+}
 
 void
 cob_display_environment(const cob_field * f)
@@ -2727,14 +3337,7 @@ cob_display_env_value(const cob_field * f)
 	}
 	char * env2 = new char[f->size + 1];
 	cob_field_to_string(f, env2, f->size);
-#if HAVE_SETENV
-	int ret = setenv(cob_local_env, env2, 1);
-#else
-	size_t len = strlen(cob_local_env) + strlen(env2) + 3U;
-	char * p = new char[len];
-	sprintf(p, "%s=%s", cob_local_env, env2);
-	int ret = putenv(p);
-#endif
+	int ret = cob_setenv(cob_local_env, env2, 1);
 	delete [] env2;
 	if(ret != 0) {
 		cob_set_exception(COB_EC_IMP_DISPLAY);
@@ -2934,13 +3537,7 @@ cob_gettmpdir(void)
 			tmpdir = tmp;
 		}
 #endif
-#if HAVE_SETENV
-		(void) setenv("TMPDIR", tmpdir, 1);
-#else
-		char * put = new char[strlen(tmpdir) + 10];
-		sprintf(put, "TMPDIR=%s", tmpdir);
-		(void) putenv(put);
-#endif
+		(void)cob_setenv("TMPDIR", tmpdir, 1);
 		if(tmp) {
 			delete [] tmp;
 			tmpdir = getenv("TMPDIR");
@@ -3017,7 +3614,7 @@ int
 cob_tidy(void)
 {
 	if(!cob_initialized) {
-		exit(1);
+		return 1;
 	}
 	if(exit_hdlrs != NULL) {
 		exit_handlerlist * h = exit_hdlrs;
@@ -3429,21 +4026,21 @@ cob_sys_oc_nanosleep(const void * data)
 	if(COB_MODULE_PTR->cob_procedure_params[0]) {
 		cob_s64_t nsecs = cob_get_llint(COB_MODULE_PTR->cob_procedure_params[0]);
 		if(nsecs > 0) {
-#ifdef	_WIN32
-			unsigned int msecs = (unsigned int)(nsecs / 1000000);
-			if(msecs > 0) {
-				Sleep(msecs);
-			}
+#ifdef	HAVE_NANO_SLEEP
+			struct timespec	tsec;
+			tsec.tv_sec = nsecs / 1000000000;
+			tsec.tv_nsec = nsecs % 1000000000;
+			nanosleep(&tsec, NULL);
 #elif	defined(__370__) || defined(__OS400__)
 			unsigned int msecs = (unsigned int)(nsecs / 1000000000);
 			if(msecs > 0) {
 				sleep(msecs);
 			}
-#elif	defined(HAVE_NANO_SLEEP)
-			struct timespec	tsec;
-			tsec.tv_sec = nsecs / 1000000000;
-			tsec.tv_nsec = nsecs % 1000000000;
-			nanosleep(&tsec, NULL);
+#elif	defined(_WIN32)
+			unsigned int msecs = (unsigned int)(nsecs / 1000000);
+			if(msecs > 0) {
+				Sleep(msecs);
+			}
 #else
 			unsigned int msecs = (unsigned int)(nsecs / 1000000000);
 			if(msecs > 0) {
@@ -3795,7 +4392,7 @@ cob_sys_printable(void * p1, ...)
 {
 	va_list			args;
 
-	COB_CHK_PARMS(C$PRINTABLE, 1);
+	COB_CHK_PARMS(CBL_GC_PRINTABLE, 1);
 
 	if(!COB_MODULE_PTR->cob_procedure_params[0]) {
 		return 0;
@@ -4366,6 +4963,9 @@ set_config_val(char * value, int pos)
 			return 1;
 		}
 		memcpy(data, &str, sizeof(char *));
+		if(data_loc == offsetof(cob_settings, cob_preload_str)) {
+			cobsetptr->cob_preload_str_set = cob_strdup(str);
+		}
 
 	} else if((data_type & ENV_CHAR)) {	/* 'char' field inline */
 		memset(data, 0, data_len);
@@ -4412,31 +5012,31 @@ get_config_val(char * value, int pos, char * orgvalue)
 	strcpy(orgvalue, "");
 	if((data_type & ENV_INT)) {				/* Integer data */
 		cob_s64_t numval = get_value(data, data_len);
-		sprintf(value, "%lld", numval);
+		sprintf(value, CB_FMT_LLD, numval);
 
 	} else if((data_type & ENV_SIZE)) {			/* Size: integer with K, M, G */
 		cob_s64_t numval = get_value(data, data_len);
 		double dval = (double) numval;
 		if(numval > (1024 * 1024 * 1024)) {
 			if((numval % (1024 * 1024 * 1024)) == 0) {
-				sprintf(value, "%lld GB", numval / (1024 * 1024 * 1024));
+				sprintf(value, CB_FMT_LLD" GB", numval / (1024 * 1024 * 1024));
 			} else {
 				sprintf(value, "%.2f GB", dval / (1024.0 * 1024.0 * 1024.0));
 			}
 		} else if(numval > (1024 * 1024)) {
 			if((numval % (1024 * 1024)) == 0) {
-				sprintf(value, "%lld MB", numval / (1024 * 1024));
+				sprintf(value, CB_FMT_LLD" MB", numval / (1024 * 1024));
 			} else {
 				sprintf(value, "%.2f MB", dval / (1024.0 * 1024.0));
 			}
 		} else if(numval > 1024) {
 			if((numval % 1024) == 0) {
-				sprintf(value, "%lld KB", numval / 1024);
+				sprintf(value, CB_FMT_LLD" KB", numval / 1024);
 			} else {
 				sprintf(value, "%.2f KB", dval / 1024.0);
 			}
 		} else {
-			sprintf(value, "%lld", numval);
+			sprintf(value, CB_FMT_LLD, numval);
 		}
 
 	} else if((data_type & ENV_BOOL)) {	/* Boolean: Yes/No,True/False,... */
@@ -4559,6 +5159,29 @@ cb_config_entry(char * buf, int line)
 
 	value[j] = 0;
 
+	if(strcasecmp(keyword, "reset") != 0
+			&&  strcasecmp(keyword, "include") != 0
+			&&  strcasecmp(keyword, "includeif") != 0
+			&&  strcasecmp(keyword, "setenv") != 0
+			&&  strcasecmp(keyword, "unsetenv") != 0) {
+		i = cb_lookup_config(keyword);
+
+		if(i >= NUM_CONFIG) {
+			conf_runtime_error(1, _("unknown configuration tag '%s'"), keyword);
+			return -1;
+		}
+	}
+	if(strcmp(value, "") == 0) {
+		if(strcasecmp(keyword, "include") != 0
+				&&  strcasecmp(keyword, "includeif")) {
+			conf_runtime_error(1, _("WARNING - '%s' without a value - ignored!"), keyword);
+			return 2;
+		} else {
+			conf_runtime_error(1, _("'%s' without a value!"), keyword);
+			return -1;
+		}
+	}
+
 	if(strcasecmp(keyword, "setenv") == 0) {
 		/* collect additional value and push into environment */
 		strcpy(value2, "");
@@ -4592,13 +5215,7 @@ cb_config_entry(char * buf, int line)
 		}
 		/* check additional value for inline env vars ${varname:-default} */
 		str = cob_expand_env_string(value2);
-#if HAVE_SETENV
-		(void)setenv(value, str, 1);
-#else
-		env = cob_malloc(strlen(value) + strlen(str) + 2);
-		sprintf(env, "%s=%s", value, str);
-		(void)putenv(env);
-#endif
+		(void)cob_setenv(value, str, 1);
 		cob_free(str);
 		for(i = 0; i < NUM_CONFIG; i++) {		/* Set value from config file */
 			if(gc_conf[i].env_name
@@ -4611,10 +5228,6 @@ cb_config_entry(char * buf, int line)
 	}
 
 	if(strcasecmp(keyword, "unsetenv") == 0) {
-		if(strcmp(value, "") == 0) {
-			conf_runtime_error(1, _("WARNING - '%s' without a value - ignored!"), keyword);
-			return 2;
-		}
 		if((env = getenv(value)) != NULL) {
 			for(i = 0; i < NUM_CONFIG; i++) {		/* Set value from config file */
 				if(gc_conf[i].env_name
@@ -4623,24 +5236,13 @@ cb_config_entry(char * buf, int line)
 					break;
 				}
 			}
-#if HAVE_SETENV
-			(void)unsetenv(value);
-#else
-			env = cob_malloc(strlen(value) + 2);
-			sprintf(env, "%s=", value);
-			(void)putenv(env);
-
-#endif
+			(void)cob_unsetenv(value);
 		}
 		return 0;
 	}
 
 	if(strcasecmp(keyword, "include") == 0 ||
 			strcasecmp(keyword, "includeif") == 0) {
-		if(strcmp(value, "") == 0) {
-			conf_runtime_error(1, _("'%s' without a value!"), keyword);
-			return -1;
-		}
 		str = cob_expand_env_string(value);
 		strcpy(buf, str);
 		cob_free(str);
@@ -4671,6 +5273,8 @@ cb_config_entry(char * buf, int line)
 			if(str != NULL) {
 				cob_free((void *)str);
 			}
+			str = NULL;
+			memcpy(data, &str, sizeof(char *));	/* Reset pointer to NULL */
 		} else {
 			set_config_val((char *)"0", i);
 		}
@@ -4682,10 +5286,6 @@ cb_config_entry(char * buf, int line)
 	if(i >= NUM_CONFIG) {
 		conf_runtime_error(1, _("unknown configuration tag '%s'"), keyword);
 		return -1;
-	}
-	if(strcmp(value, "") == 0) {
-		conf_runtime_error(1, _("WARNING - '%s' without a value - ignored!"), keyword);
-		return 2;
 	}
 
 	old_type = gc_conf[i].data_type;
@@ -4784,7 +5384,7 @@ cob_load_config_file(const char * config_file, int isoptional)
 			delete [] cobsetptr->cob_config_file;
 			cobsetptr->cob_config_file = p;
 		}
-		cobsetptr->cob_config_file[cobsetptr->cob_config_num++] = strdup(config_file);	/* Save config file name */
+		cobsetptr->cob_config_file[cobsetptr->cob_config_num++] = cob_strdup(config_file);	/* Save config file name */
 		cobsetptr->cob_config_cur = cobsetptr->cob_config_num;
 	}
 
@@ -4902,6 +5502,7 @@ cob_load_config(void)
 			}
 		}
 	}
+	check_current_date();
 
 	return 0;
 }
@@ -5000,9 +5601,6 @@ DECLNORET void
 cob_fatal_error(const int fatal_error)
 {
 	switch(fatal_error) {
-	case COB_FERROR_NONE:
-		cob_runtime_error(_("cob_init() has not been called"));
-		break;
 	case COB_FERROR_CANCEL:
 		cob_runtime_error(_("attempt to CANCEL active program"));
 		break;
@@ -5042,8 +5640,18 @@ cob_fatal_error(const int fatal_error)
 		cob_runtime_error(_("invalid entry into module"));
 		break;
 	case COB_FERROR_RECURSIVE:
-		cob_runtime_error(_("invalid recursive COBOL CALL to '%s'"),
-						  COB_MODULE_PTR->module_name);
+		/* LCOV_EXCL_LINE */
+		if(cob_module_err) {
+			cob_runtime_error(_("recursive CALL from %s to %s which is NOT RECURSIVE"),
+							  COB_MODULE_PTR->module_name, cob_module_err->module_name);
+			cob_module_err = NULL;
+			/* LCOV_EXCL_START */
+			/* Note: only in for old modules - not active with current generation */
+		} else {
+			cob_runtime_error(_("invalid recursive COBOL CALL to '%s'"),
+							  COB_MODULE_PTR->module_name);
+		}
+		/* LCOV_EXCL_STOP */
 		break;
 	case COB_FERROR_FILE: {
 		unsigned char * file_status = cobglobptr->cob_error_file->file_status;
@@ -5239,8 +5847,9 @@ print_info(void)
 	putchar('\n');
 	puts(_("build information"));
 	var_print(_("build environment"),	COB_BLD_BUILD, "", 0);
-	snprintf(versbuff, 55, "%s\tC version %s%s", COB_BLD_CC, OC_C_VERSION_PRF, OC_C_VERSION);
-	var_print("CC", versbuff, "", 0);
+	var_print("CC", COB_BLD_CC, "", 0);
+	snprintf(versbuff, 55, "%s%s", OC_C_VERSION_PRF, OC_C_VERSION);
+	var_print("C version", versbuff, "", 0);
 	var_print("CPPFLAGS", COB_BLD_CPPFLAGS, "", 0);
 	var_print("CFLAGS", COB_BLD_CFLAGS, "", 0);
 	var_print("LD", COB_BLD_LD, "", 0);
@@ -5419,13 +6028,31 @@ print_runtime_conf()
 						printf("Ovr");
 					} else {
 						printf("env");
+						if(gc_conf[i].data_loc == offsetof(cob_settings, cob_preload_str)
+								&& cobsetptr->cob_preload_str_set != NULL) {
+							printf(": %-*s : ", hdlen, gc_conf[i].env_name);
+							printf("%s\n", cobsetptr->cob_preload_str_set);
+							printf("eval");
+						}
 					}
 					printf(": %-*s : ", hdlen, gc_conf[i].env_name);
 				} else if((gc_conf[i].data_type & STS_CNFSET)) {
+					if((gc_conf[i].data_type & STS_ENVCLR)) {
+						printf("    : %-*s : ", hdlen, gc_conf[i].env_name);
+						puts(_("... removed from environment"));
+					}
 					if(gc_conf[i].config_num > 0) {
 						printf("  %d ", gc_conf[i].config_num);
 					} else {
 						printf("    ");
+					}
+					if(gc_conf[i].data_loc == offsetof(cob_settings, cob_preload_str)
+							&& cobsetptr->cob_preload_str_set != NULL) {
+						printf(": %-*s : ", hdlen,
+							   gc_conf[i].set_by > 0 ? gc_conf[i].env_name
+							   : gc_conf[i].conf_name);
+						printf("%s\n", cobsetptr->cob_preload_str_set);
+						printf("eval");
 					}
 					if(gc_conf[i].set_by > 0) {
 						printf(": %-*s : ", hdlen, gc_conf[i].env_name);
@@ -5439,6 +6066,10 @@ print_runtime_conf()
 						printf("    ");
 					}
 					printf(": %-*s : ", hdlen, gc_conf[i].env_name);
+					if((gc_conf[i].data_type & STS_ENVCLR)) {
+						puts(_("... removed from environment"));
+						continue;
+					}
 				} else {
 					printf("    : %-*s : ", hdlen, gc_conf[i].conf_name);
 				}
@@ -5470,10 +6101,6 @@ print_runtime_conf()
 					}
 				}
 				putchar('\n');
-				if((gc_conf[i].data_type & STS_ENVCLR)) {
-					puts("    :  ");
-					puts(_("... removed from environment"));
-				}
 			}
 		}
 	}
@@ -5668,13 +6295,20 @@ cob_init(const int argc, char ** argv)
 	}
 
 	/* Get user name if not set via environment already */
-	if(cobsetptr->cob_user_name == NULL || !strcmp(cobsetptr->cob_user_name, "Unknown")) {
-#if defined(_WIN32) && (COB_USE_VC2008_OR_GREATER /* Needs SDK for earlier versions */ || !defined(_MSC_VER))
+#if 0 /* Should not be possible */
+	if(cobsetptr->cob_user_name == NULL) {
+		cobsetptr->cob_user_name = _("unknown");
+	}
+#endif
+	if(!strcmp(cobsetptr->cob_user_name, _("unknown"))) {
+#if defined (_WIN32)
+#if defined (HAVE_GETUSERNAME)	/* note: currently only defined manual! */
 		unsigned long bsiz = COB_ERRBUF_SIZE;
 		if(GetUserName(runtime_err_str, &bsiz)) {
 			set_config_val_by_name(runtime_err_str, "username", "GetUserName()");
 		}
-#elif !defined(__OS400__) && !defined(_MSC_VER)
+#endif
+#elif !defined(__OS400__)
 		s = getlogin();
 		if(s) {
 			set_config_val_by_name(s, "username", "getlogin()");

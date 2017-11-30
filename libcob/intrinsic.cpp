@@ -22,7 +22,7 @@
 #include "config.h"
 
 #ifdef _MSC_VER
-#define NOMINMAX
+	#define NOMINMAX
 #endif
 
 #include <stdio.h>
@@ -1875,9 +1875,11 @@ seconds_from_formatted_time(const struct time_format format, const char * str,
 	int		unscaled_fraction = 0;
 	cob_decimal	* fractional_seconds = &d2;
 
+	/* LCOV_EXCL_START */
 	if(unlikely(!sscanf(str, scanf_str, &hours, &minutes, &seconds))) {
 		cob_fatal_error(COB_FERROR_CODEGEN);
 	}
+	/* LCOV_EXCL_STOP */
 
 	total_seconds = (hours * 60 * 60) + (minutes * 60) + seconds;
 
@@ -2740,9 +2742,11 @@ integer_of_mmdd(const struct date_format format, const int year, const char * fi
 	int		month;
 	int		day;
 
+	/* LCOV_EXCL_START */
 	if(unlikely(!sscanf(final_part, scanf_str, &month, &day))) {
 		cob_fatal_error(COB_FERROR_CODEGEN);
 	}
+	/* LCOV_EXCL_STOP */
 	return integer_of_date(year, month, day);
 
 }
@@ -2752,9 +2756,11 @@ integer_of_ddd(const int year, const char * final_part)
 {
 	int	day;
 
+	/* LCOV_EXCL_START */
 	if(unlikely(!sscanf(final_part, "%3d", &day))) {
 		cob_fatal_error(COB_FERROR_CODEGEN);
 	}
+	/* LCOV_EXCL_STOP */
 	return integer_of_day(year, day);
 }
 
@@ -2767,9 +2773,11 @@ integer_of_wwwd(const struct date_format format, const int year,
 	int		day_of_week;
 
 	int first_week_monday = get_iso_week_one(days_up_to_year(year) + 1, 1);
+	/* LCOV_EXCL_START */
 	if(unlikely(!sscanf(final_part, scanf_str, &week, &day_of_week))) {
 		cob_fatal_error(COB_FERROR_CODEGEN);
 	}
+	/* LCOV_EXCL_STOP */
 	cob_u32_t total_days = first_week_monday + ((week - 1) * 7) + day_of_week - 1;
 
 	return total_days;
@@ -2782,9 +2790,11 @@ integer_of_formatted_date(const struct date_format format,
 	int		year;
 	int		final_part_start = 4 + format.with_hyphens;
 
+	/* LCOV_EXCL_START */
 	if(unlikely(!sscanf(formatted_date, "%4d", &year))) {
 		cob_fatal_error(COB_FERROR_CODEGEN);
 	}
+	/* LCOV_EXCL_STOP */
 
 	if(format.days == DAYS_MMDD) {
 		return integer_of_mmdd(format, year, formatted_date + final_part_start);

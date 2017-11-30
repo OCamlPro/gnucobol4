@@ -293,6 +293,22 @@ cob_binary_set_int64(cob_field * f, cob_s64_t n)
 
 /* Decimal number */
 
+void
+cob_decimal_init(cob_decimal * d)
+{
+	mpz_init2(d->value.get_mpz_t(), COB_MPZ_DEF);
+	d->scale = 0;
+}
+
+void
+cob_decimal_clear(cob_decimal * d)
+{
+	if(d) {
+		mpz_clear(d->value.get_mpz_t());
+		d->scale = 0;
+	}
+}
+
 /** setting a decimal field from an unsigned binary long int */
 void
 cob_decimal_set_ullint(cob_decimal * d, const cob_u64_t n)
@@ -1620,6 +1636,11 @@ cob_decimal_div(cob_decimal * d1, cob_decimal * d2)
 	/* Check for division by zero */
 	if(unlikely(sgn(d2->value) == 0)) {
 		d1->scale = COB_DECIMAL_NAN;
+		/* FIXME: we currently don't handle the fatal exception correct
+		   fatal->abort. We only should set it when it *doesn't* happen
+		   within a arithmetic statement with SIZE error phrase and must
+		   execute the appropriate USE statement, if any before the abort
+		*/
 		cob_set_exception(COB_EC_SIZE_ZERO_DIVIDE);
 		return;
 	}
@@ -1640,6 +1661,19 @@ cob_decimal_cmp(cob_decimal * d1, cob_decimal * d2)
 {
 	align_decimal(d1, d2);
 	return mpz_cmp(d1->value.get_mpz_t(), d2->value.get_mpz_t());
+}
+
+/*
+ * Shift 'd1' to have same scale as 'd2'
+ */
+void
+cob_decimal_align(cob_decimal * d1, const int scale)
+{
+	if(d1->scale > scale) {
+		shift_decimal(d1, scale - d1->scale);
+	} else if(d1->scale < scale) {
+		shift_decimal(d1, d1->scale - scale);
+	}
 }
 
 /* Convenience functions */
@@ -1835,7 +1869,8 @@ cob_display_add_int(cob_field * f, int n, const int opt)
 	if(unlikely(scale < 0)) {
 		/* PIC 9(n)P(m) */
 		if(-scale < 10) {
-			while(scale++) {
+			while(scale) {
+				++scale;
 				n /= 10;
 			}
 		} else {

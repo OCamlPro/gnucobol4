@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2003-2012, 2014-2016 Free Software Foundation, Inc.
+   Copyright (C) 2003-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
 
    This file is part of GnuCOBOL C++.
@@ -42,12 +42,6 @@ enum cb_config_type {
 
 /* Global variables */
 
-#undef	CB_CONFIG_ANY
-#undef	CB_CONFIG_INT
-#undef	CB_CONFIG_STRING
-#undef	CB_CONFIG_BOOLEAN
-#undef	CB_CONFIG_SUPPORT
-
 #define CB_CONFIG_ANY(type,var,name,doc)	type		var = (type)0;
 #define CB_CONFIG_INT(var,name,min,max,odoc,doc)	unsigned int		var = 0;
 #define CB_CONFIG_STRING(var,name,doc)	const char	*var = NULL;
@@ -81,15 +75,15 @@ static struct config_struct {
 	{CB_STRING, "include"},
 	{CB_STRING, "includeif"},
 	{CB_STRING, "not-reserved"},
-	{CB_STRING, "reserved"}
+	{CB_STRING, "reserved"},
+	{CB_STRING, "not-intrinsic-function"},
+	{CB_STRING, "intrinsic-function"},
+	{CB_STRING, "not-system-name"},
+	{CB_STRING, "system-name"},
+	{CB_STRING, "not-register"},
+	{CB_STRING, "register"}
 #include "config.def"
 };
-
-/* Configuration includes */
-static struct includelist {
-	includelist *	next;
-	const char *	name;
-} * conf_includes = NULL;
 
 #undef	CB_CONFIG_ANY
 #undef	CB_CONFIG_INT
@@ -99,10 +93,29 @@ static struct includelist {
 
 #define	CB_CONFIG_SIZE	sizeof(config_table) / sizeof(config_struct)
 
+/* Configuration includes */
+static struct includelist {
+	includelist *	next;
+	const char *	name;
+} * conf_includes = NULL;
+
+/* type of include */
+enum cb_include_type {
+	CB_INCLUDE_MANDATORY = 0,
+	CB_INCLUDE_OPTIONAL,
+	CB_INCLUDE_RESOLVE_WORDS
+};
+
+const char	* words_file = NULL;
+
+/* Local declarations */
+
+static int cb_read_conf(const char *, FILE *);
+
 /* Local functions */
 
-static char const *
-read_string(const char * text)
+static char *
+read_string(char * text)
 {
 	if(*text == '\"') {
 		text++;
@@ -165,21 +178,28 @@ unsupported_value(const char * fname, const int line, const char * name, const c
 }
 
 static void
-split_and_iterate_on_comma_separated_str(void (* const func)(const char *, const char *, const int),
-		const int replace_colons,
-		const char * val,
-		const char * fname,
-		const int line)
+split_and_iterate_on_comma_separated_str(
+void (* const func)(const char *, const char *, const int),
+const int transform_case, const int replace_colons,
+const char * val, const char * fname, const int line)
 {
-	int	i;
-	int	j = 0;
-	char	word_buff[COB_MINI_BUFF];
+	unsigned int j = 0;
+	char word_buff[COB_MINI_BUFF];
 
-	for(i = 0; val[i] && j < COB_MINI_MAX; i++) {
+	for(int i = 0; val[i] && j < COB_MINI_MAX; i++) {
+		/* note: we actually want spaces in,
+		   especially for mnemonics "SWITCH A" and registers "LENGTH OF"
+		*/
 		switch(val[i]) {
 		case ' ':
+			/* Remove spaces if not escaped, espacially needed for
+			   mnemonics "SWITCH A" and registers "LENGTH OF" */
+			if(j > 0 && word_buff[j - 1] == '\\') {
+				word_buff[j - 1] = ' ';
+			}
+			break;
 		case '\t':
-			/* Remove all possible whitespace. */
+			/* Tabs are always removed. */
 			break;
 		case ',':
 			word_buff[j] = 0;
@@ -193,7 +213,13 @@ split_and_iterate_on_comma_separated_str(void (* const func)(const char *, const
 				break;
 			}
 		default:
-			word_buff[j++] = val[i];
+			if(transform_case == 1) {
+				word_buff[j++] = (char)toupper((int)val[i]);
+			} else if(transform_case == 2) {
+				word_buff[j++] = (char)tolower((int)val[i]);
+			} else {
+				word_buff[j++] = val[i];
+			}
 			break;
 		}
 	}
@@ -204,6 +230,134 @@ split_and_iterate_on_comma_separated_str(void (* const func)(const char *, const
 	}
 }
 
+static int
+cb_load_conf_file(const char * conf_file, const enum cb_include_type include_type)
+{
+	char filename[COB_NORMAL_BUFF];
+	char buff[COB_SMALL_BUFF];
+
+	int i;
+	for(i = 0; conf_file[i] != 0 && conf_file[i] != SLASH_CHAR; i++);
+	if(conf_file[i] == 0) {			/* Just a name, No directory */
+		if(access(conf_file, F_OK) != 0) {	/* and file does not exist */
+			/* check for path of previous configuration file (for includes) */
+			includelist * c = conf_includes;
+			if(c != NULL) {
+				while(c->next != NULL) {
+					c = c->next;
+				}
+			}
+			filename[0] = 0;
+			if(c && c->name) {
+				strcpy(buff, conf_includes->name);
+				for(i = (int)strlen(buff); i != 0 && buff[i] != SLASH_CHAR; i--);
+				if(i != 0) {
+					buff[i] = 0;
+					snprintf(filename, (size_t)COB_NORMAL_MAX, "%s%c%s", buff, SLASH_CHAR, conf_file);
+					filename[COB_NORMAL_MAX] = 0;
+					if(access(filename, F_OK) == 0) {	/* and prefixed file exist */
+						conf_file = filename;		/* Prefix last directory */
+					} else {
+						filename[0] = 0;
+					}
+				}
+			}
+			if(filename[0] == 0) {
+				/* check for COB_CONFIG_DIR (use default if not in environment) */
+				snprintf(filename, (size_t)COB_NORMAL_MAX, "%s%c%s", cob_config_dir, SLASH_CHAR, conf_file);
+				filename[COB_NORMAL_MAX] = 0;
+				if(access(filename, F_OK) == 0) {	/* and prefixed file exist */
+					conf_file = filename;		/* Prefix COB_CONFIG_DIR */
+				}
+			}
+		}
+	}
+
+	/* check for recursion */
+	includelist * c = conf_includes;
+	includelist * cc = c;
+	while(c != NULL) {
+		if(c->name /* <- silence warnings */ && strcmp(c->name, conf_file) == 0) {
+			configuration_error(conf_file, 0, 1, _("recursive inclusion"));
+			return -2;
+		}
+		cc = c;
+		c = c->next;
+	}
+
+	/* Special "check only" type */
+	if(include_type == CB_INCLUDE_RESOLVE_WORDS) {
+		words_file = cobc_main_strdup(conf_file);
+		return access(words_file, F_OK);
+	}
+
+	/* Open the configuration file */
+	FILE * fp = fopen(conf_file, "r");
+	if(fp == NULL) {
+		if(include_type != CB_INCLUDE_OPTIONAL) {
+			cb_perror(1, "%s: %s", conf_file, cb_get_strerror());
+			return -1;
+		} else {
+			return 0;
+		}
+	}
+
+	/* add current entry to list*/
+	c = new includelist;
+	c->next = NULL;
+	c->name = conf_file;
+	if(cc != NULL) {
+		cc->next = c;
+	} else {
+		conf_includes = c;
+	}
+
+	/* Read the configuration file */
+	int ret = cb_read_conf(conf_file, fp);
+
+	fclose(fp);
+
+	/* remove current entry from memory and list*/
+	if(cc) {
+		cc->next = NULL;
+	} else {
+		conf_includes = NULL;
+	}
+	delete c;
+
+	return ret;
+}
+
+/* Read the configuration file previously opened */
+static int
+cb_read_conf(const char * conf_file, FILE * fp)
+{
+	char buff[COB_SMALL_BUFF];
+
+	/* Read the configuration file */
+	int ret = 0;
+	int line = 0;
+	while(fgets(buff, COB_SMALL_BUFF, fp)) {
+		line++;
+		int sub_ret = cb_config_entry(buff, conf_file, line);
+		if(sub_ret == 1 || sub_ret == 3) {
+			enum cb_include_type include_type = (sub_ret == 1) ? CB_INCLUDE_MANDATORY : CB_INCLUDE_OPTIONAL;
+			sub_ret = cb_load_conf_file(buff, include_type);
+			if(sub_ret < 0) {
+				ret = -1;
+				configuration_error(conf_file, line, 1,
+									_("configuration file was included here"));
+				break;
+			}
+		}
+		if(sub_ret != 0) {
+			ret = sub_ret;
+		}
+	}
+	return ret;
+}
+
+
 /* Global functions */
 
 int
@@ -213,20 +367,99 @@ cb_load_std(const char * name)
 }
 
 int
+cb_load_conf(const char * fname, const int prefix_dir)
+{
+	const char	* name;
+	char		buff[COB_NORMAL_BUFF];
+
+	/* Warn if we drop the configuration read already */
+	if(unlikely(cb_config_name != NULL)) {
+		configuration_warning(fname, 0,
+							  _("The previous loaded configuration '%s' will be discarded."),
+							  cb_config_name);
+	}
+
+	/* Initialize the configuration table */
+	for(size_t i = 0; i < CB_CONFIG_SIZE; i++) {
+		config_table[i].val = NULL;
+	}
+
+	/* Get the name for the configuration file */
+	if(prefix_dir) {
+		snprintf(buff, (size_t)COB_NORMAL_MAX,
+				 "%s%c%s", cob_config_dir, SLASH_CHAR, fname);
+		name = buff;
+	} else {
+		name = fname;
+	}
+
+	int ret = cb_load_conf_file(name, CB_INCLUDE_MANDATORY);
+
+	/* Checks for missing definitions */
+	if(ret == 0) {
+		for(size_t i = 10; i < CB_CONFIG_SIZE; i++) {
+			if(config_table[i].val == NULL) {
+				/* as there are likely more than one definition missing group it */
+				if(ret == 0) {
+					configuration_error(fname, 0, 1, _("missing definitions:"));
+				}
+				configuration_error(fname, 0, 1, _("\tno definition of '%s'"),
+									config_table[i].name);
+				ret = -1;
+			}
+		}
+	}
+
+	return ret;
+}
+
+int
+cb_load_words(void)
+{
+	FILE	* fp;
+	int		ret;
+
+	/* Open the word-list file */
+	fp = fopen(words_file, "r");
+	if(fp == NULL) {
+		cb_perror(1, "%s: %s", words_file, cb_get_strerror());
+		return -1;
+	}
+
+	/* Read the word-list file */
+	ret = cb_read_conf(words_file, fp);
+
+	fclose(fp);
+
+	return ret;
+}
+
+int
 cb_config_entry(char * buff, const char * fname, const int line)
 {
 	char		*	s;
 	const char	*	name;
 	char		*	e;
-	const char	*	val;
+	char	*	val;
 	void		*	var;
+	enum cb_support	support_val;
 	size_t			i;
 	size_t			j;
 
-	/* Get tag */
+	/* ignore leading white-spaces */
+	while(*buff == '\t' || *buff == ' ') {
+		buff++;
+	}
+
+	/* ignore empty / comment line */
+	if(*buff == 0 || *buff == '\r' || *buff == '\n' || *buff == '#') {
+		return 0;
+	}
+
+	/* get tag */
 	s = strpbrk(buff, " \t:=");
 	if(!s) {
-		/* Remove CR LF */
+		/* no tag separator --> error (remove CR LF for message) */
 		for(j = strlen(buff); buff[j - 1] == '\r' || buff[j - 1] == '\n';) {
 			buff[--j] = 0;
 		}
@@ -247,7 +480,8 @@ cb_config_entry(char * buff, const char * fname, const int line)
 							_("unknown configuration tag '%s'"), buff);
 		return -1;
 	}
-#if 0 /* Currently not possible (all entries from config.def are included */
+#if 0 /* currently not possible (all entries from config.def are included
+         --> no gettext for messages here */
 	/* if not included in documentation: reject for command line */
 	if(!fname && config_table[i].doc == 0) {
 		configuration_error(NULL, 0, 1,
@@ -255,6 +489,22 @@ cb_config_entry(char * buff, const char * fname, const int line)
 		return -1;
 	}
 #endif
+
+	/* Check for reserved word tag, if requested */
+	if(fname == words_file) {
+		if(strcmp(buff, "reserved")
+				&&  strcmp(buff, "not-reserved")
+				&&  strcmp(buff, "intrinsic-function")
+				&&  strcmp(buff, "not-intrinsic-function")
+				&&  strcmp(buff, "system-name")
+				&&  strcmp(buff, "not-system-name")
+				&&  strcmp(buff, "register")
+				&&  strcmp(buff, "not-register")) {
+			configuration_error(fname, line, 1,
+								_("invalid configuration tag '%s' in word-list"), buff);
+			return -1;
+		}
+	}
 
 	/* Get value */
 	/* Move pointer to beginning of value */
@@ -335,22 +585,56 @@ cb_config_entry(char * buff, const char * fname, const int line)
 				strcmp(name, "includeif") == 0) {
 			/* Include another conf file */
 			s = cob_expand_env_string((char *)val);
+			cobc_main_free((void *) val);
 			strncpy(buff, s, COB_SMALL_MAX);
 			/* special case: use cob_free (libcob) here as the memory
 			   was allocated in cob_expand_env_string -> libcob */
 			cob_free(s);
-			cobc_main_free((void *) val);
 			if(strcmp(name, "includeif") == 0) {
 				return 3;
 			} else {
 				return 1;
 			}
+		} else if(strcmp(name, "reserved-words") == 0) {
+			/* store translated to lower case */
+			for(e = (char *)val; *e; e++) {
+				if(isupper(*e)) {
+					*e = (cob_u8_t)tolower(*e);
+				}
+			}
+			/* if explicit requested: disable */
+			if(strcmp(val, "default") == 0
+					|| strcmp(val, "off") == 0) {
+				*((const char **)var) = NULL;
+			} else {
+				*((const char **)var) = val;
+				snprintf(buff, (size_t)COB_NORMAL_MAX, "%s.words", val);
+				/* check if name.words exists and store the resolved name to words_file */
+				if(cb_load_conf_file(buff, CB_INCLUDE_RESOLVE_WORDS) != 0) {
+					configuration_error(fname, line, 1, _("Could not access word list for '%s'"), val);
+					cb_perror(1, "%s: %s", words_file, cb_get_strerror());
+					return -1;
+				};
+			}
 		} else if(strcmp(name, "not-reserved") == 0) {
-			split_and_iterate_on_comma_separated_str(&remove_reserved_word,
-					0, val, fname, line);
+			split_and_iterate_on_comma_separated_str(&remove_reserved_word, 0, 0, val, fname, line);
+			split_and_iterate_on_comma_separated_str(&deactivate_intrinsic, 1, 0, val, fname, line);
+			split_and_iterate_on_comma_separated_str(&deactivate_system_name, 1, 0, val, fname, line);
+			split_and_iterate_on_comma_separated_str(&remove_register, 1, 0, val, fname, line);
 		} else if(strcmp(name, "reserved") == 0) {
-			split_and_iterate_on_comma_separated_str(&add_reserved_word,
-					1, val, fname, line);
+			split_and_iterate_on_comma_separated_str(&add_reserved_word, 0, 1, val, fname, line);
+		} else if(strcmp(name, "not-intrinsic-function") == 0) {
+			split_and_iterate_on_comma_separated_str(&deactivate_intrinsic, 1, 0, val, fname, line);
+		} else if(strcmp(name, "intrinsic-function") == 0) {
+			split_and_iterate_on_comma_separated_str(&activate_intrinsic, 1, 1, val, fname, line);
+		} else if(strcmp(name, "not-system-name") == 0) {
+			split_and_iterate_on_comma_separated_str(&deactivate_system_name, 1, 0, val, fname, line);
+		} else if(strcmp(name, "system-name") == 0) {
+			split_and_iterate_on_comma_separated_str(&activate_system_name, 1, 1, val, fname, line);
+		} else if(strcmp(name, "not-register") == 0) {
+			split_and_iterate_on_comma_separated_str(&remove_register, 1, 0, val, fname, line);
+		} else if(strcmp(name, "register") == 0) {
+			split_and_iterate_on_comma_separated_str(&add_register, 1, 1, val, fname, line);
 		} else {
 			*((const char **)var) = val;
 		}
@@ -367,27 +651,43 @@ cb_config_entry(char * buff, const char * fname, const int line)
 		}
 		break;
 	case CB_SUPPORT:
-		if(strcmp(val, "ok") == 0) {
-			*((enum cb_support *)var) = CB_OK;
-		} else if(strcmp(val, "warning") == 0) {
-			*((enum cb_support *)var) = CB_WARNING;
-		} else if(strcmp(val, "archaic") == 0) {
-			*((enum cb_support *)var) = CB_ARCHAIC;
-		} else if(strcmp(val, "obsolete") == 0) {
-			*((enum cb_support *)var) = CB_OBSOLETE;
-		} else if(strcmp(val, "skip") == 0) {
-			*((enum cb_support *)var) = CB_SKIP;
-		} else if(strcmp(val, "ignore") == 0) {
-			*((enum cb_support *)var) = CB_IGNORE;
-		} else if(strcmp(val, "error") == 0) {
-			*((enum cb_support *)var) = CB_ERROR;
-		} else if(strcmp(val, "unconformable") == 0) {
-			*((enum cb_support *)var) = CB_UNCONFORMABLE;
+		/* check if we are in "minimal mode" */
+		s = (char *)val;
+		if(*s == '+') {
+			s++;
+		}
+		if(strcmp(s, "ok") == 0) {
+			support_val = CB_OK;
+		} else if(strcmp(s, "warning") == 0) {
+			support_val = CB_WARNING;
+		} else if(strcmp(s, "archaic") == 0) {
+			support_val = CB_ARCHAIC;
+		} else if(strcmp(s, "obsolete") == 0) {
+			support_val = CB_OBSOLETE;
+		} else if(strcmp(s, "skip") == 0) {
+			support_val = CB_SKIP;
+		} else if(strcmp(s, "ignore") == 0) {
+			support_val = CB_IGNORE;
+		} else if(strcmp(s, "error") == 0) {
+			support_val = CB_ERROR;
+		} else if(strcmp(s, "unconformable") == 0) {
+			support_val = CB_UNCONFORMABLE;
 		} else {
-			invalid_value(fname, line, name, val,
+			invalid_value(fname, line, name, s,
 						  "ok, warning, archaic, obsolete, skip, ignore, error, unconformable", 0, 0);
 			return -1;
 		}
+		/* handling of special "adjust" mode */
+		if(s != val) {
+			if(*((enum cb_support *)var) != CB_SKIP
+					&&  *((enum cb_support *)var) != CB_IGNORE
+					&&  *((enum cb_support *)var) > support_val) {
+				*((enum cb_support *)var) = support_val;
+			}
+			break;
+		}
+		/* normal handling */
+		*((enum cb_support *)var) = support_val;
 		break;
 	default:
 		configuration_error(fname, line, 1, _("invalid type for '%s'"), name);
@@ -399,177 +699,4 @@ cb_config_entry(char * buff, const char * fname, const int line)
 	}
 	config_table[i].val = cobc_main_strdup(val);
 	return 0;
-}
-
-static int
-cb_load_conf_file(const char * conf_file, int isoptional)
-{
-	char filename[COB_NORMAL_BUFF];
-	char buff[COB_SMALL_BUFF];
-
-	int i;
-	for(i = 0; conf_file[i] != 0 && conf_file[i] != SLASH_CHAR; i++);
-	if(conf_file[i] == 0) {			/* Just a name, No directory */
-		if(access(conf_file, F_OK) != 0) {	/* and file does not exist */
-			/* check for path of previous configuration file (for includes) */
-			includelist * c = conf_includes;
-			if(c != NULL) {
-				while(c->next != NULL) {
-					c = c->next;
-				}
-			}
-			filename[0] = 0;
-			if(c && c->name) {
-				strcpy(buff, conf_includes->name);
-				for(i = (int)strlen(buff); i != 0 && buff[i] != SLASH_CHAR; i--);
-				if(i != 0) {
-					buff[i] = 0;
-					snprintf(filename, (size_t)COB_NORMAL_MAX, "%s%c%s", buff, SLASH_CHAR, conf_file);
-					if(access(filename, F_OK) == 0) {	/* and prefixed file exist */
-						conf_file = filename;		/* Prefix last directory */
-					} else {
-						filename[0] = 0;
-					}
-				}
-			}
-			if(filename[0] == 0) {
-				/* check for COB_CONFIG_DIR (use default if not in environment) */
-				snprintf(filename, (size_t)COB_NORMAL_MAX, "%s%c%s", cob_config_dir, SLASH_CHAR, conf_file);
-				filename[COB_NORMAL_MAX] = 0;
-				if(access(filename, F_OK) == 0) {	/* and prefixed file exist */
-					conf_file = filename;		/* Prefix COB_CONFIG_DIR */
-				}
-			}
-		}
-	}
-
-	/* check for recursion */
-	includelist * c = conf_includes;
-	includelist * cc = c;
-	while(c != NULL) {
-		if(c->name /* <- silence warnings */ && strcmp(c->name, conf_file) == 0) {
-			configuration_error(conf_file, 0, 1, _("recursive inclusion"));
-			return -2;
-		}
-		cc = c;
-		c = c->next;
-	}
-
-	/* Open the configuration file */
-	FILE * fp = fopen(conf_file, "r");
-	if(fp == NULL) {
-		if(!isoptional) {
-			cb_perror(1, "%s: %s", conf_file, cb_get_strerror());
-			return -1;
-		} else {
-			return 0;
-		}
-	}
-
-	/* add current entry to list*/
-	c = new includelist;
-	c->next = NULL;
-	c->name = conf_file;
-	if(cc != NULL) {
-		cc->next = c;
-	} else {
-		conf_includes = c;
-	}
-
-	/* Read the configuration file */
-	int ret = 0;
-	int line = 0;
-	while(fgets(buff, COB_SMALL_BUFF, fp)) {
-		line++;
-
-		/* Skip line comments, empty lines */
-		if(buff[0] == '#' || buff[0] == '\n') {
-			continue;
-		}
-
-		/* Skip blank lines */
-		const unsigned char * x;
-		for(x = (const unsigned char *)buff; *x; x++) {
-			if(isgraph(*x)) {
-				break;
-			}
-		}
-		if(!*x) {
-			continue;
-		}
-
-		int sub_ret = cb_config_entry(buff, conf_file, line);
-		if(sub_ret == 1 || sub_ret == 3) {
-			sub_ret = cb_load_conf_file(buff, sub_ret == 3);
-			if(sub_ret < 0) {
-				ret = -1;
-				configuration_error(conf_file, line, 1,
-									_("configuration file was included here"));
-				break;
-			}
-		}
-		if(sub_ret != 0) {
-			ret = sub_ret;
-		}
-	}
-	fclose(fp);
-
-	/* remove current entry from memory and list*/
-	if(cc) {
-		cc->next = NULL;
-	} else {
-		conf_includes = NULL;
-	}
-	delete c;
-
-	return ret;
-}
-
-int
-cb_load_conf(const char * fname, const int prefix_dir)
-{
-	const char	* name;
-	int			ret;
-	size_t		i;
-	char		buff[COB_NORMAL_BUFF];
-
-	/* Warn if we drop the configuration read already */
-	if(unlikely(cb_config_name != NULL)) {
-		configuration_warning(fname, 0,
-							  _("The previous loaded configuration '%s' will be discarded."),
-							  cb_config_name);
-	}
-
-	/* Initialize the configuration table */
-	for(i = 0; i < CB_CONFIG_SIZE; i++) {
-		config_table[i].val = NULL;
-	}
-
-	/* Get the name for the configuration file */
-	if(prefix_dir) {
-		snprintf(buff, (size_t)COB_NORMAL_MAX,
-				 "%s%c%s", cob_config_dir, SLASH_CHAR, fname);
-		name = buff;
-	} else {
-		name = fname;
-	}
-
-	ret = cb_load_conf_file(name, 0);
-
-	/* Checks for missing definitions */
-	if(ret == 0) {
-		for(i = 4U; i < CB_CONFIG_SIZE; i++) {
-			if(config_table[i].val == NULL) {
-				/* as there are likely more than one definition missing group it */
-				if(ret == 0) {
-					configuration_error(fname, 0, 1, _("missing definitions:"));
-				}
-				configuration_error(fname, 0, 1, _("\tno definition of '%s'"),
-									config_table[i].name);
-				ret = -1;
-			}
-		}
-	}
-
-	return ret;
 }

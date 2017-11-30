@@ -1,6 +1,6 @@
 /*
    Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
-   Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin
+   Written by Keisuke Nishida, Roger While, Simon Sobisch, Sergey Kashyrin, Ron Norman
 
    This file is part of GnuCOBOL C++.
 
@@ -32,6 +32,8 @@
 #define CB_PREFIX_BASE		"_b_"	/* Base address(unsigned char *) */
 #define CB_PREFIX_CONST		"_c_"	/* Constant or literal(cob_field) */
 #define CB_PREFIX_DECIMAL	"_d_"	/* Decimal number(cob_decimal) */
+#define CB_PREFIX_DEC_FIELD	"_kc_"	/* Decimal Constant for literal (cob_field) */
+#define CB_PREFIX_DEC_CONST	"_dc_"	/* Decimal Contant (cob_decimal) */
 #define CB_PREFIX_FIELD		"_f_"	/* Field(cob_field) */
 #define CB_PREFIX_FILE		"_h_"	/* File(cob_file) */
 #define CB_PREFIX_KEYS		"_k_"	/* File keys(cob_file_key []) */
@@ -103,7 +105,8 @@ enum cb_tag {
 	CB_TAG_DEBUG,		/* 35 Debug item set */
 	CB_TAG_DEBUG_CALL,	/* 36 Debug callback */
 	CB_TAG_PROGRAM,		/* 37 Program */
-	CB_TAG_PROTOTYPE	/* 38 Prototype */
+	CB_TAG_PROTOTYPE,	/* 38 Prototype */
+	CB_TAG_DECIMAL_LITERAL	/* 39 Decimal Literal */
 };
 
 /* Alphabet type */
@@ -306,7 +309,15 @@ enum cb_usage {
 	CB_USAGE_FP_BIN64,			/* 26 */
 	CB_USAGE_FP_BIN128,			/* 27 */
 	CB_USAGE_LONG_DOUBLE,		/* 28 */
-	CB_USAGE_UNION				/* 29 */
+	CB_USAGE_HNDL,				/* 29 */
+	CB_USAGE_HNDL_WINDOW,		/* 30 */
+	CB_USAGE_HNDL_SUBWINDOW,	/* 31 */
+	CB_USAGE_HNDL_FONT,			/* 32 */
+	CB_USAGE_HNDL_THREAD,		/* 33 */
+	CB_USAGE_HNDL_MENU,			/* 34 */
+	CB_USAGE_HNDL_VARIANT,		/* 35 */
+	CB_USAGE_HNDL_LM,			/* 36 */
+	CB_USAGE_UNION				/* 37 */
 };
 
 
@@ -468,7 +479,7 @@ char 	*		cb_name(cb_tree);
 cb_class		cb_tree_class(cb_tree);
 cb_category		cb_tree_category(cb_tree);
 cb_tree			cb_ref(cb_tree);
-size_t			cb_check_index_p(cb_tree x);
+size_t			cb_check_index_or_handle_p(cb_tree x);
 // Several prototypes needed below
 /////////////////////////////////////////////////////////////////
 
@@ -526,6 +537,19 @@ struct cb_xref {
 	struct cb_xref_elem	* head;
 	struct cb_xref_elem	* tail;
 	int			skip;
+};
+
+struct cb_call_elem {
+	struct cb_call_elem	* next;
+	char		   *     name;
+	struct cb_xref		xref;
+	int			is_identifier;
+	int			is_system;
+};
+
+struct cb_call_xref {
+	struct cb_call_elem	* head;
+	struct cb_call_elem	* tail;
 };
 
 /* Constant */
@@ -725,7 +749,7 @@ inline bool CB_NUMERIC_LITERAL_P(cb_tree x)
 /* Decimal */
 
 struct cb_decimal : cb_tree_common {
-	int			id;		/* Id for this decimal */
+	unsigned int			id;		/* Id for this decimal */
 };
 
 inline cb_decimal * CB_DECIMAL(cb_tree x)
@@ -735,6 +759,14 @@ inline cb_decimal * CB_DECIMAL(cb_tree x)
 inline bool CB_DECIMAL_P(cb_tree x)
 {
 	return (CB_TREE_TAG(x) == CB_TAG_DECIMAL);
+}
+inline cb_decimal * CB_DECIMAL_LITERAL(cb_tree x)
+{
+	return CB_TREE_CAST(CB_TAG_DECIMAL_LITERAL, cb_decimal, x);
+}
+inline bool CB_DECIMAL_LITERAL_P(cb_tree x)
+{
+	return (CB_TREE_TAG(x) == CB_TAG_DECIMAL_LITERAL);
 }
 
 /* Picture */
@@ -785,6 +817,8 @@ struct cb_field : cb_tree_common {
 	cb_tree			values;			/* VALUE */
 	cb_tree			false_88;		/* 88 FALSE clause */
 	cb_tree			index_list;		/* INDEXED BY */
+	cb_tree			external_form_identifier;	/* target of IDENTIFIED BY
+												(CGI template) */
 	cb_field 	*	parent;			/* Upper level field(if any) */
 	cb_field 	*	children;		/* Top of lower level fields */
 	cb_field 	*	validation;		/* First level 88 field (if any) */
@@ -827,7 +861,8 @@ struct cb_field : cb_tree_common {
 	unsigned int	odo_level;		/* ODO level (0 = no ODO item)
 									   could be direct ODO (check via depending)
 									   or via subordinate) */
-	cob_u32_t		special_index;	/* Special field */
+	cob_u32_t		special_index;	/* Special field,
+									   generated as int (2=>non-static) */
 
 	enum cb_storage		storage;	/* Storage section */
 	enum cb_usage		usage;		/* USAGE */
@@ -852,6 +887,7 @@ struct cb_field : cb_tree_common {
 	unsigned int flag_item_78		: 1;	/* Is 78 level */
 	unsigned int flag_any_length	: 1;	/* Is ANY LENGTH */
 	unsigned int flag_item_based	: 1;	/* Is BASED */
+	unsigned int flag_is_external_form : 1;		/* Is EXTERNAL-FORM */
 	unsigned int flag_filler		: 1;	/* Implicit/explicit filler */
 	unsigned int flag_synchronized	: 1;	/* SYNCHRONIZED */
 	unsigned int flag_invalid		: 1;	/* Is broken */
@@ -877,6 +913,9 @@ struct cb_field : cb_tree_common {
 	unsigned int flag_any_numeric	: 1;	/* Is ANY NUMERIC */
 	unsigned int flag_is_returning	: 1;	/* Is RETURNING item */
 	unsigned int flag_unbounded		: 1;	/* OCCURS UNBOUNDED */
+
+	unsigned int flag_constant	: 1;		/* Is 01 AS CONSTANT */
+	unsigned int flag_internal_constant	: 1;	/* Is an internally generated CONSTANT */
 };
 
 inline cb_field * CB_FIELD(cb_tree x)
@@ -890,9 +929,9 @@ inline bool CB_FIELD_P(cb_tree x)
 
 /* Index */
 
-inline size_t CB_INDEX_P(cb_tree x)
+inline size_t CB_INDEX_OR_HANDLE_P(cb_tree x)
 {
-	return cb_check_index_p(x);
+	return cb_check_index_or_handle_p(x);
 }
 
 /* Label */
@@ -1182,6 +1221,14 @@ inline bool CB_ASSIGN_P(cb_tree x)
 	return (CB_TREE_TAG(x) == CB_TAG_ASSIGN);
 }
 
+/* Compiler features like directives, functions, mnemonics and registers */
+
+enum cb_feature_mode {
+	CB_FEATURE_ACTIVE = 0,	/* 0 Feature is implemented and not disabled */
+	CB_FEATURE_DISABLED,		/* 1 Feature disabled */
+	CB_FEATURE_NOT_IMPLEMENTED	/* 2 Feature known but not yet implemented */
+};
+
 /* Intrinsic FUNCTION */
 
 struct cb_intrinsic_table {
@@ -1189,7 +1236,7 @@ struct cb_intrinsic_table {
 	const char 	*	intr_routine;	/* Routine name */
 	const cb_intr_enum	intr_enum;		/* Enum intrinsic */
 	const int			token;			/* Token value */
-	const int			implemented;	/* Have we implemented it? */
+	enum cb_feature_mode	active;	/* Have we implemented it? Is it active? */
 	const int			args;			/* Maximum number of arguments, -1 = unlimited */
 	const int			min_args;		/* Minimum number of arguments */
 	const cb_category	category;		/* Category */
@@ -1323,7 +1370,7 @@ inline bool CB_GOTO_P(cb_tree x)
 	return (CB_TREE_TAG(x) == CB_TAG_GOTO);
 }
 
-/* IF */
+/* IF and WHEN */
 
 struct cb_if : cb_tree_common {
 	cb_tree			test;		/* Condition */
@@ -1579,15 +1626,16 @@ struct cb_program : cb_tree_common {
 	cb_tree			crt_status;			/* CRT STATUS */
 	cb_tree			returning;			/* RETURNING */
 	cb_label 	*	all_procedure;		/* DEBUGGING */
+	cb_call_xref	call_xref;			/* CALL Xref list */
 
 	/* Internal variables */
 	int				loop_counter;		/* Loop counters */
-	int				decimal_index;		/* cob_decimal count */
-	int				decimal_index_max;	/* cob_decimal max */
+	unsigned int	decimal_index;		/* cob_decimal count */
+	unsigned int	decimal_index_max;	/* cob_decimal max */
 	int				nested_level;		/* Nested program level */
-	int				num_proc_params;	/* PROC DIV params */
+	unsigned int	num_proc_params;	/* PROC DIV params */
 	int				toplev_count;		/* Top level source count */
-	int				max_call_param;		/* Max params */
+	unsigned int	max_call_param;		/* Max params */
 
 	unsigned char	decimal_point;		/* '.' or ',' */
 	unsigned char	currency_symbol;	/* '$' or user-specified */
@@ -1675,6 +1723,7 @@ extern cb_tree		cb_int2;
 extern cb_tree		cb_int3;
 extern cb_tree		cb_int4;
 extern cb_tree		cb_int5;
+extern cb_tree		cb_int6;
 extern cb_tree		cb_i[COB_MAX_SUBSCRIPTS];
 extern cb_tree		cb_error_node;
 
@@ -1706,13 +1755,15 @@ cb_tree		cb_build_class_name(cb_tree, cb_tree);
 
 cb_tree		cb_build_locale_name(cb_tree, cb_tree);
 
-cb_tree		cb_build_numeric_literal(const int, const void *, const int);
+cb_tree		cb_build_numeric_literal(int, const void *, const int);
 cb_tree		cb_build_alphanumeric_literal(const void *, const size_t);
 cb_tree		cb_build_national_literal(const void *, const size_t);
 cb_tree		cb_build_numsize_literal(const void *, const size_t, const int);
 cb_tree		cb_concat_literals(const cb_tree, const cb_tree);
 
-cb_tree		cb_build_decimal(const int);
+cb_tree		cb_build_decimal(const unsigned int);
+cb_tree		cb_build_decimal_literal(const int);
+int 		cb_lookup_literal(cb_tree x, int make_decimal);
 
 cb_tree		cb_build_picture(const char *);
 cb_tree		cb_build_comment(const char *);
@@ -1789,7 +1840,7 @@ cb_tree		cb_list_add(cb_tree, cb_tree);
 cb_tree		cb_pair_add(cb_tree, cb_tree, cb_tree);
 cb_tree		cb_list_append(cb_tree, cb_tree);
 cb_tree		cb_list_reverse(cb_tree);
-int			cb_list_length(cb_tree);
+unsigned int cb_list_length(cb_tree);
 
 cb_report *	build_report(cb_tree);
 
@@ -1826,11 +1877,13 @@ int			is_reserved_word(const char *);
 int			is_default_reserved_word(const char *);
 void		remove_context_sensitivity(const char *, const int);
 cobc_reserved * lookup_reserved_word(const char *);
-cb_tree		lookup_system_name(const char *);
+cb_tree		get_system_name(const char *);
+const char * cb_get_register_definition(const char *);
 void		cb_list_reserved(void);
 void		cb_list_intrinsics(void);
-void		cb_list_mnemonics(void);
-void		cb_list_system(void);
+void		cb_list_system_names(void);
+void		cb_list_registers(void);
+void		cb_list_system_routines(void);
 void		cb_list_map(cb_tree(*)(cb_tree), cb_tree);
 
 /* error.c */
@@ -1848,6 +1901,7 @@ void		group_error(cb_tree, const char *);
 void		level_redundant_error(cb_tree, const char *);
 void		level_require_error(cb_tree, const char *);
 void		level_except_error(cb_tree, const char *);
+int			cb_set_ignore_error(int state);
 
 /* field.c */
 extern size_t	cb_needs_01;
@@ -1872,19 +1926,26 @@ extern cb_tree	cb_debug_contents;
 
 cb_program * cb_build_program(cb_program *, const int);
 cb_tree		cb_check_numeric_value(cb_tree);
+void		cb_set_intr_when_compiled(void);
 void		cb_build_registers(void);
+const char	* cb_register_list_get_first(const char *);
+const char	* cb_register_list_get_next(const char *);
 void		cb_build_debug_item(void);
 void		cb_check_field_debug(cb_tree);
 void		cb_trim_program_id(cb_tree);
 char 	*	cb_encode_program_id(const char *);
 char 	*	cb_build_program_id(cb_tree, cb_tree, const cob_u32_t);
 cb_tree		cb_define_switch_name(cb_tree, cb_tree, const int);
+void		cb_check_word_length(unsigned int, const char *);
 cb_tree		cb_build_section_name(cb_tree, const int);
 cb_tree		cb_build_assignment_name(cb_file *, cb_tree);
 cb_tree		cb_build_index(cb_tree, cb_tree, const unsigned int, cb_field *);
 cb_tree		cb_build_identifier(cb_tree, const int);
 cb_tree		cb_build_length(cb_tree);
 cb_tree		cb_build_const_length(cb_tree);
+cb_tree		cb_build_const_from(cb_tree);
+cb_tree		cb_build_const_start(cb_field *, cb_tree);
+cb_tree		cb_build_const_next(cb_field *);
 cb_tree		cb_build_address(cb_tree);
 cb_tree		cb_build_ppointer(cb_tree);
 void		cb_validate_program_environment(cb_program *);
@@ -1892,6 +1953,13 @@ void		cb_validate_program_data(cb_program *);
 void		cb_validate_program_body(cb_program *);
 cb_tree		cb_build_expr(cb_tree);
 cb_tree		cb_build_cond(cb_tree);
+void		cb_end_cond(cb_tree);
+void		cb_save_cond(void);
+void		cb_terminate_cond(void);
+void		cb_true_side(void);
+void		cb_false_side(void);
+void		cb_end_statement(void);
+const char	* explain_operator(const int);
 void		cb_emit_arithmetic(cb_tree, const int, cb_tree);
 cb_tree		cb_build_add(cb_tree, cb_tree, cb_tree);
 cb_tree		cb_build_sub(cb_tree, cb_tree, cb_tree);
@@ -1920,13 +1988,16 @@ void		cb_emit_get_environment(cb_tree, cb_tree);
 void		cb_emit_allocate(cb_tree, cb_tree, cb_tree, cb_tree);
 void		cb_emit_alter(cb_tree, cb_tree);
 void		cb_emit_free(cb_tree);
-void		cb_emit_call(cb_tree, cb_tree, cb_tree, cb_tree, cb_tree, cb_tree);
+void		cb_emit_call(cb_tree, cb_tree, cb_tree, cb_tree, cb_tree, cb_tree, cb_tree, cb_tree);
 void		cb_emit_cancel(cb_tree);
 void		cb_emit_close(cb_tree, cb_tree);
 void		cb_emit_commit(void);
 void		cb_emit_continue(void);
 void		cb_emit_delete(cb_tree);
 void		cb_emit_delete_file(cb_tree);
+void		cb_emit_display_window(cb_tree, cb_tree, cb_tree, cb_tree, cb_attr_struct *);
+void		cb_emit_close_window(cb_tree, cb_tree);
+void		cb_emit_destroy(cb_tree);
 void		cb_emit_display(cb_tree, cb_tree, cb_tree, cb_tree, cb_attr_struct *, int, enum cb_display_type);
 cb_tree		cb_build_display_mnemonic(cb_tree);
 cb_tree		cb_build_display_name(cb_tree);
@@ -1960,12 +2031,13 @@ int			validate_move(cb_tree, cb_tree, bool);
 cb_tree		cb_build_move(cb_tree, cb_tree);
 void		cb_emit_move(cb_tree, cb_tree);
 void		cb_emit_open(cb_tree, cb_tree, cb_tree);
-void		cb_emit_perform(cb_tree, cb_tree);
+void		cb_emit_perform(cb_tree, cb_tree, cb_tree, cb_tree);
 cb_tree		cb_build_perform_once(cb_tree);
 cb_tree		cb_build_perform_times(cb_tree);
 cb_tree		cb_build_perform_until(cb_tree, cb_tree);
 cb_tree		cb_build_perform_forever(cb_tree);
 cb_tree		cb_build_perform_exit(cb_label *);
+void		cb_build_perform_after_until(void);
 void		cb_emit_read(cb_tree, cb_tree, cb_tree, cb_tree, cb_tree);
 void		cb_emit_ready_trace(void);
 void		cb_emit_rewrite(cb_tree, cb_tree, cb_tree);
@@ -1981,6 +2053,7 @@ void		cb_emit_set_up_down(cb_tree, cb_tree, cb_tree);
 void		cb_emit_set_on_off(cb_tree, cb_tree);
 void		cb_emit_set_true(cb_tree);
 void		cb_emit_set_false(cb_tree);
+void		cb_emit_set_thread_priority(cb_tree, cb_tree);
 void		cb_emit_set_attribute(cb_tree, const cob_flags_t, const cob_flags_t);
 cb_tree		cb_build_set_attribute(const cb_field *, const cob_flags_t, const cob_flags_t);
 void		cb_emit_set_last_exception_to_off(void);
@@ -1992,6 +2065,7 @@ void		cb_emit_sort_output(cb_tree);
 void		cb_emit_sort_finish(cb_tree);
 void		cb_emit_start(cb_tree, cb_tree, cb_tree, cb_tree);
 void		cb_emit_stop_run(cb_tree);
+void		cb_emit_stop_thread(cb_tree);
 void		cb_emit_string(cb_tree, cb_tree, cb_tree);
 void		cb_emit_unlock(cb_tree);
 void		cb_emit_unstring(cb_tree, cb_tree, cb_tree, cb_tree, cb_tree);
@@ -2026,6 +2100,7 @@ cb_program * cb_find_defined_program_by_id(const char *);
 void		cobc_xref_link(cb_xref *, const int, const int);
 void		cobc_xref_link_parent(const cb_field *);
 void		cobc_xref_set_receiving(const cb_tree);
+void		cobc_xref_call(const char *, const int, const int, const int);
 
 /* Function defines */
 

@@ -126,7 +126,7 @@ enum cb_format {
 #define	CB_CS_ROUNDED		(1U << 19)
 #define	CB_CS_SET			(1U << 20)
 #define	CB_CS_STOP			(1U << 21)
-#define	CB_CS_WITH			(1U << 22)
+#define	CB_CS_OBJECT_COMPUTER	(1U << 22)
 
 /* Support for cobc from stdin */
 #define COB_DASH			"-"
@@ -165,6 +165,7 @@ enum cb_std_def {
 	CB_STD_MVS,
 	CB_STD_BS2000,
 	CB_STD_ACU,
+	CB_STD_RM,
 	/* the following must contain ANSI/ISO standards in order */
 	CB_STD_85,
 	CB_STD_2002,
@@ -392,15 +393,15 @@ extern cb_exception	cb_exception_table[];
 
 #undef	COB_EXCEPTION
 
-#define	CB_FLAG(var,pdok,name,doc)		extern int var;
-#define	CB_FLAG_ON(var,pdok,name,doc)		extern int var;
-#define CB_FLAG_RQ(var,pdok,name,def,opt,doc,vdoc,ddoc)	extern int var;
-#define CB_FLAG_NQ(pdok,name,opt,doc,vdoc)
+#define	CB_FLAG(var,print_help,name,doc)		extern int var;
+#define	CB_FLAG_ON(var,print_help,name,doc)		extern int var;
+#define CB_FLAG_RQ(var,print_help,name,def,opt,doc)	extern int var;
+#define CB_FLAG_NQ(print_help,name,opt,doc)
 #include "flag.def"
 #undef	CB_FLAG
 #undef	CB_FLAG_ON
 #undef	CB_FLAG_RQ
-#undef	CB_FLAG_nQ
+#undef	CB_FLAG_NQ
 
 #define	CB_WARNDEF(var,name,doc)	extern int var;
 #define	CB_ONWARNDEF(var,name,doc)	extern int var;
@@ -525,6 +526,7 @@ size_t	cobc_check_valid_name(const char *, const cobc_name_type);
 int				cb_load_std(const char *);
 int				cb_config_entry(char *, const char *, const int);
 int				cb_load_conf(const char *, const int);
+int				cb_load_words(void);
 
 /* Initialization routines in typeck.c and reserved.c */
 void			cobc_init_typeck(void);
@@ -543,6 +545,8 @@ int				ppcopy(const char *, const char *, cb_replace_list *);
 void			pp_set_replace_list(cb_replace_list *, const cob_u32_t);
 void			ppparse_error(const char *);
 void			ppparse_clear_vars(const cb_define_struct *);
+cb_define_struct * ppp_search_lists(const char * name);
+void			ppp_clear_lists(void);
 void			plex_clear_vars(void);
 void			plex_clear_all(void);
 void			plex_call_destroy(void);
@@ -610,6 +614,15 @@ extern struct reserved_word_list	* cobc_user_res_list;
 
 void		remove_reserved_word(const char *, const char *, const int);
 void		add_reserved_word(const char *, const char *, const int);
+
+void		remove_register(const char *, const char *, const int);
+void		add_register(const char *, const char *, const int);
+
+void		deactivate_intrinsic(const char *, const char *, const int);
+void		activate_intrinsic(const char *, const char *, const int);
+
+void		deactivate_system_name(const char *, const char *, const int);
+void		activate_system_name(const char *, const char *, const int);
 
 /////////////////////////// SKA DEBUG //////////////////////
 void skadbg(const char * fmt, ...);

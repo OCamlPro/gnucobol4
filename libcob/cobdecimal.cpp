@@ -77,7 +77,7 @@ cob_decimal & cob_decimal::operator=(const double rhs)
 		cob_u64_t	l1;
 	} ud;
 	ud.d1 = rhs;
-	if(ud.l1 == 0 || ud.l1 == t1 || !finite(rhs)) {
+	if(ud.l1 == 0 || ud.l1 == t1 || !ISFINITE(rhs)) {
 		value = 0;
 		scale = 0;
 		return *this;
@@ -623,7 +623,7 @@ cob_decimal::operator cob_u64_t()
 cob_decimal::operator double()
 {
 	double ret = value.get_d();
-	if(!finite(ret)) {
+	if(!ISFINITE(ret)) {
 		return 0.;
 	}
 	if(scale > 0) {

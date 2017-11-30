@@ -33,7 +33,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [111])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [111])
 
 AT_CLEANUP
 
@@ -69,7 +69,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [abcabc000abc], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [abcabc000abc], [])
 
 AT_CLEANUP
 
@@ -117,7 +117,7 @@ AT_DATA([caller.cob], [
 AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [abc000], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [abc000], [])
 
 AT_CLEANUP
 
@@ -159,7 +159,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -208,7 +208,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -236,7 +236,7 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE prog.cob], [0], [],
 [prog.cob: 8: warning: overlapping MOVE may produce unpredictable results
 ])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -260,7 +260,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -286,7 +286,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -311,7 +311,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -337,7 +337,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -372,7 +372,7 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [000102])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [000102])
 
 AT_CLEANUP
 
@@ -414,7 +414,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -436,7 +436,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [OKOK])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OKOK])
 
 AT_CLEANUP
 
@@ -476,7 +476,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ                       _
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ                       _
 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789                       _
 ])
 
@@ -502,7 +502,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [OK OK])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OK OK])
 
 AT_CLEANUP
 
@@ -537,7 +537,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [OKOKOKOK])
 
 AT_CLEANUP
@@ -585,7 +585,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -609,7 +609,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -634,7 +634,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -663,7 +663,7 @@ AT_DATA([caller.cob], [
 AT_CHECK([$COMPILE_MODULE -c callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -c caller.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.$COB_OBJECT_EXT callee.$COB_OBJECT_EXT], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -718,7 +718,7 @@ AT_CHECK([$COMPILE_MODULE m1.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE m2.cob], [0], [], [])
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
 
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [], [])
 
 AT_CLEANUP
 
@@ -761,7 +761,7 @@ AT_DATA([callee.cob], [
 
 AT_DATA([callee2.cob], [
        IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      callee2.
+       PROGRAM-ID.      callee2 IS RECURSIVE.
        PROCEDURE        DIVISION.
            CALL "callee" END-CALL.
            GOBACK.
@@ -770,7 +770,7 @@ AT_DATA([callee2.cob], [
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
-AT_CHECK([./caller], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -819,7 +819,113 @@ AT_DATA([callee2.cob], [
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
-AT_CHECK([./caller], [1], [], [libcob: callee2.cob: 5: invalid recursive COBOL CALL to 'callee'
+AT_CHECK([$COBCRUN_DIRECT ./caller], [1], [],
+[libcob: callee2.cob: 5: recursive CALL from callee2 to callee which is NOT RECURSIVE
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Recursive CALL with RECURSIVE assumed])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([caller.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      caller.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77  STOPPER      PIC 9 EXTERNAL.
+       PROCEDURE        DIVISION.
+           MOVE 0 TO STOPPER
+           CALL "callee" END-CALL.
+           GOBACK.
+])
+
+AT_DATA([callee.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      callee IS INITIAL.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77  STOPPER      PIC 9 EXTERNAL.
+       PROCEDURE        DIVISION.
+           IF STOPPER = 9
+              DISPLAY 'OK' NO ADVANCING END-DISPLAY
+              STOP RUN
+           ELSE
+              ADD  1 TO STOPPER END-ADD
+              CALL "callee2" END-CALL
+           END-IF.
+           GOBACK.
+])
+
+AT_DATA([callee2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      callee2.
+       PROCEDURE        DIVISION.
+           CALL "callee" END-CALL.
+           GOBACK.
+])
+
+AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE -fno-recursive-check callee.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE -fno-recursive-check callee2.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [OK], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Recursive CALL with ON EXCEPTION])
+
+AT_KEYWORDS([runmisc])
+
+AT_DATA([caller.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      caller.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77  STOPPER      PIC 9 EXTERNAL.
+       PROCEDURE        DIVISION.
+           MOVE 0 TO STOPPER
+           CALL "callee" END-CALL.
+           GOBACK.
+])
+
+AT_DATA([callee.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      callee IS INITIAL.
+       DATA             DIVISION.
+       WORKING-STORAGE  SECTION.
+       77  STOPPER      PIC 9 EXTERNAL.
+       PROCEDURE        DIVISION.
+           IF STOPPER = 1
+              DISPLAY 'INITIAL prog was called RECURSIVE'
+              END-DISPLAY
+              STOP RUN RETURNING 1
+           ELSE
+              MOVE 1 TO STOPPER
+              CALL "callee2" END-CALL
+           END-IF.
+           GOBACK.
+])
+
+AT_DATA([callee2.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      callee2.
+       PROCEDURE        DIVISION.
+           CALL "callee"
+           ON EXCEPTION 
+              DISPLAY "Exception " FUNCTION EXCEPTION-STATUS ";"
+                 UPON SYSERR
+              STOP RUN RETURNING 1
+           END-CALL.
+           GOBACK.
+])
+
+AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [1], [],
+[Exception EC-PROGRAM-RECURSIVE-CALL      ;
 ])
 
 AT_CLEANUP
@@ -866,7 +972,7 @@ AT_DATA([callee.cob], [
 
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [COUNTER = 001 LPARAM1 = 00000008 PARAM1 =  PARAM 1
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [COUNTER = 001 LPARAM1 = 00000008 PARAM1 =  PARAM 1
 COUNTER = 001 LPARAM1 = 00000008 PARAM1 =  PARAM 1
 COUNTER = 001 LPARAM1 = 00000008 PARAM1 =  PARAM 1
 COUNTER = 001 LPARAM1 = 00000008 PARAM1 =  PARAM 1
@@ -922,56 +1028,17 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE_MODULE dump.cpp], [0], [], [])
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [00000001
 00000009
 00000004
 ])
-AT_CHECK([$COMPILE -fbinary-byteorder=native prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COMPILE -fbinary-byteorder=native prog.cob -o prog2], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog2], [0],
 [00000001
 00000009
 00000004
 ])
-
-AT_CLEANUP
-
-AT_SETUP([CALL binary literal])
-AT_KEYWORDS([CALL])
-
-AT_DATA([prog.cob], [       IDENTIFICATION DIVISION.
-       PROGRAM-ID. prog.
-       
-       DATA DIVISION.
-       WORKING-STORAGE SECTION.
-       
-       PROCEDURE DIVISION.
-           CALL "SUB" USING 1280 BY VALUE 15.
-           CALL "SUB" USING 2560 BY VALUE 16.
-           STOP RUN.
-       END PROGRAM prog.
-       
-       IDENTIFICATION DIVISION.
-       PROGRAM-ID. "SUB".
-       
-       DATA DIVISION.
-       LINKAGE SECTION.
-       01  x  PIC 9(9) COMP.
-       01  y  PIC 9(9) COMP.
-       
-       PROCEDURE DIVISION USING x, VALUE y.
-            DISPLAY "COBOL: X is " x " and Y is " y.
-       END PROGRAM "SUB".
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 21: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
-])
-
-AT_CHECK([./prog], [0],
-[COBOL: X is 000001280 and Y is 000000015
-COBOL: X is 000002560 and Y is 000000016
-], [])
 
 AT_CLEANUP
 
@@ -997,7 +1064,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1021,7 +1088,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1045,7 +1112,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1069,7 +1136,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1093,7 +1160,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1117,7 +1184,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1152,7 +1219,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1187,7 +1254,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1211,7 +1278,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1238,7 +1305,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CLEANUP
 
 
@@ -1357,7 +1424,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [XXXX])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [XXXX])
 
 AT_CLEANUP
 
@@ -1382,7 +1449,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -1407,7 +1474,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [OKOK])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OKOK])
 
 AT_CLEANUP
 
@@ -1439,7 +1506,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1475,7 +1542,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1506,7 +1573,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1533,7 +1600,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1558,7 +1625,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -frelax-syntax-checks prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [])
 
 AT_CLEANUP
 
@@ -1587,7 +1654,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1615,7 +1682,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1661,7 +1728,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1696,7 +1763,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1761,7 +1828,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1815,7 +1882,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -1857,7 +1924,77 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -ftop-level-occurs-clause=ok prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([UNSTRING with FUNCTION / literal])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA  DIVISION.
+       WORKING-STORAGE SECTION.
+       01  FILLER.
+         05  TSTUNS PIC X(479).
+         05  PRM    PIC X(16) OCCURS 4 TIMES.
+       PROCEDURE DIVISION.
+           MOVE "The,Quick,Brown,Fox" TO TSTUNS.
+           UNSTRING TSTUNS DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           UNSTRING FUNCTION UPPER-CASE(TSTUNS) DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "Now using UPPER-CASE"
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           UNSTRING "Daddy,was,a,Rolling stone" DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "Now using Literal"
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           UNSTRING FUNCTION LOWER-CASE("Daddy,was,a,Rolling stone")
+                DELIMITED BY ',' 
+              INTO  PRM(1), PRM(2), PRM(3), PRM(4).
+           DISPLAY "Now using Literal + LOWER-CASE"
+           DISPLAY "PRM(1) is " PRM(1) ":".
+           DISPLAY "PRM(2) is " PRM(2) ":".
+           DISPLAY "PRM(3) is " PRM(3) ":".
+           DISPLAY "PRM(4) is " PRM(4) ":".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[PRM(1) is The             :
+PRM(2) is Quick           :
+PRM(3) is Brown           :
+PRM(4) is Fox             :
+Now using UPPER-CASE
+PRM(1) is THE             :
+PRM(2) is QUICK           :
+PRM(3) is BROWN           :
+PRM(4) is FOX             :
+Now using Literal
+PRM(1) is Daddy           :
+PRM(2) is was             :
+PRM(3) is a               :
+PRM(4) is Rolling stone   :
+Now using Literal + LOWER-CASE
+PRM(1) is daddy           :
+PRM(2) is was             :
+PRM(3) is a               :
+PRM(4) is rolling stone   :
+], [])
 
 AT_CLEANUP
 
@@ -1899,7 +2036,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2003,7 +2140,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [SINGLE TABLE
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [SINGLE TABLE
 04
 03
 02
@@ -2059,14 +2196,14 @@ AT_DATA([prog.cob], [
            SORT ROW1.
 
            PERFORM VARYING K FROM 1 BY 1 UNTIL K > 4
-		     DISPLAY TAB1-NR(K) NO ADVANCING END-DISPLAY
+             DISPLAY TAB1-NR(K) NO ADVANCING END-DISPLAY
            END-PERFORM
 
            STOP RUN.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [04030201], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [04030201], [])
 
 AT_CLEANUP
 
@@ -2103,7 +2240,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2156,7 +2293,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2193,7 +2330,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -fperform-osvs prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2240,7 +2377,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE -fsticky-linkage callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -fsticky-linkage -o caller caller.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [], [])
 
 AT_CLEANUP
 
@@ -2330,12 +2467,8 @@ AT_DATA([main-prog.cob], [
         STOP RUN.
 ])
 
-AT_CHECK([$COMPILE_MODULE prog.cob], [0], [], [prog.cob: 13: warning: ENTRY is obsolete in GnuCOBOL
-prog.cob: 17: warning: ENTRY is obsolete in GnuCOBOL
-])
-AT_CHECK([$COMPILE_MODULE prog1.cob], [0], [], [prog1.cob: 13: warning: ENTRY is obsolete in GnuCOBOL
-prog1.cob: 17: warning: ENTRY is obsolete in GnuCOBOL
-])
+AT_CHECK([$COMPILE_MODULE prog.cob], [0], [], [])
+AT_CHECK([$COMPILE_MODULE prog1.cob], [0], [], [])
 AT_CHECK([$COMPILE main-prog.cob], [0], [], [])
 AT_CHECK([export COB_PRE_LOAD="prog"$PATHSEP"prog1"; ./main-prog], [0], [12abc
 11
@@ -2380,9 +2513,8 @@ AT_DATA([prog.cob], [
        .
 ])
 
-AT_CHECK([$COMPILE prog.cob], [0], [], [prog.cob: 26: warning: ENTRY is obsolete in GnuCOBOL
-])
-AT_CHECK([./prog], [42], [subprogram+000000042], [])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [42], [subprogram+000000042], [])
 
 AT_CLEANUP
 
@@ -2436,7 +2568,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2463,7 +2595,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2507,7 +2639,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 # Run both executable and module as we have a different code generation here
 AT_CHECK([$COMPILE_MODULE prog.cob], [0], [], [])
 AT_CHECK([$COBCRUN prog], [0], [], [])
@@ -2551,7 +2683,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2576,7 +2708,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -fdefaultbyte=A prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2615,7 +2747,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [], [])
 
 AT_CLEANUP
 
@@ -2641,10 +2773,10 @@ AT_DATA([callee.cob], [
 ])
 
 AT_DATA([caller.cpp], [[
+#define COB_LIB_EXPIMP
 #include <libcob.h>
 
-
-extern "C" int callee(const char *, const char *);
+COB_EXPIMP int callee (char *, char *);
   
 #ifndef NULL
 #define NULL (void*)0
@@ -2653,18 +2785,30 @@ extern "C" int callee(const char *, const char *);
 int
 main (int argc, char **argv)
 {
-	cob_global *cobol_global;
-	const char *p1 = "A";
+   cob_global *cobol_global;
+   /* for storing COBOL return code */
+   int cob_ret;
 
-	cob_init(argc, argv);
-	cobol_global = cob_get_global_ptr ();
-	cobol_global->cob_call_params = 1;
-	return callee (p1, NULL);
+   /* initialize parameters */
+   char *p1 = (char *) "A";
+
+   /* initialize the COBOL run-time library */
+   cob_init(argc, argv);
+
+   /* setup for COBOL parameter handling */
+   cobol_global = cob_get_global_ptr ();
+   cobol_global->cob_call_params = 1;
+
+   /* call COBOL program */
+   cob_ret = callee (p1, NULL);
+
+   /* Clean up and terminate - This does not return */
+   cob_stop_run (cob_ret);
 }
 ]])
 
 AT_CHECK([$COMPILE -o caller caller.cpp callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [P1: A], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [P1: A], [])
 
 AT_CLEANUP
 
@@ -2695,23 +2839,34 @@ AT_DATA([callee.cob], [
 ])
 
 AT_DATA([caller.cpp], [[
+#define COB_LIB_EXPIMP
 #include <libcob.h>
 
-extern "C" int callee (const char *, const char *);
+COB_EXPIMP int callee (char *, char *);
 
 int
 main (int argc, char **argv)
 {
-	const char *p1 = "A";
-	const char *p2 = "FROM C";
+   /* for storing COBOL return code */
+   int cob_ret;
 
-	cob_init(argc, argv);
-	return callee (p1, p2);
+   /* initialize parameters */
+   char *p1 = (char *) "A";
+   char *p2 = (char *) "FROM C";
+
+   /* initialize the COBOL run-time library */
+   cob_init (argc, argv);
+
+   /* call COBOL program */
+   cob_ret = callee (p1, p2);
+
+   /* Clean up and terminate - This does not return */
+   cob_stop_run (cob_ret);
 }
 ]])
 
 AT_CHECK([$COMPILE -o caller caller.cpp callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -2767,18 +2922,18 @@ AT_DATA([cprog.cpp], [[
 COB_EXPIMP int
 cprog(void *cb)
 {
-    const char *p1;
-    int p2 = 42;
-    const char *p3 = "CALLBACK";
+   char *p1;
+   int  p2 = 42;
+   char *p3 = (char *) "CALLBACK";
 
-    p1 = p3;
-    ((int (*)(const char *, int, const char *))cb)(p1, p2, p3);
-	return 0;
+   p1 = p3;
+   ((int (*)(char *, int, char *))cb)(p1, p2, p3);
+   return 0;
 }
 ]])
 
 AT_CHECK([$COMPILE -Wno-unfinished -o prog prog.cob cprog.cpp], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2834,18 +2989,18 @@ AT_DATA([cprog.cpp], [[
 COB_EXPIMP int
 cprog(void *cb)
 {
-    const char *p1;
-    int p2 = 42;
-    const char *p3 = "CALLBACK";
+   char *p1;
+   int  p2 = 42;
+   char *p3 = (char *) "CALLBACK";
 
-    p1 = p3;
-    ((int (*)(const char *, int, const char *))cb)(p1, p2, p3);
-	return 0;
+   p1 = p3;
+   ((int (*)(char *, int, char *))cb)(p1, p2, p3);
+   return 0;
 }
 ]])
 
 AT_CHECK([$COMPILE -Wno-unfinished -o prog prog.cob cprog.cpp], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -2872,30 +3027,35 @@ AT_DATA([callee.cob], [
               DISPLAY "OK" WITH NO ADVANCING
               END-DISPLAY
            END-IF.
-           EXIT PROGRAM.
+           STOP RUN.
 ])
 
 AT_DATA([caller.cpp], [[
-extern "C" int callee (const char *, const char *);
+#define COB_LIB_EXPIMP
+#include <libcob.h>
+
+COB_EXPIMP int callee (char *, char *);
 
 int
 main (int argc, char **argv)
 {
+   /* initialize parameters */
+   char *p1 = (char *) "A";
+   char *p2 = (char *) "FROM C";
 
-	const char *p1 = "A";
-	const char *p2 = "FROM C";
-
-	return callee (p1, p2);
+   /* call COBOL program (initialization missing)
+      note: COBOL program terminates the program by STOP RUN */
+   (void)callee (p1, p2);
 }
 ]])
 
 AT_CHECK([$COMPILE -o caller caller.cpp callee.cob], [0], [], [])
-AT_CHECK([./caller], [1], [],
+AT_CHECK([$COBCRUN_DIRECT ./caller], [1], [],
 [libcob: cob_init() has not been called
 ])
 
 AT_CHECK([$COMPILE -fimplicit-init -o caller caller.cpp callee.cob], [0], [], [])
-AT_CHECK([./caller], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -2936,24 +3096,23 @@ AT_DATA([caller.cob], [
 ])
 
 AT_DATA([callee.cpp], [[
-#include <string.h>
 #define COB_LIB_EXPIMP
 #include <libcob.h>
 
 COB_EXPIMP int
 callee (char *p1, char *p2)
 {
-	if (p1[0] == 'A') {
-		p1[0] = 'B';
-	}
-	strncpy (p2, "FROM C", 6);
+   if (p1[0] == 'A') {
+      p1[0] = 'B';
+   }
+   strncpy (p2, "FROM C", 6);
 
-	return 3;
+   return 3;
 }
 ]])
 
 AT_CHECK([$COMPILE -o caller caller.cob callee.cpp], [0], [], [])
-AT_CHECK([./caller], [0], [OK], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [OK], [])
 
 AT_CLEANUP
 
@@ -2996,7 +3155,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [], [])
 
 AT_CLEANUP
 
@@ -3040,7 +3199,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE -o caller caller.cob], [0], [], [])
-AT_CHECK([./caller], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [], [])
 
 AT_CLEANUP
 
@@ -3076,10 +3235,10 @@ AT_DATA([prog2.cob], [
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COMPILE prog2.cob], [0], [], [])
 
-AT_CHECK([./prog], [1], [],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [],
 [libcob: prog.cob: 8: BASED/LINKAGE item 'X' has NULL address
 ])
-AT_CHECK([./prog2], [1], [],
+AT_CHECK([$COBCRUN_DIRECT ./prog2], [1], [],
 [libcob: prog2.cob: 9: BASED/LINKAGE item 'X' (accessed by 'Y') has NULL address
 ])
 
@@ -3121,7 +3280,7 @@ AT_DATA([callee.cob], [
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 
-AT_CHECK([./caller], [1], [],
+AT_CHECK([$COBCRUN_DIRECT ./caller], [1], [],
 [libcob: callee.cob: 9: LINKAGE item 'X' (accessed by 'Y') not passed by caller
 ])
 
@@ -3141,7 +3300,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -3159,7 +3318,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [1])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [1])
 
 AT_CLEANUP
 
@@ -3199,7 +3358,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -3243,7 +3402,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -3280,7 +3439,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -3329,7 +3488,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -3834,10 +3993,10 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CHECK([$COMPILE -fnotrunc prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -4342,10 +4501,10 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CHECK([$COMPILE -fnotrunc prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -4805,7 +4964,7 @@ AT_DATA([callee2.cob], [
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee2.cob], [0], [], [])
 AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
 AT_CLEANUP
 
@@ -4847,9 +5006,9 @@ AT_DATA([prog.cob], [
        DATA           DIVISION.
        SCREEN         SECTION.
        01  invalid-line.
-           03  a      PIC X LINE 99999999.
+           03  a      VALUE "a" LINE 99999999.
        01  invalid-col.
-           03  c     PIC X COLUMN 99999999.
+           03  c      VALUE "c" COLUMN 99999999.
 
        PROCEDURE      DIVISION.
            DISPLAY invalid-line END-DISPLAY
@@ -4871,7 +5030,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], ignore, [])
+AT_CHECK([COB_EXIT_WAIT=0 ./prog], [0], ignore, [])
 
 AT_CLEANUP
 
@@ -4909,7 +5068,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE  -faccept-display-extensions=error prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], ignore, [])
+AT_CHECK([COB_EXIT_WAIT=0 ./prog], [0], ignore, [])
 
 AT_CLEANUP
 
@@ -4936,7 +5095,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [EC-SIZE-OVERFLOW
 blah; ; 10
 
@@ -4969,8 +5128,8 @@ AT_DATA([caller.cob], [
 ])
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [0], [+000000000], [])
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [+000000000], [])
 
 AT_CLEANUP
 
@@ -5000,44 +5159,8 @@ AT_DATA([caller.cob], [
 ])
 
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [], [])
-AT_CHECK([$COMPILE -o prog caller.cob], [0], [], [])
-AT_CHECK([./prog], [42], [+000000042], [])
-
-AT_CLEANUP
-
-
-# Disallow PROCEDURE DIVISION RETURNING OMITTED for main
-AT_SETUP([void PROCEDURE, main not allowed])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       PROCEDURE        DIVISION RETURNING OMITTED.
-           MOVE 42 TO RETURN-CODE
-           EXIT PROGRAM.
-])
-
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [], [ignore])
-
-AT_CLEANUP
-
-
-# Disallow PROCEDURE DIVISION RETURNING OMITTED for FUNCTION
-AT_SETUP([void PROCEDURE not allowed for FUNCTION])
-AT_KEYWORDS([runmisc])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       FUNCTION-ID.     func.
-       DATA             DIVISION.
-       PROCEDURE        DIVISION RETURNING OMITTED.
-           MOVE 42 TO RETURN-CODE
-           EXIT PROGRAM.
-])
-
-AT_CHECK([$COMPILE -o prog prog.cob], [1], [], [ignore])
+AT_CHECK([$COMPILE caller.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./caller], [42], [+000000042], [])
 
 AT_CLEANUP
 
@@ -5220,7 +5343,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -o prog prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [Hello!
 Hello again!
 ])
@@ -5266,12 +5389,13 @@ AT_DATA([prog.cob], [       IDENTIFICATION DIVISION.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 8: warning: initial VALUE clause ignored for REDEFINES item
-prog.cob: 9: warning: initial VALUE clause ignored for REDEFINES item
-prog.cob: 11: warning: initial VALUE clause ignored for REDEFINES item
+[prog.cob: 8: warning: initial VALUE clause ignored for REDEFINES item 'WS-ASK-ID-DATE-YYYY'
+prog.cob: 9: warning: initial VALUE clause ignored for REDEFINES item 'FILLER'
+prog.cob: 11: warning: initial VALUE clause ignored for REDEFINES item 'FILLER'
 ])
 
-AT_CHECK([./prog], [0], [The date is 2015*08*21 Compiled
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[The date is 2015*08*21 Compiled
 The date is 0000*08*21 INITIALIZE
 The date is 0000 08 21 WITH FILLER
 The date is 2017-08-21 ALL TO VALUE
@@ -5301,7 +5425,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -o prog prog.cob], [0], [], [])
-AT_CHECK([./prog], [0], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [])
 AT_CLEANUP
 
 
@@ -5325,7 +5449,7 @@ AT_CHECK([$COMPILE -o prog prog.cob], [0], [],
 AT_CHECK([$COMPILE -free -o prog prog.cob], [0], [],
 [prog.cob: 3: warning: DATE-WRITTEN is obsolete in GnuCOBOL
 ])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [Hello, world!
 ])
 AT_CLEANUP
@@ -5370,14 +5494,14 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [x IS ZERO
 x IS ZERO
 x IS ZERO
 ])
 
 AT_CHECK([$COMPILE -fno-binary-truncate prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [x >= 10000
 x >= 10000
 x >= 10000
@@ -5440,7 +5564,7 @@ prog.cob: 21: warning: 'SUB ' literal includes trailing spaces which are omitted
 prog.cob: 30: warning: ' SUB' literal includes leading spaces which are omitted
 ])
 
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [SUB GOT X
 SUB GOT Y
 SUB GOT Z
@@ -5457,7 +5581,6 @@ AT_SETUP([C API Test])
 AT_KEYWORDS([CALL])
 
 # CHECKME - returns COMP-4 instead of COMP-5
-#AT_XFAIL_IF(true)
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -5557,7 +5680,7 @@ CAPI(void *p1, ...)
          str = cob_get_picx_param (k, NULL, 0);
          printf("%-11s '%s'",pic,str);
          cob_free ((void*)str);
-         cob_put_picx_param (k, (void *)"Bye!");
+         cob_put_picx_param (k, (void *) "Bye!");
       } else if (type == COB_TYPE_GROUP) {
          sprintf(pic,"(%d)",size);
          str = (char *) cob_get_grp_param (k, NULL, 0);
@@ -5604,7 +5727,8 @@ prog.cob: 32: warning: BY CONTENT assumed for alphanumeric item
 prog.cob: 34: warning: BY CONTENT assumed for alphanumeric item
 ])
 
-AT_CHECK([./prog], [0], [CAPI called with 2 parameters
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[CAPI called with 2 parameters
  1: COMP-4   BY VALUE     S9(9)       2560;
  2: DISPLAY  BY VALUE     9(2)        16;
 CAPI called with 2 parameters
@@ -5688,7 +5812,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -o prog prog.cob], [0], [], [])
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [2
 2
 ])
@@ -5784,7 +5908,7 @@ AT_CHECK([$COMPILE -frelax-syntax-checks prog.cob ], [0], [],
 [prog.cob: 26: warning: INDEXED should follow ASCENDING/DESCENDING
 ])
 
-AT_CHECK([./prog], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [A A-F-GEN-LEDGER-ZGL             is code 0305.
 B A-F-GEN-LEDGER-ZGL             is code 0305.
 A JUNK                           is invalid.
@@ -5839,12 +5963,12 @@ AT_DATA([prog.cob], [
 
 # Safe run with runtime checks
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([./prog], [1], [], [libcob: prog.cob: 23: subscript of 'TSTY' out of bounds: 0
+AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [], [libcob: prog.cob: 23: subscript of 'TSTY' out of bounds: 0
 ])
 
 # Runtime checks disable, subscript may be zero or even negative
 AT_CHECK([$COBC -x prog.cob -o prog_unsafe], [0], [], [])
-AT_CHECK([./prog_unsafe], [0],
+AT_CHECK([$COBCRUN_DIRECT ./prog_unsafe], [0],
 [UNUP: 00000000 is :CCCC:
 SNUP: +00000000 is :CCCC:
 SBIN: +00000000 is :CCCC:
@@ -5856,3 +5980,611 @@ UBIN: 00000001 is :1111:
 
 AT_CLEANUP
 
+
+AT_SETUP([Default Arithmetic])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 NUM-A   PIC 9(3) VALUE 399.
+       01 NUM-B   PIC 9(3) VALUE 211.
+       01 NUM-C   PIC 9(3)V99 VALUE 212.34.
+       01 NUMV1   PIC 9(3)V9.
+       01 PICX    PIC X VALUE 'A'.
+       01 RSLT    PIC 9(3).
+       01 RSLTV1  PIC 9(3).9.
+       01 RSLTV2  PIC 9(3).99.
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           COMPUTE RSLT = NUM-A + 1.1.
+           DISPLAY 'Simple Compute  RSLT IS ' RSLT
+           COMPUTE RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Single Variable RSLT IS ' RSLT
+           COMPUTE RSLTV2, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv99 IS ' RSLTV2
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv9  IS ' RSLTV1
+           MOVE 0 TO RSLT 
+           ADD NUM-C TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C 10 TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           SUBTRACT NUM-C FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           SUBTRACT NUM-A -10 FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C TO RSLT GIVING RSLTV1.
+           DISPLAY 'Add      RSLTv9  IS ' RSLTV1
+           MULTIPLY NUM-A BY NUM-C GIVING RSLT.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           MULTIPLY RSLT BY NUM-C.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           DIVIDE NUM-A BY 10 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+           DIVIDE RSLT BY 4 GIVING RSLTV1.
+           DISPLAY 'Divide   RSLTv9  IS ' RSLTV1.
+           DIVIDE RSLT BY 4 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Simple   RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (100.55 + -0.550)) 
+                                -  (NUM-B / (10.11 * 10 - 1.1)))
+                                  * (220 / 2.2)
+           DISPLAY 'Complex  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (101 - 1)) 
+                                -  (NUM-B / (10 * 10))) * (200 / 2)
+           DISPLAY 'Reduced  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+           MOVE NUM-A TO NUMV1.
+           IF ((NUMV1 / (101 - 1)) 
+              -  (NUM-B / (10 * 10))) * (200 / 2) EQUAL 188
+              DISPLAY "Not Using ARITHMETIC-OSVS" 
+           ELSE
+              DISPLAY "Using ARITHMETIC-OSVS" 
+           END-IF.
+           STOP RUN.
+])
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[Simple Compute  RSLT IS 400
+Single Variable RSLT IS 188
+Compute  RSLT    IS 188
+Compute  RSLTv99 IS 188.00
+Compute  RSLT    IS 188
+Compute  RSLTv9  IS 188.0
+Add      RSLT    IS 212
+Add      RSLT    IS 621
+Subtract RSLT    IS 408
+Subtract RSLT    IS 019
+Add      RSLTv9  IS 611.3
+Multiply RSLT    IS 723
+Multiply RSLT    IS 723
+Divide   RSLT    IS 039
+Divide   RSLTv9  IS 009.7
+Divide   RSLT    IS 009
+Simple   RSLT    IS 188 RSLTv9  IS 188.0
+Complex  RSLT    IS 188 RSLTv9  IS 188.0
+Reduced  RSLT    IS 188 RSLTv9  IS 188.0
+Not Using ARITHMETIC-OSVS
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([OSVS Arithmetic])
+AT_KEYWORDS([runmisc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 NUM-A   PIC 9(3) VALUE 399.
+       01 NUM-B   PIC 9(3) VALUE 211.
+       01 NUM-C   PIC 9(3)V99 VALUE 212.34.
+       01 NUMV1   PIC 9(3)V9.
+       01 PICX    PIC X VALUE 'A'.
+       01 RSLT    PIC 9(3).
+       01 RSLTV1  PIC 9(3).9.
+       01 RSLTV2  PIC 9(3).99.
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           COMPUTE RSLT = NUM-A + 1.1.
+           DISPLAY 'Simple Compute  RSLT IS ' RSLT
+           COMPUTE RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Single Variable RSLT IS ' RSLT
+           COMPUTE RSLTV2, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv99 IS ' RSLTV2
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Compute  RSLT    IS ' RSLT
+           DISPLAY 'Compute  RSLTv9  IS ' RSLTV1
+           MOVE 0 TO RSLT 
+           ADD NUM-C TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C 10 TO RSLT.
+           DISPLAY 'Add      RSLT    IS ' RSLT.
+           SUBTRACT NUM-C FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           SUBTRACT NUM-A -10 FROM RSLT.
+           DISPLAY 'Subtract RSLT    IS ' RSLT.
+           MOVE 0 TO RSLT 
+           ADD NUM-A NUM-C TO RSLT GIVING RSLTV1.
+           DISPLAY 'Add      RSLTv9  IS ' RSLTV1
+           MULTIPLY NUM-A BY NUM-C GIVING RSLT.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           MULTIPLY RSLT BY NUM-C.
+           DISPLAY 'Multiply RSLT    IS ' RSLT.
+           DIVIDE NUM-A BY 10 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+           DIVIDE RSLT BY 4 GIVING RSLTV1.
+           DISPLAY 'Divide   RSLTv9  IS ' RSLTV1.
+           DIVIDE RSLT BY 4 GIVING RSLT.
+           DISPLAY 'Divide   RSLT    IS ' RSLT.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / 100) - (NUM-B / 100)) * 100
+           DISPLAY 'Simple   RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (100.55 + -0.550)) 
+                                -  (NUM-B / (10.11 * 10 - 1.1)))
+                                  * (220 / 2.2)
+           DISPLAY 'Complex  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+
+           COMPUTE RSLTV1, RSLT = ((NUM-A / (101 - 1)) 
+                                -  (NUM-B / (10 * 10))) * (200 / 2)
+           DISPLAY 'Reduced  RSLT    IS ' RSLT
+                           ' RSLTv9  IS ' RSLTV1.
+           MOVE NUM-A TO NUMV1.
+           IF ((NUMV1 / (101 - 1)) 
+              -  (NUM-B / (10 * 10))) * (200 / 2) EQUAL 188
+              DISPLAY "Not Using ARITHMETIC-OSVS" 
+           ELSE
+              DISPLAY "Using ARITHMETIC-OSVS" 
+           END-IF.
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -farithmetic-osvs prog.cob], [0], [],
+[prog.cob: in paragraph 'MAIN':
+prog.cob: 17: warning: precision of result may change with arithmetic-osvs
+prog.cob: 19: warning: precision of result may change with arithmetic-osvs
+prog.cob: 21: warning: precision of result may change with arithmetic-osvs
+prog.cob: 24: warning: precision of result may change with arithmetic-osvs
+prog.cob: 31: warning: precision of result may change with arithmetic-osvs
+prog.cob: 35: warning: precision of result may change with arithmetic-osvs
+prog.cob: 38: warning: precision of result may change with arithmetic-osvs
+prog.cob: 40: warning: precision of result may change with arithmetic-osvs
+prog.cob: 44: warning: precision of result may change with arithmetic-osvs
+prog.cob: 46: warning: precision of result may change with arithmetic-osvs
+prog.cob: 48: warning: precision of result may change with arithmetic-osvs
+prog.cob: 51: warning: precision of result may change with arithmetic-osvs
+prog.cob: 55: warning: precision of result may change with arithmetic-osvs
+prog.cob: 61: warning: precision of result may change with arithmetic-osvs
+prog.cob: 67: warning: precision of result may change with arithmetic-osvs
+])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[Simple Compute  RSLT IS 400
+Single Variable RSLT IS 100
+Compute  RSLT    IS 188
+Compute  RSLTv99 IS 188.00
+Compute  RSLT    IS 180
+Compute  RSLTv9  IS 180.0
+Add      RSLT    IS 212
+Add      RSLT    IS 621
+Subtract RSLT    IS 408
+Subtract RSLT    IS 019
+Add      RSLTv9  IS 611.3
+Multiply RSLT    IS 723
+Multiply RSLT    IS 723
+Divide   RSLT    IS 039
+Divide   RSLTv9  IS 009.7
+Divide   RSLT    IS 009
+Simple   RSLT    IS 180 RSLTv9  IS 180.0
+Complex  RSLT    IS 180 RSLTv9  IS 180.0
+Reduced  RSLT    IS 180 RSLTv9  IS 180.0
+Using ARITHMETIC-OSVS
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([SET CONSTANT directive])
+AT_KEYWORDS([misc directives extensions])
+
+# The SET CONSTANT directive defines a level78 variable
+# for the current compilation unit
+
+# original MF extension: $SET CONSTANT
+AT_DATA([prog.cob], [
+       $SET CONSTANT DOGGY "Barky"
+       $SET CONSTANT PONY "Blacky"
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       77  MYHORSE   PIC X(7) VALUE PONY.
+       $SET CONSTANT PONY "White"
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           DISPLAY "My Horse is " MYHORSE ";".
+           DISPLAY "My little pony is " PONY ".".
+           STOP RUN.
+])
+
+# OpenCOBOL/GnuCOBOL extension: >>SET CONSTANT
+AT_DATA([prog2.cob], [
+       >>SET CONSTANT DOGGY "Barky"
+       >>SET CONSTANT PONY "Blacky"
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog2.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       77  MYHORSE   PIC X(7) VALUE PONY.
+       >>SET CONSTANT PONY "White"
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           DISPLAY "My Horse is " MYHORSE ";".
+           DISPLAY "My little pony is " PONY ".".
+           STOP RUN.
+])
+
+# OpenCOBOL/GnuCOBOL extension: >>DEFINE CONSTANT
+AT_DATA([prog3.cob], [
+       >>DEFINE CONSTANT DOGGY "Barky"
+       >>DEFINE CONSTANT PONY "Blacky"
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog3.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       77  MYHORSE   PIC X(7) VALUE PONY.
+       >>DEFINE CONSTANT PONY "White" OVERRIDE
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           DISPLAY "My Horse is " MYHORSE ";".
+           DISPLAY "My little pony is " PONY ".".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE -std=mf prog.cob], [0], [], [])
+
+# Note: MF does not redefine a value via SET CONSTANT
+# the first definitions wins (we should add a warning)
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[Your Dog's name is Barky;
+The Dog's name is Barky ;
+My Horse is Blacky ;
+My little pony is Blacky.
+], [])
+
+AT_CHECK([$COMPILE prog2.cob], [0], [], [])
+
+# Note: MF does not redefine a value via SET CONSTANT
+# the first definitions wins (we should add a warning)
+AT_CHECK([$COBCRUN_DIRECT ./prog2], [0],
+[Your Dog's name is Barky;
+The Dog's name is Barky ;
+My Horse is Blacky ;
+My little pony is Blacky.
+], [])
+
+AT_CHECK([$COMPILE -fdefine-constant-directive=ok prog3.cob], [0], [], [])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog3], [0],
+[Your Dog's name is Barky;
+The Dog's name is Barky ;
+My Horse is Blacky ;
+My little pony is White.
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([DEFINE OVERRIDE])
+AT_KEYWORDS([CDF directive])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       >>SET CONSTANT DOGGY "Pluto"
+       >>SET CONSTANT PONY "Piper"
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+
+       >>DEFINE DPONY  AS PARAMETER OVERRIDE
+       >>IF DPONY IS NOT DEFINED
+       >>DEFINE DPONY AS "No Dpony"
+       >>END-IF
+       01  CNSPONY     CONSTANT FROM DPONY.
+
+       >>DEFINE ENVPONY AS PARAMETER OVERRIDE
+       >>IF ENVPONY IS NOT DEFINED
+       >>DEFINE ENVPONY AS "No EnvPony"
+       >>END-IF
+       01  HORSE       CONSTANT FROM ENVPONY.
+       77  MYHORSE    PIC X(12) VALUE HORSE  .
+       77  MYPONYENV  PIC X(12).
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "ENVPONY" UPON ENVIRONMENT-NAME
+           ACCEPT  MYPONYENV FROM ENVIRONMENT-VALUE.
+           DISPLAY "ENVPONY env var set to " MYPONYENV ";".
+           DISPLAY "1st Dog's name is " DOGGY ";".
+           DISPLAY "2nd Dog's name is " PONY ";".
+       >>IF ENVPONY IS DEFINED
+           DISPLAY "ENVPONY is DEFINED as " HORSE ";".
+       >>ELSE
+           DISPLAY "ENVPONY was NOT DEFINED;".
+       >>END-IF
+           DISPLAY "DPONY set to " CNSPONY ";".
+       >>IF ENVPONY = "WHITE" 
+       >>DEFINE CONSTANT PONY AS "White Horse" OVERRIDE
+       >>ELSE
+       >>DEFINE CONSTANT PONY AS "default Dirty" OVERRIDE
+       >>END-IF
+           DISPLAY "My pony is " PONY ";".
+       >>IF DPONY IS DEFINED
+           DISPLAY "DPONY is DEFINED as " CNSPONY ";".
+       >>END-IF
+           STOP RUN.
+])
+
+AT_CHECK([export ENVPONY=WHITE; $COMPILE prog.cob -fdefine-constant-directive=ok -DDPONY=Stallone], [0], [], [])
+
+AT_CHECK([export ENVPONY=WHITE; ./prog], [0],
+[ENVPONY env var set to WHITE       ;
+1st Dog's name is Pluto;
+2nd Dog's name is Piper;
+ENVPONY is DEFINED as WHITE;
+DPONY set to Stallone;
+My pony is White Horse;
+DPONY is DEFINED as Stallone;
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([DEFINE Defaults])
+AT_KEYWORDS([CDF directive])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       >>SET CONSTANT DOGGY "Pluto"
+       >>SET CONSTANT PONY "Piper"
+       WORKING-STORAGE SECTION.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+
+       >>DEFINE DPONY  AS PARAMETER OVERRIDE
+       >>IF DPONY IS NOT DEFINED
+       >>DEFINE DPONY AS "No Dpony"
+       >>END-IF
+       01  CNSPONY     CONSTANT FROM DPONY.
+
+       >>DEFINE ENVPONY AS PARAMETER OVERRIDE
+       >>IF ENVPONY IS NOT DEFINED
+       >>DEFINE ENVPONY AS "No EnvPony"
+       >>END-IF
+       01  HORSE       CONSTANT FROM ENVPONY.
+       77  MYHORSE    PIC X(12) VALUE HORSE  .
+       77  MYPONYENV  PIC X(12).
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "ENVPONY" UPON ENVIRONMENT-NAME
+           ACCEPT  MYPONYENV FROM ENVIRONMENT-VALUE.
+           DISPLAY "ENVPONY env var set to " MYPONYENV ";".
+           DISPLAY "1st Dog's name is " DOGGY ";".
+           DISPLAY "2nd Dog's name is " PONY ";".
+       >>IF ENVPONY IS DEFINED
+           DISPLAY "ENVPONY is DEFINED as " HORSE ";".
+       >>ELSE
+           DISPLAY "ENVPONY was NOT DEFINED;".
+       >>END-IF
+           DISPLAY "DPONY set to " CNSPONY ";".
+       >>IF ENVPONY = "WHITE" 
+       >>DEFINE CONSTANT PONY AS "White Horse" OVERRIDE
+       >>ELSE
+       >>DEFINE CONSTANT PONY AS "default Dirty" OVERRIDE
+       >>END-IF
+           DISPLAY "My pony is " PONY ";".
+       >>IF DPONY IS DEFINED
+           DISPLAY "DPONY is DEFINED as " CNSPONY ";".
+       >>END-IF
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob -fdefine-constant-directive=ok], [0], [], [])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[ENVPONY env var set to             ;
+1st Dog's name is Pluto;
+2nd Dog's name is Piper;
+ENVPONY is DEFINED as No EnvPony;
+DPONY set to No Dpony;
+My pony is default Dirty;
+DPONY is DEFINED as No Dpony;
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([78 VALUE])
+AT_KEYWORDS([CONSTANT misc])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       78  DOGGY     VALUE "Barky".
+       01  MYREC.
+          05  FLD1   PIC 9(2).
+          05  FLD2   PIC X(7).
+          05  FLD3   PIC X(2) OCCURS 5 TIMES.
+          05  FLD4   PIC X(4).
+          05  FLD5   PIC X(4).
+       01  PICX      PIC XXX VALUE 'Abc'.
+       78  HUN       VALUE 10 * (10 + LENGTH OF PICX) + 12.35-2+3.
+       78  HUN2      VALUE HUN * (10 + LENGTH OF PICX) -4.
+       01  THEDOG    PIC X(6) VALUE DOGGY.
+       78  DIV1      VALUE 100 / 3.
+       78  NUM2      VALUE 1 + 2 * 3.
+       LINKAGE SECTION.
+       01  XMYREC.
+          05  XFLD1   PIC 9(2).
+          05  XFLD2   PIC X(7).
+             78  XPOS3    VALUE NEXT.
+          05  XFLD3   PIC X(2) OCCURS 5 TIMES.
+             78  XPOS4    VALUE NEXT.
+          05  XFLD4   PIC X(4).
+          05  XFLD5   PIC X(4).
+       78  XSTRT4     VALUE START OF XFLD4.
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "DIV1 is " DIV1.
+           DISPLAY "HUN  is " HUN.
+           DISPLAY "HUN2 is " HUN2.
+           MOVE NUM2 TO FLD1
+           IF FLD1 = 9
+             DISPLAY "NUM2 is " NUM2 " left to right precedence."
+           ELSE
+             DISPLAY "NUM2 is " NUM2 " normal precedence."
+           END-IF.
+           DISPLAY "XFLD3 starts at " XPOS3.
+           DISPLAY "XFLD4 starts at " XSTRT4.
+           DISPLAY "XFLD4 starts at " XPOS4.
+           DISPLAY "Your Dog's name is " DOGGY ";".
+           DISPLAY "The Dog's name is " THEDOG ";".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[DIV1 is 33
+HUN  is 143
+HUN2 is 1855
+NUM2 is 9 left to right precedence.
+XFLD3 starts at 9
+XFLD4 starts at 19
+XFLD4 starts at 11
+Your Dog's name is Barky;
+The Dog's name is Barky ;
+], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([01 CONSTANT])
+AT_KEYWORDS([misc])
+
+AT_DATA([prog.cob], [
+       >>DEFINE MYDOG AS "Piper"
+       >>DEFINE MYNUM1 AS 11
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  MYREC.
+          05  FLD1   PIC 9(2).
+          05  FLD2   PIC X(7).
+          05  FLD3   PIC X(2) OCCURS 5 TIMES.
+          05  FLD4   PIC X(4).
+          05  FLD5   PIC X(4).
+       01  PICX      PIC XXX VALUE 'Abc'.
+       01  CAT       CONSTANT  'Cat '.
+       01  DOG       CONSTANT  'Dog '.
+       01  YARD      CONSTANT  CAT & "& " & DOG.
+       78  HUN       VALUE 10 * (10 + LENGTH OF PICX) + 12.35-2+3.
+       78  HUN2      VALUE HUN * (10 + LENGTH OF PICX) -4.
+       78  DIV1      VALUE 100 / 3.
+       78  NUM2      VALUE 1 + 2 * 3.
+       01  CON3      CONSTANT (((1 + 2) * NUM2) - 4).
+       01  CON4      CONSTANT AS 3.1416 + CON3.
+       01  CON5      CONSTANT 1 + 2 * 3.
+       01  DOGNAME   CONSTANT FROM MYDOG.
+       01  NUM1      CONSTANT FROM MYNUM1.
+       01  CON6      CONSTANT AS CON5 + NUM1.
+       >> IF NUM2 DEFINED  *> optional passed from command line
+       01  NUM2      CONSTANT FROM MYNUM2.
+       >> END-IF
+      *
+       PROCEDURE DIVISION.
+       MAIN.
+           DISPLAY "CAT  is '" CAT "'".
+           DISPLAY "Yard is '" YARD "'".
+           DISPLAY "DIV1 is " DIV1.
+           DISPLAY "HUN  is " HUN.
+           DISPLAY "HUN2 is " HUN2.
+           MOVE NUM2 TO FLD1
+           IF FLD1 = 9
+             DISPLAY "78 VALUE has simple left to right precedence."
+           ELSE
+             DISPLAY "78 VALUE is " NUM2 " normal precedence."
+           END-IF.
+           MOVE CON5 TO FLD1
+           IF FLD1 = 7
+             DISPLAY "01 CONSTANT has normal operator precedence."
+           ELSE
+             DISPLAY "01 CONSTANT is " CON5 " left to right precedence."
+           END-IF.
+           DISPLAY "CON3 is " CON3.
+           DISPLAY "CON4 is " CON4 " vs " 3.141596 
+                   " & " -2.189 " & " +12.
+           DISPLAY "CON6 is " CON6 "."
+           DISPLAY "My Dog's name is " DOGNAME ";".
+           STOP RUN.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[CAT  is 'Cat '
+Yard is 'Cat & Dog '
+DIV1 is 33
+HUN  is 143
+HUN2 is 1855
+78 VALUE has simple left to right precedence.
+01 CONSTANT has normal operator precedence.
+CON3 is 23
+CON4 is 26 vs 3.141596 & -2.189 & +12
+CON6 is 18.
+My Dog's name is Piper;
+], [])
+
+AT_CLEANUP

@@ -58,7 +58,7 @@ static cob_field 	*		inspect_var;
 static unsigned char 	*	inspect_data;
 static unsigned char 	*	inspect_start;
 static unsigned char 	*	inspect_end;
-static int 		*		inspect_mark;
+static int			*		inspect_mark;
 static int					inspect_mark_size;
 static int					inspect_size;
 static cob_u32_t			inspect_replacing;
@@ -351,7 +351,7 @@ cob_inspect_finish(void)
 	if(inspect_replacing) {
 		for(int i = 0; i < inspect_size; ++i) {
 			if(inspect_mark[i] != -1) {
-				inspect_data[i] = inspect_mark[i];
+				inspect_data[i] = (unsigned char) inspect_mark[i];
 			}
 		}
 	}

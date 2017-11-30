@@ -40,6 +40,7 @@ static int			conf_error_displayed = 0;
 static int			last_error_line = 0;
 static const char *	last_error_file = "Unknown";
 static FILE 	*	sav_lst_file = NULL;
+static int			ignore_error = 0;
 
 #define COBC_ERRBUF_SIZE		1024
 
@@ -62,9 +63,9 @@ print_error(const char * file, int line, const char * prefix,
 			if(file) {
 				fprintf(stderr, "%s: ", file);
 			}
-			fputs(_("in section"), stderr);
-			fprintf(stderr, " '%s':\n",
+			fprintf(stderr, _("in section '%s':"),
 					(char *)current_section->name);
+			fputs("\n", stderr);
 		}
 		last_section = current_section;
 	}
@@ -73,9 +74,9 @@ print_error(const char * file, int line, const char * prefix,
 			if(file) {
 				fprintf(stderr, "%s: ", file);
 			}
-			fputs(_("in paragraph"), stderr);
-			fprintf(stderr, " '%s':\n",
+			fprintf(stderr, _("in paragraph '%s':"),
 					(char *)current_paragraph->name);
+			fputs("\n", stderr);
 		}
 		last_paragraph = current_paragraph;
 	}
@@ -169,6 +170,14 @@ cb_get_strerror(void)
 #endif
 }
 
+int
+cb_set_ignore_error(int state)
+{
+	int prev = ignore_error;
+	ignore_error = state;
+	return prev;
+}
+
 void
 cb_warning(int pref, const char * fmt, ...)
 {
@@ -188,7 +197,7 @@ cb_warning(int pref, const char * fmt, ...)
 		return;
 	}
 	if(pref == COBC_WARN_AS_ERROR) {
-		if(++errorcount > 100) {
+		if(++errorcount > cb_max_errors) {
 			cobc_too_many_errors();
 		}
 	} else {
@@ -206,14 +215,19 @@ cb_error(const char * fmt, ...)
 	cobc_cs_check = 0;
 #endif
 	va_start(ap, fmt);
-	print_error(NULL, 0, _("error: "), fmt, ap);
+	print_error(NULL, 0, ignore_error ?
+				_("error (ignored): ") : _("error: "), fmt, ap);
 	va_end(ap);
 
 	if(sav_lst_file) {
 		return;
 	}
-	if(++errorcount > 100) {
-		cobc_too_many_errors();
+	if(ignore_error) {
+		warningcount++;
+	} else {
+		if(++errorcount > cb_max_errors) {
+			cobc_too_many_errors();
+		}
 	}
 }
 
@@ -230,7 +244,9 @@ cb_perror(const int config_error, const char * fmt, ...)
 	print_error(NULL, 0, "", fmt, ap);
 	va_end(ap);
 
-	++errorcount;
+	if(++errorcount > cb_max_errors) {
+		cobc_too_many_errors();
+	}
 }
 
 /* Warning/error for pplex.l input routine */
@@ -256,7 +272,7 @@ cb_plex_warning(int pref, const size_t sline, const char * fmt, ...)
 		return;
 	}
 	if(pref == COBC_WARN_AS_ERROR) {
-		if(++errorcount > 100) {
+		if(++errorcount > cb_max_errors) {
 			cobc_too_many_errors();
 		}
 	} else {
@@ -276,7 +292,7 @@ cb_plex_error(const size_t sline, const char * fmt, ...)
 	if(sav_lst_file) {
 		return;
 	}
-	if(++errorcount > 100) {
+	if(++errorcount > cb_max_errors) {
 		cobc_too_many_errors();
 	}
 }
@@ -393,7 +409,10 @@ configuration_error(const char * fname, const int line,
 	if(sav_lst_file) {
 		return;
 	}
-	errorcount++;
+
+	if(++errorcount > cb_max_errors) {
+		cobc_too_many_errors();
+	}
 }
 
 /* Generic warning/error routines */
@@ -416,7 +435,7 @@ cb_warning_x(int pref, cb_tree x, const char * fmt, ...)
 		return;
 	}
 	if(pref == COBC_WARN_AS_ERROR) {
-		if(++errorcount > 100) {
+		if(++errorcount > cb_max_errors) {
 			cobc_too_many_errors();
 		}
 	} else {
@@ -430,17 +449,27 @@ cb_error_x(const cb_tree x, const char * fmt, ...)
 	va_list ap;
 
 	va_start(ap, fmt);
-	print_error(x->source_file, x->source_line, _("error: "), fmt, ap);
+	print_error(x->source_file, x->source_line, ignore_error ?
+				_("error (ignored): ") : _("error: "), fmt, ap);
 	va_end(ap);
 
 	if(sav_lst_file) {
 		return;
 	}
-	if(++errorcount > 100) {
-		cobc_too_many_errors();
+	if(ignore_error) {
+		warningcount++;
+	} else {
+		if(++errorcount > cb_max_errors) {
+			cobc_too_many_errors();
+		}
 	}
 }
 
+/**
+ * verify if the given compiler option is supported by the current std/configuration
+ * \param	x	tree whose position is used for raising warning/errors
+ * \return	1 = ok/warning/obsolete, 0 = skip/ignore/error/unconformable
+ */
 unsigned int
 cb_verify_x(cb_tree x, const enum cb_support tag, const char * feature)
 {
@@ -479,6 +508,11 @@ cb_verify_x(cb_tree x, const enum cb_support tag, const char * feature)
 	return 0;
 }
 
+/**
+ * verify if the given compiler option is supported by the current std/configuration
+ * current position is used for raising warning/errors
+ * \returns	1 = ok/warning/obsolete, 0 = skip/ignore/error/unconformable
+ */
 unsigned int
 cb_verify(const enum cb_support tag, const char * feature)
 {
@@ -491,6 +525,9 @@ redefinition_error(cb_tree x)
 	cb_word * w = CB_REFERENCE(x)->word;
 	cb_error_x(x, _("redefinition of '%s'"), w->name);
 	if(w->items) {
+		if(CB_VALUE(w->items)->source_line == 0) {
+			return;
+		}
 		listprint_suppress();
 		cb_error_x(CB_VALUE(w->items),
 				   _("'%s' previously defined here"), w->name);
@@ -511,6 +548,9 @@ redefinition_warning(cb_tree x, cb_tree y)
 	}
 
 	if(z) {
+		if(z->source_line == 0) {
+			return;
+		}
 		listprint_suppress();
 		cb_warning_x(COBC_WARN_FILLER, z, _("'%s' previously defined here"), w->name);
 		listprint_restore();
@@ -586,6 +626,9 @@ ambiguous_error(cb_tree x)
 			break;
 			default:
 				break;
+			}
+			if(y->source_line == 0) {
+				continue;
 			}
 			listprint_suppress();
 			cb_error_x(y, _("'%s' defined here"), errnamebuff);
