@@ -369,6 +369,11 @@ Note: also defined together with __clang__ in both frontends:
 #define daylight	_daylight
 #endif /* __BORLANDC__ */
 
+#if	__SUNPRO_C
+/* Disable certain warnings */
+#pragma error_messages (off, E_STATEMENT_NOT_REACHED)
+#endif
+
 #include <setjmp.h>
 
 #if	(defined(_WIN32) || defined(__CYGWIN__)) && !defined(__clang__)
@@ -537,7 +542,7 @@ Note: also defined together with __clang__ in both frontends:
 
 
 
-#if	defined(_MSC_VER) || defined(__WATCOMC__) || defined(__BORLANDC__) || defined(__MINGW32__)
+#if	defined(_MSC_VER) || defined(__WATCOMC__) || defined(__BORLANDC__) || defined(__MINGW32__) || defined (__DJGPP__)
 #define PATHSEP_CHAR (char) ';'
 #define PATHSEP_STR (char *) ";"
 #else
@@ -550,6 +555,10 @@ Note: also defined together with __clang__ in both frontends:
 #else
 #define SLASH_CHAR	(char) '\\'
 #define SLASH_STR	(char *) "\\"
+#endif
+
+#ifdef __DJGPP__
+#define HAVE_8DOT3_FILENAMES
 #endif
 
 /* End compiler stuff */
@@ -1289,9 +1298,6 @@ typedef struct __cob_global {
 	unsigned int		cob_got_exception;	/* Exception active */
 	unsigned int		cob_screen_initialized;	/* Screen initialized */
 	unsigned int		cob_physical_cancel;	/* Unloading of modules */
-
-												/* Library routine variables */
-
 												/* screenio / termio */
 	unsigned char		*cob_term_buff;		/* Screen I/O buffer */
 	int			cob_accept_status;	/* ACCEPT STATUS */
@@ -1300,6 +1306,8 @@ typedef struct __cob_global {
 	int			cob_max_x;		/* Screen max x */
 
 	unsigned int		cob_stmt_exception;	/* Statement has 'On Exception' */
+	
+	unsigned int		cob_debugging_mode;	/* activation of USE ON DEBUGGING code */
 
 } cob_global;
 
@@ -1342,6 +1350,7 @@ COB_EXPIMP int		cob_is_initialized	(void);
 COB_EXPIMP cob_global		*cob_get_global_ptr	(void);
 
 COB_EXPIMP void	cob_init			(const int, char **);
+COB_EXPIMP void	cob_init_nomain		(const int, char **);
 
 COB_EXPIMP int	cob_module_global_enter	(cob_module **, cob_global **,
 						 const int, const int, const unsigned int *);

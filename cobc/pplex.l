@@ -86,6 +86,7 @@ static int ppwrap (void) {
 
 #define	COB_IN_PPLEX	1
 #include "cobc.h"
+#include "tree.h"
 #include "ppparse.h"
 
 /* ignore unused functions here as flex generates unused ones */
@@ -157,7 +158,7 @@ static void	switch_to_buffer	(const int, const char *,
 					 const YY_BUFFER_STATE);
 static void	check_listing		(const char *, const unsigned int);
 static void	skip_to_eol		(void);
-static void display_finish		(void);
+static void	display_finish		(void);
 static void	set_print_replace_list	(struct cb_replace_list *list);
 static void	get_new_listing_file	(void);
 
@@ -586,7 +587,7 @@ CONTROL_STATEMENT_STATE>{
 
 <CONTROL_STATEMENT_STATE>{
   "SOURCE"		{ return SOURCE; }
-  "NOSOURCE"	{ return NOSOURCE; }
+  "NOSOURCE"		{ return NOSOURCE; }
   "LIST"		{ return LIST; }
   "NOLIST"		{ return NOLIST; }
   "MAP"			{ return MAP; }
@@ -835,9 +836,11 @@ ENDIF_DIRECTIVE_STATE>{
 		yyterminate ();
 	}
 
-	/* Close the current file */
-	fclose (ppin);
-	ppin = NULL;
+	/* Close the current file (can be NULL if open failed) */
+	if (ppin) {
+		fclose (ppin);
+		ppin = NULL;
+	}
 
 	if (current_copy_info->containing_files) {
 		cb_current_file = current_copy_info->containing_files;
@@ -890,12 +893,14 @@ pp_set_replace_list (struct cb_replace_list *list, const cob_u32_t is_pushpop)
 	}
 }
 
+/* open file (source or coypbook) for further processing */
 int
 ppopen (const char *name, struct cb_replace_list *replacing_list)
 {
 	struct copy_info	*current_copy_info;
 	char			*s;
 	char			*dname;
+	cb_tree			x = NULL;
 
 	unsigned char		bom[4];
 
@@ -906,24 +911,46 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 	}
 
 	/* Open copy/source file, or use stdin */
-	if (strcmp(name, COB_DASH) == 0) {
+	if (strcmp (name, COB_DASH) == 0) {
 		ppin = stdin;
 	} else {
+		for (current_copy_info = copy_stack; current_copy_info; current_copy_info = current_copy_info->next) {
+			if (!strcmp (name, current_copy_info->dname)) {
+				x = cobc_malloc (sizeof (struct cb_tree_common));
+				x->source_file = name;
+				x->source_line = -1;
+				/* TODO: add an explain_error option instead of the forced warnings */
+				cb_error_x (x, _("recursive inclusion"));
+				x->source_line = 0;
+				for (current_copy_info = copy_stack; current_copy_info; current_copy_info = current_copy_info->next) {
+					x->source_file = current_copy_info->dname;
+					cb_warning_x (COBC_WARN_ENABLED, x, _("file was included here"));
+					x->source_line = current_copy_info->line;
+				}
+				cobc_free (x);
+				break;
+			}
+
+		}
+		if (!x) {
 #ifdef	__OS400__
-		ppin = fopen (name, "r");
+			ppin = fopen (name, "r");
 #else
-		ppin = fopen (name, "rb");
+			ppin = fopen (name, "rb");
 #endif
+		} else {
+			ppin = 0;
+		}
 	}
 
-	if (!ppin) {
+	if (!ppin && !x) {
 		cb_error ("%s: %s", name, cb_get_strerror ());
-		return -1;
+		/* Note: postpone error exit as we need the saved buffers later on */
 	}
 
 	/* Check for BOM - *not* for input from stdin as rewind() clears the input
 	  buffer if used on stdin and output in console has normally no BOM at all */
-	if (strcmp (name, COB_DASH) != 0) {
+	if (ppin && strcmp (name, COB_DASH) != 0) {
 		if (fread (bom, 3, 1, ppin) == 1) {
 			if (bom[0] != 0xEF || bom[1] != 0xBB || bom[2] != 0xBF) {
 				rewind (ppin);
@@ -979,6 +1006,9 @@ ppopen (const char *name, struct cb_replace_list *replacing_list)
 
 	/* Switch to new buffer */
 	switch_to_buffer (1, dname, yy_create_buffer (ppin, YY_BUF_SIZE));
+
+	/* postponed errror handling */
+	if (!ppin) return -1;
 	return 0;
 }
 
@@ -987,6 +1017,7 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 {
 	struct cb_text_list	*il;
 	struct cb_text_list	*el;
+	int ret;
 	const char		*s;
 
 	if (cb_current_file) {
@@ -1004,14 +1035,18 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 
 	/* Find the file */
 	if (access (s, R_OK) == 0) {
-		return ppopen (s, replace_list);
+		ret = ppopen (s, replace_list);
+		if (ret == 0) return 0;	/* LCOV_EXCL_BR_LINE */
+		goto err_handling;	/* LCOV_EXCL_LINE */
 	}
 
 	for (el = cb_extension_list; el; el = el->next) {
 		snprintf (plexbuff2, (size_t)COB_SMALL_MAX, "%s%s", s, el->text);
 		plexbuff2[COB_SMALL_MAX] = 0;
 		if (access (plexbuff2, R_OK) == 0) {
-			return ppopen (plexbuff2, replace_list);
+			ret = ppopen (plexbuff2, replace_list);
+			if (ret == 0) return 0;	/* LCOV_EXCL_BR_LINE */
+			goto err_handling;	/* LCOV_EXCL_LINE */
 		}
 	}
 
@@ -1022,17 +1057,21 @@ ppcopy (const char *name, const char *lib, struct cb_replace_list *replace_list)
 					  "%s/%s%s", il->text, name, el->text);
 				plexbuff2[COB_SMALL_MAX] = 0;
 				if (access (plexbuff2, R_OK) == 0) {
-					return ppopen (plexbuff2, replace_list);
+					ret = ppopen (plexbuff2, replace_list);
+					if (ret == 0) return 0;	/* LCOV_EXCL_BR_LINE */
+					goto err_handling;	/* LCOV_EXCL_LINE */
 				}
 			}
 		}
 	}
 
+	/* pass file error as we have no more places to check */
+	cb_error ("%s: %s", s, cb_get_strerror ());
+
+err_handling:
 	/* On COPY, open error restore old file */
 	cb_current_file = old_list_file;
 	fprintf (yyout, "#line %d \"%s\"\n", cb_source_line, cb_source_file);
-
-	cb_error ("%s: %s", s, cb_get_strerror ());
 	return -1;
 }
 
@@ -1177,7 +1216,6 @@ get_new_listing_file (void)
 	}
 	cb_current_file->copy_tail = newfile;
 
-	memset (newfile, 0, sizeof (struct list_files));
 	newfile->copy_line = cb_source_line;
 	newfile->source_format = cb_source_format;
 	old_list_file = cb_current_file;
@@ -1194,7 +1232,6 @@ set_print_replace_list (struct cb_replace_list *list)
 
 	for (r = list; r; r = r->next) {
 		repl = cobc_malloc (sizeof (struct list_replace));
-		memset (repl, 0, sizeof (struct list_replace));
 		repl->firstline = r->line_num;
 		repl->lead_trail = r->lead_trail;
 		repl->lastline = cb_source_line;
@@ -1203,7 +1240,6 @@ set_print_replace_list (struct cb_replace_list *list)
 			length += (int)strlen (l->text);
 		}
 		repl->from = cobc_malloc (length + 2);
-		memset (repl->from, 0, length + 2);
 		for (l = r->old_text; l; l = l->next) {
 			strcat (repl->from, l->text);
 		}
@@ -1212,7 +1248,6 @@ set_print_replace_list (struct cb_replace_list *list)
 			length += (int)strlen (l->text);
 		}
 		repl->to = cobc_malloc (length + 2);
-		memset (repl->to, 0, length + 2);
 		for (l = r->new_text; l; l = l->next) {
 			strcat (repl->to, l->text);
 		}
@@ -1272,6 +1307,14 @@ ppinput (char *buff, const size_t max_size)
 	int	coln;
 	struct list_skip *skip;
 	const char	*paragraph_name;
+
+	/* check that we actually have input to process
+	   (isn't the case if something went wrong beforehand) */
+	/* LCOV_EXCL_START */
+	if (unlikely (ppin == NULL)) {
+		return YY_NULL; /* fake eof (no further processing of the not available file) */
+	}
+	/* LCOV_EXCL_STOP */
 
 	/* Read line(s) */
 
@@ -1476,7 +1519,6 @@ start:
 		newline_count++;
 		if (cb_src_list_file) {
 			skip = cobc_malloc (sizeof (struct list_skip));
-			memset (skip, 0, sizeof (struct list_skip));
 			skip->skipline = cb_source_line + (int)newline_count;
 
 			if (cb_current_file->skip_tail) {
@@ -1773,7 +1815,7 @@ ppecho (const char *text, const cob_u32_t alt_space, const int textlen)
 		return;
 	}
 	if (!current_replace_list && !base_replace_list) {
-		/* Ouput queue */
+		/* Output queue */
 		for (; text_queue; text_queue = text_queue->next) {
 			fputs (text_queue->text, ppout);
 		}
@@ -1912,12 +1954,14 @@ skip_to_eol (void)
 }
 
 static void
-display_finish (void) {
-	int msglen;
+display_finish (void)
+{
+	int	msg_len;
+	
 	if (!plex_skip_input) {
-		msglen = strlen (display_msg) - 1;
-		while (msglen != 0 && display_msg[msglen] == ' ') {
-			display_msg[msglen--] = 0;
+		msg_len = strlen (display_msg) - 1;
+		while (msg_len != 0 && display_msg[msg_len] == ' ') {
+			display_msg[msg_len--] = 0;
 		}
 		puts (display_msg);
 		display_msg[0] = 0;

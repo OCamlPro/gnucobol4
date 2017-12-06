@@ -47,6 +47,25 @@ static int		ignore_error = 0;
 size_t				cb_msg_style;
 
 static void
+print_error_prefix (const char *file, int line, const char *prefix)
+{
+	if (file) {
+		if (line > 0) {
+			if (cb_msg_style == CB_MSG_STYLE_MSC) {
+				fprintf (stderr, "%s (%d): ", file, line);
+			} else {
+				fprintf (stderr, "%s:%d: ", file, line);
+			}
+		} else {
+			fprintf (stderr, "%s: ", file);
+		}
+	}
+	if (prefix) {
+		fprintf (stderr, "%s", prefix);
+	}
+}
+
+static void
 print_error (const char *file, int line, const char *prefix,
 	     const char *fmt, va_list ap)
 {
@@ -86,16 +105,7 @@ print_error (const char *file, int line, const char *prefix,
 	}
 
 	/* Print the error */
-	if (file) {
-		if (cb_msg_style == CB_MSG_STYLE_MSC) {
-			fprintf (stderr, "%s (%d): ", file, line);
-		} else {
-			fprintf (stderr, "%s: %d: ", file, line);
-		}
-	}
-	if (prefix) {
-		fprintf (stderr, "%s", prefix);
-	}
+	print_error_prefix (file, line, prefix);
 	vsprintf (errmsg, fmt, ap);
 	fprintf (stderr, "%s\n", errmsg);
 
@@ -209,9 +219,6 @@ cb_error (const char *fmt, ...)
 	va_list ap;
 
 	cobc_in_repository = 0;
-#if	0	/* RXWRXW - Is this right? */
-	cobc_cs_check = 0;
-#endif
 	va_start (ap, fmt);
 	print_error (NULL, 0, ignore_error ?
 		_("error (ignored): "):_("error: "), fmt, ap);
@@ -304,7 +311,7 @@ cb_plex_verify (const size_t sline, const enum cb_support tag,
 	case CB_OK:
 		return 1;
 	case CB_WARNING:
-		cb_plex_warning (COBC_WARN_FILLER, sline, _("%s used"), feature);
+		cb_plex_warning (cb_warn_dialect, sline, _("%s used"), feature);
 		return 1;
 	case CB_ARCHAIC:
 		cb_plex_warning (cb_warn_archaic, sline, _("%s is archaic in %s"),
@@ -347,12 +354,7 @@ configuration_warning (const char *fname, const int line, const char *fmt, ...)
 		|| line != last_error_line) {
 		last_error_file = fname;
 		last_error_line = line;
-		if (fname) {
-			fprintf (stderr, "%s: ", fname);
-		}
-		if (line) {
-			fprintf (stderr, "%d: ", line);
-		}
+		print_error_prefix (fname, line, NULL);
 	}
 
 	/* Body */
@@ -369,41 +371,38 @@ configuration_warning (const char *fname, const int line, const char *fmt, ...)
 	}
 	warningcount++;
 }
+
 void
 configuration_error (const char *fname, const int line,
                      const int finish_error, const char *fmt, ...)
 {
 	va_list args;
 
-	configuration_error_head();
+	configuration_error_head ();
 
 	/* Prefix */
 	if (fname != last_error_file
 		|| line != last_error_line) {
 		last_error_file = fname;
 		last_error_line = line;
-		if (fname) {
-			fprintf (stderr, "%s: ", fname);
-		}
-		if (line) {
-			fprintf (stderr, "%d: ", line);
-		}
+		print_error_prefix (fname, line, NULL);
 	}
 
 	/* Body */
-	va_start(args, fmt);
+	va_start (args, fmt);
 	vfprintf (stderr, fmt, args);
-	va_end(args);
+	va_end (args);
 
 	/* Postfix */
 	if (!finish_error) {
-		putc(';', stderr);
-		putc('\n', stderr);
-		putc('\t', stderr);
-	} else {
-		putc('\n', stderr);
-		fflush(stderr);
+		putc (';', stderr);
+		putc ('\n', stderr);
+		putc ('\t', stderr);
+		return;
 	}
+
+	putc ('\n', stderr);
+	fflush (stderr);
 
 	if (sav_lst_file) {
 		return;
@@ -482,7 +481,7 @@ cb_verify_x (cb_tree x, const enum cb_support tag, const char *feature)
 	case CB_OK:
 		return 1;
 	case CB_WARNING:
-		cb_warning_x (COBC_WARN_FILLER, x, _("%s used"), feature);
+		cb_warning_x (cb_warn_dialect, x, _("%s used"), feature);
 		return 1;
 	case CB_ARCHAIC:
 		cb_warning_x (cb_warn_archaic, x, _("%s is archaic in %s"),
@@ -578,17 +577,20 @@ undefined_error (cb_tree x)
 	/* Get complete variable name */
 	snprintf (errnamebuff, (size_t)COB_NORMAL_MAX, "%s", CB_NAME (x));
 	errnamebuff[COB_NORMAL_MAX] = 0;
-	for (c = r->chain; c; c = CB_REFERENCE (c)->chain) {
-		strcat (errnamebuff, " IN ");
-		strcat (errnamebuff, CB_NAME (c));
-	}
-
-	if (is_reserved_word (CB_NAME (x))) {
-		error_message = _("'%s' cannot be used here");
-	} else if (is_default_reserved_word (CB_NAME (x))) {
-		error_message = _("'%s' is not defined, but is a reserved word in another dialect");
-	} else {
+	if (r->chain) {
+		for (c = r->chain; c; c = CB_REFERENCE (c)->chain) {
+			strcat (errnamebuff, " IN ");
+			strcat (errnamebuff, CB_NAME (c));
+		}
 		error_message = _("'%s' is not defined");
+	} else {
+		if (is_reserved_word (CB_NAME (x))) {
+			error_message = _("'%s' cannot be used here");
+		} else if (is_default_reserved_word (CB_NAME (x))) {
+			error_message = _("'%s' is not defined, but is a reserved word in another dialect");
+		} else {
+			error_message = _("'%s' is not defined");
+		}
 	}
 
 	if (r->flag_optional) {
@@ -672,21 +674,6 @@ group_error (cb_tree x, const char *clause)
 		    cb_name (x), clause);
 }
 
-void
-level_redundant_error (cb_tree x, const char *clause)
-{
-	const char		*s;
-	const struct cb_field	*f;
-
-	s = cb_name (x);
-	f = CB_FIELD_PTR (x);
-	if (f->flag_item_78) {
-		cb_error_x (x, _("constant item '%s' cannot have a %s clause"), s, clause);
-	} else {
-		cb_error_x (x, _("level %02d item '%s' cannot have a %s clause"), f->level,
-			    s, clause);
-	}
-}
 
 void
 level_require_error (cb_tree x, const char *clause)

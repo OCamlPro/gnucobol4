@@ -110,7 +110,13 @@
 /* C version info */
 #ifdef	__VERSION__
 #if		! defined (_MSC_VER)
+#if		defined (__MINGW32__)
+#define OC_C_VERSION_PRF	"(MinGW) "
+#elif	defined (__DJGPP__)
+#define OC_C_VERSION_PRF	"(DJGPP) "
+#else
 #define OC_C_VERSION_PRF	""
+#endif
 #elif	defined (__c2__)
 #define OC_C_VERSION_PRF	"(Microsoft C2) "
 #elif	defined (__llvm__)
@@ -122,9 +128,9 @@
 #elif	defined (__xlc__)
 #define OC_C_VERSION_PRF	"(IBM XL C/C++) "
 #define OC_C_VERSION	CB_XSTRINGIFY (__xlc__)
-#elif	defined (__SUNPRO_CC)
-#define OC_C_VERSION_PRF	"(Sun C++) "
-#define OC_C_VERSION	CB_XSTRINGIFY (__SUNPRO_CC)
+#elif	defined (__SUNPRO_C)
+#define OC_C_VERSION_PRF	"(Sun C) "
+#define OC_C_VERSION	CB_XSTRINGIFY (__SUNPRO_C)
 #elif	defined (_MSC_VER)
 #define OC_C_VERSION_PRF	"(Microsoft) "
 #define OC_C_VERSION	CB_XSTRINGIFY (_MSC_VER)
@@ -173,6 +179,7 @@ struct cob_external {
 /* Local variables */
 
 static int			cob_initialized = 0;
+static int			check_mainhandle = 1;
 static int			cob_argc = 0;
 static char			**cob_argv = NULL;
 static struct cob_alloc_cache	*cob_alloc_base = NULL;
@@ -184,6 +191,8 @@ static cob_global		*cobglobptr = NULL;
 static cob_settings		*cobsetptr = NULL;
 
 static char			*runtime_err_str = NULL;
+
+static int			cannot_check_subscript = 0;
 
 static const cob_field_attr	const_alpha_attr =
 				{COB_TYPE_ALPHANUMERIC, 0, 0, 0, NULL};
@@ -298,9 +307,10 @@ static struct config_tbl gc_conf[] = {
 	{"COB_REDIRECT_DISPLAY", "redirect_display", "0", 	NULL, GRP_SCREEN, ENV_BOOL, SETPOS (cob_disp_to_stderr)},
 	{"COB_SCREEN_ESC", "screen_esc", 		"0", 	NULL, GRP_SCREEN, ENV_BOOL, SETPOS (cob_use_esc)},
 	{"COB_SCREEN_EXCEPTIONS", "screen_exceptions", "0", NULL, GRP_SCREEN, ENV_BOOL, SETPOS (cob_extended_status)},
-	{"COB_INSERT_MODE", "insert_mode", "0", NULL, GRP_SCREEN, ENV_BOOL, SETPOS (cob_insert_mode)},
-	{"COB_SET_TRACE", "set_trace", 		"0", 	NULL, GRP_MISC, ENV_BOOL, SETPOS (cob_line_trace)},
 	{"COB_TIMEOUT_SCALE", "timeout_scale", 	"0", 	timeopts, GRP_SCREEN, ENV_INT, SETPOS (cob_timeout_scale)},
+	{"COB_INSERT_MODE", "insert_mode", "0", NULL, GRP_SCREEN, ENV_BOOL, SETPOS (cob_insert_mode)},
+	{"COB_SET_DEBUG", "debugging_mode", 		"0", 	NULL, GRP_MISC, ENV_BOOL | ENV_RESETS, SETPOS (cob_debugging_mode)},
+	{"COB_SET_TRACE", "set_trace", 		"0", 	NULL, GRP_MISC, ENV_BOOL, SETPOS (cob_line_trace)},
 	{"COB_TRACE_FILE", "trace_file", 		NULL, 	NULL, GRP_MISC, ENV_FILE, SETPOS (cob_trace_filename)},
 #ifdef  _WIN32
 	/* checked before configuration load if set from environment in cob_init() */
@@ -562,6 +572,7 @@ cob_sig_handler (int sig)
 	sig_is_handled = 1;
 #endif
 
+	/* LCOV_EXCL_START */
 	switch (sig) {
 #ifdef	SIGINT
 	case SIGINT:
@@ -598,12 +609,19 @@ cob_sig_handler (int sig)
 		signal_name = "SIGBUS";
 		break;
 #endif
+#ifdef	SIGFPE
+	case SIGFPE:
+		signal_name = "SIGFPE";
+		break;
+#endif
 	default:
 		signal_name = _("unknown");
-		fprintf (stderr, _("cob_sig_handler caught not handled signal: %d"), sig);
+		/* not translated as it is a very unlikely error case */
+		fprintf (stderr, "cob_sig_handler caught not handled signal: %d", sig);
 		putc ('\n', stderr);
 		break;
 	}
+	/* LCOV_EXCL_STOP */
 
 #ifdef	HAVE_SIGACTION
 #ifndef	SA_RESETHAND
@@ -624,6 +642,7 @@ cob_sig_handler (int sig)
 		}
 	}
 
+	/* LCOV_EXCL_START */
 	switch (sig) {
 #ifdef	SIGSEGV
 	case SIGSEGV:
@@ -635,10 +654,16 @@ cob_sig_handler (int sig)
 		fprintf (stderr, _("bus error"));
 		break;
 #endif
+#ifdef	SIGFPE
+	case SIGFPE:
+		fprintf (stderr, _("fatal arithmetic error"));
+		break;
+#endif
 	default:
 		fprintf (stderr, _("caught signal"));
 		break;
 	}
+	/* LCOV_EXCL_STOP */
 	fprintf (stderr, " (");
 	fprintf (stderr, _("signal %s"), signal_name);
 	fprintf (stderr, ")\n");
@@ -741,6 +766,14 @@ cob_set_signal (void)
 	(void)sigemptyset (&sa.sa_mask);
 	(void)sigaction (SIGBUS, &sa, NULL);
 #endif
+#ifdef	SIGFPE
+	/* fatal arithmetic errors including non-floating-point division by zero */
+	(void)sigaction (SIGFPE, NULL, &osa);
+	if (osa.sa_handler != SIG_IGN) {
+		(void)sigemptyset (&sa.sa_mask);
+		(void)sigaction (SIGFPE, &sa, NULL);
+	}
+#endif
 
 #else
 
@@ -776,6 +809,11 @@ cob_set_signal (void)
 #ifdef	SIGBUS
 	/* Take direct control of bus error */
 	(void)signal (SIGBUS, cob_sig_handler);
+#endif
+#ifdef	SIGFPE
+	if (signal (SIGFPE, SIG_IGN) != SIG_IGN) {
+		(void)signal (SIGFPE, cob_sig_handler);
+	}
 #endif
 
 #endif
@@ -1914,15 +1952,33 @@ cob_restore_func (struct cob_func_loc *fl)
 }
 
 void
-cob_check_version (const char *prog, const char *packver, const int patchlev)
+cob_check_version (const char *prog, const char *packver_prog, const int patchlev_prog)
 {
-	if (strcmp (packver, PACKAGE_VERSION) || patchlev != PATCH_LEVEL) {
+	int status;
+	int major_cob, minor_cob;
+	int major_prog, minor_prog;
+
+	/* note: to be tested with direct C call */
+
+	status = sscanf (PACKAGE_VERSION, "%d.%d", &major_cob, &minor_cob);
+	if (status == 2) {
+		status = sscanf (packver_prog, "%d.%d", &major_prog, &minor_prog);
+	} else {
+		minor_prog = major_prog = -1;
+	}
+
+	if (status != 2 || major_prog > major_cob
+	 || (major_prog == major_cob && minor_prog > minor_cob)
+	 || (major_prog == major_cob && minor_prog == minor_cob && patchlev_prog > PATCH_LEVEL)) {
 		cob_runtime_error (_("error: version mismatch"));
-		cob_runtime_error (_("%s has version/patch level %s/%d"), prog,
-				   packver, patchlev);
-		cob_runtime_error (_("libcob has version/patch level %s/%d"),
+		cob_runtime_error (_("%s has version %s.%d"), prog,
+				   packver_prog, patchlev_prog);
+		cob_runtime_error (_("%s has version %s.%d"), "libcob",
 				   PACKAGE_VERSION, PATCH_LEVEL);
 		cob_stop_run (1);
+	}
+	if (major_prog == 2 && minor_prog < 2) {
+		cannot_check_subscript = 1;
 	}
 }
 
@@ -2607,6 +2663,17 @@ cob_check_odo (const int i, const int min,
 	/* Check OCCURS DEPENDING ON item */
 	if (i < min || i > max) {
 		cob_set_exception (COB_EC_BOUND_ODO);
+
+		/* Hack for call from 2.0 modules as the module signature was changed :-(
+		   Note: depending on the actual C runtime this may work or directly break
+		*/
+		/* LCOV_EXCL_START */
+		if (dep_name == NULL) {
+			dep_name = name;
+			name = "unknown field";
+		}
+		/* LCOV_EXCL_STOP */
+
 		cob_runtime_error (_("OCCURS DEPENDING ON '%s' out of bounds: %d"),
 					dep_name, i);
 		if (i > max) {
@@ -2622,6 +2689,23 @@ void
 cob_check_subscript (const int i, const int max,
 			const char *name, const int odo_item)
 {
+#if 1
+	/* Hack for call from 2.0 modules as the module signature was changed :-(
+	   Note: depending on the actual C runtime this may work or directly break
+	*/
+	/* LCOV_EXCL_START */
+	if (cannot_check_subscript) {
+		/* Check zero subscript */
+		if (i == 0) {
+			cob_set_exception (COB_EC_BOUND_SUBSCRIPT);
+			cob_runtime_error (_("subscript of '%s' out of bounds: %d"), "unknown field", i);
+			cob_stop_run (1);
+		}
+		return;
+	}
+	/* LCOV_EXCL_STOP */
+#endif
+
 	/* Check subscript */
 	if (i < 1 || i > max) {
 		cob_set_exception (COB_EC_BOUND_SUBSCRIPT);
@@ -2650,10 +2734,19 @@ cob_check_ref_mod (const int offset, const int length,
 		cob_stop_run (1);
 	}
 
-	/* Check length */
-	if (length < 1 || offset + length - 1 > size) {
+	/* Check plain length */
+	if (length < 1 || length > size) {
 		cob_set_exception (COB_EC_BOUND_REF_MOD);
-		cob_runtime_error (_("length of '%s' out of bounds: %d"), name, length);
+		cob_runtime_error (_("length of '%s' out of bounds: %d"),
+			name, length);
+		cob_stop_run (1);
+	}
+
+	/* Check length with offset */
+	if (offset + length - 1 > size) {
+		cob_set_exception (COB_EC_BOUND_REF_MOD);
+		cob_runtime_error (_("length of '%s' out of bounds: %d, starting at: %d"),
+			name, length, offset);
 		cob_stop_run (1);
 	}
 }
@@ -2671,6 +2764,10 @@ cob_external_addr (const char *exname, const int exlength)
 						   exname, eptr->esize, exlength);
 				cob_stop_run (1);
 			}
+			if (exlength < eptr->esize) {
+				cob_runtime_warning (_("EXTERNAL item '%s' previously allocated with size %d, requested size is %d"),
+						   exname, eptr->esize, exlength);
+			}
 			cobglobptr->cob_initial_external = 0;
 			return eptr->ext_alloc;
 		}
@@ -2684,14 +2781,6 @@ cob_external_addr (const char *exname, const int exlength)
 	basext = eptr;
 	cobglobptr->cob_initial_external = 1;
 	return eptr->ext_alloc;
-}
-
-/* Retrieving current date and time */
-
-int
-cob_ctoi (const char digit)
-{
-	return (int) (digit - '0');
 }
 
 #if defined (_MSC_VER) && COB_USE_VC2008_OR_GREATER
@@ -2792,7 +2881,7 @@ cob_get_current_date_and_time_from_os (void)
 	cb_time.month = tmptr->tm_mon + 1;
 	cb_time.day_of_month = tmptr->tm_mday;
 	cb_time.day_of_week = one_indexed_day_of_week_from_monday (tmptr->tm_wday);
-	cb_time.day_of_year = tmptr->tm_yday;
+	cb_time.day_of_year = tmptr->tm_yday + 1;
 	cb_time.hour = tmptr->tm_hour;
 	cb_time.minute = tmptr->tm_min;
 	cb_time.second = tmptr->tm_sec;
@@ -2823,10 +2912,10 @@ cob_get_current_date_and_time_from_os (void)
 		/* Convert the timezone string into minutes from UTC */
 		cb_time.offset_known = 1;
 		cb_time.utc_offset =
-			cob_ctoi (iso_timezone[1]) * 60 * 10
-			+ cob_ctoi (iso_timezone[2]) * 60
-			+ cob_ctoi (iso_timezone[3]) * 10
-			+ cob_ctoi (iso_timezone[4]);
+			COB_D2I (iso_timezone[1]) * 60 * 10
+			+ COB_D2I (iso_timezone[2]) * 60
+			+ COB_D2I (iso_timezone[3]) * 10
+			+ COB_D2I (iso_timezone[4]);
 		if (iso_timezone[0] == '-') {
 			cb_time.utc_offset *= -1;
 		}
@@ -2851,7 +2940,7 @@ cob_get_current_date_and_time (void)
 	struct cob_time	cb_time = cob_get_current_date_and_time_from_os ();
 
 #if _WIN32
-	needs_calculation = 1;	/* WIN32 allways needs a recalculation (doesn't set all items) */
+	needs_calculation = 1;	/* WIN32 always needs a recalculation (doesn't set all items) */
 #endif
 
 	/* do we have a constant time? */
@@ -2947,7 +3036,7 @@ check_current_date()
 		yr = 0;
 		for (i=0; cobsetptr->cob_date[j] != 0; j++) {
 			if (isdigit(cobsetptr->cob_date[j])) {
-			 	yr = yr * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+			 	yr = yr * 10 + COB_D2I (cobsetptr->cob_date[j]);
 			} else {
 				break;
 			}
@@ -2974,7 +3063,7 @@ check_current_date()
 		mm = 0;
 		for (i=0; cobsetptr->cob_date[j] != 0; j++) {
 			if (isdigit(cobsetptr->cob_date[j])) {
-				mm = mm * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+				mm = mm * 10 + COB_D2I (cobsetptr->cob_date[j]);
 			} else {
 				break;
 			}
@@ -3001,7 +3090,7 @@ check_current_date()
 		dd = 0;
 		for (i=0; cobsetptr->cob_date[j] != 0; j++) {
 			if (isdigit(cobsetptr->cob_date[j])) {
-				dd = dd * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+				dd = dd * 10 + COB_D2I (cobsetptr->cob_date[j]);
 			} else {
 				break;
 			}
@@ -3028,7 +3117,7 @@ check_current_date()
 		while(isspace(cobsetptr->cob_date[j])) j++;
 		for (i=0; cobsetptr->cob_date[j] != 0; j++) {
 			if (isdigit(cobsetptr->cob_date[j])) {
-				hh = hh * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+				hh = hh * 10 + COB_D2I (cobsetptr->cob_date[j]);
 			} else {
 				break;
 			}
@@ -3056,7 +3145,7 @@ check_current_date()
 		mi = 0;
 		for (i=0; cobsetptr->cob_date[j] != 0; j++) {
 			if (isdigit(cobsetptr->cob_date[j])) {
-				mi = mi * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+				mi = mi * 10 + COB_D2I (cobsetptr->cob_date[j]);
 			} else {
 				break;
 			}
@@ -3087,7 +3176,7 @@ check_current_date()
 		ss = 0;
 		for (i=0; cobsetptr->cob_date[j] != 0; j++) {
 			if (isdigit(cobsetptr->cob_date[j])) {
-				ss = ss * 10 + cob_ctoi(cobsetptr->cob_date[j]);
+				ss = ss * 10 + COB_D2I (cobsetptr->cob_date[j]);
 			} else {
 				break;
 			}
@@ -3155,10 +3244,10 @@ check_current_date()
 			}
 		}
 		if (i == 4) {
-			offset = cob_ctoi (iso_timezone[1]) * 60 * 10
-				+ cob_ctoi (iso_timezone[2]) * 60
-				+ cob_ctoi (iso_timezone[3]) * 10
-				+ cob_ctoi (iso_timezone[4]);
+			offset = COB_D2I (iso_timezone[1]) * 60 * 10
+				+ COB_D2I (iso_timezone[2]) * 60
+				+ COB_D2I (iso_timezone[3]) * 10
+				+ COB_D2I (iso_timezone[4]);
 			if (iso_timezone[0] == '-') {
 				offset *= -1;
 			}
@@ -3197,7 +3286,7 @@ check_current_date()
 	}
 	tmptr->tm_isdst = -1;
 
-	/* nornmalize if needed (for example 40 October is changed into 9 November),
+	/* normalize if needed (for example 40 October is changed into 9 November),
 	   set tm_wday, tm_yday and tm_isdst */
 	t = mktime (tmptr);
 
@@ -3769,17 +3858,29 @@ cob_gettmpdir (void)
 	return tmpdir;
 }
 
+/* Set temporary file name */
 void
 cob_temp_name (char *filename, const char *ext)
 {
-	/* Set temporary file name */
+	int pid = cob_sys_getpid ();
+#ifndef HAVE_8DOT3_FILENAMES
+#define TEMP_EXT_SCHEMA	"%s%ccob%d_%d%s"
+#define TEMP_SORT_SCHEMA	"%s%ccobsort%d_%d"
+#else
+/* 8.3 allows only short names... */
+#define TEMP_EXT_SCHEMA	"%s%cc%d_%d%s"
+#define TEMP_SORT_SCHEMA	"%s%cs%d_%d"
+	pid = pid % 9999;
+#endif
 	if (ext) {
-		snprintf (filename, (size_t)COB_FILE_MAX, "%s%ccob%d_%d%s",
-			cob_gettmpdir (), SLASH_CHAR, cob_sys_getpid (), cob_temp_iteration, ext);
+		snprintf (filename, (size_t)COB_FILE_MAX, TEMP_EXT_SCHEMA,
+			cob_gettmpdir (), SLASH_CHAR, pid, cob_temp_iteration, ext);
 	} else {
-		snprintf (filename, (size_t)COB_FILE_MAX, "%s%ccobsort%d_%d",
-			cob_gettmpdir (), SLASH_CHAR, cob_sys_getpid (), cob_temp_iteration);
+		snprintf (filename, (size_t)COB_FILE_MAX, TEMP_SORT_SCHEMA,
+			cob_gettmpdir (), SLASH_CHAR, pid, cob_temp_iteration);
 	}
+#undef TEMP_EXT_SCHEMA
+#undef TEMP_SORT_SCHEMA
 }
 
 void
@@ -3969,11 +4070,32 @@ cob_sys_system (const void *cmdline)
 			}
 		}
 		if (i >= 0) {
-			buff = cob_malloc ((size_t) (i + 2));
-			memcpy (buff, cmd, (size_t) (i + 1));
+#ifdef _WIN32
+			/* All known _WIN32 implementations use MSVCRT's system()
+			   which passes the given commandline as paramter to "cmd /k".
+			   Because "of compatibility" this checks if you have a
+			   leading and trailing " and if yes simply removes them (!).
+			   Check if this is the case and if it is handled already
+			   by an *extra* pair of quotes, otherwise add these...
+			*/
+			if (i > 2 && cmd[0] == '"' && cmd[i] == '"'
+			&& (cmd[1] != '"' || cmd[i - 1] != '"')) {
+				buff = cob_malloc ((size_t)(i + 4));
+				buff[0] = '"';
+				memcpy (buff + 1, cmd, (size_t)(i + 1));
+				buff[i + 1] = '"';
+			} else {
+#endif // _WIN32
+				buff = cob_malloc ((size_t) (i + 2));
+				memcpy (buff, cmd, (size_t) (i + 1));
+#ifdef _WIN32
+			}
+#endif // _WIN32
 			if (cobglobptr->cob_screen_initialized) {
 				cob_screen_set_mode (0);
 			}
+			/* note: if the command cannot be executed _WIN32 always returns 1
+			   while GNU/Linux returns -1 */
 			i = system (buff);
 			cob_free (buff);
 			if (cobglobptr->cob_screen_initialized) {
@@ -4361,10 +4483,11 @@ cob_sys_fork (void)
 #if defined	(HAVE_UNISTD_H) && !(defined (_WIN32))
 	int	pid;
 	if ((pid = fork ()) == 0 ) {
+		cob_process_id = 0;	/* reset cached value */
 		return 0;		/* child process just returns */
 	}
 	if (pid < 0) {			/* Some error happened */
-		cob_runtime_warning (_("Error '%s' during CBL_GC_FORK"), cob_get_strerror ());
+		cob_runtime_warning (_("error '%s' during CBL_GC_FORK"), cob_get_strerror ());
 		return -2;
 	}
 	return pid;			/* parent gets process id of child */
@@ -4663,7 +4786,7 @@ cob_sys_getopt_long_long (void *so, void *lo, void *idx, const int long_only, vo
 
 		optlen = strlen (cob_optarg);
 		if (optlen > opt_val_size) {
-			/* Returncode 2 for "Optionvalue too long => cut" */
+			/* Return code 2 for "Option value too long => cut" */
 			optlen = opt_val_size;
 			exit_status = 2;
 		}
@@ -5153,7 +5276,7 @@ cob_expand_env_string (char *strval)
 static void
 set_value (char *data, int len, cob_s64_t val)
 {
-	/* keep in order of occurence in data types, last nanoseconds for startup... */
+	/* keep in order of occurrence in data types, last nanoseconds for startup... */
 	if (len == sizeof (int)) {
 		*(int *)data = (int)val;
 	} else if (len == sizeof (short)) {
@@ -5303,6 +5426,12 @@ set_config_val (char *value, int pos)
 				numval = !numval;
 			}
 			set_value (data, data_len, numval);
+			if ((data_type & ENV_RESETS)) {	/* Additional setup needed */
+				if (strcmp(gc_conf[pos].env_name, "COB_SET_DEBUG") == 0) {
+					/* Copy variables from settings (internal) to global structure, each time */
+					cobglobptr->cob_debugging_mode = cobsetptr->cob_debugging_mode;
+				}
+			}
 		}
 
 	} else if ((data_type & ENV_STR)
@@ -5510,7 +5639,7 @@ cb_config_entry (char *buf, int line)
 	&&  strcasecmp (keyword, "includeif") != 0
 	&&  strcasecmp (keyword, "setenv") != 0
 	&&  strcasecmp (keyword, "unsetenv") != 0) {
-		i = cb_lookup_config(keyword);
+		i = cb_lookup_config (keyword);
 
 		if (i >= NUM_CONFIG) {
 			conf_runtime_error (1,_("unknown configuration tag '%s'"), keyword);
@@ -5851,11 +5980,12 @@ cob_runtime_warning (const char *fmt, ...)
 	/* Prefix */
 	fprintf (stderr, "libcob: ");
 	if (cob_source_file) {
-		fprintf (stderr, "%s: ", cob_source_file);
+		fprintf (stderr, "%s:", cob_source_file);
 	}
 	if (cob_source_line) {
-		fprintf (stderr, "%u: ", cob_source_line);
+		fprintf (stderr, "%u:", cob_source_line);
 	}
+	fputc (' ', stderr);
 	fprintf (stderr, "warning: ");
 
 	/* Body */
@@ -5885,7 +6015,7 @@ cob_runtime_error (const char *fmt, ...)
 		if (runtime_err_str) {
 			p = runtime_err_str;
 			if (cob_source_file) {
-				sprintf (runtime_err_str, "%s: %u: ",
+				sprintf (runtime_err_str, "%s:%u: ",
 					cob_source_file, cob_source_line);
 				p = runtime_err_str + strlen (runtime_err_str);
 			}
@@ -5911,10 +6041,11 @@ cob_runtime_error (const char *fmt, ...)
 	/* Prefix */
 	fputs ("libcob: ", stderr);
 	if (cob_source_file) {
-		fprintf (stderr, "%s: ", cob_source_file);
+		fprintf (stderr, "%s", cob_source_file);
 		if (cob_source_line) {
-			fprintf (stderr, "%u: ", cob_source_line);
+			fprintf (stderr, ":%u:", cob_source_line);
 		}
+		fputc (' ', stderr);
 	}
 
 	/* Body */
@@ -6053,7 +6184,7 @@ cob_fatal_error (const int fatal_error)
 			msg = _("record overflow");
 			break;
 		case COB_STATUS_46_READ_ERROR:
-			msg = _("READ after uncessful READ/START");
+			msg = _("READ after unsucessful READ/START");
 			break;
 		case COB_STATUS_47_INPUT_DENIED:
 			msg = _("READ/START not allowed, file not open for input");
@@ -6133,15 +6264,15 @@ conf_runtime_error (const int finish_error, const char *fmt, ...)
 		last_runtime_error_file = cob_source_file;
 		last_runtime_error_line = cob_source_line;
 		if (cob_source_file) {
-			fprintf (stderr, "%s: ", cob_source_file);
-		}
-		else {
+			fprintf (stderr, "%s", cob_source_file);
+			if (cob_source_line) {
+				fprintf (stderr, ":%u", cob_source_line);
+			}
+		} else {
 			fprintf (stderr, "%s", _("environment variables"));
-			fprintf (stderr, ": ");
 		}
-		if (cob_source_line) {
-			fprintf (stderr, "%u: ", cob_source_line);
-		}
+		fputc(':', stderr);
+		fputc(' ', stderr);
 	}
 
 	/* Body */
@@ -6154,8 +6285,7 @@ conf_runtime_error (const int finish_error, const char *fmt, ...)
 		putc (';', stderr);
 		putc ('\n', stderr);
 		putc ('\t', stderr);
-	}
-	else {
+	} else {
 		putc ('\n', stderr);
 		fflush (stderr);
 	}
@@ -6473,16 +6603,6 @@ print_runtime_conf ()
 	}
 
 
-	/* checkme
-
-	var_print ("resolve_path",
-			cob_strjoin (&cobsetptr->cob_library_path, *(cobsetptr->resolve_size),
-					(char *) PATHSEPS), not_set, 3);
-	*/
-	//var_print ("base_preload_ptr",
-	//		cobsetptr->cob_preload_str, not_set, 3);
-
-
 #ifdef	HAVE_SETLOCALE
 	printf ("    : %-*s : %s\n", hdlen, "LC_CTYPE", (char *) setlocale (LC_CTYPE, NULL));
 	printf ("    : %-*s : %s\n", hdlen, "LC_NUMERIC", (char *) setlocale (LC_NUMERIC, NULL));
@@ -6502,6 +6622,13 @@ cob_get_settings_ptr ()
 }
 
 void
+cob_init_nomain (const int argc, char **argv)
+{
+	check_mainhandle = 0;
+	cob_init (argc, argv);
+}
+
+void
 cob_init (const int argc, char **argv)
 {
 	char		*s;
@@ -6513,7 +6640,7 @@ cob_init (const int argc, char **argv)
 #endif
 	int		i;
 
-#if 0	/* Simon: Should not happen - is it neccessary anywhere?
+#if 0	/* Simon: Should not happen - is it necessary anywhere?
 		   We may change this to a runtime warning/error */
 	if (cob_initialized) {
 		return;
@@ -6631,7 +6758,7 @@ cob_init (const int argc, char **argv)
 	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
 	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;
 
-	/* Call inits with cobsetptr to get the adresses of all */
+	/* Call inits with cobsetptr to get the addresses of all */
 	/* Screen-IO might be needed for error outputs */
 	cob_init_screenio (cobglobptr, cobsetptr);
 	cob_init_numeric (cobglobptr);
@@ -6639,7 +6766,7 @@ cob_init (const int argc, char **argv)
 	cob_init_move (cobglobptr, cobsetptr);
 	cob_init_intrinsic (cobglobptr);
 	cob_init_fileio (cobglobptr, cobsetptr);
-	cob_init_call (cobglobptr, cobsetptr);
+	cob_init_call (cobglobptr, cobsetptr, check_mainhandle);
 	cob_init_termio (cobglobptr, cobsetptr);
 
 	/* Set up library routine stuff */

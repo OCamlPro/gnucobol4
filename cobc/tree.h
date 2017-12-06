@@ -32,7 +32,7 @@
 #define CB_PREFIX_CONST		"c_"	/* Constant or literal (cob_field) */
 #define CB_PREFIX_DECIMAL	"d_"	/* Decimal number (cob_decimal) */
 #define CB_PREFIX_DEC_FIELD	"kc_"	/* Decimal Constant for literal (cob_field) */
-#define CB_PREFIX_DEC_CONST	"dc_"	/* Decimal Contant (cob_decimal) */
+#define CB_PREFIX_DEC_CONST	"dc_"	/* Decimal Constant (cob_decimal) */
 #define CB_PREFIX_FIELD		"f_"	/* Field (cob_field) */
 #define CB_PREFIX_FILE		"h_"	/* File (cob_file) */
 #define CB_PREFIX_KEYS		"k_"	/* File keys (cob_file_key []) */
@@ -106,6 +106,8 @@ enum cb_tag {
 	CB_TAG_PROGRAM,		/* 37 Program */
 	CB_TAG_PROTOTYPE,	/* 38 Prototype */
 	CB_TAG_DECIMAL_LITERAL	/* 39 Decimal Literal */
+	/* When adding a new entry, please remember to add it to
+	   cobc_enum_explain as well. */
 };
 
 /* Alphabet type */
@@ -132,7 +134,7 @@ enum cb_tag {
 /*	5	currently ignored by GC + MF		*/
 /*		Thunked to 16 bit	0 - No thunk			*/
 /*					1 - Thunk			*/
-/*	6	GC: works bith with static/dynamic calls */
+/*	6	GC: works both with static/dynamic calls */
 /*		MF: this has his has no effect on dynamic calls	*/
 /*		STDCALL convention	0 - CDECL			*/
 /*					1 - STDCALL			*/
@@ -141,7 +143,7 @@ enum cb_tag {
 /*		parameter-count for individual entry points	0 - checked	*/
 /*					1 - not checked			*/
 /*	9	currently ignored by GC			*/
-/*		case of call + program names	0 - disregareded (depending on compile time flags)		*/
+/*		case of call + program names	0 - disregarded (depending on compile time flags)		*/
 /*					1 - regarded			*/
 /*	10	currently ignored by GC			*/
 /*		RETURN-CODE storage	0 - passed as return value		*/
@@ -685,8 +687,11 @@ struct cb_picture {
 	enum cb_category	category;	/* Field category */
 	cob_u32_t		digits;		/* Number of digit places */
 	int			scale;		/* 1/10^scale */
-	cob_u32_t		have_sign;	/* Have 'S' */
+#if 0 /* currently unused */
 	cob_u32_t		real_digits;	/* Real number of digits */
+#endif
+	cob_u32_t		have_sign;	/* Have 'S' */
+	unsigned int flag_is_calculated	: 1;	/* is calculated */
 };
 
 #define CB_PICTURE(x)	(CB_TREE_CAST (CB_TAG_PICTURE, struct cb_picture, x))
@@ -933,6 +938,7 @@ struct cb_file {
 	unsigned int		flag_global	: 1;	/* Is GLOBAL */
 	unsigned int		flag_fl_debug	: 1;	/* DEBUGGING */
 	unsigned int		flag_line_adv	: 1;	/* LINE ADVANCING */
+	unsigned int		flag_delimiter	: 1;	/* RECORD DELIMITER */
 };
 
 #define CB_FILE(x)	(CB_TREE_CAST (CB_TAG_FILE, struct cb_file, x))
@@ -1354,6 +1360,8 @@ struct cb_program {
 
 	/* Program variables */
 	struct cb_program	*next_program;		/* Nested/contained */
+	struct cb_program	*next_program_ordered;		/* Nested/contained
+													when cb_correct_program_order is set */
 	const char		*program_name;		/* Internal program-name */
 	const char		*program_id;		/* Demangled external PROGRAM-ID */
 	char			*source_name;		/* Source name */
@@ -1437,7 +1445,7 @@ struct cb_program {
 	unsigned int	flag_debugging		: 1;	/* DEBUGGING MODE */
 	unsigned int	flag_gen_debug		: 1;	/* DEBUGGING MODE */
 
-	unsigned int	flag_save_exception	: 1;	/* Save execption code */
+	unsigned int	flag_save_exception	: 1;	/* Save exception code */
 	unsigned int	flag_report		: 1;	/* Have REPORT SECTION */
 	unsigned int	flag_void		: 1;	/* void return for subprogram */
 };
@@ -1704,7 +1712,7 @@ extern void			remove_context_sensitivity (const char *,
 							    const int);
 extern struct cobc_reserved	*lookup_reserved_word (const char *);
 extern cb_tree			get_system_name (const char *);
-extern const char	*cb_get_register_definition (const char *);
+extern const char		*cb_get_register_definition (const char *);
 extern void			cb_list_reserved (void);
 extern void			cb_list_intrinsics (void);
 extern void			cb_list_system_names (void);
@@ -1725,7 +1733,6 @@ extern void		redefinition_warning (cb_tree, cb_tree);
 extern void		undefined_error (cb_tree);
 extern void		ambiguous_error (cb_tree);
 extern void		group_error (cb_tree, const char *);
-extern void		level_redundant_error (cb_tree, const char *);
 extern void		level_require_error (cb_tree, const char *);
 extern void		level_except_error (cb_tree, const char *);
 extern int		cb_set_ignore_error (int state);
@@ -1996,6 +2003,7 @@ extern void			cobc_xref_link (struct cb_xref *, const int, const int);
 extern void			cobc_xref_link_parent (const struct cb_field *);
 extern void			cobc_xref_set_receiving (const cb_tree);
 extern void			cobc_xref_call (const char *, const int, const int, const int);
+extern unsigned int		cb_correct_program_order;
 
 /* Function defines */
 
@@ -2047,7 +2055,7 @@ extern void			cobc_xref_call (const char *, const int, const int, const int);
 	cb_build_funcall (f, 11, a1, a2, a3, a4, a5, a6, a7, a8,	\
 			  a9, a10, a11)
 
-/* Miscellanous defines */
+/* Miscellaneous defines */
 
 #define CB_BUILD_CAST_ADDRESS(x)	cb_build_cast (CB_CAST_ADDRESS, x)
 #define CB_BUILD_CAST_ADDR_OF_ADDR(x)	cb_build_cast (CB_CAST_ADDR_OF_ADDR, x)

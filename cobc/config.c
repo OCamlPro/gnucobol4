@@ -199,7 +199,7 @@ split_and_iterate_on_comma_separated_str (
 		*/
 		switch (val[i]) {
 		case ' ':
-			/* Remove spaces if not escaped, espacially needed for
+			/* Remove spaces if not escaped, especially needed for
 			   mnemonics "SWITCH A" and registers "LENGTH OF" */
 			if (j > 0 && word_buff[j - 1] == '\\') {
 				word_buff[j - 1] = ' ';
@@ -258,8 +258,8 @@ cb_load_conf_file (const char *conf_file, const enum cb_include_type include_typ
 			}
 			filename[0] = 0;
 			if (c && c->name) {
-				strcpy(buff, conf_includes->name);
-				for (i = (int)strlen(buff); i != 0 && buff[i] != SLASH_CHAR; i--);
+				strcpy (buff, conf_includes->name);
+				for (i = (int)strlen (buff); i != 0 && buff[i] != SLASH_CHAR; i--);
 				if (i != 0) {
 					buff[i] = 0;
 					snprintf (filename, (size_t)COB_NORMAL_MAX, "%s%c%s", buff, SLASH_CHAR, conf_file);
@@ -285,7 +285,7 @@ cb_load_conf_file (const char *conf_file, const enum cb_include_type include_typ
 	/* check for recursion */
 	c = cc = conf_includes;
 	while (c != NULL) {
-		if (c->name /* <- silence warnings */ && strcmp(c->name, conf_file) == 0) {
+		if (c->name /* <- silence warnings */ && strcmp (c->name, conf_file) == 0) {
 			configuration_error (conf_file, 0, 1, _("recursive inclusion"));
 			return -2;
 		}

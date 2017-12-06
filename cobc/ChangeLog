@@ -1,4 +1,308 @@
 
+2017-12-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (process_run) [_WIN32]: change / in given output name to \
+
+2017-12-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c (build_evaluate): error position improvement for
+	  "wrong number of WHEN parameters"
+
+2017-12-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* config.def, parser.y: FR #158 added cb_perform_varying_without_by
+	* parser.y: FR #168 adding missing compile time checks for
+	  PERFORM BY ZERO
+
+2017-12-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: FR 259 delete temporary files as soon as possible:
+	  moved cleanup of intermediates for a single processed file
+	  from (cobc_clean_up) to (clean_up_intermediates) and call this in
+	  main after processing the single file
+	* parser.y, typeck.c: fixed some errors spotted by COB_TREE_DEBUG
+
+2017-11-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.h, cobc.c (process_translate), codegen.c: local_filename with
+	  additional attribute local_include_name as short name,
+	  local_name containing the full name for file handling again
+
+2017-11-29  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* error.c (undefined_error): always raise "not defined" error if
+	  word is already qualified
+	* parser.y, reserved.c, cobc.h: FR #265 added parsing for ACUCOBOL
+	  graphical controls, control styles, control properties and rough
+	  parsing of INQUIRE and MODIFY statements
+	* tree.h, field.c (validate_pic, setup_parameters): set new attribute
+	  pic->flag_is_calculated where picture wasn't originally specified
+	  and don't check this pseudo PICTURE later.
+	* tree.c, tree.h: disabled pic->real_digits as it is currently not
+	  in use anywhere (just calculated in tree.c)	  
+
+2017-11-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c: moved aliases VALUES/ZEROES/ZEROS to default.conf
+
+2017-11-25  Ron Norman <rjn@inglenet.com>
+
+	Bug #175 fixed: LENGTH OF constants with grouped fields
+	* typeck.c: make sure field has been verified for constant LENGTH
+	* field.c: set pic.category for POINTER and ignore PIC for it later
+	* field.c (setup_parameters): set PIC 9(17) for pointer in 64 bit mode
+
+2017-11-23  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: Fix for bug #222 - for FUNCTION-ID and RECURSIVE,
+	  generate all LINKAGE and LOCAL-STORAGE fields with the 'cob_field'
+	  on the function stack instead of making them 'static'.
+	  If static then the fields end up as a side effect with the same
+	  memory address which is not correct.
+
+2017-11-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y, reserved.c: added parsing for ARITHMETIC clause
+	* parser.y, reserved.c, cobc.h: added context sensitivity for
+	  SCREEN SECTION, adjusted reserved words to CB_CS_SCREEN and CB_CS_SET
+	* parser.y: renamed "not" to much more clearer "not_expr" to prevent
+	  confusing it with "flag_not"
+	* reserved.c: moved aliases LOW-VALUES/HIGH-VALUES to default.conf
+	* parser.y: moved reset of cobc_cs_check from _mnemonic_conv to end of
+	  call_statement
+	* reserved.c (lookup_reserved_word): fixed returning of context-sensitive
+	  word without context (happened when the word *set* a context, too);
+	  no auto-reset within CB_CS_SCREEN context
+
+2017-11-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (process_run): fixed possible SIGSEGV for long run options,
+	  use output_name, with stripped extension if necessary (see bug #466)
+	* cobc.c (process_translate): fixed bug #466 by removing path from
+	  C source names after fopen
+	* cobc.c: fixed possible SIGSEGV for long COB_STRIP_CMD
+	* cobc.c (process_link): only add COB_EXE_EXT for running strip command
+	  if is isn't already specified
+	* pplex.l (ppopen): fixed bug #467 by adding missing checks for
+	  recursive sources before fopen
+	* cobc.c, error.c: allowed messages with filenames only, line number
+	  isn't printed if -1
+
+2017-11-20  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (process_assemble, process_filename)[__OS400__]: fixed
+	  SIGSEGV by ensuring bufflen to always include the size of the full
+	  path for fn->translate and a minor memory issue by calling
+	  cobc_main_free with original fn->translate before assigning it with
+	  the full path
+	* cobc.c (process_assemble)[__OS400__, __WATCOMC__]: removed running
+	  the created object file
+	* cobc.c: renamed cobc_stradd_dup to cobc_main_stradd_dup and added
+	  a new version of cobc_stradd_dup that uses temporary memory
+	* cobc.c: added optional parameter to file_basename to specify which
+	  extension to remove (if NULL all extensions will be removed)
+	* cobc.c (process_filename): use strcasecmp instead of strcmp
+	  because of possible compilation on FAT/NTFS
+	* cobc.c: removed wants_nonfinal, directly check cb_compile_level instead
+	* cobc.c (set_compile_level_from_file_extension): new function to
+	  adjust cb_compile_level if outputname was specified but no option
+	  to set the compile level
+
+2017-11-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l, cobc.c: removed superfluous memset to 0 after cobc_malloc
+	  in listing functions
+	* cobc.c, cobc.h: always store cb_source_format as enum cb_format,
+	  using getopt return values for `--fixed` / `--free` instead as
+	  getopt assigns an integer which is not guaranteed to be sizeof(enum)
+	* cobc.c (cobc_xref_call): bug #463 - fixed memory leak in Xref code
+	* cobc.c: modularized cleanup code to (cleanup_copybook_reference)
+	* cobc.c: bug #463 - reset cb_current_file->copy_tail on listing setup
+	* cobc.c: modularized processing of files from (main) to (process_file)
+	  and separated functions (begin_setup_compiler_env),
+	  (finish_setup_compiler_env), (begin_setup_internal_and_compiler_env),
+	  (finish_setup_internal_env) from (main) function
+
+2017-11-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: removed artificial limit for -fmax-errors
+	* cobc.c: FR #255 new command line option `-O0` (short-opt: '0') for
+	  disabling optimizations (new define CB_COPT_0),
+	  postpone addition for -O option group to cflags
+	* tree.c (cb_int, cb_build_label): set source position for integers
+	  and labels on tree creation
+	* parser.y: removed position setting for integers and labels
+	* parser.y (backup_current_pos, set_pos_from_backup): new functions for
+	  position corrections (currently not used)
+	* codegen.c (output_call), parser.y (call_body): fixing bug #462
+	  don't generate static calls if ON EXCEPTION is given
+
+2017-11-13  Ron Norman <rjn@inglenet.com>
+
+	fixed Bug #461:
+	* codegen.c: new function cb_init_codegen to clear local variables
+	* cobc.c: call cb_init_codegen after releasing cob_parsemem_base or
+	  cobc_mainmem_base
+
+2017-11-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* tree.h, tree.c, typeck.c: removed level_redundant_error and moved
+	  the only part of it that was used once to typeck.c (validate_occurs)
+	* typeck.c (validate_occurs): check level before raising a warning on
+	  use of level 01/77 OCCURS, warn with correct position
+
+2017-11-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* typeck.c: increase size for DEBUG-CONTENT according to file record length
+	* codegen.c: initialize return_address_ptr to an existing label to ensure
+	  that at least one label is available for computed goto, see bug 439#
+
+2017-11-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c (output_call): change to exception handling: only check for
+	  exceptions that are the result of the current CALL
+
+2017-11-09  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* reserved.c, typeck.c: add DEBUG-ITEM to be handled as register
+	* typeck.c: change definition of DEBUG-ITEM: DEBUG-LINE is alphanumeric,
+	  DEBUG-NAME and DEBUG-CONTENT X(31) -> X(30)
+
+2017-11-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* codegen.c: change to USE FOR DEBUGGING procedures - don't generate a
+	  local cob_debugging_mode and use runtime setting instead
+
+2017-11-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: only switch CALL ... BY VALUE to BY CONTENT for a single
+	  parameter and output its name
+	* warning.def, cobc.h: allow -Wno-other to suppress messages generated
+	  because of "COBC_WARN_FILLER"
+	* warning.def, error.c, typeck.c: allow -Wno-dialect to suppress messages
+	  generated because of dialect option value "warning"
+	* cobc.c: default cb_flag_computed_goto depending on COB_COMPUTED_GOTO
+	  instead of a fixed list of compiler (version) defines
+	* flag.def, cobc.c, codegen.c: disabled -fif-cutoff (cb_if_cutoff,
+	  gen_if_level), can be re-activated by -DCOBC_HAS_CUTOFF_FLAG (likely
+	  to be removed completely later), see bug #456
+
+2017-11-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* pplex.l: fixed bug #458 by adding error handling for copybooks
+	  that couldn't be opened because of external limits
+
+2017-11-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: check missing evaluation of command line option;
+	  code-coverage specific changes
+
+2017-10-25  Ron Norman <rjn@inglenet.com>
+
+	* typeck.c (validate_move invalid:) fixed bug #225 report
+	  'invalid SET statement' when appropriate
+
+2017-10-25  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: specify all generated source files in BUILT_SOURCES
+	  that have to be built _before_ other sources, fixing parallel builds
+
+2017-10-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* parser.y: fixed bug #454 suspicious warning with actual working
+	  CURRENCY SIGN, better error messages for this clause
+	* error.c, cobc.c: changed message format back to old version,
+	  see bug #455
+	* typeck.c: fixed bug #266 - false error on duplicate characters in
+	  class definition
+	* parser.y: added *parsing* for COBOL2002 options to specify class type
+	  and referenced alphabet in SPECIAL-NAMES, CLASS clause
+
+2017-10-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: moved include of top_srcdir to AM_CPPFLAGS to prevent
+	  user-specified CPPFLAGS to override own includes, see bug #452
+	* cobc.c: minimal support for DJGGP, including generation of 8.3 filenames
+	* cobc.c: don't halt immediately on first PATH error during startup,
+	  postponed until command line arguments are processed
+
+2017-10-14  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c: refactored and improved variable names in external form
+	  functions.
+
+2017-10-07  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: correction for -fodoslide
+
+2017-10-06  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, tree.c, tree.h: added RECORD DELIMITER syntax checks.
+	* parser.y, cobc.h, reserved.c: added BINARY-SEQUENTIAL and
+	  LINE-SEQUENTIAL phrases to RECORD DELIMITER.
+	* config.def: added config options for RECORD DELIMITER clause.
+
+2017-09-28  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y (stop_statement): set context-sensitive flag (bug #433).
+
+2017-09-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c (cobc_abort_msg): output orig_program_id instead of C-converted
+	* codegen.c (codegen): adjust current_program used for error messages
+	  during code generation of nested programs
+	* parser.y: fixed missing warning for pending CURRENCY SIGN other than '$'
+	* cobc.c, tree.c, tree.h: fixed #435 - nested programs had no access to
+	  identifiers in its parent's scope: added next_program_ordered to
+	  struct cb_program set in (restore_program_list_order) and used for
+	  checking nested lookups afterwards
+
+2017-09-22  Edward Hart <edward.dan.hart@gmail.com>
+
+	* typeck.c (cb_set_intr_when_compiled): #436 fixed timezone printf format
+	* cobc.c (cobc_enum_explain): added missing tags
+
+2017-09-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* cobc.c: ensure correct order of the programs during processing
+	* codegen.c (output_param): added missing check after calling (cb_ref)
+	  to prevent SIGSEGV, see Bug #435
+	* typeck.c, tree.c: checked result of (cb_ref) where missing
+
+2017-09-18  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c:
+	  Emit Decimal Constants for all module types
+
+2017-09-18  Ron Norman <rjn@inglenet.com>
+
+	* config.def:
+	  Added select-working: yes/no
+	  SELECT RELATIVE KEY and ASSIGN fields must be in WORKING-STORAGE
+	* typeck.c:
+	  Report 'declared outside WORKING-STORAGE' if 'select-working: yes'
+	  and SELECT RELATIVE KEY or ASSIGN field is not in WORKING-STORAGE
+	* codegen.c:
+	  When SELECT RELATIVE KEY or ASSIGN field is not in WORKING-STORAGE
+	  Then set current data address in each OPEN and for RELATIVE files
+	  on every I/O operation
+	* tree.c:
+	  Fix compile time resolve of FUNCTION INTEGER with negative value
+
+2017-09-16  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, config.def: added free-redefines-position config option.
+
+2017-09-10  Edward Hart <edward.dan.hart@gmail.com>
+
+	* tree.c (cb_int): corrected bitmask.
+	* config.def, typeck.c: added line-col-zero-default and display-special-
+	  fig-consts options. This reinstates GnuCOBOL's previous behaviour of
+	  DISPLAYing a field on screen at the current position of the cursor and
+	  disabling the MF DISPLAY SPACES extension.
+	* parser.y: increase number of places which accept ZERO (including SIZE
+	  clause).
+
 2017-09-05  Edward Hart <edward.dan.hart@gmail.com>
 
 	* tree.c (cb_int): add bitmask to suppress runtime loss-of-data warning
@@ -25,6 +329,10 @@
 	* reserved.c: adjusted some missing context-sensitive options
 	* reserved.c, parser.y: added parsing of PHYSICAL attribute in
 	  LENGTH functions
+
+2017-08-28  Edward Hart <edward.dan.hart@gmail.com>
+
+	* field.c (validate_field_1): refactored.
 
 2017-08-23  Edward Hart <edward.dan.hart@gmail.com>
 
@@ -75,11 +383,14 @@
 2017-08-14  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* tree.c: fixed tree cast error for literals
+	* typeck.c (cb_build_cond): fixed tree cast error with cb_arithmetic_osvs
 
 2017-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobc.c: added cobc_early_exit and adjusted exit calls to fix missing free
 	* ppparse.y: CDF: warn if compiler flag is unknown
+	* typeck.c: allow figurative constants to be used for CALL USING as
+	  documented for IBM COBOL
 
 2017-08-12  Ron Norman <rjn@inglenet.com>
 
@@ -287,7 +598,7 @@
 
 2017-07-03  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
-	* cobc.c (cb_build_binary_op): raise "invalid expression" for
+	* tree.c (cb_build_binary_op): raise "invalid expression" for
 	  invalid elements instead of COBC_ABORT
 	* config.def, cobc.c (cb_build_binary_op): added cb_constant_folding
 	  "constant-folding" configuration option to provide a way to disable
@@ -478,6 +789,11 @@
 
 	* parser.y: accept ACUCOBOL SET var TO SIZE OF field, handle as
 	  MOVE LENGTH OF field TO var
+
+2017-05-20  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c, tree.c, tree.h, typeck.c, codeoptim.c: Enhancements to
+	  handle nested OCCURS DEPENDING ON including -fodoslide
 
 2017-05-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -713,6 +1029,11 @@
 
 	* cobc.h, warning.def: test cb_warn_pending in CB_PENDING message macro.
 
+2017-01-30  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c: emit call to pass address of file for dump of
+	  specific fields such as FILE STATUS
+
 2017-01-30  Edward Hart <edward.dan.hart@gmail.com>
 
 	* parser.y, reserved.c, tree.h: allow EXTERN, STDCALL and STATIC to be
@@ -728,6 +1049,13 @@
 	* parser.y, codegen.c: implemented entry-convention for entry points
 	  including stdcall generation
 	* reserved.c, parser.y: removed WINAPI
+
+2017-01-25  Ron Norman <rjn@inglenet.com>
+
+	* flag.def, cobc.h: new option -fdump=<scope> added (cb_flag_dump)
+	* cobc.h: added defines for values
+	* cobc.c: added code to set cb_flag_dump
+	* codegen.c: added code to emit calls to new trace & dump routines
 
 2017-01-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -774,6 +1102,12 @@
 	* field.c: set COB_FLAG_REAL_BINARY to on for COMP-5
 	* codegen.c: for numeric literals passed on CALL, COB_FLAG_REAL_BINARY is
 	  not set on since the internal field is actually S9(9) COMP-4
+
+2017-01-17  Ron Norman <rjn@inglenet.com>
+
+	* codegen.c (output_integer) [COB_NON_ALIGNED]: insert (cob_u8_ptr)
+	  before cob_get_pointer (..) for systems not allowing pointer arithmetic
+	  on (void*)
 
 2017-01-16  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
@@ -1267,7 +1601,7 @@
 
 2016-09-19  Ron Norman <rjn@inglenet.com>
 
-	* codgen.c, tree.c, tree.h:  added code to optimize handling of
+	* codegen.c, tree.c, tree.h:  added code to optimize handling of
 	  'decimal constants' in expressions
 
 2016-09-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
@@ -2633,9 +2967,18 @@
 
 2010-05-??  Roger While <simrw@sim-basis.de> ?
 
-	* flag.def, cobc.c: remove compiler flags if-cutoff, extra-brace, optional-file
+	* flag.def, cobc.c: remove compiler flags if-cutoff, extra-brace,
+	  optional-file
 	* error.c: remove special warnings for lvl-78
 	* pplex.l [_WIN32]: check for UTF-8 BOM in source files and skip it
+
+2009-??-??  Roger While <simrw@sim-basis.de>
+
+	* parser.y, reserved.c, tree.c, tree.h, codegen.c: full support of ANSI 85
+	  debugging module by adding USE FOR DEBUGGING declarative procedures
+	  (only part of the generation if WITH DEBUGGING MODE is active during
+	  compilation) and special register DEBUG-ITEM
+	  note: the execution at runtime is depending on COB_SET_DEBUG
 
 2009-??-??  Roger While <simrw@sim-basis.de>
 

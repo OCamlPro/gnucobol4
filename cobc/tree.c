@@ -1513,6 +1513,8 @@ cb_pair_add (cb_tree l, cb_tree x, cb_tree y)
 	return cb_list_append (l, CB_BUILD_PAIR (x, y));
 }
 
+/* Reverse a list of trees,
+   NOTE: changes the passed list directly! */
 cb_tree
 cb_list_reverse (cb_tree l)
 {
@@ -1684,7 +1686,8 @@ cb_insert_common_prog (struct cb_program *prog, struct cb_program *comprog)
 cb_tree
 cb_int (const int n)
 {
-	struct cb_integer	*x;
+	cb_tree		x;
+	struct cb_integer	*y;
 	struct int_node		*p;
 
 	for (p = int_node_table; p; p = p->next) {
@@ -1695,17 +1698,21 @@ cb_int (const int n)
 
 	/* Do not use make_tree here as we want a main_malloc
 	   instead of parse_malloc! */
-	x = cobc_main_malloc (sizeof (struct cb_integer));
-	x->common.tag = CB_TAG_INTEGER;
-	x->common.category = CB_CATEGORY_NUMERIC;
-	x->val = n;
+	y = cobc_main_malloc (sizeof (struct cb_integer));
+	y->val = n;
+
+	x = CB_TREE (y);
+	x->tag = CB_TAG_INTEGER;
+	x->category = CB_CATEGORY_NUMERIC;
+	x->source_file = cb_source_file;
+	x->source_line = cb_source_line;
 
 	p = cobc_main_malloc (sizeof (struct int_node));
 	p->n = n;
-	p->node = CB_TREE (x);
+	p->node = x;
 	p->next = int_node_table;
 	int_node_table = p;
-	return CB_TREE (x);
+	return x;
 }
 
 cb_tree
@@ -1749,7 +1756,7 @@ cb_flags_t (const cob_flags_t n)
 	   output the flags in codegen as flags, making the code much more readable.
 	*/
 
-	return cb_int ((int) (n & 0xFFFF));
+	return cb_int ((int) (n & 0xFFFFFFFF));
 }
 
 /* Code output and comment */
@@ -1985,7 +1992,7 @@ cb_concat_literals (const cb_tree x1, const cb_tree x2)
 	if ((x1->category != CB_CATEGORY_ALPHANUMERIC) &&
 		(x1->category != CB_CATEGORY_NATIONAL) &&
 		(x1->category != CB_CATEGORY_BOOLEAN)) {
-		cb_error_x (x1, _("only alpanumeric, national or boolean literals may be concatenated"));
+		cb_error_x (x1, _("only alphanumeric, national or boolean literals may be concatenated"));
 		return cb_error_node;
 	}
 
@@ -2574,7 +2581,9 @@ cb_build_picture (const char *str)
 	cob_u32_t		s_count = 0;
 	cob_u32_t		v_count = 0;
 	cob_u32_t		digits = 0;
+#if 0 /* currently unused */
 	cob_u32_t		real_digits = 0;
+#endif
 	cob_u32_t		x_digits = 0;
 	int			category = 0;
 	int			size = 0;
@@ -2650,7 +2659,9 @@ repeat:
 		case '9':
 			category |= PIC_NUMERIC;
 			digits += n;
+#if 0 /* currently unused */
 			real_digits += n;
+#endif
 			if (v_count) {
 				scale += n;
 			}
@@ -2864,7 +2875,9 @@ repeat:
 	pic->digits = digits;
 	pic->scale = scale;
 	pic->have_sign = s_count;
+#if 0 /* currently unused */
 	pic->real_digits = real_digits;
+#endif
 
 	/* Set picture category */
 	switch (category) {
@@ -3189,7 +3202,7 @@ validate_indexed_key_field (struct cb_file *f, struct cb_field *records, cb_tree
 	}
 
 	/* Validate minimum record size against key field's end */
-	/* FIXME: calculate minumum length for all keys first and only check the biggest */
+	/* FIXME: calculate minimum length for all keys first and only check the biggest */
 	if (f->record_min > 0) {
 		field_end = k->offset + k->size;
 		if (field_end > f->record_min) {
@@ -3217,7 +3230,7 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 							   strlen (f->name));
 	}
 
-	/* associate records to file (seperate and first for being able
+	/* associate records to file (separate and first for being able
 	   to resolve references, for example in validate_indexed_key_field */
 	for (p = records; p; p = p->sister) {
 		p->file = f;
@@ -3276,7 +3289,7 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 	}
 
 	if (f->organization == COB_ORG_INDEXED) {
-		if (f->record_max > MAX_FD_RECORD_IDX)  {
+		if (f->record_max > MAX_FD_RECORD_IDX) {
 			f->record_max = MAX_FD_RECORD_IDX;
 			cb_error (_("file '%s': record size (IDX) %d exceeds maximum allowed (%d)"),
 				f->name, f->record_max, MAX_FD_RECORD_IDX);
@@ -3284,6 +3297,12 @@ finalize_file (struct cb_file *f, struct cb_field *records)
 	} else if (f->record_max > MAX_FD_RECORD)  {
 		cb_error (_("file '%s': record size %d exceeds maximum allowed (%d)"),
 			f->name, f->record_max, MAX_FD_RECORD);
+	}
+
+	if (f->flag_delimiter && f->record_min > 0
+	    && f->record_min == f->record_max) {
+		cb_verify (cb_record_delim_with_fixed_recs,
+			   _("RECORD DELIMITER clause on file with fixed-length records"));
 	}
 
 	if (f->same_clause) {
@@ -3428,6 +3447,10 @@ cb_build_filler (void)
 	return x;
 }
 
+/*
+  Return a reference to the field f. If ref != NULL, other attributes are set to
+  the same as ref.
+*/
 cb_tree
 cb_build_field_reference (struct cb_field *f, cb_tree ref)
 {
@@ -3618,8 +3641,13 @@ cb_ref (cb_tree x)
 		val = hash ((const unsigned char *)r->word->name);
 */
 		val = r->hashval;
-		prog = current_program->next_program;
-		for (; prog; prog = prog->next_program) {
+		prog = current_program;
+		while (prog) {
+			if (!cb_correct_program_order) {
+				prog = prog->next_program;
+			} else {
+				prog = prog->next_program_ordered;
+			}
 			if (prog->nested_level >= current_program->nested_level) {
 				continue;
 			}
@@ -3711,16 +3739,23 @@ compare_field_literal (cb_tree e, int swap, cb_tree x, const int op, struct cb_l
 	char	lit_disp[40];
 	struct cb_field *f;
 
-	f = CB_FIELD (cb_ref (x));
-	if (f->flag_any_length
-	 || f->pic == NULL)
-		return cb_any;
+	/* LCOV_EXCL_START */
+	if (!CB_REFERENCE_P(x)) {
+		cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
+			"compare_field_literal", "x");;
+		COBC_ABORT ();
+	}
+	/* LCOV_EXCL_STOP */
 
 	ref_mod = 0;
-	if (CB_REFERENCE_P(x)) {
-	 	if (CB_REFERENCE(x)->offset
-	 	 || CB_REFERENCE(x)->length)
-			ref_mod = 1;
+	f = CB_FIELD (cb_ref (x));
+	if (f->flag_any_length
+	 || f->pic == NULL) {
+		return cb_any;
+	}
+	if (CB_REFERENCE(x)->offset
+	 || CB_REFERENCE(x)->length) {
+		ref_mod = 1;
 	}
 
 	for (i = strlen ((const char *)l->data); i>0 && l->data[i-1] == ' '; i--);
@@ -3838,7 +3873,7 @@ compare_field_literal (cb_tree e, int swap, cb_tree x, const int op, struct cb_l
 		data is stored in the numeric fields - and may (later)
 		be dependent on compiler configuration flags;
 		therefore we don't set cb_true/cb_false here */
-		/* comparision with zero */
+		/* comparison with zero */
 		if (zero_val) {
 			switch (op) {
 			case '<':
@@ -3860,7 +3895,7 @@ compare_field_literal (cb_tree e, int swap, cb_tree x, const int op, struct cb_l
 			default:
 				break;
 			}
-			/* comparision with negative literal */
+			/* comparison with negative literal */
 		} else if (l->sign < 0) {
 			switch (op) {
 			case '<':
@@ -4426,6 +4461,7 @@ cb_build_cast_llint (const cb_tree val)
 cb_tree
 cb_build_label (cb_tree name, struct cb_label *section)
 {
+	cb_tree		x;
 	struct cb_label		*p;
 	struct cb_para_label	*l;
 
@@ -4444,7 +4480,10 @@ cb_build_label (cb_tree name, struct cb_label *section)
 	} else {
 		p->section_id = p->id;
 	}
-	return CB_TREE (p);
+	x = CB_TREE (p);
+	x->source_file = cb_source_file;
+	x->source_line = cb_source_line;
+	return x;
 }
 
 /* Assign */
@@ -4503,8 +4542,8 @@ cb_build_search (const int flag_all, const cb_tree table, const cb_tree var,
 /* CALL */
 
 cb_tree
-cb_build_call (const cb_tree name, const cb_tree args, const cb_tree stmt1,
-	       const cb_tree stmt2, const cb_tree returning,
+cb_build_call (const cb_tree name, const cb_tree args, const cb_tree on_exception,
+	       const cb_tree not_on_exception, const cb_tree returning,
 	       const cob_u32_t is_system_call, const int convention)
 {
 	struct cb_call *p;
@@ -4513,8 +4552,8 @@ cb_build_call (const cb_tree name, const cb_tree args, const cb_tree stmt1,
 		       sizeof (struct cb_call));
 	p->name = name;
 	p->args = args;
-	p->stmt1 = stmt1;
-	p->stmt2 = stmt2;
+	p->stmt1 = on_exception;
+	p->stmt2 = not_on_exception;
 	p->call_returning = returning;
 	p->is_system = is_system_call;
 	p->convention = convention;
@@ -4654,11 +4693,11 @@ cb_build_perform_varying (cb_tree name, cb_tree from, cb_tree by, cb_tree until)
 
 	after_until = 0;
 	if (name) {
-		if (name == cb_error_node) {
+		l = cb_ref (name);
+		if (l == cb_error_node) {
 			p->step = NULL;
 			return CB_TREE (p);
 		}
-		l = cb_ref (name);
 		x = cb_build_add (name, by, cb_high);
 		if (current_program->flag_debugging &&
 		    !current_statement->flag_in_debug &&

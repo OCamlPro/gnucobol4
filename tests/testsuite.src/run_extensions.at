@@ -653,55 +653,8 @@ AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 AT_CLEANUP
 
 
-# Nested ODO subscripts
 AT_SETUP([Complex OCCURS DEPENDING ON (6)])
 AT_KEYWORDS([extensions runsubscripts nested subscripts])
-
-AT_SKIP_IF(true) # fixme, see FR #99
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  n            PIC 9 VALUE 2.
-       01  m            PIC 9 VALUE 3.
-
-       01  a-table      VALUE "ABCDEFGHIJ".
-           03  rows     OCCURS 0 TO 2 TIMES
-                        DEPENDING ON n.
-                05  chars OCCURS 0 TO 5 TIMES
-                          DEPENDING ON m
-                          PIC X.
-
-       01  vals         PIC X(3).
-
-       PROCEDURE DIVISION.
-           MOVE chars (1, 2) TO vals (1:1)
-           MOVE chars (2, 1) TO vals (2:1)
-           MOVE chars (2, 3) TO vals (3:1)
-           IF vals NOT = "BFH"
-              DISPLAY "Vals (aligned) wrong: " vals
-              END-DISPLAY
-           END-IF
-        *> currently not working (size is wrong and it needs a temporary field)
-        *> IF a-table NOT = "ABCFGH"
-        *>    DISPLAY "Table (aligned) wrong: " a-table
-        *>    END-DISPLAY
-        *> END-IF
-           .
-])
-
-AT_CHECK([$COMPILE -fcomplex-odo prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0])
-
-AT_CLEANUP
-
-
-AT_SETUP([Complex OCCURS DEPENDING ON (7)])
-AT_KEYWORDS([extensions runsubscripts nested subscripts])
-
-AT_SKIP_IF(true) # fixme, see FR #99
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -728,11 +681,10 @@ AT_DATA([prog.cob], [
               DISPLAY "Vals (slided) wrong: " vals
               END-DISPLAY
            END-IF
-        *> FIXME - currently not working (size is wrong)
-        *> IF a-table NOT = "ABCDEF"
-        *>    DISPLAY "Table (slided) wrong: " a-table
-        *>    END-DISPLAY
-        *> END-IF
+           IF a-table NOT = "ABCDEF"
+              DISPLAY "Table (slided) wrong: " a-table
+              END-DISPLAY
+           END-IF
            .
 ])
 
@@ -782,6 +734,318 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0])
+
+AT_CLEANUP
+
+
+AT_SETUP([DEPENDING ON with ODOSLIDE])
+AT_KEYWORDS([nested DEPENDING ON])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT FLATFILE 
+           ASSIGN "SEQODO"
+           ORGANIZATION LINE SEQUENTIAL
+           FILE STATUS IS CUST-STAT .
+
+       DATA  DIVISION.
+       FILE SECTION.
+       FD  FLATFILE
+           BLOCK CONTAINS 5 RECORDS.
+      
+       01  TSTREC.
+         05  SEQ           PIC 99.
+         05  DEP-X         PIC 99.
+         05  DEP-Y         PIC 99.
+         05  HELLO         PIC X(5) VALUE 'World'.
+         05  TSTGRP.
+           10  TSTGRP1.
+             15  TSTX OCCURS 1 TO 3 TIMES 
+                      DEPENDING ON DEP-X.
+               20  TSTG-1  PIC Z9.
+             15  TSTTAIL1  PIC XXXX.
+           10  TSTY-ALL.
+             15  TSTY OCCURS 1 TO 3 TIMES 
+                      DEPENDING ON DEP-X.
+               20  TSTY-1  PIC 99.
+               20  TSTY-2  PIC XXX.
+               20  TSTY-3  PIC X 
+                             OCCURS 1 TO 12 TIMES
+                             DEPENDING ON DEP-Y.
+               20  TSTY-4  PIC XX.
+               20  TSTY-5    OCCURS 1 TO 3 TIMES
+                             DEPENDING ON DEP-X.
+                  25  TSTY-6 OCCURS 1 TO 3 TIMES 
+                             DEPENDING ON DEP-X.
+                     30  TSTY-7  PIC X.
+           10  TSTTAIL2    PIC XX.
+
+       WORKING-STORAGE SECTION.
+       77  CUST-STAT PIC  X(2).
+       01  LN        PIC  9(3).
+       01  IX        PIC  9(9) BINARY.
+       01  IY        PIC  9(9) BINARY.
+       01  IZ        PIC  9(9) BINARY.
+       01  TSTXXX    PIC  X(26) VALUE "Abcdefghijklmnopqrstuvwxyz".
+       01  TSTALPHA REDEFINES TSTXXX.
+           05 ALPH-CHR PIC  X OCCURS 26 TIMES.
+       01  TSTHEX    PIC  X(15) VALUE "123456789ABCDEF".
+       01  FILLER REDEFINES TSTHEX.
+           05 HEX-CHR PIC  X OCCURS 15 TIMES.
+
+       01  TSTREC2.
+         05  DEP-X2        PIC 99.
+         05  TSTGRP2.
+             10  TSTX2 OCCURS 1 TO 3 TIMES DEPENDING ON DEP-X2.
+               15  TSTG2-1  PIC Z9.
+             10  TST2TAIL1  PIC XXX.
+
+       01  TSTREC3.
+         05  DEP-X3        PIC 99.
+         05  TSTGRP3.
+             10  TSTX3 OCCURS 1 TO 6 TIMES DEPENDING ON DEP-X3.
+               15  TSTG3-1  PIC 9.
+       01  TSTWRK   PIC X(24).
+
+       PROCEDURE DIVISION.
+       MAIN-10.
+           MOVE 6 TO DEP-X3.
+           MOVE 1 TO TSTG3-1 (1).
+           MOVE 2 TO TSTG3-1 (2).
+           MOVE 3 TO TSTG3-1 (3).
+           MOVE 4 TO TSTG3-1 (4).
+           MOVE 5 TO TSTG3-1 (5).
+           MOVE 6 TO TSTG3-1 (6).
+           MOVE 3 TO DEP-X3.
+           STRING TSTGRP3 "-TRAILER" DELIMITED BY SIZE
+           INTO TSTWRK.
+           DISPLAY "'" TSTWRK "'".
+           OPEN OUTPUT FLATFILE.
+           MOVE "Howdy" TO HELLO.
+           MOVE 0 TO SEQ.
+           MOVE 2 TO DEP-X.
+           MOVE 5 TO DEP-Y.
+           PERFORM WRITE-REC.
+           MOVE 1 TO DEP-X.
+           MOVE 2 TO DEP-Y.
+           PERFORM WRITE-REC.
+           MOVE 3 TO DEP-X.
+           MOVE 3 TO DEP-Y.
+           PERFORM WRITE-REC.
+           MOVE 3 TO DEP-X.
+           MOVE 10 TO DEP-Y.
+           PERFORM WRITE-REC.
+           CLOSE FLATFILE.
+           OPEN INPUT FLATFILE.
+           PERFORM READ-REC.
+           CLOSE FLATFILE.
+           STOP RUN.
+
+       WRITE-REC SECTION.
+           ADD 1 TO SEQ.
+           MOVE LENGTH OF TSTREC TO LN.
+           DISPLAY "Write SEQ " SEQ ", DEP-X = " DEP-X
+                   " & DEP-Y = " DEP-Y
+                   ", TSTREC len:" LN.
+           MOVE ALL "*" TO TSTGRP.
+           MOVE "<>"    TO TSTTAIL1, TSTTAIL2.
+           PERFORM VARYING IX FROM 1 BY 1
+                     UNTIL IX > DEP-X
+               MOVE IX TO TSTG-1 (IX)
+           END-PERFORM.
+           MOVE LENGTH OF TSTGRP1 TO LN.
+           DISPLAY "Group1: '" TSTGRP1 "' len:" LN.
+           PERFORM VARYING IX FROM 1 BY 1
+                     UNTIL IX > DEP-X
+               MOVE IX TO TSTY-1 (IX)
+               MOVE "." TO TSTY-4 (IX)
+               PERFORM VARYING IY FROM 1 BY 1
+                         UNTIL IY > DEP-Y
+                   MOVE ALPH-CHR (IY) TO TSTY-3 (IX, IY)
+               END-PERFORM
+           END-PERFORM.
+           PERFORM VARYING IX FROM 1 BY 1
+                     UNTIL IX > DEP-X
+               PERFORM VARYING IY FROM 1 BY 1
+                         UNTIL IY > DEP-X
+                 PERFORM VARYING IZ FROM 1 BY 1
+                           UNTIL IZ > DEP-X
+                   MOVE HEX-CHR (IX+IY+IZ) TO TSTY-7 (IX, IY, IZ)
+                 END-PERFORM
+               END-PERFORM
+           END-PERFORM.
+           DISPLAY "  Data: '" TSTGRP "'".
+
+           MOVE ALL "*" TO TSTGRP2.
+           MOVE DEP-X TO DEP-X2.
+           PERFORM VARYING IX FROM 1 BY 1
+                     UNTIL IX > DEP-X2
+               MOVE IX TO TSTG2-1 (IX)
+           END-PERFORM.
+           MOVE "<>"    TO TST2TAIL1.
+           MOVE LENGTH OF TSTGRP2 TO LN.
+           DISPLAY "Group2: '" TSTGRP2 "' len:" LN.
+           WRITE TSTREC.
+
+       READ-REC SECTION.
+       READ-10.
+           READ FLATFILE AT END GO TO READ-99.
+           MOVE LENGTH OF TSTREC TO LN.
+           DISPLAY "Read SEQ " SEQ ", DEP-X = " DEP-X
+                   " & DEP-Y = " DEP-Y
+                   ", TSTREC len:" LN.
+           DISPLAY "  Data: '" TSTGRP "'".
+           GO TO READ-10.
+       READ-99.
+           EXIT .
+])
+
+AT_CHECK([cobc -x -std=mf -w -fodoslide prog.cob ], [0], [], [])
+
+AT_CHECK([./prog], [0], ['123-TRAILER             '
+Write SEQ 01, DEP-X = 02 & DEP-Y = 05, TSTREC len:053
+Group1: ' 1 2<>  ' len:008
+  Data: ' 1 2<>  01***Abcde. 344502***Abcde. 4556<>'
+Group2: ' 1 2<> ' len:007
+Write SEQ 02, DEP-X = 01 & DEP-Y = 02, TSTREC len:029
+Group1: ' 1<>  ' len:006
+  Data: ' 1<>  01***Ab. 3<>'
+Group2: ' 1<> ' len:005
+Write SEQ 03, DEP-X = 03 & DEP-Y = 03, TSTREC len:080
+Group1: ' 1 2 3<>  ' len:010
+  Data: ' 1 2 3<>  01***Abc. 34545656702***Abc. 45656767803***Abc. 567678789<>'
+Group2: ' 1 2 3<> ' len:009
+Write SEQ 04, DEP-X = 03 & DEP-Y = 10, TSTREC len:101
+Group1: ' 1 2 3<>  ' len:010
+  Data: ' 1 2 3<>  01***Abcdefghij. 34545656702***Abcdefghij. 45656767803***Abcdefghij. 567678789<>'
+Group2: ' 1 2 3<> ' len:009
+Read SEQ 01, DEP-X = 02 & DEP-Y = 05, TSTREC len:053
+  Data: ' 1 2<>  01***Abcde. 344502***Abcde. 4556<>'
+Read SEQ 02, DEP-X = 01 & DEP-Y = 02, TSTREC len:029
+  Data: ' 1<>  01***Ab. 3<>'
+Read SEQ 03, DEP-X = 03 & DEP-Y = 03, TSTREC len:080
+  Data: ' 1 2 3<>  01***Abc. 34545656702***Abc. 45656767803***Abc. 567678789<>'
+Read SEQ 04, DEP-X = 03 & DEP-Y = 10, TSTREC len:101
+  Data: ' 1 2 3<>  01***Abcdefghij. 34545656702***Abcdefghij. 45656767803***Abcdefghij. 567678789<>'
+], [])
+
+
+AT_CAPTURE_FILE(./SEQODO)
+
+AT_DATA([reference], [010205Howdy 1 2<>  01***Abcde. 344502***Abcde. 4556<>
+020102Howdy 1<>  01***Ab. 3<>
+030303Howdy 1 2 3<>  01***Abc. 34545656702***Abc. 45656767803***Abc. 567678789<>
+040310Howdy 1 2 3<>  01***Abcdefghij. 34545656702***Abcdefghij. 45656767803***Abcdefghij. 567678789<>
+])
+
+AT_CHECK([diff reference SEQODO], [0], [], [])
+
+AT_CLEANUP
+
+AT_SETUP([DEPENDING ON with ODOSLIDE for IBM])
+AT_KEYWORDS([OCCURS])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+      
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  L1-1-2-S    PIC 99.
+       01  L1-1-2-1-S  PIC 99.
+       01  L1-2-S      PIC 99.
+       01  L1-3-S      PIC 99.
+       01  L1-3-2-S    PIC 99.
+       01  BUFFER      PIC X(370).
+      
+       PROCEDURE DIVISION.
+           MOVE ALL '0123456789' TO BUFFER.
+           MOVE 3 TO L1-1-2-S.
+           MOVE 4 TO L1-1-2-1-S.
+           MOVE 0 TO L1-2-S.
+           MOVE 6 TO L1-3-S.
+           MOVE 1 TO L1-3-2-S.
+           CALL 'IBM-ODO-TEST' USING BUFFER
+                               L1-1-2-S
+                               L1-1-2-1-S
+                               L1-2-S
+                               L1-3-S
+                               L1-3-2-S.
+
+           MOVE ALL '0123456789' TO BUFFER.
+           MOVE 2 TO L1-1-2-S.
+           MOVE 3 TO L1-1-2-1-S.
+           MOVE 1 TO L1-2-S.
+           MOVE 4 TO L1-3-S.
+           MOVE 0 TO L1-3-2-S.
+           CALL 'IBM-ODO-TEST' USING BUFFER
+                               L1-1-2-S
+                               L1-1-2-1-S
+                               L1-2-S
+                               L1-3-S
+                               L1-3-2-S.
+           STOP RUN.
+           END PROGRAM prog.
+      
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. IBM-ODO-TEST.
+      
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+      
+       LINKAGE SECTION.
+       01  L1-1-2-S    PIC 99.
+       01  L1-1-2-1-S  PIC 99.
+       01  L1-2-S      PIC 99.
+       01  L1-3-S      PIC 99.
+       01  L1-3-2-S    PIC 99.
+       01 BASE.
+         10 ARRAY OCCURS 2 TIMES.
+           20 L1-1.
+             25 L1-1-1 PIC X(3).
+             25 L1-1-2 OCCURS 4 TIMES DEPENDING ON L1-1-2-S.
+               30 L1-1-2-1 OCCURS 5 TIMES DEPENDING ON L1-1-2-1-S
+                  PIC XXX.
+           20 L1-2 OCCURS 0 TO 1 TIMES DEPENDING ON L1-2-S PIC XX.
+           20 L1-3 OCCURS 1 TO 10 TIMES DEPENDING ON L1-3-S.
+             25 L1-3-1.
+               30  L1-3-1-1 PIC X(5).
+               30  L1-3-1-2 PIC X.
+               30  L1-3-1-3 PIC X(5).
+             25 L1-3-2 OCCURS 0 TO 1 TIMES DEPENDING ON L1-3-2-S PIC X.
+      
+       PROCEDURE DIVISION USING BASE
+                                L1-1-2-S
+                                L1-1-2-1-S
+                                L1-2-S
+                                L1-3-S
+                                L1-3-2-S.
+           DISPLAY "Length is " LENGTH OF BASE
+                   " with " L1-1-2-S 
+                   ", " L1-1-2-1-S
+                   ", " L1-2-S
+                   ", " L1-3-S
+                   ", " L1-3-2-S.
+           MOVE '.'   TO L1-3-2(1, 5, 1).
+           MOVE '--'  TO L1-2(2, 1).
+           MOVE '+++' TO L1-1-2-1(2, 1, 5).
+           DISPLAY '"' BASE '"'.
+       END PROGRAM IBM-ODO-TEST.
+])
+
+AT_CHECK([cobc -x -std=ibm -w -fodoslide prog.cob ], [0], [], [])
+
+AT_CHECK([./prog], [0],
+[Length is +0000000222 with 03, 04, 00, 06, 01
+"01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567.901234567890123456789012345+++901234567890123456789--2345678901234567890123456789012345678901234567890123456789012345678901"
+Length is +0000000134 with 02, 03, 01, 04, 00
+"012345678901234567890123456789012345678901234567890123456789012345678901234567.901+++567--01234567890123456789012345678901234567890123"
+], [])
 
 AT_CLEANUP
 
@@ -910,17 +1174,17 @@ AT_DATA([prog.cob], [
 
 AT_CHECK([$COMPILE -std=mf prog.cob], [0], [],
 [prog.cob: in paragraph 'S-03':
-prog.cob: 36: warning: MOVE of non-integer to alphanumeric
+prog.cob:36: warning: MOVE of non-integer to alphanumeric
 prog.cob: in paragraph 'S-10':
-prog.cob: 41: warning: MOVE of non-integer to alphanumeric
+prog.cob:41: warning: MOVE of non-integer to alphanumeric
 prog.cob: in paragraph 'S-20':
-prog.cob: 46: warning: MOVE of non-integer to alphanumeric
+prog.cob:46: warning: MOVE of non-integer to alphanumeric
 prog.cob: in paragraph 'S-30':
-prog.cob: 51: warning: MOVE of non-integer to alphanumeric
+prog.cob:51: warning: MOVE of non-integer to alphanumeric
 prog.cob: in paragraph 'S-40':
-prog.cob: 56: warning: MOVE of non-integer to alphanumeric
+prog.cob:56: warning: MOVE of non-integer to alphanumeric
 prog.cob: in paragraph 'S-50':
-prog.cob: 61: warning: MOVE of non-integer to alphanumeric
+prog.cob:61: warning: MOVE of non-integer to alphanumeric
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [12891289128912891289128912891289])
 
@@ -1041,7 +1305,7 @@ AT_CLEANUP
 AT_SETUP([CALL / GOBACK with LOCAL-STORAGE])
 AT_KEYWORDS([extensions])
 
-# Testcase introduced when Bug #91 occured.
+# Testcase introduced when Bug #91 occurred.
 # Will fail if memory is freed which was
 # allocated by mpir/gmp.
 AT_DATA([prog_a.cob], [
@@ -1108,17 +1372,17 @@ AT_DATA([prog.cob], [
        PROGRAM-ID.      prog2.
        DATA             DIVISION.
        LINKAGE          SECTION.
-       01  X            PIC XX.
-       PROCEDURE        DIVISION USING BY VALUE X.
-           MOVE "KO" TO X.
+       01  Y            PIC XX.
+       PROCEDURE        DIVISION USING BY VALUE Y.
+           MOVE "KO" TO Y.
            EXIT PROGRAM.
        END PROGRAM prog2.
        END PROGRAM prog.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 8: warning: BY CONTENT assumed for alphanumeric item
-prog.cob: 19: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
+[prog.cob:8: warning: BY CONTENT assumed for alphanumeric item 'X'
+prog.cob:19: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
@@ -1208,7 +1472,7 @@ AT_DATA([prog.cob], [
 AT_CHECK([$COMPILE prog.cob], [0], [], ignore)
 #AT_CHECK([$COMPILE prog.cob], [0], [],
 # hack for now: ignore
-#[prog.cob: 58: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
+#[prog.cob:58: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
 #])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [4: +0000000001
@@ -1320,7 +1584,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -fassign-clause=mf prog.cob], [0], [],
-[prog.cob: 12: warning: 'FILENAME' will be implicitly defined
+[prog.cob:12: warning: 'FILENAME' will be implicitly defined
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
@@ -1348,7 +1612,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -fassign-clause=ibm prog.cob], [0], [],
-[prog.cob: 7: warning: ASSIGN interpreted as FILENAME
+[prog.cob:7: warning: ASSIGN interpreted as FILENAME
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 AT_CHECK([test -f FILENAME], [0], [], [])
@@ -1543,8 +1807,8 @@ AT_DATA([prog.cob], [
 #FIXME: Should get a dialect check in syntax checks,
 #       along with all other special registers
 AT_CHECK([$COMPILE_ONLY -fnot-register=TALLY prog.cob], [1], [],
-[prog.cob: 5: error: 'TALLY' is not defined
-prog.cob: 12: error: 'tally' is not defined
+[prog.cob:5: error: 'TALLY' is not defined
+prog.cob:12: error: 'tally' is not defined
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
@@ -1579,7 +1843,7 @@ AT_CHECK([$COMPILE -std=ibm-strict prog.cob], [1], [], [ignore])
 AT_CHECK([$COMPILE -std=acu-strict prog.cob], [0], [], [])
 #AT_CHECK([$COMPILE -std=ibm prog.cob], [0], [], [])
 #AT_CHECK([$COMPILE -std=ibm-strict prog.cob], [1], [],
-#[prog.cob: 7: error: redefinition of register 'TALLY'
+#[prog.cob:7: error: redefinition of register 'TALLY'
 #])
 #AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
@@ -1636,7 +1900,7 @@ AT_DATA([caller.cob], [
 
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COMPILE_MODULE callee.cob], [0], [],
-[callee.cob: 10: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
+[callee.cob:10: warning: handling of parameters passed BY VALUE is unfinished; implementation is likely to be changed
 ])
 AT_CHECK([$COBCRUN_DIRECT ./caller], [0], [], [])
 
@@ -1751,7 +2015,7 @@ AT_CHECK([$COBCRUN prog3 X ABCD], [0], [], [])
 
 AT_CHECK([$COMPILE caller.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./caller X ABCD], [1], [],
-[libcob: caller.cob: 6: CALL of program with CHAINING clause
+[libcob: caller.cob:6: CALL of program with CHAINING clause
 ])
 
 AT_CHECK([$COMPILE init.cob], [0], [], [])
@@ -2191,152 +2455,6 @@ AT_CHECK([$COBCRUN_DIRECT ./prog CHECKPAR], [0],
 AT_CLEANUP
 
 
-AT_SETUP([DECIMAL-POINT is COMMA (1)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       CONFIGURATION    SECTION.
-       SPECIAL-NAMES.
-           DECIMAL-POINT    IS COMMA.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  X            PIC 99V99.
-       PROCEDURE        DIVISION.
-           MOVE FUNCTION MIN (3,,,,,,5) TO X.
-           DISPLAY X
-           END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[00,50
-])
-
-AT_CLEANUP
-
-
-AT_SETUP([DECIMAL-POINT is COMMA (2)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       CONFIGURATION    SECTION.
-       SPECIAL-NAMES.
-           DECIMAL-POINT    IS COMMA.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  X            PIC 99V99.
-       PROCEDURE        DIVISION.
-           MOVE FUNCTION MIN (3,,,,,, 5) TO X.
-           DISPLAY X
-           END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[03,00
-])
-
-AT_CLEANUP
-
-
-AT_SETUP([DECIMAL-POINT is COMMA (3)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       CONFIGURATION    SECTION.
-       SPECIAL-NAMES.
-           DECIMAL-POINT    IS COMMA.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  X            PIC 99V99.
-       PROCEDURE        DIVISION.
-           MOVE FUNCTION MIN (3,,,,,, 1,5) TO X.
-           DISPLAY X
-           END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[01,50
-])
-
-AT_CLEANUP
-
-
-AT_SETUP([DECIMAL-POINT is COMMA (4)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       CONFIGURATION    SECTION.
-       SPECIAL-NAMES.
-           DECIMAL-POINT    IS COMMA.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  X            PIC 99V99.
-       PROCEDURE        DIVISION.
-           MOVE FUNCTION MIN (3,,,,,,1,5) TO X.
-           DISPLAY X
-           END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[00,10
-])
-
-AT_CLEANUP
-
-
-AT_SETUP([DECIMAL-POINT is COMMA (5)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT      DIVISION.
-       CONFIGURATION    SECTION.
-       SPECIAL-NAMES.
-           DECIMAL-POINT    IS COMMA.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       01  X            PIC 99V99.
-       PROCEDURE        DIVISION.
-           COMPUTE X=1 + ,1
-           END-COMPUTE
-           DISPLAY X
-           END-DISPLAY.
-           COMPUTE X=1*,1
-           END-COMPUTE
-           DISPLAY X
-           END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[01,10
-00,10
-])
-
-AT_CLEANUP
-
-
 AT_SETUP([78 Level (1)])
 AT_KEYWORDS([extensions])
 
@@ -2406,124 +2524,6 @@ AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 [OKOK
 ])
-
-AT_CLEANUP
-
-
-AT_SETUP([DEBUG (not active)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       PROCEDURE        DIVISION.
-           DISPLAY "OK" NO ADVANCING
-           END-DISPLAY.
-      D    DISPLAY "KO" NO ADVANCING
-      D    END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[OK])
-
-AT_CLEANUP
-
-
-AT_SETUP([DEBUG (fdebugging-line)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       PROCEDURE        DIVISION.
-           DISPLAY "OK" NO ADVANCING
-           END-DISPLAY.
-      D    DISPLAY "KO" NO ADVANCING
-      D    END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE -fdebugging-line prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[OKKO])
-
-AT_CLEANUP
-
-
-AT_SETUP([DEBUG (obsolete WITH DEBUGGING MODE)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       ENVIRONMENT DIVISION.
-       CONFIGURATION SECTION.
-           SOURCE-COMPUTER. mine WITH DEBUGGING MODE.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       PROCEDURE        DIVISION.
-      D    DISPLAY "KO" NO ADVANCING UPON STDOUT
-      D    END-DISPLAY.
-           DISPLAY "OK" NO ADVANCING UPON STDOUT
-           END-DISPLAY.
-           STOP RUN.
-])
-
-AT_CHECK([$COMPILE prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[KOOK])
-
-AT_CLEANUP
-
-
-AT_SETUP([DEBUG free format (not active)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       PROCEDURE        DIVISION.
-             DISPLAY "OK" NO ADVANCING
-             END-DISPLAY.
-      >>D    DISPLAY "KO" NO ADVANCING
-      >>D    END-DISPLAY.
-             STOP RUN.
-])
-
-AT_CHECK([$COMPILE -free prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[OK])
-
-AT_CLEANUP
-
-
-AT_SETUP([DEBUG free format (fdebugging-line)])
-AT_KEYWORDS([extensions])
-
-AT_DATA([prog.cob], [
-       IDENTIFICATION   DIVISION.
-       PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
-       PROCEDURE        DIVISION.
-             DISPLAY "OK" NO ADVANCING
-             END-DISPLAY.
-      >>D    DISPLAY "KO" NO ADVANCING
-      >>D    END-DISPLAY.
-             STOP RUN.
-])
-
-AT_CHECK([$COMPILE -free -fdebugging-line prog.cob], [0], [], [])
-AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
-[OKKO])
 
 AT_CLEANUP
 
@@ -2714,12 +2714,12 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -flarger-redefines-ok -Wno-constant-expression prog.cob], [0], [],
-[prog.cob: 12: warning: size of 'XMAIN0502' larger than size of 'XMAIN0501'
-prog.cob: 21: warning: size of 'FIRST-VARIANT-A' larger than size of 'FIRST-DATA'
-prog.cob: 23: warning: size of 'FIRST-VARIANT-B' larger than size of 'FIRST-DATA'
-prog.cob: 25: warning: size of 'FIRST-VARIANT-C' larger than size of 'FIRST-DATA'
-prog.cob: 31: warning: size of 'SECOND-VARIANT-A' larger than size of 'SECOND-HEADER'
-prog.cob: 33: warning: size of 'SECOND-VARIANT-B' larger than size of 'SECOND-HEADER'
+[prog.cob:12: warning: size of 'XMAIN0502' larger than size of 'XMAIN0501'
+prog.cob:21: warning: size of 'FIRST-VARIANT-A' larger than size of 'FIRST-DATA'
+prog.cob:23: warning: size of 'FIRST-VARIANT-B' larger than size of 'FIRST-DATA'
+prog.cob:25: warning: size of 'FIRST-VARIANT-C' larger than size of 'FIRST-DATA'
+prog.cob:31: warning: size of 'SECOND-VARIANT-A' larger than size of 'SECOND-HEADER'
+prog.cob:33: warning: size of 'SECOND-VARIANT-B' larger than size of 'SECOND-HEADER'
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
@@ -2742,9 +2742,9 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE -std=cobol2002 prog.cob], [1], [],
-[prog.cob: 6: error: syntax error, unexpected TERMINAL
-prog.cob: 7: error: syntax error, unexpected SEND
-prog.cob: 9: error: syntax error, unexpected TERMINAL
+[prog.cob:6: error: syntax error, unexpected TERMINAL
+prog.cob:7: error: syntax error, unexpected SEND
+prog.cob:9: error: syntax error, unexpected TERMINAL
 ])
 AT_CHECK([$COMPILE -std=cobol2014 prog.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
@@ -2789,10 +2789,10 @@ AT_DATA([wrong.cob], [
 ])
 
 AT_CHECK([$COMPILE wrong.cob], [1], [],
-[wrong.cob: 8: error: wrong number of CALL parameters for 'CBL_OR', 1 given, 3 expected
+[wrong.cob:8: error: wrong number of CALL parameters for 'CBL_OR', 1 given, 3 expected
 ])
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 9: warning: wrong number of CALL parameters for 'C$NARG', 2 given, 1 expected
+[prog.cob:9: warning: wrong number of CALL parameters for 'C$NARG', 2 given, 1 expected
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog 1 2], [0], [], [])
 
@@ -3051,7 +3051,7 @@ AT_DATA([prog.cob], [
            CALL "C$GETPID"
            END-CALL.
            IF RETURN-CODE = 0
-              DISPLAY RETURN-CODE
+              DISPLAY "C$GETPID returned zero!"
               END-DISPLAY
            END-IF.
            MOVE 0 TO RETURN-CODE.
@@ -3675,7 +3675,7 @@ AT_DATA([prog4.cob], [
 AT_DATA([prog5.cob], [
         IDENTIFICATION DIVISION.
         PROGRAM-ID. prog5.
-      *> check for wrong longopotion structure
+      *> check for wrong longoption structure
         DATA DIVISION.
         WORKING-STORAGE SECTION.
             01 SO PIC X.
@@ -3760,20 +3760,25 @@ AT_CHECK([$COBCRUN_DIRECT ./prog4 --static --dynamic --usage=boringandtoolongtex
 # Return code 1 is sufficient as proof of hard return (as wanted).
 AT_CHECK([$COMPILE prog5.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./prog5 --static], [1], [],
-[libcob: prog5.cob: 37: Call to CBL_GC_GETOPT with wrong longoption size.
+[libcob: prog5.cob:37: Call to CBL_GC_GETOPT with wrong longoption size.
 ])
 
 AT_CLEANUP
 
 
 AT_SETUP([System routine CBL_GC_FORK])
-AT_KEYWORDS([extensions])
+AT_KEYWORDS([extensions C$GETPID])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
        PROGRAM-ID. prog.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       77 CHILD-PID   USAGE BINARY-LONG.
+       77 PARENT-PID  USAGE BINARY-LONG.
        PROCEDURE DIVISION.
 
+           CALL "C$GETPID" RETURNING PARENT-PID
            CALL "CBL_GC_FORK" END-CALL
            EVALUATE RETURN-CODE
               WHEN ZERO
@@ -3789,11 +3794,31 @@ AT_DATA([prog.cob], [
        CHILD-CODE.
            CALL "C$SLEEP"  USING 1.
            DISPLAY "Hello, I am the child".
+           CALL "C$GETPID" RETURNING CHILD-PID.
+           IF CHILD-PID = PARENT-PID
+              DISPLAY "CHILD: parent and child have same PID: "
+                      "'" CHILD-PID "'" UPON SYSERR
+              END-DISPLAY
+           END-IF.
+           MOVE 0 TO RETURN-CODE.
 
        PARENT-CODE.
            DISPLAY "Hello, I am the parent".
-           CALL "C$SLEEP"  USING 2.
+           CALL "C$SLEEP"  USING 4.
            DISPLAY "Parent again".
+           IF RETURN-CODE = PARENT-PID
+              DISPLAY "PARENT: parent and child have same PID: "
+                      "'" PARENT-PID "'" UPON SYSERR
+              END-DISPLAY
+           END-IF.
+           CALL "C$GETPID".
+           IF RETURN-CODE NOT = PARENT-PID
+              DISPLAY "PARENT: parent PID has changed: "
+                      "'" PARENT-PID "' -> '" RETURN-CODE "'"
+                      UPON SYSERR
+              END-DISPLAY
+           END-IF.
+           MOVE 0 TO RETURN-CODE.
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
@@ -3810,7 +3835,7 @@ AT_CLEANUP
 # without CBL_GC_FORK (which isn't available on all systems where-
 # CBL_GC_WAITPID is available, for example MINGW)
 AT_SETUP([System routine CBL_GC_WAITPID])
-AT_KEYWORDS([extensions])
+AT_KEYWORDS([extensions CBL_GC_FORK])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION DIVISION.
@@ -3976,6 +4001,117 @@ AT_CHECK([$COMPILE_MODULE test_errno.c], [0], [], [])
 AT_CHECK([$COMPILE_MODULE test_stdio.c], [0], [], [])
 AT_CHECK([$COMPILE prog.cob], [0], [], [])
 AT_CHECK([$COBCRUN_DIRECT ./prog 1ARG], [3], [OUT], [ERR])
+
+AT_CLEANUP
+
+
+AT_SETUP([System routine SYSTEM, parameter handling])
+AT_KEYWORDS([CHAINING TRIM])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+      *
+       77  test-no                    PIC 9 VALUE 0.
+       77  chaining-param             PIC X(20).
+       77  chaining-param-2           PIC X(20).
+      *
+       PROCEDURE DIVISION CHAINING chaining-param, chaining-param-2.
+      *
+       main.
+           EVALUATE chaining-param ALSO chaining-param-2
+              WHEN SPACES  ALSO SPACES
+                 DISPLAY "started without options - closing"
+              WHEN "1"     ALSO SPACES
+              WHEN '"1"'   ALSO SPACES
+              WHEN "a v"   ALSO SPACES
+              WHEN '"a v"' ALSO SPACES
+                 DISPLAY "  called with -" 
+                         function trim (chaining-param) "-"
+              WHEN "a"    ALSO "v"
+                 DISPLAY "  called with -" 
+                         FUNCTION TRIM (chaining-param) "-"
+                         " and with -" 
+                         FUNCTION TRIM (chaining-param-2) "-"
+              WHEN "start" ALSO SPACES
+                 MOVE 'prog 1'         TO chaining-param
+                 PERFORM callme
+                 MOVE 'prog "1"'       TO chaining-param
+                 PERFORM callme
+                 MOVE '"prog" 1'       TO chaining-param
+                 PERFORM callme
+                 MOVE '"prog" "1"'     TO chaining-param
+                 PERFORM callme
+                 MOVE 'prog a v'       TO chaining-param
+                 PERFORM callme
+                 MOVE 'prog "a v"'     TO chaining-param
+                 PERFORM callme
+                 MOVE '"prog" a v'     TO chaining-param
+                 PERFORM callme
+                 MOVE '"prog" "a v"'   TO chaining-param
+                 PERFORM callme
+                 MOVE '"prog" "a" "v"' TO chaining-param
+                 PERFORM callme
+                 DISPLAY "tests finished"
+              WHEN OTHER
+                 DISPLAY "called with unexpected -" 
+                         FUNCTION TRIM (chaining-param) "-"
+           END-EVALUATE
+           STOP RUN.
+      *
+       callme.
+           ADD  1 TO test-no.
+           DISPLAY "Test #" test-no ":"
+           DISPLAY "  CALL 'SYSTEM' with "
+                   FUNCTION TRIM (chaining-param) ":"
+           CALL "SYSTEM" USING FUNCTION TRIM (chaining-param)
+           DISPLAY "  --> return of the given CALL 'SYSTEM': "
+                   return-code.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([PATH=.:$PATH $COBCRUN_DIRECT prog "start"], [0],
+[Test #1:
+  CALL 'SYSTEM' with prog 1:
+  called with -1-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #2:
+  CALL 'SYSTEM' with prog "1":
+  called with -1-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #3:
+  CALL 'SYSTEM' with "prog" 1:
+  called with -1-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #4:
+  CALL 'SYSTEM' with "prog" "1":
+  called with -1-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #5:
+  CALL 'SYSTEM' with prog a v:
+  called with -a- and with -v-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #6:
+  CALL 'SYSTEM' with prog "a v":
+  called with -a v-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #7:
+  CALL 'SYSTEM' with "prog" a v:
+  called with -a- and with -v-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #8:
+  CALL 'SYSTEM' with "prog" "a v":
+  called with -a v-
+  --> return of the given CALL 'SYSTEM': +000000000
+Test #9:
+  CALL 'SYSTEM' with "prog" "a" "v":
+  called with -a- and with -v-
+  --> return of the given CALL 'SYSTEM': +000000000
+tests finished
+])
 
 AT_CLEANUP
 

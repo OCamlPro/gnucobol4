@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: gnucobol 2.0\n"
 "Report-Msgid-Bugs-To: gnucobol-messages@gnu.org\n"
-"POT-Creation-Date: 2017-09-06 20:40+0200\n"
+"POT-Creation-Date: 2017-09-06 20:17+0200\n"
 "PO-Revision-Date: 2010-11-09 09:56-0700\n"
 "Last-Translator: Randy Coman <rcoman@curreyadkins.com>\n"
 "Language-Team: Spanish <es@tp.org.es>\n"
@@ -56,7 +56,7 @@ msgid "cannot allocate %d bytes of memory"
 msgstr "No se puede asignar %d bytes de memoria - Abortando"
 
 #: cobc/cobc.c:914 cobc/cobc.c:930 cobc/cobc.c:986 cobc/cobc.c:1102
-#: cobc/cobc.c:1217 cobc/cobc.c:1234 cobc/cobc.c:1598 cobc/field.c:725
+#: cobc/cobc.c:1217 cobc/cobc.c:1234 cobc/cobc.c:1598 cobc/field.c:1277
 #: libcob/common.c:6012
 #, fuzzy, c-format
 msgid "call to %s with NULL pointer"
@@ -127,7 +127,7 @@ msgstr "PROGRAM-ID inválido '%s'%s "
 msgid "unknown name error '%s'%s"
 msgstr "Error desconocido de archivo '%s'%s"
 
-#: cobc/cobc.c:1540 cobc/error.c:217 cobc/error.c:452
+#: cobc/cobc.c:1540 cobc/error.c:214 cobc/error.c:449
 #, fuzzy
 msgid "error: "
 msgstr "Error: "
@@ -984,438 +984,438 @@ msgstr ""
 msgid "system error %d"
 msgstr ""
 
-#: cobc/error.c:190 cobc/error.c:266 cobc/error.c:429
+#: cobc/error.c:190 cobc/error.c:263 cobc/error.c:426
 msgid "error [-Werror]: "
 msgstr ""
 
-#: cobc/error.c:190 cobc/error.c:266 cobc/error.c:429
+#: cobc/error.c:190 cobc/error.c:263 cobc/error.c:426
 #, fuzzy
 msgid "warning: "
 msgstr "Alerta:"
 
-#: cobc/error.c:217 cobc/error.c:452
+#: cobc/error.c:214 cobc/error.c:449
 msgid "error (ignored): "
 msgstr ""
 
-#: cobc/error.c:307 cobc/error.c:323 cobc/error.c:485 cobc/error.c:501
+#: cobc/error.c:304 cobc/error.c:320 cobc/error.c:482 cobc/error.c:498
 #, c-format
 msgid "%s used"
 msgstr ""
 
-#: cobc/error.c:310 cobc/error.c:488
+#: cobc/error.c:307 cobc/error.c:485
 #, c-format
 msgid "%s is archaic in %s"
 msgstr "%s es arcaico en %s"
 
-#: cobc/error.c:314 cobc/error.c:492
+#: cobc/error.c:311 cobc/error.c:489
 #, c-format
 msgid "%s is obsolete in %s"
 msgstr "%s es obsoleto en %s"
 
-#: cobc/error.c:320 cobc/error.c:498
+#: cobc/error.c:317 cobc/error.c:495
 #, c-format
 msgid "%s ignored"
 msgstr "%s ignorado"
 
-#: cobc/error.c:326 cobc/error.c:504
+#: cobc/error.c:323 cobc/error.c:501
 #, c-format
 msgid "%s does not conform to %s"
 msgstr "%s no se ajusta a %s "
 
-#: cobc/error.c:342
+#: cobc/error.c:339
 #, fuzzy
 msgid "configuration warning:"
 msgstr "Continuación de linea inválida"
 
-#: cobc/error.c:530 cobc/error.c:549
+#: cobc/error.c:527 cobc/error.c:546
 #, fuzzy, c-format
 msgid "redefinition of '%s'"
 msgstr "Redefinición de '%s'"
 
-#: cobc/error.c:537 cobc/error.c:562
+#: cobc/error.c:534 cobc/error.c:559
 #, c-format
 msgid "'%s' previously defined here"
 msgstr "'%s' previamente definidos aquí"
 
-#: cobc/error.c:587
+#: cobc/error.c:584
 #, fuzzy, c-format
 msgid "'%s' cannot be used here"
 msgstr "'%s' no puede ser subíndice aquí"
 
-#: cobc/error.c:589
+#: cobc/error.c:586
 #, c-format
 msgid "'%s' is not defined, but is a reserved word in another dialect"
 msgstr ""
 
-#: cobc/error.c:591
+#: cobc/error.c:588
 #, fuzzy, c-format
 msgid "'%s' is not defined"
 msgstr "%s no esta definido"
 
-#: cobc/error.c:622
+#: cobc/error.c:619
 #, fuzzy, c-format
 msgid "'%s' is ambiguous; needs qualification"
 msgstr "%s ambiguo; necesita cualificación"
 
-#: cobc/error.c:652 parser.y:12620
+#: cobc/error.c:649 parser.y:12620
 #, c-format
 msgid "'%s' defined here"
 msgstr "'%s' definido aquí"
 
-#: cobc/error.c:663
+#: cobc/error.c:660
 #, fuzzy, c-format
 msgid "fatal error: %s"
 msgstr "Error BDB: %s"
 
-#: cobc/error.c:671
+#: cobc/error.c:668
 #, fuzzy, c-format
 msgid "group item '%s' cannot have %s clause"
 msgstr "Elemento de grupo '%s' no puede tener cláusula %s"
 
-#: cobc/error.c:684
+#: cobc/error.c:681
 #, fuzzy, c-format
 msgid "constant item '%s' cannot have a %s clause"
 msgstr "Elemento constante '%s' no puede tener una cláusula %s"
 
-#: cobc/error.c:686
+#: cobc/error.c:683
 #, fuzzy, c-format
 msgid "level %02d item '%s' cannot have a %s clause"
 msgstr "Elemento de nivel %02d '%s' no puede tener cláusula %s"
 
-#: cobc/error.c:700
+#: cobc/error.c:697
 #, fuzzy, c-format
 msgid "constant item '%s' requires a %s clause"
 msgstr "Constante elemento '%s' requiere clausula %s"
 
-#: cobc/error.c:702
+#: cobc/error.c:699
 #, fuzzy, c-format
 msgid "level %02d item '%s' requires a %s clause"
 msgstr "Nivel %02d elemento '%s' requiere una %s cláusula"
 
-#: cobc/error.c:716
+#: cobc/error.c:713
 #, fuzzy, c-format
 msgid "constant item '%s' can only have a %s clause"
 msgstr "Elemento constante '%s' solo puede tener cláusula %s"
 
-#: cobc/error.c:718
+#: cobc/error.c:715
 #, fuzzy, c-format
 msgid "level %02d item '%s' can only have a %s clause"
 msgstr "Nivel %02d elemento '%s' solo puede tener una %s cláusula"
 
-#: cobc/field.c:127
+#: cobc/field.c:130
 msgid "Constant expression has Divide by ZERO"
 msgstr ""
 
-#: cobc/field.c:183 cobc/field.c:312 cobc/field.c:320
+#: cobc/field.c:186 cobc/field.c:315 cobc/field.c:323
 msgid "missing right parenthesis"
 msgstr ""
 
-#: cobc/field.c:262
+#: cobc/field.c:265
 msgid "missing left parenthesis"
 msgstr ""
 
-#: cobc/field.c:303
+#: cobc/field.c:306
 #, fuzzy, c-format
 msgid "invalid operator '%s' in expression"
 msgstr "Expresión inválida"
 
-#: cobc/field.c:322
+#: cobc/field.c:325
 #, c-format
 msgid "'%c' operator misplaced"
 msgstr ""
 
-#: cobc/field.c:378
+#: cobc/field.c:381
 #, fuzzy, c-format
 msgid "invalid level number '%s'"
 msgstr "Inválido numero de nivel '%s'"
 
-#: cobc/field.c:433 cobc/field.c:470
+#: cobc/field.c:436 cobc/field.c:473
 #, fuzzy
 msgid "level number must begin with 01 or 77"
 msgstr "Nivel de numero debe de comenzar con 01 o 77"
 
-#: cobc/field.c:515 cobc/field.c:531
+#: cobc/field.c:518 cobc/field.c:534
 #, fuzzy, c-format
 msgid "no previous data item of level %02d"
 msgstr "No elementos de datos previamente de nivel %02d "
 
-#: cobc/field.c:564
+#: cobc/field.c:567
 #, c-format
 msgid "'%s' cannot be qualified here"
 msgstr "'%s' no se puede calificar aquí"
 
-#: cobc/field.c:570
+#: cobc/field.c:573
 #, c-format
 msgid "'%s' cannot be subscripted here"
 msgstr "'%s' no puede ser subíndice aquí"
 
-#: cobc/field.c:582
+#: cobc/field.c:585
 #, c-format
 msgid "'%s' is not defined in '%s'"
 msgstr "'%s' no esta definido en '%s'"
 
-#: cobc/field.c:603
+#: cobc/field.c:606
 #, fuzzy
 msgid "level number of REDEFINES entries must be identical"
 msgstr "Numero de nivel de entradas REDEFINES deben ser identicas"
 
-#: cobc/field.c:608
+#: cobc/field.c:611
 #, fuzzy, c-format
 msgid "'%s' is not the original definition"
 msgstr "'%s' no la definición original"
 
-#: cobc/field.c:622
+#: cobc/field.c:625
 #, fuzzy, c-format
 msgid "PICTURE clause not compatible with USAGE %s"
 msgstr "'%s' cláusula de PICTURE no es compatible con USAGE"
 
-#: cobc/field.c:686 cobc/field.c:691
+#: cobc/field.c:694 cobc/field.c:699
 #, c-format
 msgid "PICTURE clause required for '%s'"
 msgstr "Cláusula de PICTURE requerida para '%s'"
 
-#: cobc/field.c:696
+#: cobc/field.c:704
 #, fuzzy, c-format
 msgid "a non-numeric literal is expected for '%s'"
 msgstr "Un literal no-numérico es esperado para '%s'"
 
-#: cobc/field.c:702
+#: cobc/field.c:710
 #, fuzzy, c-format
 msgid "defining implicit picture size %d for '%s'"
 msgstr "Definiendo tamaño implicito de picture %d para '%s'"
 
-#: cobc/field.c:736
+#: cobc/field.c:725
 #, c-format
 msgid "'%s' ANY LENGTH only allowed in LINKAGE"
 msgstr "'%s' ANY LENGTH solamente permitido en LINKAGE"
 
-#: cobc/field.c:740
+#: cobc/field.c:729
 #, c-format
 msgid "'%s' ANY LENGTH must be 01 level"
 msgstr "'%s' ANY LENGTH debe ser nivel 01"
 
-#: cobc/field.c:744
+#: cobc/field.c:733
 #, fuzzy, c-format
 msgid "'%s' ANY LENGTH cannot be BASED/EXTERNAL"
 msgstr "'%s' ANY LENGTH no puede ser BASED/EXTERNAL"
 
-#: cobc/field.c:749 cobc/field.c:776
+#: cobc/field.c:738 cobc/field.c:766
 #, c-format
 msgid "'%s' ANY LENGTH has invalid definition"
 msgstr "'%s' ANY LENGTH tiene definición inválida"
 
-#: cobc/field.c:760
+#: cobc/field.c:749
 #, fuzzy, c-format
 msgid "'%s' ANY NUMERIC must be PIC 9"
 msgstr "'%s' ANY LENGTH debe tener un PICTURE"
 
-#: cobc/field.c:763
+#: cobc/field.c:753
 #, fuzzy, c-format
 msgid "'%s' ANY LENGTH must be PIC X or PIC N"
 msgstr "'%s' ANY LENGTH debe tener un PICTURE"
 
-#: cobc/field.c:774
+#: cobc/field.c:764
 #, fuzzy, c-format
 msgid "'%s' ANY NUMERIC has invalid definition"
 msgstr "'%s' ANY LENGTH tiene definición inválida"
 
-#: cobc/field.c:788
-#, c-format
-msgid "'%s' 77 level not allowed here"
-msgstr "'%s' nivel 77 no se permite aquí"
-
-#: cobc/field.c:793
+#: cobc/field.c:786
 #, c-format
 msgid "'%s' EXTERNAL must be specified at 01/77 level"
 msgstr "'%s' EXTERNAL se debe que especificar a nivel 01/77"
 
-#: cobc/field.c:797
+#: cobc/field.c:790
 #, c-format
 msgid "'%s' EXTERNAL can only be specified in WORKING-STORAGE section"
 msgstr "'%s' EXTERNAL solo puede ser especificado en sección WORKING-STORAGE"
 
-#: cobc/field.c:801
+#: cobc/field.c:794
 #, c-format
 msgid "'%s' EXTERNAL and BASED are mutually exclusive"
 msgstr "'%s' EXTERNAL y BASED son mutuamente excluyentes"
 
-#: cobc/field.c:804
+#: cobc/field.c:797
 #, c-format
 msgid "'%s' EXTERNAL not allowed with REDEFINES"
 msgstr "'%s' EXTERNAL no permitida con REDEFINES"
 
-#: cobc/field.c:811
+#: cobc/field.c:810
 #, c-format
 msgid "'%s' BASED not allowed here"
 msgstr "'%s' BASED no se permite aquí"
 
-#: cobc/field.c:814
+#: cobc/field.c:813
 #, c-format
 msgid "'%s' BASED not allowed with REDEFINES"
 msgstr "'%s' BASED no permitido con REDEFINES"
 
-#: cobc/field.c:817
+#: cobc/field.c:816
 #, c-format
 msgid "'%s' BASED only allowed at the 01 and 77 levels"
 msgstr "'%s' BASED solamente se permite a los niveles 01 y 77"
 
-#: cobc/field.c:843
+#: cobc/field.c:847
 #, c-format
 msgid "'%s' cannot have the OCCURS clause due to '%s'"
 msgstr "'%s' no puede tener la cláusula OCURRS debido a '%s'"
 
-#: cobc/field.c:857
+#: cobc/field.c:870
 #, fuzzy, c-format
 msgid "the original definition '%s' should not have OCCURS clause"
 msgstr "La definición original '%s' no debe tener OCURRS"
 
-#: cobc/field.c:864
+#: cobc/field.c:877
 msgid "REDEFINES must follow the original definition"
 msgstr "REDEFINES debe seguir la definición original"
 
-#: cobc/field.c:871
+#: cobc/field.c:884
 #, c-format
 msgid "'%s' cannot be variable length"
 msgstr "'%s' no puede ser de longitud variable"
 
-#: cobc/field.c:874
+#: cobc/field.c:887
 #, fuzzy, c-format
 msgid "the original definition '%s' cannot be variable length"
 msgstr "La definición original '%s' no puede ser de longitud variable"
 
-#: cobc/field.c:899
+#: cobc/field.c:911
 #, c-format
 msgid "SCREEN group item '%s' has invalid clause"
 msgstr "Elemento de grupo '%s' tiene clausula invalida"
 
-#: cobc/field.c:960
+#: cobc/field.c:970
 #, c-format
 msgid "'%s' cannot have PICTURE clause"
 msgstr "'%s' no puede tener cláusula de PICTURE"
 
-#: cobc/field.c:1026
+#: cobc/field.c:995
 #, fuzzy, c-format
 msgid "'%s' COMP-6 with sign - changing to COMP-3"
 msgstr "'%s' COMP-6 con signo - Cambiando a COMP-3"
 
-#: cobc/field.c:1047
+#: cobc/field.c:1019
 msgid "elementary items with SIGN clause must have S in PICTURE"
 msgstr ""
 
-#: cobc/field.c:1050
+#: cobc/field.c:1022
 msgid "elementary items with SIGN clause must be USAGE DISPLAY or NATIONAL"
 msgstr ""
 
-#: cobc/field.c:1061
+#: cobc/field.c:1040
 #, c-format
 msgid "'%s' cannot have JUSTIFIED RIGHT"
 msgstr "'%s' no se puede tener JUSTIFIED RIGHT"
 
-#: cobc/field.c:1072
+#: cobc/field.c:1057
 #, fuzzy, c-format
 msgid "'%s' cannot have S in PICTURE string and BLANK WHEN ZERO"
 msgstr "'%s' no se puede tener BLANK WHEN ZERO"
 
-#: cobc/field.c:1077
+#: cobc/field.c:1062
 #, c-format
 msgid "'%s' cannot have BLANK WHEN ZERO without being USAGE DISPLAY or NATIONAL"
 msgstr ""
 
-#: cobc/field.c:1134
+#: cobc/field.c:1073
 #, fuzzy, c-format
 msgid "'%s' cannot have * in PICTURE string and BLANK WHEN ZERO"
 msgstr "'%s' no se puede tener BLANK WHEN ZERO"
 
-#: cobc/field.c:1141
+#: cobc/field.c:1080
 #, fuzzy, c-format
 msgid "'%s' is not numeric, so cannot have BLANK WHEN ZERO"
 msgstr "'%s' no se puede tener BLANK WHEN ZERO"
 
-#: cobc/field.c:1149
+#: cobc/field.c:1097
 #, fuzzy
 msgid "only level 88 items may have multiple values"
 msgstr "Solamente elemento de nivel 88 puede tener valores multiples"
 
-#: cobc/field.c:1157 cobc/field.c:1161
+#: cobc/field.c:1105 cobc/field.c:1109
 #, fuzzy, c-format
 msgid "initial VALUE clause ignored for %s item '%s'"
 msgstr "Cláusula inicial de VALUE ignorada para elemento EXTERNAL"
 
-#: cobc/field.c:1172
+#: cobc/field.c:1122
 msgid "FULL has no effect on numeric items; you may want REQUIRED or PIC Z"
 msgstr ""
 
-#: cobc/field.c:1474
+#: cobc/field.c:1296
+#, fuzzy, c-format
+msgid "'%s' 77 level is not allowed here"
+msgstr "'%s' nivel 77 no se permite aquí"
+
+#: cobc/field.c:1619
 #, fuzzy, c-format
 msgid "ignoring SYNCHRONIZED for group item '%s'"
 msgstr "ignorando SYNCHRONIZIED para la partida del grupo '%s'"
 
-#: cobc/field.c:1490 cobc/field.c:1503 cobc/field.c:1716 cobc/field.c:1719
+#: cobc/field.c:1635 cobc/field.c:1648 cobc/field.c:1861 cobc/field.c:1864
 #, fuzzy, c-format
 msgid "size of '%s' larger than size of '%s'"
 msgstr "Tamaño de '%s' más grande que el tamaño de '%s'"
 
-#: cobc/field.c:1603 cobc/field.c:1651
+#: cobc/field.c:1748 cobc/field.c:1796
 #, fuzzy, c-format
 msgid "'%s' cannot be larger than %d bytes"
 msgstr "'%s' no puede ser mayor de %d bytes"
 
-#: cobc/field.c:1632 cobc/field.c:1640
+#: cobc/field.c:1777 cobc/field.c:1785
 #, c-format
 msgid "'%s' binary field cannot be larger than %d digits"
 msgstr "'%s' campo binario no puede ser mayor de %d dígitos"
 
-#: cobc/field.c:1703 cobc/field.c:2099
+#: cobc/field.c:1848 cobc/field.c:2244
 #, fuzzy, c-format
 msgid "unexpected USAGE: %d"
 msgstr "USAGE inesperado - %d"
 
-#: cobc/field.c:1805
+#: cobc/field.c:1950
 #, fuzzy
 msgid "literal type does not match numeric data type"
 msgstr "Tipo literal no coincide con el tipo de datos"
 
-#: cobc/field.c:1876
+#: cobc/field.c:2021
 #, c-format
 msgid "THRU item '%s' may not come before '%s'"
 msgstr ""
 
-#: cobc/field.c:1898
+#: cobc/field.c:2043
 #, c-format
 msgid "RENAMES cannot start/end at the OCCURS item '%s'"
 msgstr ""
 
-#: cobc/field.c:1905
+#: cobc/field.c:2050
 #, c-format
 msgid "cannot use RENAMES on part of the table '%s'"
 msgstr ""
 
-#: cobc/field.c:1939
+#: cobc/field.c:2084
 #, c-format
 msgid "RENAMES may not contain '%s' as it is a pointer or object reference"
 msgstr ""
 
-#: cobc/field.c:1943
+#: cobc/field.c:2088
 #, c-format
 msgid "RENAMES may not contain '%s' as it is an OCCURS DEPENDING table"
 msgstr ""
 
-#: cobc/field.c:1968
+#: cobc/field.c:2113
 #, c-format
 msgid "'%s' must immediately follow the record '%s'"
 msgstr ""
 
-#: cobc/field.c:1976
+#: cobc/field.c:2121
 #, c-format
 msgid "'%s' and '%s' must be in the same record"
 msgstr ""
 
-#: cobc/field.c:1982
+#: cobc/field.c:2127
 #, c-format
 msgid "THRU item must be different to '%s'"
 msgstr ""
 
-#: cobc/field.c:1991
+#: cobc/field.c:2136
 #, c-format
 msgid "THRU item '%s' may not be subordinate to '%s'"
 msgstr ""
@@ -2697,46 +2697,46 @@ msgstr "Continuación de carácter esperado"
 msgid "source text after program-text area (column %d)"
 msgstr "Origen de texto despues de columna %d"
 
-#: ppparse.y:255
+#: ppparse.y:230
 #, fuzzy
 msgid "directive comparison on different types"
 msgstr "Directriz comparativa de tipos diferentes "
 
-#: ppparse.y:323
+#: ppparse.y:298
 #, fuzzy, c-format
 msgid "duplicate DEFINE directive '%s'"
 msgstr "Directiva EFINE/SET inválida"
 
-#: ppparse.y:330 ppparse.y:340
+#: ppparse.y:305 ppparse.y:315
 #, fuzzy
 msgid "invalid constant in DEFINE directive"
 msgstr "Directiva EFINE/SET inválida"
 
-#: ppparse.y:420
+#: ppparse.y:395
 #, c-format
 msgid "compiler flag '%s' unknown"
 msgstr ""
 
-#: ppparse.y:659
+#: ppparse.y:634
 msgid "*CONTROL statement"
 msgstr ""
 
-#: ppparse.y:731 ppparse.y:745 ppparse.y:767 ppparse.y:776 ppparse.y:818
-#: ppparse.y:890 ppparse.y:1027
+#: ppparse.y:706 ppparse.y:720 ppparse.y:742 ppparse.y:751 ppparse.y:793
+#: ppparse.y:865 ppparse.y:1002
 #, fuzzy, c-format
 msgid "invalid %s directive"
 msgstr "Directiva SOURCE inválida"
 
-#: ppparse.y:929
+#: ppparse.y:904
 #, fuzzy
 msgid "LEAP-SECOND ON directive"
 msgstr "Ignorando directiva LEAP-SECOND"
 
-#: ppparse.y:937
+#: ppparse.y:912
 msgid "TURN directive"
 msgstr ""
 
-#: ppparse.y:1019 ppparse.y:1044
+#: ppparse.y:994 ppparse.y:1019
 #, fuzzy
 msgid "invalid constant"
 msgstr "Constante inválida"
@@ -2860,167 +2860,167 @@ msgstr "Y (Contenido sensible)"
 msgid "Extra (obsolete) context sensitive words"
 msgstr "Contenido extra (obsoleto) a palabras sensible"
 
-#: scanner.l:863
+#: scanner.l:850
 #, fuzzy, c-format
 msgid "a constant may not be used here - '%s'"
 msgstr "Una constante no puede ser utilizada aquí - '%s'"
 
-#: scanner.l:918
+#: scanner.l:905
 msgid "ignoring redundant ."
 msgstr ""
 
-#: scanner.l:976
+#: scanner.l:963
 #, fuzzy, c-format
 msgid "invalid symbol '%s' - skipping word"
 msgstr "símbolo inválido: %s - Omisión de la palabra"
 
-#: scanner.l:1066
+#: scanner.l:1053
 #, fuzzy
 msgid "invalid national literal"
 msgstr "Literal X inválida: %s"
 
-#: scanner.l:1077 cobc/tree.c:2000
+#: scanner.l:1064 cobc/tree.c:2000
 #, fuzzy, c-format
 msgid "invalid literal: '%s'"
 msgstr "Literal H inváida: %s"
 
-#: scanner.l:1079
+#: scanner.l:1066
 #, fuzzy, c-format
 msgid "invalid hexadecimal literal: '%s'"
 msgstr "Literal X inválida: %s"
 
-#: scanner.l:1081 cobc/tree.c:1257
+#: scanner.l:1068 cobc/tree.c:1257
 #, fuzzy, c-format
 msgid "invalid numeric literal: '%s'"
 msgstr "Literal numérica invalida"
 
-#: scanner.l:1083
+#: scanner.l:1070
 #, fuzzy, c-format
 msgid "invalid floating-point literal: '%s'"
 msgstr "Literal de punto flotante inválida"
 
-#: scanner.l:1085
+#: scanner.l:1072
 #, fuzzy, c-format
 msgid "invalid %s literal: '%s'"
 msgstr "Literal X inválida: %s"
 
-#: scanner.l:1132
+#: scanner.l:1119
 #, fuzzy, c-format
 msgid "literal length exceeds %d characters"
 msgstr "Tamaño de palabra excede los 31 caractéres - '%s'"
 
-#: scanner.l:1148
+#: scanner.l:1135
 #, fuzzy
 msgid "alphanumeric literal has zero length; a SPACE will be assumed"
 msgstr "Literal afanumérica tiene longitud de cero"
 
-#: scanner.l:1159 scanner.l:1160 scanner.l:1212
+#: scanner.l:1146 scanner.l:1147 scanner.l:1199
 #, fuzzy
 msgid "national literal"
 msgstr "Literal H inváida: %s"
 
-#: scanner.l:1196
+#: scanner.l:1183
 #, fuzzy
 msgid "hexadecimal-boolean literal"
 msgstr "Literal numérica invalida"
 
-#: scanner.l:1203 scanner.l:1217 scanner.l:1330 scanner.l:1375 scanner.l:1465
-#: scanner.l:1528 cobc/tree.c:2001
+#: scanner.l:1190 scanner.l:1204 scanner.l:1317 scanner.l:1362 scanner.l:1452
+#: scanner.l:1515 cobc/tree.c:2001
 #, fuzzy, c-format
 msgid "literal length %d exceeds %d characters"
 msgstr "Tamaño de palabra excede los 31 caractéres - '%s'"
 
-#: scanner.l:1209
+#: scanner.l:1196
 #, fuzzy
 msgid "hexadecimal-national literal"
 msgstr "Literal X inválida: %s"
 
-#: scanner.l:1239 scanner.l:1270 scanner.l:1391 scanner.l:1479 scanner.l:1538
+#: scanner.l:1226 scanner.l:1257 scanner.l:1378 scanner.l:1466 scanner.l:1525
 #, fuzzy, c-format
 msgid "literal contains invalid character '%c'"
 msgstr "Cláusula %s es requerida para el archivo '%s'"
 
-#: scanner.l:1294
+#: scanner.l:1281
 #, c-format
 msgid "literal does not have an even number of digits"
 msgstr ""
 
-#: scanner.l:1362 scanner.l:1451 scanner.l:1520
+#: scanner.l:1349 scanner.l:1438 scanner.l:1507
 #, fuzzy
 msgid "ACUCOBOL numeric literal"
 msgstr "Literal numérica invalida"
 
-#: scanner.l:1406 scanner.l:1490 scanner.l:1549
+#: scanner.l:1393 scanner.l:1477 scanner.l:1536
 #, fuzzy, c-format
 msgid "literal exceeds limit %u"
 msgstr "Literal numérico excede tamaño de dato "
 
-#: scanner.l:1447
+#: scanner.l:1434
 #, fuzzy
 msgid "numeric boolean literal"
 msgstr "Literal numérica invalida"
 
-#: scanner.l:1614 cobc/tree.c:1268
+#: scanner.l:1601 cobc/tree.c:1268
 #, fuzzy, c-format
 msgid "literal length %d exceeds maximum of %d digits"
 msgstr "Tamaño de palabra excede los 31 caractéres - '%s'"
 
-#: scanner.l:1620 cobc/tree.c:1273
+#: scanner.l:1607 cobc/tree.c:1273
 #, fuzzy, c-format
 msgid "literal length %d exceeds %d digits"
 msgstr "Literal numérico excede tamaño de dato"
 
-#: scanner.l:1708
+#: scanner.l:1695
 #, c-format
 msgid "significand has more than 34 digits"
 msgstr ""
 
-#: scanner.l:1713
+#: scanner.l:1700
 #, c-format
 msgid "exponent has decimal point"
 msgstr ""
 
-#: scanner.l:1719
+#: scanner.l:1706
 #, c-format
 msgid "exponent has more than 4 digits"
 msgstr ""
 
-#: scanner.l:1736
+#: scanner.l:1723
 #, c-format
 msgid "exponent not between -78 and 76"
 msgstr ""
 
-#: scanner.l:1744
+#: scanner.l:1731
 #, c-format
 msgid "significand of 0 must be positive"
 msgstr ""
 
-#: scanner.l:1749
+#: scanner.l:1736
 #, c-format
 msgid "exponent of 0 must be 0"
 msgstr ""
 
-#: scanner.l:1754
+#: scanner.l:1741
 #, c-format
 msgid "exponent of 0 must be positive"
 msgstr ""
 
-#: scanner.l:1940
+#: scanner.l:1920
 #, fuzzy, c-format
 msgid "invalid CONSTANT: %s"
 msgstr "Invalida CONSTANT - %s"
 
-#: scanner.l:1950
+#: scanner.l:1930
 #, fuzzy, c-format
 msgid "invalid alphanumeric CONSTANT: %s"
 msgstr "CONSTANT alfanumérica inválida - %s"
 
-#: scanner.l:1954
+#: scanner.l:1934
 #, fuzzy, c-format
 msgid "empty alphanumeric CONSTANT: %s"
 msgstr "CONSTANT alfanumérica vacía - %s"
 
-#: scanner.l:1971 scanner.l:1979 scanner.l:1984
+#: scanner.l:1951 scanner.l:1959 scanner.l:1964
 #, fuzzy, c-format
 msgid "invalid numeric CONSTANT: %s"
 msgstr "CONSTANT numérica inválida - %s"

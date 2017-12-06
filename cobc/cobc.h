@@ -105,29 +105,33 @@ enum cb_format {
 #define PLEX_DEF_DEL			3U
 
 /* Context sensitive keyword defines (trigger words) */
-#define	CB_CS_ACCEPT			(1U << 0)
-#define CB_CS_ALLOCATE			(1U << 1)
+#define	CB_CS_ACCEPT			(1U << 0)	/* within ACCEPT statement */
+#define CB_CS_ALLOCATE			(1U << 1)	/* within ALLOCATE statement */
 #define	CB_CS_ALPHABET			(1U << 2)
 #define	CB_CS_ASSIGN			(1U << 3)
-#define	CB_CS_CALL			(1U << 4)
+#define	CB_CS_CALL			(1U << 4)	/* within CALL statement */
 #define	CB_CS_CONSTANT			(1U << 5)
 #define	CB_CS_DATE			(1U << 6)
 #define	CB_CS_DAY			(1U << 7)
-#define	CB_CS_DISPLAY			(1U << 8)
+#define	CB_CS_DISPLAY			(1U << 8)	/* within DISPLAY statement */
 #define	CB_CS_ERASE			(1U << 9)
-#define	CB_CS_EXIT			(1U << 10)
+#define	CB_CS_EXIT			(1U << 10)	/* within EXIT statement */
 #define	CB_CS_FROM			(1U << 11)
 #define	CB_CS_OCCURS			(1U << 12)
 #define CB_CS_OPTIONS			(1U << 13)
-#define	CB_CS_PERFORM			(1U << 14)
-#define	CB_CS_PROGRAM_ID		(1U << 15)
-#define	CB_CS_READ			(1U << 16)
+#define	CB_CS_PERFORM			(1U << 14)	/* within PERFORM statement */
+#define	CB_CS_PROGRAM_ID		(1U << 15)	/* within PROGRAM-ID definition */
+#define	CB_CS_READ			(1U << 16)	/* within READ statement */
 #define	CB_CS_RECORDING			(1U << 17)
 #define	CB_CS_RETRY			(1U << 18)
 #define	CB_CS_ROUNDED			(1U << 19)
-#define	CB_CS_SET			(1U << 20)
+#define	CB_CS_SET			(1U << 20)	/* within SET statement */
 #define	CB_CS_STOP			(1U << 21)
 #define	CB_CS_OBJECT_COMPUTER		(1U << 22)
+#define	CB_CS_DELIMITER			(1U << 23)
+#define	CB_CS_SCREEN			(1U << 24)	/* within SCREEN section */
+#define	CB_CS_INQUIRE_MODIFY			(1U << 25)	/* within INQUIRE or MODIFY statement */
+#define	CB_CS_GRAPHICAL_CONTROL			(1U << 26)	/* within ACUCOBOL-GT graphical control */
 
 /* Support for cobc from stdin */
 #define COB_DASH			"-"
@@ -153,11 +157,6 @@ enum cb_support {
 	CB_ERROR,
 	CB_UNCONFORMABLE
 };
-
-#define COBC_WARN_FILLER  -1
-#define COBC_WARN_DISABLED 0
-#define COBC_WARN_ENABLED  1
-#define COBC_WARN_AS_ERROR 2
 
 /* Config dialect support types */
 enum cb_std_def {
@@ -207,7 +206,8 @@ struct cb_define_struct {
 /* Structure for extended filenames */
 struct local_filename {
 	struct local_filename	*next;			/* next pointer */
-	char			*local_name;
+	char			*local_name;			/* foo.c.l[n].h (full path) */
+	char			*local_include_name;	/* foo.c.l[n].h (for #include)*/
 	FILE			*local_fp;
 };
 
@@ -215,7 +215,7 @@ struct local_filename {
 struct filename {
 	struct filename		*next;
 	const char		*source;		/* foo.cob (path from command line) */
-	const char		*preprocess;		/* foo.i (full path) */
+	const char		*preprocess;		/* foo.i / foo.cob (full path) */
 	const char		*translate;		/* foo.c (full path) */
 	const char		*trstorage;		/* foo.c.h (full path) */
 	const char		*object;		/* foo.o (full path) */
@@ -298,7 +298,7 @@ struct list_files {
 extern struct list_files	*cb_listing_files;
 extern struct list_files	*cb_current_file;
 
-extern int			cb_source_format;
+extern enum cb_format		cb_source_format;
 extern int			cb_text_column;
 
 extern struct cb_exception	cb_exception_table[];
@@ -346,6 +346,11 @@ extern struct cb_exception	cb_exception_table[];
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
 #undef	CB_NOWARNDEF
+
+#define COBC_WARN_FILLER  cb_warn_filler
+#define COBC_WARN_DISABLED 0
+#define COBC_WARN_ENABLED  1
+#define COBC_WARN_AS_ERROR 2
 
 
 #define	CB_OPTIM_DEF(x)			x,
@@ -521,6 +526,9 @@ extern size_t		suppress_warn;	/* no warnings for internal generated stuff */
 
 /* codeoptim.c */
 extern void		cob_gen_optim (const enum cb_optim);
+
+/* codegen.c */
+extern void		cb_init_codegen (void);
 
 /* error.c */
 #define CB_MSG_STYLE_GCC	0

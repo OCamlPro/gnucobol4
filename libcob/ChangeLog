@@ -1,4 +1,93 @@
 
+2017-12-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_sys_system) [_WIN32]: FR #153 workaround for CALL 'SYSTEM'
+	  on buggy Woe32 which removes first and last quote from command
+
+2017-11-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_get_current_date_and_time_from_os)[!_WIN32]: fixed #469
+	  ACCEPT FROM DAY being one too low
+
+2017-11-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c, common.h, coblocal.h, call.c: added (cob_init_nomain) to start
+	  runtime initialization without setting the main handle (saves time on
+	  each function lookup)
+	* call.c [COB_BORKED_DLOPEN]: no processing of mainhandle
+
+2017-11-07  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c, common.h, coblocal.h: added COB_SET_DEBUG as cob_debugging_mode
+	  in local settings / global pointer
+	* common.c, coblocal.h: added internal configuration status option ENV_RESETS
+	  for "needs additional code on change"
+	* common.c: added ENV_RESETS to COB_SET_DEBUG changing the externalized value
+	  in cobglobtr when setting changes during runtime
+
+2017-11-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.h: suppress C statement not reached warnings for Solaris C,
+	  see bug #456
+
+2017-11-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c: fixed bug #457 explicit check for error after all put/write
+	  calls (calls to put were completely unchecked before) and raise correct
+	  fileio status (especially 34 for disk/quota full) instead of status 30
+
+2017-10-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c: changed message format back to old version, see bug #455
+
+2017-10-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_sys_fork): bug #451 reset cob_process_id after fork
+	* Makefile.am: moved include of top_srcdir to AM_CPPFLAGS to prevent
+	  user-specified CPPFLAGS to override own includes, see bug #452
+	* common.c, common.h: minimal support for DJGGP,
+	  including generation of 8.3 filenames
+
+2017-10-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_check_ref_mod): bug #446 splitted checks for length and
+	  combination of offset and length
+	* common.c (cob_external_addr): bug #445 added supressible warning for
+	  EXTERNAL data items that are requested with a smaller size than allocated
+	* common.c (cob_check_version): FR #239: allow difference in module version
+	  vs. runtime version
+	FR #239 - adjustments for changed function signatures between 2.0-rc and 2.3:
+	* common.c (cob_check_odo): adjustments for changed function signature 
+	* common.c (cob_check_subscript, cob_check_version): don't check subscript
+	  max if at least one module is too old for the current function signature
+
+2017-09-28  Edward Hart <edward.dan.hart@gmail.com>
+
+	* screenio.c (cob_screen_get_all): changed backspace to emit beep if
+	  entered at start of field, not to act like back-tab (bug #426).
+
+2017-09-21  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c (cob_sig_handler, cob_set_signal): added code for SIGFPE
+	  in correspondence to SIGHUP code (+ additional error message);
+	  set LCOV_EXCL markers for most of the signal handling
+
+2017-09-18  Ron Norman <rjn@inglenet.com>
+
+	* fileio.c: Check if file ASSIGN field has NULL address and report a
+	  runtime error and return status 31
+
+2017-09-16  Edward Hart <edward.dan.hart@gmail.com>
+
+	* screenio.c (field_display): implemented DISPLAY ALL "blah" WITH SIZE
+	  (bug #428).
+
+2017-09-10  Edward Hart <edward.dan.hart@gmail.com>
+
+	* screenio.c (field_display, field_accept): fixed SIZE not working if it
+	  was less than the item's length (bug #423).
+	* screenio.c: fixed naming style.
+
 2017-09-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* screenio.c (cob_screen_get_all, field_accept): beep instead of

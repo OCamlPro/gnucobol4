@@ -1,7 +1,7 @@
 /*
    Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch,
-   Edward Hard
+   Edward Hart
 
    This file is part of GnuCOBOL.
 
@@ -63,26 +63,27 @@ do { \
 #define TERM_DIVIDE		7U
 #define TERM_EVALUATE		8U
 #define TERM_IF			9U
-#define TERM_MULTIPLY		10U
-#define TERM_PERFORM		11U
-#define TERM_READ		12U
-#define TERM_RECEIVE		13U
-#define TERM_RETURN		14U
-#define TERM_REWRITE		15U
-#define TERM_SEARCH		16U
-#define TERM_START		17U
-#define TERM_STRING		18U
-#define TERM_SUBTRACT		19U
-#define TERM_UNSTRING		20U
-#define TERM_WRITE		21U
-#define TERM_MAX		22U	/* Always last entry, used for array size */
+#define TERM_MODIFY		10U
+#define TERM_MULTIPLY		11U
+#define TERM_PERFORM		12U
+#define TERM_READ		13U
+#define TERM_RECEIVE		14U
+#define TERM_RETURN		15U
+#define TERM_REWRITE		16U
+#define TERM_SEARCH		17U
+#define TERM_START		18U
+#define TERM_STRING		19U
+#define TERM_SUBTRACT		20U
+#define TERM_UNSTRING		21U
+#define TERM_WRITE		22U
+#define TERM_MAX		23U	/* Always last entry, used for array size */
 
 #define	TERMINATOR_WARNING(x,z)	terminator_warning (x, TERM_##z, #z)
 #define	TERMINATOR_ERROR(x,z)	terminator_error (x, TERM_##z, #z)
 #define	TERMINATOR_CLEAR(x,z)	terminator_clear (x, TERM_##z)
 
 /* Defines for duplicate checks */
-/* Note - We use <= 16 for common item definitons and */
+/* Note - We use <= 16 for common item definitions and */
 /* > 16 for non-common item definitions e.g. REPORT and SCREEN */
 #define	SYN_CLAUSE_1		(1U << 0)
 #define	SYN_CLAUSE_2		(1U << 1)
@@ -157,7 +158,7 @@ enum key_clause_type {
 	RECORD_KEY,
 	RELATIVE_KEY
 };
-	 
+
 static struct cb_statement	*main_statement;
 
 static cb_tree			current_expr;
@@ -227,6 +228,11 @@ static cb_tree			line_column;
 
 static int			term_array[TERM_MAX];
 static cb_tree			eval_check[EVAL_DEPTH][EVAL_DEPTH];
+
+#if 0 /* currently not used */
+static const char		*backup_source_file = NULL;
+static int			backup_source_line = 0;
+#endif
 
 /* Defines for header presence */
 
@@ -299,6 +305,24 @@ void print_bits (cob_flags_t num)
 }
 #endif
 
+#if 0 /* currently not used */
+/* functions for storing current position and
+   assigning it to a cb_tree after its parsing is finished */
+static COB_INLINE
+void backup_current_pos (void)
+{
+	backup_source_file = cb_source_file;
+	backup_source_line = cb_source_line;
+}
+
+static COB_INLINE
+void set_pos_from_backup (cb_tree x)
+{
+	x->source_file = backup_source_file;
+	x->source_line = backup_source_line;
+}
+#endif
+
 static void
 emit_entry (const char *name, const int encode, cb_tree using_list, cb_tree convention)
 {
@@ -321,8 +345,6 @@ emit_entry (const char *name, const int encode, cb_tree using_list, cb_tree conv
 	}
 	CB_LABEL (label)->flag_begin = 1;
 	CB_LABEL (label)->flag_entry = 1;
-	label->source_file = cb_source_file;
-	label->source_line = cb_source_line;
 	emit_statement (label);
 
 	if (current_program->flag_debugging) {
@@ -453,7 +475,7 @@ terminator_warning (cb_tree stmt, const unsigned int termid,
 			"terminator_warning", name);
 		COBC_ABORT ();
 	}
-	/* LCOV_EXCL_END */
+	/* LCOV_EXCL_STOP */
 	snprintf (terminator, 32, "END-%s", name);
 	if (is_reserved_word (terminator)) {
 		cb_warning_x (cb_warn_terminator, CB_TREE (current_statement),
@@ -480,7 +502,7 @@ terminator_error (cb_tree stmt, const unsigned int termid, const char *name)
 			"terminator_error", name);
 		COBC_ABORT ();
 	}
-	/* LCOV_EXCL_END */
+	/* LCOV_EXCL_STOP */
 	snprintf (terminator, 32, "END-%s", name);
 	if (is_reserved_word (terminator)) {
 		cb_error_x (CB_TREE (current_statement),
@@ -509,7 +531,7 @@ terminator_clear (cb_tree stmt, const unsigned int termid)
 			"terminator_warning", current_statement->name);
 		COBC_ABORT ();
 	}
-	/* LCOV_EXCL_END */
+	/* LCOV_EXCL_STOP */
 	if (termid == TERM_PERFORM
 	 && perform_stack) {
 		p = CB_PERFORM (CB_VALUE (perform_stack));
@@ -630,7 +652,7 @@ setup_occurs_min_max (cb_tree occurs_min, cb_tree occurs_max)
 			if (!current_field->depending) {
 				if (cb_relaxed_syntax_checks) {
 					cb_warning (COBC_WARN_FILLER, _ ("TO phrase without DEPENDING phrase"));
-					cb_warning (COBC_WARN_FILLER, _ ("maximum number of occurences assumed to be exact number"));
+					cb_warning (COBC_WARN_FILLER, _ ("maximum number of occurrences assumed to be exact number"));
 					current_field->occurs_min = 1; /* CHECKME: why using 1 ? */
 				} else {
 					cb_error (_ ("TO phrase without DEPENDING phrase"));
@@ -1069,14 +1091,16 @@ get_literal_or_word_name (const cb_tree x)
 	}
 }
 
-/* verify and set picture sign for currency */
+/* verify and set currency symbol used in picture (compile time) and - if no currency
+   string is explicitly set (which is currently not implemented) - as currency string
+   (run time for display and [de-]editing)*/
 static void
 set_currency_picture_symbol (const cb_tree x)
 {
 	unsigned char	*s		= CB_LITERAL (x)->data;
 
 	if (CB_LITERAL (x)->size != 1) {
-		cb_error_x (x, _("PICTURE SYMBOL for CURRENCY must be one character long"));
+		cb_error_x (x, _("currency symbol must be one character long"));
 		return;
 	}
 	switch (*s) {
@@ -1127,7 +1151,13 @@ set_currency_picture_symbol (const cb_tree x)
 	case '\'':
 	case '"':
 	case ' ':
-		cb_error_x (x, _("invalid character '%c' in PICTURE SYMBOL for CURRENCY"), s[0]);
+#if 0 /* note: MicroFocus also dissalows L (VAX) and G (OSVS) */
+	case 'L':
+	case 'G':
+	case 'l':
+	case 'g':
+#endif
+		cb_error_x (x, _("invalid character '%c' in currency symbol"), s[0]);
 		return;
 	default:
 		break;
@@ -1218,6 +1248,29 @@ setup_prototype (cb_tree prototype_name, cb_tree ext_name,
 			current_program->user_spec_list =
 				cb_list_add (current_program->user_spec_list, prototype);
 		}
+	}
+}
+
+static void
+error_if_record_delimiter_incompatible (const int organization,
+					const char *organization_name)
+{
+	int	is_compatible;
+
+	if (!current_file->flag_delimiter) {
+		return;
+	}
+
+	if (organization == COB_ORG_LINE_SEQUENTIAL) {
+		is_compatible = current_file->organization == COB_ORG_SEQUENTIAL
+			|| current_file->organization == COB_ORG_LINE_SEQUENTIAL;
+	} else {
+		is_compatible = current_file->organization == organization;
+	}
+
+	if (!is_compatible) {
+		cb_error (_("ORGANIZATION %s is incompatible with RECORD DELIMITER"),
+			  organization_name);
 	}
 }
 
@@ -1487,7 +1540,7 @@ check_preceding_tallying_phrases (const enum tallying_phrase phrase)
 		/* This should never happen (and therefore doesn't get a translation) */
 		cb_error ("unexpected tallying phrase");
 		COBC_ABORT();
-		/* LCOV_EXCL_END */
+		/* LCOV_EXCL_STOP */
 	}
 
 	previous_tallying_phrase = phrase;
@@ -1615,7 +1668,7 @@ deduce_display_type (cb_tree x_list, cb_tree local_upon_value, cb_tree local_lin
 	int	using_default_device_which_is_crt =
 		local_upon_value == NULL && get_default_display_device () == cb_null;
 
-	/* TODO: Seperate CGI DISPLAYs here */
+	/* TODO: Separate CGI DISPLAYs here */
 	if (contains_only_screen_fields ((struct cb_list *) x_list)) {
 		if (!contains_one_screen_field ((struct cb_list *) x_list)
 		    || attr_ptr) {
@@ -1704,12 +1757,17 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 
 %token TOKEN_EOF 0 "end of file"
 
+%token THREEDIMENSIONAL	"3D"
 %token ACCEPT
 %token ACCESS
+%token ACTIVEX			"ACTIVE-X"
+%token ACTION
 %token ADD
 %token ADDRESS
+%token ADJUSTABLE_COLUMNS	"ADJUSTABLE-COLUMNS"
 %token ADVANCING
 %token AFTER
+%token ALIGNMENT
 %token ALL
 %token ALLOCATE
 %token ALPHABET
@@ -1728,6 +1786,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token AREAS
 %token ARGUMENT_NUMBER		"ARGUMENT-NUMBER"
 %token ARGUMENT_VALUE		"ARGUMENT-VALUE"
+%token ARITHMETIC
 %token AS
 %token ASCENDING
 %token ASCII
@@ -1735,12 +1794,15 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token AT
 %token ATTRIBUTE
 %token AUTO
+%token AUTO_DECIMAL			"AUTO-DECIMAL"
+%token AUTO_SPIN			"AUTO-SPIN"
 %token AUTOMATIC
 %token AWAY_FROM_ZERO		"AWAY-FROM-ZERO"
 %token BACKGROUND_COLOR		"BACKGROUND-COLOR"
 %token BACKGROUND_HIGH		"BACKGROUND-HIGH"
 %token BACKGROUND_LOW		"BACKGROUND-LOW"
 %token BACKGROUND_STANDARD		"BACKGROUND-STANDARD"
+%token BAR
 %token BASED
 %token BEFORE
 %token BELL
@@ -1749,30 +1811,57 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token BINARY_CHAR		"BINARY-CHAR"
 %token BINARY_DOUBLE		"BINARY-DOUBLE"
 %token BINARY_LONG		"BINARY-LONG"
+%token BINARY_SEQUENTIAL	"BINARY-SEQUENTIAL"
 %token BINARY_SHORT		"BINARY-SHORT"
+%token BITMAP
+%token BITMAP_END		"BITMAP-END"
+%token BITMAP_HANDLE	"BITMAP-HANDLE"
+%token BITMAP_NUMBER	"BITMAP-NUMBER"
+%token BITMAP_START		"BITMAP-START"
+%token BITMAP_TIMER		"BITMAP-TIMER"
+%token BITMAP_TRAILING		"BITMAP-TRAILING"
+%token BITMAP_TRANSPARENT_COLOR	"BITMAP-TRANSPARENT-COLOR"
+%token BITMAP_WIDTH		"BITMAP-WIDTH"
 %token BLANK
 %token BLINK
 %token BLOCK
 %token BOTTOM
 %token BOX
 %token BOXED
+%token BUSY
+%token BUTTONS
 %token BY
 %token BYTE_LENGTH		"BYTE-LENGTH"
+%token CALENDAR_FONT	"CALENDAR-FONT"
 %token CALL
 %token CANCEL
+%token CANCEL_BUTTON	"CANCEL-BUTTON"
 %token CAPACITY
 %token CARD_PUNCH		"CARD-PUNCH"
 %token CARD_READER		"CARD-READER"
 %token CASSETTE
+%token CCOL
 %token CD
+%token CELL
+%token CELL_COLOR		"CELL-COLOR"
+%token CELL_DATA		"CELL-DATA"
+%token CELL_FONT		"CELL-FONT"
+%token CELL_PROTECTION	"CELL-PROTECTION"
+%token CENTER
+%token CENTERED_HEADINGS	"CENTERED-HEADINGS"
+%token CENTURY_DATE		"CENTURY-DATE"
 %token CF
 %token CH
 %token CHAINING
 %token CHARACTER
 %token CHARACTERS
+%token CHECK_BOX		"CHECK-BOX"
 %token CLASS
 %token CLASSIFICATION
 %token CLASS_NAME		"class-name"
+%token CLEAR_SELECTION		"CLEAR-SELECTION"
+%token CLINE
+%token CLINES
 %token CLOSE
 %token COBOL
 %token CODE
@@ -1780,9 +1869,16 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token COLLATING
 %token COL
 %token COLOR
+%token COLORS
 %token COLS
 %token COLUMN
+%token COLUMN_COLOR		"COLUMN-COLOR"
+%token COLUMN_DIVIDERS		"COLUMN-DIVIDERS"
+%token COLUMN_FONT		"COLUMN-FONT"
+%token COLUMN_HEADINGS		"COLUMN-HEADINGS"
+%token COLUMN_PROTECTION	"COLUMN-PROTECTION"
 %token COLUMNS
+%token COMBO_BOX		"COMBO-BOX"
 %token COMMA
 %token COMMAND_LINE		"COMMAND-LINE"
 %token COMMA_DELIM		"comma delimiter"
@@ -1810,16 +1906,29 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token CONVERSION
 %token CONVERTING
 %token COPY
+%token COPY_SELECTION	"COPY-SELECTION"
 %token CORRESPONDING
 %token COUNT
 %token CRT
 %token CRT_UNDER		"CRT-UNDER"
+%token CSIZE
 %token CURRENCY
 %token CURRENT_DATE_FUNC	"FUNCTION CURRENT-DATE"
 %token CURSOR
+%token CURSOR_COL		"CURSOR-COL"
+%token CURSOR_COLOR		"CURSOR-COLOR"
+%token CURSOR_FRAME_WIDTH	"CURSOR-FRAME-WIDTH"
+%token CURSOR_ROW		"CURSOR-ROW"
+%token CURSOR_X		"CURSOR-X"
+%token CURSOR_Y		"CURSOR-Y"
+%token CUSTOM_PRINT_TEMPLATE	"CUSTOM-PRINT-TEMPLATE"
 %token CYCLE
+%token DASHED
 %token DATA
+%token DATA_COLUMNS		"DATA-COLUMNS"
+%token DATA_TYPES		"DATA-TYPES"
 %token DATE
+%token DATE_ENTRY		"DATE-ENTRY"
 %token DAY
 %token DAY_OF_WEEK		"DAY-OF-WEEK"
 %token DE
@@ -1827,6 +1936,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token DECIMAL_POINT		"DECIMAL-POINT"
 %token DECLARATIVES
 %token DEFAULT
+%token DEFAULT_BUTTON		"DEFAULT-BUTTON"
 %token DEFAULT_FONT			"DEFAULT-FONT"
 %token DELETE
 %token DELIMITED
@@ -1840,9 +1950,18 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token DISC
 %token DISK
 %token DISPLAY
+%token DISPLAY_COLUMNS		"DISPLAY-COLUMNS"
+%token DISPLAY_FORMAT		"DISPLAY-FORMAT"
 %token DISPLAY_OF_FUNC		"FUNCTION DISPLAY-OF"
 %token DIVIDE
+%token DIVIDERS
+%token DIVIDER_COLOR		"DIVIDER-COLOR"
 %token DIVISION
+%token DOTDASH
+%token DOTTED
+%token DRAG_COLOR			"DRAG-COLOR"
+%token DROP_DOWN			"DROP-DOWN"
+%token DROP_LIST			"DROP-LIST"
 %token DOWN
 %token DUPLICATES
 %token DYNAMIC
@@ -1859,12 +1978,14 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token END_ADD  		"END-ADD"
 %token END_CALL 		"END-CALL"
 %token END_COMPUTE		"END-COMPUTE"
+%token END_COLOR		"END-COLOR"
 %token END_DELETE		"END-DELETE"
 %token END_DISPLAY		"END-DISPLAY"
 %token END_DIVIDE		"END-DIVIDE"
 %token END_EVALUATE		"END-EVALUATE"
 %token END_FUNCTION		"END FUNCTION"
-%token END_IF   		"END-IF"
+%token END_IF			"END-IF"
+%token END_MODIFY		"END-MODIFY"
 %token END_MULTIPLY		"END-MULTIPLY"
 %token END_PERFORM		"END-PERFORM"
 %token END_PROGRAM		"END PROGRAM"
@@ -1878,8 +1999,12 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token END_SUBTRACT		"END-SUBTRACT"
 %token END_UNSTRING		"END-UNSTRING"
 %token END_WRITE		"END-WRITE"
+%token ENGRAVED
+%token ENSURE_VISIBLE	"ENSURE-VISIBLE"
 %token ENTRY
 %token ENTRY_CONVENTION		"ENTRY-CONVENTION"
+%token ENTRY_FIELD		"ENTRY-FIELD"
+%token ENTRY_REASON		"ENTRY-REASON"
 %token ENVIRONMENT
 %token ENVIRONMENT_NAME		"ENVIRONMENT-NAME"
 %token ENVIRONMENT_VALUE	"ENVIRONMENT-VALUE"
@@ -1890,11 +2015,16 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token ERASE
 %token ERROR
 %token ESCAPE
+%token ESCAPE_BUTTON	"ESCAPE-BUTTON"
 %token ESI
 %token EVALUATE
+%token EVENT
+%token EVENT_LIST		"EVENT-LIST"
 %token EVENT_STATUS		"EVENT STATUS"
 %token EXCEPTION
 %token EXCEPTION_CONDITION	"EXCEPTION CONDITION"
+%token EXCEPTION_VALUE		"EXCEPTION-VALUE"
+%token EXPAND
 %token EXCLUSIVE
 %token EXIT
 %token EXPONENTIATION		"exponentiation operator"
@@ -1905,11 +2035,20 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token FD
 %token FILE_CONTROL		"FILE-CONTROL"
 %token FILE_ID			"FILE-ID"
+%token FILE_NAME		"FILE-NAME"
+%token FILE_POS			"FILE-POS"
+%token FILL_COLOR		"FILL-COLOR"
+%token FILL_COLOR2		"FILL-COLOR2"
+%token FILL_PERCENT		"FILL-PERCENT"
 %token FILLER
 %token FINAL
+%token FINISH_REASON	"FINISH-REASON"
 %token FIRST
 %token FIXED
 %token FIXED_FONT		"FIXED-FONT"
+%token FIXED_WIDTH		"FIXED-WIDTH"
+%token FLAT
+%token FLAT_BUTTONS		"FLAT-BUTTONS"
 %token FLOAT_BINARY_128		"FLOAT-BINARY-128"
 %token FLOAT_BINARY_32		"FLOAT-BINARY-32"
 %token FLOAT_BINARY_64		"FLOAT-BINARY-64"
@@ -1928,10 +2067,13 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token FORMATTED_DATE_FUNC	"FUNCTION FORMATTED-DATE"
 %token FORMATTED_DATETIME_FUNC	"FUNCTION FORMATTED-DATETIME"
 %token FORMATTED_TIME_FUNC	"FUNCTION FORMATTED-TIME"
+%token FRAME
+%token FRAMED
 %token FREE
 %token FROM
 %token FROM_CRT			"FROM CRT"
 %token FULL
+%token FULL_HEIGHT		"FULL-HEIGHT"
 %token FUNCTION
 %token FUNCTION_ID		"FUNCTION-ID"
 %token FUNCTION_NAME		"intrinsic function name"
@@ -1939,16 +2081,32 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token GIVING
 %token GLOBAL
 %token GO
+%token GO_BACK			"GO-BACK"
+%token GO_FORWARD		"GO-FORWARD"
+%token GO_HOME			"GO-HOME"
+%token GO_SEARCH		"GO-SEARCH"
 %token GOBACK
 %token GRAPHICAL
 %token GREATER
 %token GREATER_OR_EQUAL		"GREATER OR EQUAL"
 %token GRID
 %token GROUP
+%token GROUP_VALUE		"GROUP-VALUE"
 %token HANDLE
+%token HAS_CHILDREN		"HAS-CHILDREN"
 %token HEADING
+%token HEADING_COLOR			"HEADING-COLOR"
+%token HEADING_DIVIDER_COLOR	"HEADING-DIVIDER-COLOR"
+%token HEADING_FONT				"HEADING-FONT"
+%token HEAVY
+%token HEIGHT_IN_CELLS		"HEIGHT-IN-CELLS"
+%token HIDDEN_DATA		"HIDDEN-DATA"
 %token HIGHLIGHT
+%token HIGH_COLOR		"HIGH-COLOR"
 %token HIGH_VALUE		"HIGH-VALUE"
+%token HOT_TRACK		"HOT-TRACK"
+%token HSCROLL
+%token HSCROLL_POS		"HSCROLL-POS"
 %token ICON
 %token ID
 %token IDENTIFIED
@@ -1966,6 +2124,9 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token INITIATE
 %token INPUT
 %token INPUT_OUTPUT		"INPUT-OUTPUT"
+%token INQUIRE
+%token INSERTION_INDEX	"INSERTION-INDEX"
+%token INSERT_ROWS		"INSERT-ROWS"
 %token INSPECT
 %token INTERMEDIATE
 %token INTO
@@ -1973,6 +2134,12 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token INVALID
 %token INVALID_KEY		"INVALID KEY"
 %token IS
+%token ITEM
+%token ITEM_TEXT		"ITEM-TEXT"
+%token ITEM_TO_ADD		"ITEM-TO_ADD"
+%token ITEM_TO_DELETE	"ITEM-TO_DELETE"
+%token ITEM_TO_EMPTY	"ITEM-TO_EMPTY"
+%token ITEM_VALUE		"ITEM-VALUE"
 %token I_O			"I-O"
 %token I_O_CONTROL		"I-O-CONTROL"
 %token JUSTIFIED
@@ -1980,12 +2147,18 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token KEY
 %token KEYBOARD
 %token LABEL
+%token LABEL_OFFSET			"LABEL-OFFSET"
 %token LARGE_FONT			"LARGE-FONT"
+%token LARGE_OFFSET			"LARGE-OFFSET"
 %token LAST
+%token LAST_ROW				"LAST-ROW"
+%token LAYOUT_DATA			"LAYOUT-DATA"
 %token LAYOUT_MANAGER		"LAYOUT-MANAGER"
 %token LEADING
+%token LEADING_SHIFT		"LEADING-SHIFT"
 %token LEFT
 %token LEFTLINE
+%token LEFT_TEXT			"LEFT-TEXT"
 %token LENGTH
 %token LENGTH_FUNC		"FUNCTION LENGTH/BYTE-LENGTH"
 %token LENGTH_OF		"LENGTH OF"
@@ -1997,8 +2170,11 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token LINAGE_COUNTER		"LINAGE-COUNTER"
 %token LINE
 %token LINE_COUNTER		"LINE-COUNTER"
+%token LINE_SEQUENTIAL		"LINE-SEQUENTIAL"
 %token LINES
+%token LINES_AT_ROOT	"LINES-AT-ROOT"
 %token LINKAGE
+%token LIST_BOX			"LIST-BOX"
 %token LITERAL			"Literal"
 %token LM_RESIZE			"LM-RESIZE"
 %token LOCALE
@@ -2007,22 +2183,33 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token LOCALE_TIME_FROM_FUNC	"FUNCTION LOCALE-TIME-FROM-SECONDS"
 %token LOCAL_STORAGE		"LOCAL-STORAGE"
 %token LOCK
+%token LONG_DATE			"LONG-DATE"
 %token LOWER
+%token LOWERED
 %token LOWER_CASE_FUNC		"FUNCTION LOWER-CASE"
 %token LOWLIGHT
+%token LOW_COLOR		"LOW-COLOR"
 %token LOW_VALUE		"LOW-VALUE"
-%token MANUAL
 %token MAGNETIC_TAPE		"MAGNETIC-TAPE"
+%token MANUAL
+%token MASS_UPDATE		"MASS-UPDATE"
+%token MAX_LINES		"MAX-LINES"
+%token MAX_PROGRESS		"MAX-PROGRESS"
+%token MAX_TEXT			"MAX-TEXT"
+%token MAX_VAL			"MAX-VAL"
 %token MEMORY
 %token MEDIUM_FONT			"MEDIUM-FONT"
 %token MENU
 %token MERGE
 %token MESSAGE
 %token MINUS
+%token MIN_VAL			"MIN-VAL"
 %token MNEMONIC_NAME		"Mnemonic name"
 %token MODE
+%token MODIFY
 %token MODULES
 %token MOVE
+%token MULTILINE
 %token MULTIPLE
 %token MULTIPLY
 %token NAME
@@ -2030,19 +2217,37 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token NATIONAL_EDITED		"NATIONAL-EDITED"
 %token NATIONAL_OF_FUNC		"FUNCTION NATIONAL-OF"
 %token NATIVE
+%token NAVIGATE_URL		"NAVIGATE-URL"
 %token NEAREST_AWAY_FROM_ZERO	"NEAREST-AWAY-FROM-ZERO"
 %token NEAREST_EVEN		"NEAREST-EVEN"
 %token NEAREST_TOWARD_ZERO	"NEAREST-TOWARD-ZERO"
 %token NEGATIVE
 %token NESTED
 %token NEXT
+%token NEXT_ITEM		"NEXT-ITEM"
 %token NEXT_PAGE		"NEXT PAGE"
 %token NO
+%token NO_ADVANCING		"NO ADVANCING"
+%token NO_AUTOSEL		"NO-AUTOSEL"
+%token NO_AUTO_DEFAULT	"NO-AUTO-DEFAULT"
+%token NO_BOX			"NO-BOX"
 %token NO_DATA			"NO DATA"
+%token NO_DIVIDERS		"NO-DIVIDERS"
 %token NO_ECHO			"NO-ECHO"
+%token NO_F4			"NO-F4"
+%token NO_FOCUS			"NO-FOCUS"
+%token NO_GROUP_TAB		"NO-GROUP-TAB"
+%token NO_KEY_LETTER	"NO-KEY-LETTER"
+%token NO_SEARCH		"NO-SEARCH"
+%token NO_UPDOWN		"NO-UPDOWN"
 %token NORMAL
 %token NOT
+%token NOTAB
 %token NOTHING
+%token NOTIFY
+%token NOTIFY_CHANGE	"NOTIFY-CHANGE"
+%token NOTIFY_DBLCLICK	"NOTIFY-DBLCLICK"
+%token NOTIFY_SELCHANGE	"NOTIFY-SELCHANGE"
 %token NOT_END			"NOT END"
 %token NOT_EOP			"NOT EOP"
 %token NOT_ESCAPE		"NOT ESCAPE"
@@ -2051,16 +2256,19 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token NOT_INVALID_KEY		"NOT INVALID KEY"
 %token NOT_OVERFLOW		"NOT OVERFLOW"
 %token NOT_SIZE_ERROR		"NOT SIZE ERROR"
-%token NO_ADVANCING		"NO ADVANCING"
+%token NUM_COL_HEADINGS	"NUM-COL-HEADINGS"
+%token NUM_ROWS			"NUM-ROWS"
 %token NUMBER
 %token NUMBERS
 %token NUMERIC
 %token NUMERIC_EDITED		"NUMERIC-EDITED"
 %token NUMVALC_FUNC		"FUNCTION NUMVAL-C"
+%token OBJECT
 %token OBJECT_COMPUTER		"OBJECT-COMPUTER"
 %token OCCURS
 %token OF
 %token OFF
+%token OK_BUTTON		"OK-BUTTON"
 %token OMITTED
 %token ON
 %token ONLY
@@ -2072,28 +2280,39 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token ORGANIZATION
 %token OTHER
 %token OUTPUT
+%token OVERLAP_LEFT		"OVERLAP-LEFT"
+%token OVERLAP_TOP		"OVERLAP-TOP"
 %token OVERLINE
 %token PACKED_DECIMAL		"PACKED-DECIMAL"
 %token PADDING
 %token PAGE
 %token PAGE_COUNTER		"PAGE-COUNTER"
+%token PAGE_SETUP		"PAGE-SETUP"
+%token PAGED
 %token PARAGRAPH
+%token PARENT
 %token PERFORM
+%token PERMANENT
 %token PH
 %token PF
 %token PHYSICAL
 %token PICTURE
 %token PICTURE_SYMBOL		"PICTURE SYMBOL"
+%token PIXEL
+%token PLACEMENT
 %token PLUS
 %token POINTER
 %token POP_UP			"POP-UP"
 %token POSITION
+%token POSITION_SHIFT	"POSITION-SHIFT"
 %token POSITIVE
 %token PRESENT
 %token PREVIOUS
 %token PRINT
+%token PRINT_NO_PROMPT	"PRINT-NO-PROMPT"
+%token PRINT_PREVIEW	"PRINT-PREVIEW"
 %token PRINTER
-%token PRINTER_1
+%token PRINTER_1		"PRINTER-1"
 %token PRINTING
 %token PRIORITY
 %token PROCEDURE
@@ -2103,18 +2322,29 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token PROGRAM_ID		"PROGRAM-ID"
 %token PROGRAM_NAME		"program name"
 %token PROGRAM_POINTER		"PROGRAM-POINTER"
+%token PROGRESS
 %token PROHIBITED
 %token PROMPT
-%token PROTECTED		"PROTECTED"
+%token PROPERTIES
+%token PROPERTY
+%token PROTECTED
 %token PURGE
+%token PUSH_BUTTON		"PUSH-BUTTON"
+%token QUERY_INDEX		"QUERY-INDEX"
 %token QUEUE
 %token QUOTE
+%token RADIO_BUTTON		"RADIO-BUTTON"
+%token RAISED
 %token RANDOM
 %token RD
 %token READ
+%token READ_ONLY		"READ-ONLY"
 %token READY_TRACE		"READY TRACE"
 %token RECEIVE
 %token RECORD
+%token RECORD_DATA		"RECORD-DATA"
+%token RECORD_TO_ADD	"RECORD-TO-ADD"
+%token RECORD_TO_DELETE	"RECORD-TO-DELETE"
 %token RECORDING
 %token RECORDS
 %token RECURSIVE
@@ -2122,6 +2352,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token REEL
 %token REFERENCE
 %token REFERENCES
+%token REFRESH
+%token REGION_COLOR		"REGION-COLOR"
 %token RELATIVE
 %token RELEASE
 %token REMAINDER
@@ -2137,6 +2369,9 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token RESERVE
 %token RESET
 %token RESET_TRACE		"RESET TRACE"
+%token RESET_GRID		"RESET-GRID"
+%token RESET_LIST		"RESET-LIST"
+%token RESET_TABS		"RESET-TABS"
 %token RETRY
 %token RETURN
 %token RETURNING
@@ -2149,33 +2384,56 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token RF
 %token RH
 %token RIGHT
+%token RIGHT_ALIGN		"RIGHT-ALIGN"
+%token RIMMED
 %token ROLLBACK
 %token ROUNDED
 %token ROUNDING
+%token ROW_COLOR			"ROW-COLOR"
+%token ROW_COLOR_PATTERN	"ROW-COLOR-PATTERN"
+%token ROW_DIVIDERS			"ROW-DIVIDERS"
+%token ROW_FONT				"ROW-FONT"
+%token ROW_HEADINGS			"ROW-HEADINGS"
+%token ROW_PROTECTION		"ROW-PROTECTION"
 %token RUN
 %token S
 %token SAME
+%token SAVE_AS			"SAVE-AS"
+%token SAVE_AS_NO_PROMPT	"SAVE-AS-NO-PROMPT"
 %token SCREEN
 %token SCREEN_CONTROL		"SCREEN CONTROL"
 %token SCROLL
+%token SCROLL_BAR		"SCROLL-BAR"
 %token SD
 %token SEARCH
+%token SEARCH_OPTIONS	"SEARCH-OPTIONS"
+%token SEARCH_TEXT		"SEARCH-TEXT"
 %token SECONDS
 %token SECTION
 %token SECURE
 %token SEGMENT
 %token SEGMENT_LIMIT		"SEGMENT-LIMIT"
 %token SELECT
+%token SELECTION_INDEX	"SELECTION-INDEX"
+%token SELECTION_TEXT	"SELECTION-TEXT"
+%token SELECT_ALL		"SELECTION-ALL"
+%token SELF_ACT			"SELF-ACT"
 %token SEMI_COLON		"semi-colon"
 %token SEND
 %token SENTENCE
 %token SEPARATE
+%token SEPARATION
 %token SEQUENCE
 %token SEQUENTIAL
 %token SET
 %token SEVENTY_EIGHT		"78"
+%token SHADING
 %token SHADOW
 %token SHARING
+%token SHORT_DATE		"SHORT-DATE"
+%token SHOW_LINES		"SHOW-LINES"
+%token SHOW_NONE		"SHOW-NONE"
+%token SHOW_SEL_ALWAYS	"SHOW-SEL-ALWAYS"
 %token SIGN
 %token SIGNED
 %token SIGNED_INT		"SIGNED-INT"
@@ -2187,23 +2445,34 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token SMALL_FONT			"SMALL-FONT"
 %token SORT
 %token SORT_MERGE		"SORT-MERGE"
+%token SORT_ORDER		"SORT-ORDER"
 %token SOURCE
 %token SOURCE_COMPUTER		"SOURCE-COMPUTER"
 %token SPACE
 %token SPECIAL_NAMES		"SPECIAL-NAMES"
+%token SPINNER
+%token SQUARE
 %token STANDARD
 %token STANDARD_1		"STANDARD-1"
 %token STANDARD_2		"STANDARD-2"
+%token STANDARD_BINARY		"STANDARD-BINARY"
+%token STANDARD_DECIMAL		"STANDARD-DECIMAL"
 %token START
+%token START_X		"START-X"
+%token START_Y		"START-Y"
 %token STATIC
+%token STATIC_LIST		"STATIC-LIST"
 %token STATUS
+%token STATUS_BAR		"STATUS-BAR"
+%token STATUS_TEXT		"STATUS-TEXT"
 %token STDCALL
 %token STEP
 %token STOP
 %token STRING
-%token SUB_QUEUE_1
-%token SUB_QUEUE_2
-%token SUB_QUEUE_3
+%token STYLE
+%token SUB_QUEUE_1		"SUB-QUEUE-1"
+%token SUB_QUEUE_2		"SUB-QUEUE-2"
+%token SUB_QUEUE_3		"SUB-QUEUE-3"
 %token SUBSTITUTE_FUNC		"FUNCTION SUBSTITUTE"
 %token SUBSTITUTE_CASE_FUNC	"FUNCTION SUBSTITUTE-CASE"
 %token SUBTRACT
@@ -2215,22 +2484,29 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token SYSTEM_DEFAULT		"SYSTEM-DEFAULT"
 %token SYSTEM_OFFSET		"SYSTEM-OFFSET"
 %token TAB
+%token TAB_TO_ADD			"TAB-TO-ADD"
+%token TAB_TO_DELETE		"TAB-TO-DELETE"
 %token TABLE
 %token TALLYING
+%token TEMPORARY
 %token TAPE
 %token TERMINAL
 %token TERMINATE
-%token TEXT
+%token TERMINATION_VALUE	"TERMINATION-VALUE"
 %token TEST
+%token TEXT
 %token THAN
 %token THEN
 %token THREAD
 %token THREADS
 %token THRU
+%token THUMB_POSITION	"THUMB-POSITION"
+%token TILED_HEADINGS	"TILED-HEADINGS"
 %token TIME
 %token TIME_OUT			"TIME-OUT"
 %token TIMES
 %token TITLE
+%token TITLE_POSITION	"TITLE-POSITION"
 %token TO
 %token TOK_AMPER		"&"
 %token TOK_CLOSE_PAREN		")"
@@ -2256,19 +2532,24 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token TOWARD_LESSER		"TOWARD-LESSER"
 %token TRADITIONAL_FONT		"TRADITIONAL-FONT"
 %token TRAILING
+%token TRAILING_SHIFT	"TRAILING-SHIFT"
 %token TRANSFORM
+%token TRANSPARENT
+%token TREE_VIEW		"TREE-VIEW"
 %token TRIM_FUNC		"FUNCTION TRIM"
 %token TRUNCATION
 %token TYPE
 %token U
 %token UNBOUNDED
 %token UNDERLINE
+%token UNFRAMED
 %token UNIT
 %token UNLOCK
 %token UNSIGNED
 %token UNSIGNED_INT		"UNSIGNED-INT"
 %token UNSIGNED_LONG		"UNSIGNED-LONG"
 %token UNSIGNED_SHORT		"UNSIGNED-SHORT"
+%token UNSORTED
 %token UNSTRING
 %token UNTIL
 %token UP
@@ -2282,18 +2563,33 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token UPPER_CASE_FUNC		"FUNCTION UPPER-CASE"
 %token USAGE
 %token USE
+%token USE_ALT		"USE-ALT"
+%token USE_RETURN	"USE-RETURN"
+%token USE_TAB		"USE-TAB"
 %token USER
 %token USER_DEFAULT		"USER-DEFAULT"
 %token USER_FUNCTION_NAME	"user function name"
 %token USING
 %token V
 %token VALUE
+%token VALUE_FORMAT		"VALUE-FORMAT"
 %token VARIABLE
 %token VARIANT
 %token VARYING
+%token VERTICAL
+%token VERY_HEAVY		"VERY-HEAVY"
+%token VIRTUAL_WIDTH	"VIRTUAL-WIDTH"
+%token VPADDING
+%token VSCROLL
+%token VSCROLL_BAR		"VSCROLL-BAR"
+%token VSCROLL_POS		"VSCROLL-POS"
+%token VTOP
 %token WAIT
+%token WEB_BROWSER		"WEB-BROWSER"
 %token WHEN
 %token WHEN_COMPILED_FUNC	"FUNCTION WHEN-COMPILED"
+%token WIDTH
+%token WIDTH_IN_CELLS	"WIDTH-IN-CELLS"
 %token WINDOW
 %token WITH
 %token WORD			"Identifier"
@@ -2301,6 +2597,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token WORKING_STORAGE		"WORKING-STORAGE"
 %token WRAP
 %token WRITE
+%token X
+%token Y
 %token YYYYDDD
 %token YYYYMMDD
 %token ZERO
@@ -2337,8 +2635,10 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %nonassoc IF
 %nonassoc INITIALIZE
 %nonassoc INITIATE
+%nonassoc INQUIRE
 %nonassoc INSPECT
 %nonassoc MERGE
+%nonassoc MODIFY
 %nonassoc MOVE
 %nonassoc MULTIPLY
 %nonassoc NEXT
@@ -2386,6 +2686,7 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %nonassoc END_EVALUATE
 %nonassoc END_FUNCTION
 %nonassoc END_IF
+%nonassoc END_MODIFY
 %nonassoc END_MULTIPLY
 %nonassoc END_PERFORM
 %nonassoc END_PROGRAM
@@ -2692,10 +2993,46 @@ _options_paragraph:
 ;
 
 _options_clauses:
+  _arithmetic_clause
   _default_rounded_clause
   _entry_convention_clause
   _intermediate_rounding_clause
   TOK_DOT
+;
+
+_arithmetic_clause:
+  /* empty */
+| ARITHMETIC _is arithmetic_choice
+;
+
+arithmetic_choice:
+  NATIVE
+  {
+/* FIXME: the IBM-compatible ARITHMETIC should only be disabled
+          for the specified program (and its nested programs)
+   note: ibm-strict.conf has no OPTIONS paragraph, but ibm.conf does */
+	cb_arithmetic_osvs = 0;
+  }
+| STANDARD
+  {
+	CB_PENDING ("STANDARD ARITHMETIC");
+  }
+| STANDARD_BINARY
+  {
+	CB_PENDING ("STANDARD-BINARY ARITHMETIC");
+  }
+| STANDARD_DECIMAL
+  {
+	CB_PENDING ("STANDARD-DECIMAL ARITHMETIC");
+  }
+/* note: the IBM-compatible ARITHMETIC should likely get in here as an extension
+         but only for the specified program (and its nested programs)
+   decide for a good token name (with CB_CS_OPTIONS), once published it will be fixed
+| OSVS
+  {
+	cb_arithmetic_osvs = 1;
+  }
+ */
 ;
 
 _default_rounded_clause:
@@ -2718,8 +3055,6 @@ _entry_convention_clause:
 | ENTRY_CONVENTION _is convention_type
   {
 	current_program->entry_convention = $3;
-	current_program->entry_convention->source_file = cb_source_file;
-	current_program->entry_convention->source_line = cb_source_line;
   }
 ;
 
@@ -2922,7 +3257,7 @@ object_computer_segment:
   SEGMENT_LIMIT _is integer
   {
 	int segnum;
-	
+
 	if (cb_verify (cb_section_segments, "SEGMENT LIMIT")) {
 		segnum = cb_get_int ($3);
 		if (segnum == 0 || segnum > 49) {
@@ -3430,7 +3765,7 @@ integer_list:
 /* CLASS clause */
 
 class_name_clause:
-  CLASS undefined_word _is class_item_list
+  CLASS undefined_word _class_type _is class_item_list _in_alphabet
   {
 	cb_tree		x;
 
@@ -3441,7 +3776,7 @@ class_name_clause:
 		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
 		/* Returns null on error */
-		x = cb_build_class_name ($2, $4);
+		x = cb_build_class_name ($2, $5);
 		if (x) {
 			current_program->class_name_list =
 				cb_list_add (current_program->class_name_list, x);
@@ -3475,6 +3810,28 @@ class_item:
 	} else {
 		$$ = CB_BUILD_PAIR ($3, $1);
 	}
+  }
+;
+
+_class_type:
+  /* empty */
+| _for ALPHANUMERIC
+  {
+	$$ = NULL;
+  }
+| _for NATIONAL
+  {
+	CB_PENDING_X ($2, _("NATIONAL CLASS"));
+	$$ = cb_int0;
+  }
+;
+
+_in_alphabet:
+  /* empty */
+| IN alphabet_name
+  {
+	CB_PENDING_X ($2, _("CLASS IS integer IN alphabet-name"));
+	$$ = $2;
   }
 ;
 
@@ -3516,12 +3873,12 @@ currency_sign_clause:
 	if (current_program->nested_level) {
 		cb_error (_("%s not allowed in nested programs"), "SPECIAL-NAMES");
 	} else {
+		/* FIXME: actual allowed (depending on dialect), see FR #246 */
 		check_repeated ("CURRENCY", SYN_CLAUSE_1, &check_duplicate);
-		if (strcmp("$", (const char *)s) != 0) {
-			if ($5 && CB_LITERAL ($4)->size != 1) {
-				CB_PENDING_X ($4, _("CURRENCY SIGN longer than one character"));
-				error_ind = 1;
-			}
+
+		/* checks of CURRENCY SIGN (being currency string) when separate */
+		if ($5) {
+			CB_PENDING_X ($4, _("separate currency symbol and currency string"));
 			while (*s) {
 				switch (*s) {
 				case '0':
@@ -3539,7 +3896,7 @@ currency_sign_clause:
 				case ',':
 				case '.':
 				case '*':
-					error_ind = 2;
+					error_ind = 1;
 					break;
 				case ' ':
 					break;
@@ -3550,27 +3907,18 @@ currency_sign_clause:
 				s++;
 			}
 			if (!char_seen) {
-				error_ind = 2;
-			}
-		} else {
-			if (error_ind > 1) {;
-				CB_PENDING_X ($4, _("CURRENCY SIGN other than '$'"));
+				error_ind = 1;
 			}
 		}
-		switch (error_ind) {
-		case 0:
-		case 1:
-			/* FIXME: currency sign/symbol are currently mixed in cobc and libcob */
-			/* current_program->currency_sign = CB_LITERAL ($4); */
-			break;
-		default:
+		if (error_ind) {
 			cb_error_x ($4, _("invalid CURRENCY SIGN '%s'"), (char*)CB_LITERAL ($4)->data);
-			break;
 		}
 		if ($5) {
 			set_currency_picture_symbol ($5);
 		} else {
-			set_currency_picture_symbol ($4);
+			if (!error_ind) {
+				set_currency_picture_symbol ($4);
+			}
 		}
 	}
   }
@@ -3770,7 +4118,7 @@ file_control_entry:
 		cb_error_x (current_file->key,
 			    _("Cannot use RECORD KEY clause on RELATIVE files"));
 	}
-	  
+
 	if (CB_VALID_TREE ($3)) {
 		validate_file (current_file, $3);
 	}
@@ -4095,21 +4443,26 @@ organization:
   INDEXED
   {
 	check_repeated ("ORGANIZATION", SYN_CLAUSE_6, &check_duplicate);
+	error_if_record_delimiter_incompatible (COB_ORG_INDEXED, "INDEXED");
 	current_file->organization = COB_ORG_INDEXED;
   }
 | _record _binary SEQUENTIAL
   {
 	check_repeated ("ORGANIZATION", SYN_CLAUSE_6, &check_duplicate);
+	error_if_record_delimiter_incompatible (COB_ORG_SEQUENTIAL, "SEQUENTIAL");
 	current_file->organization = COB_ORG_SEQUENTIAL;
   }
 | RELATIVE
   {
 	check_repeated ("ORGANIZATION", SYN_CLAUSE_6, &check_duplicate);
+	error_if_record_delimiter_incompatible (COB_ORG_RELATIVE, "RELATIVE");
 	current_file->organization = COB_ORG_RELATIVE;
   }
 | LINE SEQUENTIAL
   {
 	check_repeated ("ORGANIZATION", SYN_CLAUSE_6, &check_duplicate);
+	error_if_record_delimiter_incompatible (COB_ORG_LINE_SEQUENTIAL,
+						"LINE SEQUENTIAL");
 	current_file->organization = COB_ORG_LINE_SEQUENTIAL;
   }
 ;
@@ -4129,12 +4482,68 @@ padding_character_clause:
 /* RECORD DELIMITER clause */
 
 record_delimiter_clause:
-  RECORD DELIMITER _is STANDARD_1
+  RECORD DELIMITER _is
   {
 	check_repeated ("RECORD DELIMITER", SYN_CLAUSE_8, &check_duplicate);
+	current_file->flag_delimiter = 1;
+  }
+  record_delimiter_option
+  {
+	cobc_cs_check = 0;
   }
 ;
 
+record_delimiter_option:
+  STANDARD_1
+  {
+	if (current_file->organization != COB_ORG_SEQUENTIAL) {
+		cb_error (_("RECORD DELIMITER %s only allowed with SEQUENTIAL files"),
+			  "STANDARD-1");
+	}
+
+	if (cb_verify (cb_record_delimiter, _("RECORD DELIMITER clause"))) {
+		cb_warning (warningopt,
+			    _("RECORD DELIMITER STANDARD-1 ignored"));
+	}
+  }
+| LINE_SEQUENTIAL
+  {
+	if (current_file->organization != COB_ORG_SEQUENTIAL
+	    && current_file->organization != COB_ORG_LINE_SEQUENTIAL) {
+		cb_error (_("RECORD DELIMITER %s only allowed with (LINE) SEQUENTIAL files"),
+			  "LINE-SEQUENTIAL");
+	}
+
+	if (cb_verify (cb_record_delimiter, _("RECORD DELIMITER clause"))
+	    && cb_verify (cb_sequential_delimiters, _("LINE-SEQUENTIAL phrase"))) {
+		current_file->organization = COB_ORG_LINE_SEQUENTIAL;
+	}
+  }
+| BINARY_SEQUENTIAL
+  {
+	if (current_file->organization != COB_ORG_SEQUENTIAL) {
+		cb_error (_("RECORD DELIMITER %s only allowed with SEQUENTIAL files"),
+			  "BINARY-SEQUENTIAL");
+	}
+
+	if (cb_verify (cb_record_delimiter, _("RECORD DELIMITER clause"))
+	    && cb_verify (cb_sequential_delimiters, _("BINARY-SEQUENTIAL phrase"))) {
+		current_file->organization = COB_ORG_SEQUENTIAL;
+	}
+  }
+| WORD
+  {
+	if (current_file->organization != COB_ORG_SEQUENTIAL
+	    && current_file->organization != COB_ORG_LINE_SEQUENTIAL) {
+		cb_error (_("RECORD DELIMITER clause only allowed with (LINE) SEQUENTIAL files"));
+	}
+
+	if (cb_verify (cb_record_delimiter, _("RECORD DELIMITER clause"))) {
+		cb_warning (warningopt,
+			    _("Phrase in RECORD DELIMITER not recognised; will be ignored"));
+	}
+  }
+;
 
 /* RECORD KEY clause */
 
@@ -4487,7 +4896,7 @@ record_clause:
 				current_file->record_max = MAX_FD_RECORD_IDX;
 				cb_error (_("RECORD size (IDX) exceeds maximum allowed (%d)"),
 					  MAX_FD_RECORD_IDX);
-			error_ind = 1;
+				error_ind = 1;
 			}
 		} else if (current_file->record_max > MAX_FD_RECORD)  {
 			current_file->record_max = MAX_FD_RECORD;
@@ -5234,12 +5643,12 @@ constant_entry:
 ;
 
 constant_source:
-  _as value_item_list 
+  _as value_item_list
   {
 	$$ = $2;
   }
-| FROM WORD	
-  { 
+| FROM WORD
+  {
 	$$ = CB_LIST_INIT(cb_build_const_from ($2));
   }
 ;
@@ -5317,11 +5726,8 @@ redefines_clause:
   {
 	check_repeated ("REDEFINES", SYN_CLAUSE_1, &check_pic_duplicate);
 	if ($0 != NULL) {
-		if (cb_relaxed_syntax_checks) {
-			cb_warning_x (COBC_WARN_FILLER, $2, _("REDEFINES clause should follow entry-name"));
-		} else {
-			cb_error_x ($2, _("REDEFINES clause must follow entry-name"));
-		}
+		cb_verify_x ($2, cb_free_redefines_position,
+			     _("REDEFINES clause not following entry-name"));
 	}
 
 	current_field->redefines = cb_resolve_redefines (current_field, $2);
@@ -6388,6 +6794,7 @@ report_usage_clause:
 _screen_section:
 | SCREEN SECTION TOK_DOT
   {
+	cobc_cs_check = CB_CS_SCREEN;
 	current_storage = CB_STORAGE_SCREEN;
 	current_field = NULL;
 	description_field = NULL;
@@ -6404,6 +6811,7 @@ _screen_section:
 		current_program->screen_storage = description_field;
 		current_program->flag_screen = 1;
 	}
+	cobc_cs_check = 0;
   }
 ;
 
@@ -6418,6 +6826,7 @@ screen_description_list:
 
 screen_description:
   constant_entry
+  /* normal screen definition */
 | level_number _entry_name
   {
 	cb_tree	x;
@@ -6478,6 +6887,74 @@ screen_description:
 		}
 	}
   }
+  /* ACUCOBOL-GT control definition */
+| level_number _entry_name
+  {
+	cb_tree	x;
+
+	x = cb_build_field_tree ($1, $2, current_field, current_storage,
+				 current_file, 0);
+	/* Free tree associated with level number */
+	cobc_parse_free ($1);
+	check_pic_duplicate = 0;
+	if (CB_INVALID_TREE (x)) {
+		YYERROR;
+	}
+
+	current_field = CB_FIELD (x);
+	if (current_field->parent) {
+		current_field->screen_foreg = current_field->parent->screen_foreg;
+		current_field->screen_backg = current_field->parent->screen_backg;
+		current_field->screen_prompt = current_field->parent->screen_prompt;
+	}
+  }
+  control_definition
+  {
+	CB_PENDING ("GRAPHICAL CONTROL");
+  }
+  _control_attributes
+  _screen_options	/* FIXME: must be included in control_attributes */
+  {
+	cob_flags_t	flags;
+
+	if (current_field->parent) {
+		flags = current_field->parent->screen_flag;
+		flags &= ~COB_SCREEN_BLANK_LINE;
+		flags &= ~COB_SCREEN_BLANK_SCREEN;
+		flags &= ~COB_SCREEN_ERASE_EOL;
+		flags &= ~COB_SCREEN_ERASE_EOS;
+		flags &= ~COB_SCREEN_LINE_PLUS;
+		flags &= ~COB_SCREEN_LINE_MINUS;
+		flags &= ~COB_SCREEN_COLUMN_PLUS;
+		flags &= ~COB_SCREEN_COLUMN_MINUS;
+
+		flags = zero_conflicting_flags (current_field->screen_flag,
+						flags);
+
+		current_field->screen_flag |= flags;
+	}
+
+	if (current_field->screen_flag & COB_SCREEN_INITIAL) {
+		if (!(current_field->screen_flag & COB_SCREEN_INPUT)) {
+			cb_error (_("INITIAL specified on non-input field"));
+		}
+	}
+	if (!qualifier) {
+		current_field->flag_filler = 1;
+	}
+
+	if (likely (current_field)) {
+		if (!description_field) {
+			description_field = current_field;
+		}
+		if (current_field->flag_occurs
+		    && !has_relative_pos (current_field)) {
+			cb_error (_("relative LINE/COLUMN clause required with OCCURS"));
+		}
+	}
+	cobc_cs_check = CB_CS_SCREEN;
+  }
+  /* entry for error recovery */
 | level_number error TOK_DOT
   {
 	/* Free tree associated with level number */
@@ -6565,7 +7042,22 @@ screen_option:
   {
 	set_screen_attr ("REVERSE-VIDEO", COB_SCREEN_REVERSE);
   }
-| SIZE _is integer
+| SIZE _is_equal integer
+  {
+	/* set_screen_attr ("SIZE", COB_SCREEN_SIZE); */
+	CB_PENDING ("SIZE clause");
+	current_field->size = cb_get_int ($3);
+  }
+| SIZE _is_equal numeric_identifier
+  {
+	CB_PENDING (_("screen positions from data-item"));
+  }
+| CSIZE _is_equal numeric_identifier
+  {
+	CB_PENDING (_("screen positions from data-item"));
+	CB_PENDING ("SIZE clause");
+  }
+| CSIZE _is_equal integer
   {
 	/* set_screen_attr ("SIZE", COB_SCREEN_SIZE); */
 	CB_PENDING ("SIZE clause");
@@ -6639,9 +7131,21 @@ screen_option:
   {
 	check_repeated ("LINE", SYN_CLAUSE_16, &check_pic_duplicate);
   }
+| LINES _is_equal control_size
+  {
+	CB_PENDING ("LINES clause");	/* note: should only occur with controls */
+  }
+| CLINE screen_line_number
+  {
+	//check_repeated ("CLINE", SYN_CLAUSE_5000, &check_pic_duplicate);
+  }
 | column_or_col screen_col_number
   {
 	check_repeated ("COLUMN", SYN_CLAUSE_17, &check_pic_duplicate);
+  }
+| CCOL screen_col_number
+  {
+	//check_repeated ("CCOL", SYN_CLAUSE_5001, &check_pic_duplicate);
   }
 | COLOR _is num_id_or_lit
   {
@@ -6696,6 +7200,587 @@ screen_option:
   }
 ;
 
+control_definition:
+  control_type_name
+| OBJECT control_type
+  {
+	cobc_cs_check |= CB_CS_GRAPHICAL_CONTROL;
+  }
+;
+
+control_type_name:
+  LABEL                    /* CTL-LABEL          ->  01 */
+| ENTRY_FIELD              /* CTL-ENTRY-FIELD    ->  02 */
+| PUSH_BUTTON              /* CTL-PUSH-BUTTON    ->  03 */
+| CHECK_BOX                /* CTL-CHECK-BOX      ->  04 */
+| RADIO_BUTTON             /* CTL-RADIO-BUTTON   ->  05 */
+| SCROLL_BAR               /* CTL-SCROLL-BAR     ->  06 */
+| LIST_BOX                 /* CTL-LIST-BOX       ->  07 */
+| COMBO_BOX                /* CTL-COMBO-BOX      ->  08 */
+| FRAME                    /* CTL-FRAME          ->  09 */
+/* disabled for now, conflicts with display attribute
+| TAB                      /* CTL-TAB            ->  10 */
+| BAR                      /* CTL-BAR            ->  11 */
+/* disabled for now, conflicts with display attribute
+| GRID                     /* CTL-GRID           ->  12 */
+| BITMAP                   /* CTL-BITMAP         ->  13 */
+| TREE_VIEW                /* CTL-TREE-VIEW      ->  14 */
+| WEB_BROWSER              /* CTL-WEB-BROWSER    ->  15 */
+| ACTIVEX                  /* CTL-ACTIVE-X       ->  16 */
+| STATUS_BAR               /* CTL-STATUS-BAR     ->  17 */
+| DATE_ENTRY               /* CTL-DATE-ENTRY     ->  18 */
+/* | _NET                    /* check recent controls.def,
+                                define styles and properties, too */
+;
+
+/* note: these match to the control_type_names, see comments there */
+control_type:
+  integer
+| identifier
+;
+
+/* items that are assigned to a control */
+control_item:
+  identifier	/* may be defined in SCREEN SECTION or a handle */
+| CONTROL	/* the actual control is defined by AT, LINE, COLUMN, CLINE, and CCOL */
+;
+
+_control_attributes:
+  /* empty */
+| control_attributes
+;
+
+control_attributes:
+  control_attribute
+| control_attributes control_attribute
+;
+
+control_attribute:
+  control_style
+| control_property _is_are_equal x_list
+;
+
+control_style:
+  STYLE _is_equal control_style_type
+| _flag_not control_style_name
+;
+
+control_property:
+  PROPERTY control_property_type
+| control_property_name
+;
+
+control_style_name:
+  control_style_name_generic
+| control_style_name_label
+| control_style_name_entry_field
+| control_style_name_push_button
+| control_style_name_check_box
+/*| control_style_name_radio_button */
+/*| control_style_name_scroll_bar */
+| control_style_name_list_box
+| control_style_name_combo_box
+| control_style_name_frame
+| control_style_name_tab_control
+| control_style_name_bar
+/*| control_style_name_bitmap */
+| control_style_name_grid
+| control_style_name_tree_view
+/*| control_style_name_web_browser */
+| control_style_name_activex
+| control_style_name_date_entry
+;
+
+control_property_name:
+  control_property_name_generic
+| control_property_name_label
+| control_property_name_entry_field
+| control_property_name_push_button
+/*| control_property_name_check_box <- duplicated from push_button */
+| control_property_name_radio_button
+/*| control_property_name_scroll_bar <- duplicated from radio_button */
+| control_property_name_list_box
+/*| control_property_name_combo_box <- duplicated from list_box */
+| control_property_name_frame
+| control_property_name_tab_control
+| control_property_name_bar
+| control_property_name_bitmap
+| control_property_name_grid
+| control_property_name_tree_view
+| control_property_name_web_browser
+| control_property_name_activex
+| control_property_name_date_entry
+;
+
+
+/* Generic style and property names that apply to several types of controls */
+control_style_name_generic:
+  PERMANENT                /* S-PERMANENT                 --> 1073741824 */
+| TEMPORARY                /* S-TEMPORARY                 --> 536870912  */
+| NOTAB                    /* S-NOTAB                     --> 268435456  */
+| HEIGHT_IN_CELLS          /* S-HEIGHT-IN-CELLS           --> 134217728  */
+| WIDTH_IN_CELLS           /* S-WIDTH-IN-CELLS            --> 67108864   */
+| THREEDIMENSIONAL         /* S-3D                        --> 33554432   */
+| OVERLAP_LEFT             /* S-OVERLAP-LEFT              --> 16777216   */
+| OVERLAP_TOP              /* S-OVERLAP-TOP               --> 8388608    */
+| SELF_ACT                 /* S-SELF-ACT                  --> 4194304    */
+| NOTIFY                   /* S-NOTIFY                    --> 2097152    */
+;
+
+control_property_name_generic:
+  TERMINATION_VALUE        /* P-TERMINATION-VALUE         --> 1 */
+| EXCEPTION_VALUE          /* P-EXCEPTION-VALUE           --> 2 */
+;
+
+/* LABEL style and property names */
+control_style_name_label:
+  LEFT                     /* LS-LEFT                     --> 1  */
+| RIGHT                    /* LS-RIGHT                    --> 2  */
+| CENTER                   /* LS-CENTER                   --> 4  */
+| NO_KEY_LETTER            /* LS-NO-KEY-LETTER            --> 8  */
+| TRANSPARENT              /* LS-TRANSPARENT              --> 16 */
+;
+
+control_property_name_label:
+  LABEL_OFFSET             /* LP-LABEL-OFFSET             --> 1 */
+;
+
+/* ENTRY-FIELD style and property names */
+control_style_name_entry_field:
+/*  LEFT                     /* EFS-LEFT                    --> 1      */
+/*| RIGHT                    /* EFS-RIGHT                   --> 2      */
+/*| CENTER                   /* EFS-CENTER                  --> 4      */
+/*|*/ BOX                      /* EFS-BOX                     --> 8      */
+| NO_BOX                   /* EFS-NO-BOX                  --> 16     */
+| MULTILINE                /* EFS-MULTILINE               --> 32     */
+| VSCROLL                  /* EFS-VSCROLL                 --> 96     */
+| VSCROLL_BAR              /* EFS-VSCROLL-BAR             --> 224    */
+| USE_RETURN               /* EFS-USE-RETURN              --> 256    */
+| USE_TAB                  /* EFS-USE-TAB                 --> 512    */
+| UPPER                    /* EFS-UPPER                   --> 1024   */
+| LOWER                    /* EFS-LOWER                   --> 2048   */
+| NO_AUTOSEL               /* EFS-NO-AUTOSEL              --> 4096   */
+| READ_ONLY                /* EFS-READ-ONLY               --> 8192   */
+/*| AUTO                     /* EFS-AUTOTERMINATE           --> 16384  */
+| NOTIFY_CHANGE            /* EFS-NOTIFY-CHANGE           --> 32768  */
+/*| SECURE                   /* EFS-SECURE                  --> 65536  */
+| NUMERIC                  /* EFS-NUMERIC                 --> 131072 */
+| SPINNER                  /* EFS-SPINNER                 --> 262144 */
+| AUTO_SPIN                /* EFS-AUTO-SPIN               --> 262208 */
+;
+
+control_property_name_entry_field:
+  MAX_TEXT                 /* EFP-MAX-TEXT                --> 3     */
+| MAX_LINES                /* EFP-MAX-LINES               --> 4     */
+| MIN_VAL                  /* EFP-MIN-VAL                 --> 5     */
+| MAX_VAL                  /* EFP-MAX-VAL                 --> 6     */
+| AUTO_DECIMAL             /* EFP-AUTO-DECIMAL            --> 7     */
+| CURSOR_ROW               /* EFP-CURSOR-ROW              --> 8     */
+| CURSOR                   /* EFP-CURSOR                  --> 4097  */
+| ACTION                   /* EFP-ACTION                  --> 4098  */
+| SELECTION_TEXT           /* EFP-SELECTION-TEXT          --> 4099  */
+| CURSOR_COL               /* EFP-CURSOR-COL              --> 4100  */
+;
+
+/* PUSH-BUTTON style and property names */
+control_style_name_push_button:
+  DEFAULT_BUTTON           /* PBS-DEFAULT-BUTTON          --> 1     */
+| ESCAPE_BUTTON            /* PBS-ESCAPE-BUTTON           --> 2     */
+| OK_BUTTON                /* PBS-OK-BUTTON               --> 4     */
+| CANCEL_BUTTON            /* PBS-CANCEL-BUTTON           --> 8     */
+| NO_AUTO_DEFAULT          /* PBS-NO-AUTO-DEFAULT         --> 16    */
+| BITMAP                   /* PBS-BITMAP                  --> 32768 */
+| SQUARE                   /* PBS-SQUARE                  --> 16384 */
+| FRAMED                   /* PBS-FRAMED                  --> 8192  */
+| UNFRAMED                 /* PBS-UNFRAMED                --> 4096  */
+| FLAT                     /* PBS-FLAT                    --> 2048  */
+/*| MULTILINE                /* PBS-MULTILINE               --> 1024  */
+;
+
+control_property_name_push_button:
+  BITMAP_NUMBER            /* PBP-BITMAP-NUMBER           --> 3     */
+| BITMAP_HANDLE            /* PBP-BITMAP-HANDLE           --> 4     */
+;
+
+/* CHECK-BOX style and property names */
+control_style_name_check_box:
+/*  BITMAP                   /* CBS-BITMAP                  --> 32768 */
+/*| SQUARE                   /* CBS-SQUARE                  --> 16384 */
+/*| FRAMED                   /* CBS-FRAMED                  --> 8192  */
+/*| UNFRAMED                 /* CBS-UNFRAMED                --> 4096  */
+/*| FLAT                     /* CBS-FLAT                    --> 2048  */
+/*| MULTILINE                /* CBS-MULTILINE               --> 1024  */
+  VTOP                     /* CBS-VTOP                    --> 512   */
+| LEFT_TEXT                /* CBS-LEFT-TEXT               --> 2     */
+;
+
+/*control_property_name_check_box:
+/*  BITMAP_NUMBER            /* CBP-BITMAP-NUMBER           --> 3     */
+/*| BITMAP_HANDLE            /* CBP-BITMAP-HANDLE           --> 4     */
+/*;
+
+/* RADIO-BUTTON style and property names */
+/*control_style_name_radio_button:
+/*  NO_GROUP_TAB             /* RBS-NO-GROUP-TAB            --> 1     */
+/*| LEFT_TEXT                /* RBS-LEFT-TEXT               --> 2     */
+/*| BITMAP                   /* RBS-BITMAP                  --> 32768 */
+/*| SQUARE                   /* RBS-SQUARE                  --> 16384 */
+/*| FRAMED                   /* RBS-FRAMED                  --> 8192  */
+/*| UNFRAMED                 /* RBS-UNFRAMED                --> 4096  */
+/*| FLAT                     /* RBS-FLAT                    --> 2048  */
+/*| MULTILINE                /* RBS-MULTILINE               --> 1024  */
+/*| VTOP                     /* RBS-VTOP                    --> 512   */
+/*;*/
+
+control_property_name_radio_button:
+/*  BITMAP_NUMBER            /* RBP-BITMAP-NUMBER           --> 3     */
+/*| BITMAP_HANDLE            /* RBP-BITMAP-HANDLE           --> 4     */
+  GROUP                    /* RBP-GROUP                   --> 5     */
+| GROUP_VALUE              /* RBP-GROUP-VALUE             --> 6     */
+;
+
+/* SCROLL-BAR style and property names */
+/*control_style_name_scroll_bar:
+/*  NO_GROUP_TAB             /* SBS-HORIZONTAL              --> 1     */
+/*| LEFT_TEXT                /* SBS-TRACK-THUMB             --> 2     */
+/*; */
+
+/*control_property_name_scroll_bar:
+/*  BITMAP_NUMBER            /* SBP-MIN-VAL                 --> 1     */
+/*| BITMAP_HANDLE            /* SBP-MAX-VAL                 --> 2     */
+/*| GROUP                    /* SBP-PAGE-SIZE               --> 3     */
+/*;*/
+
+/* LIST-BOX style and property names */
+control_style_name_list_box:
+  UNSORTED                 /* LBS-UNSORTED                --> 1     */
+/*| NO_BOX                   /* LBS-NO-BOX                  --> 2     */
+/*| BOX                      /* LBS-BOX                     --> 4     */
+| NOTIFY_DBLCLICK          /* LBS-NOTIFY-DBLCLICK         --> 256   */
+| NOTIFY_SELCHANGE         /* LBS-NOTIFY-SELCHANGE        --> 512   */
+| PAGED                    /* LBS-PAGED                   --> 1024  */
+/*| UPPER                    /* LBS-UPPER                   --> 2048  */
+/*| LOWER                    /* LBS-LOWER                   --> 4096  */
+| NO_SEARCH                /* LBS-NO-SEARCH               --> 8192  */
+;
+
+control_property_name_list_box:
+  MASS_UPDATE              /* LBP-MASS-UPDATE             --> 3     */
+| INSERTION_INDEX          /* LBP-INSERTION-INDEX         --> 4     */
+| DATA_COLUMNS             /* LBP-DATA-COLUMNS            --> 5     */
+| DISPLAY_COLUMNS          /* LBP-DISPLAY-COLUMNS         --> 6     */
+| QUERY_INDEX              /* LBP-QUERY-INDEX             --> 7     */
+| ALIGNMENT                /* LBP-ALIGNMENT               --> 8     */
+| SEPARATION               /* LBP-SEPARATION              --> 9     */
+| DIVIDERS                 /* LBP-DIVIDERS                --> 10    */
+| SORT_ORDER               /* LBP-SORT-ORDER              --> 11    */
+| ITEM_TO_ADD              /* LBP-ITEM-TO-ADD             --> 4097  */
+| RESET_LIST               /* LBP-RESET-LIST              --> 4098  */
+| ITEM_TO_DELETE           /* LBP-ITEM-TO-DELETE          --> 4099  */
+| SEARCH_TEXT              /* LBP-SEARCH-TEXT             --> 4100  */
+| SELECTION_INDEX          /* LBP-SELECTION-INDEX         --> 4103  */
+| ITEM_VALUE               /* LBP-ITEM-VALUE              --> 4104  */
+| THUMB_POSITION           /* LBP-THUMB-POSITION          --> 4105  */
+;
+
+/* COMBO-BOX style and property names */
+control_style_name_combo_box:
+/*  UNSORTED                 /* CMS-UNSORTED                --> 1     */
+  DROP_DOWN                /* CMS-DROP-DOWN               --> 0     */
+| STATIC_LIST              /* CMS-STATIC-LIST             --> 2     */
+| DROP_LIST                /* CMS-DROP-LIST               --> 4     */
+/*| BOX                      /* CMS-BOX                     --> 8     */
+/*| NO_BOX                   /* CMS-NO-BOX                  --> 16    */
+/*| NOTIFY_DBLCLICK          /* CMS-NOTIFY-DBLCLICK         --> 256   */
+/*| NOTIFY_SELCHANGE         /* CMS-NOTIFY-SELCHANGE        --> 512   */
+/*| UPPER                    /* CMS-UPPER                   --> 2048  */
+/*| LOWER                    /* CMS-LOWER                   --> 4096  */
+;
+
+/*control_property_name_combo_box:
+/*  MASS_UPDATE              /* CMP-MASS-UPDATE             --> 3     */
+/*| MAX_TEXT                 /* CMP-MAX-TEXT                --> 4     */
+/*| INSERTION_INDEX          /* CMP-INSERTION-INDEX         --> 5     */
+/*| ITEM_TO_ADD              /* CMP-ITEM-TO-ADD             --> 4097  */
+/*| RESET_LIST               /* CMP-RESET-LIST              --> 4098  */
+/*| ITEM_TO_DELETE           /* CMP-ITEM-TO-DELETE          --> 4099  */
+/*;*/
+
+/* FRAME style and property names */
+control_style_name_frame:
+  RAISED                   /* FS-RAISED                   --> 1     */
+| LOWERED                  /* FS-LOWERED                  --> 2     */
+| ENGRAVED                 /* FS-ENGRAVED                 --> 4     */
+| RIMMED                   /* FS-RIMMED                   --> 8     */
+| HEAVY                    /* FS-HEAVY                    --> 16    */
+| VERY_HEAVY               /* FS-VERY-HEAVY               --> 32    */
+| ALTERNATE                /* FS-ALTERNATE                --> 64    */
+| FULL_HEIGHT              /* FS-FULL-HEIGHT              --> 128   */
+;
+
+control_property_name_frame:
+  HIGH_COLOR               /* FP-HIGH-COLOR               --> 1     */
+| LOW_COLOR                /* FP-LOW-COLOR                --> 2     */
+| FILL_COLOR               /* FP-FILL-COLOR               --> 3     */
+| FILL_PERCENT             /* FP-FILL-PERCENT             --> 4     */
+| FILL_COLOR2              /* FP-FILL-COLOR2              --> 5     */
+| TITLE_POSITION           /* FP-TITLE-POSITION           --> 6     */
+;
+
+/* TAB-CONTROL style and property names */
+control_style_name_tab_control:
+/*  MULTILINE                /* TS-MULTILINE                --> 1     */
+  BUTTONS                  /* TS-BUTTONS                  --> 2     */
+| FIXED_WIDTH              /* TS-FIXED-WIDTH              --> 4     */
+| BOTTOM                   /* TS-BOTTOM                   --> 8     */
+| VERTICAL                 /* TS-VERTICAL                 --> 17    */
+| FLAT_BUTTONS             /* TS-FLAT-BUTTONS             --> 32    */
+| HOT_TRACK                /* TS-HOT-TRACK                --> 64    */
+| NO_DIVIDERS              /* TS-NO-DIVIDERS              --> 128   */
+| NO_FOCUS                 /* TS-NO-FOCUS                 --> 256   */
+;
+
+control_property_name_tab_control:
+/*  BITMAP_HANDLE            /* TP-BITMAP-HANDLE            --> 1     */
+  BITMAP_WIDTH             /* TP-BITMAP-WIDTH             --> 2     */
+/*| BITMAP_NUMBER            /* TP-BITMAP-NUMBER            --> 3     */
+| TAB_TO_ADD               /* TP-TAB-TO-ADD               --> 4097  */
+| RESET_TABS               /* TP-RESET-TABS               --> 4098  */
+| TAB_TO_DELETE            /* TP-TAB-TO-DELETE            --> 4099  */
+;
+
+/* BAR style and property names */
+control_style_name_bar:
+  DOTTED                   /* BRS-DOTTED                  --> 1     */
+| DASHED                   /* BRS-DASHED                  --> 2     */
+| DOTDASH                  /* BRS-DOTDASH                 --> 3     */
+;
+
+control_property_name_bar:
+  WIDTH                    /* BRP-WIDTH                   --> 1     */
+| COLORS                   /* BRP-COLORS                  --> 2     */
+| SHADING                  /* BRP-SHADING                 --> 3     */
+| POSITION_SHIFT           /* BRP-POSITION-SHIFT          --> 4     */
+| LEADING_SHIFT            /* BRP-LEADING-SHIFT           --> 5     */
+| TRAILING_SHIFT           /* BRP-TRAILING-SHIFT          --> 6     */
+;
+
+/* BITMAP style and property names */
+/*control_style_name_bitmap:
+/*  COBOL /* just use as place holder, no styles here */
+/*;*/
+
+control_property_name_bitmap:
+/*  BITMAP_NUMBER            /* BTP-BITMAP-NUMBER            --> 1    */
+/*| BITMAP_HANDLE            /* BTP-BITMAP-HANDLE            --> 2    */
+  BITMAP_START             /* BTP-BITMAP-START             --> 3    */
+| BITMAP_END               /* BTP-BITMAP-END               --> 4    */
+| BITMAP_TIMER             /* BTP-BITMAP-TIMER             --> 5    */
+| BITMAP_TRANSPARENT_COLOR /* BTP-BITMAP-TRANSPARENT-COLOR --> 6    */
+;
+
+/* GRID style and property names */
+control_style_name_grid:
+  BOXED                    /* TGRS-BOXED                   --> 1    */
+/*| NO_BOX                   /* TGRS-NO-BOX                  --> 2    */
+/*| VSCROLL                  /* TGRS-VSCROLL                 --> 4    */
+| HSCROLL                  /* TGRS-HSCROLL                 --> 8    */
+| COLUMN_HEADINGS          /* TGRS-COLUMN-HEADINGS         --> 16   */
+| ROW_HEADINGS             /* TGRS-ROW-HEADINGS            --> 32   */
+| TILED_HEADINGS           /* TGRS-TILED-HEADINGS          --> 64   */
+| CENTERED_HEADINGS        /* TGRS-CENTERED-HEADINGS       --> 128  */
+/*| USE_TAB                  /* TGRS-USE-TAB                 --> 256  */
+| ADJUSTABLE_COLUMNS       /* TGRS-ADJUSTABLE-COLUMNS      --> 512  */
+/*| PAGED                    /* TGRS-PAGED                   --> 1024 */
+;
+
+control_property_name_grid:
+  ROW_DIVIDERS             /* GRP-ROW-DIVIDERS             --> 1    */
+| VPADDING                 /* GRP-VPADDING                 --> 2    */
+| DIVIDER_COLOR            /* GRP-DIVIDER-COLOR            --> 3    */
+/*| INSERTION_INDEX          /* GRP-INSERTION-INDEX          --> 4    */
+/*| DATA_COLUMNS             /* GRP-DATA-COLUMNS             --> 5    */
+/*| DISPLAY_COLUMNS          /* GRP-DISPLAY-COLUMNS          --> 6    */
+/*| ALIGNMENT                /* GRP-ALIGNMENT                --> 7    */
+/*| SEPARATION               /* GRP-SEPARATION               --> 8    */
+| COLUMN_DIVIDERS          /* GRP-COLUMN-DIVIDERS          --> 9    */
+| ROW_COLOR_PATTERN        /* GRP-ROW-COLOR-PATTERN        --> 10   */
+| Y                        /* GRP-Y                        --> 11   */
+| X                        /* GRP-X                        --> 12   */
+| COLUMN_COLOR             /* GRP-COLUMN-COLOR             --> 13   */
+| ROW_COLOR                /* GRP-ROW-COLOR                --> 14   */
+| CELL_COLOR               /* GRP-CELL-COLOR               --> 15   */
+| COLUMN_FONT              /* GRP-COLUMN-FONT              --> 16   */
+| ROW_FONT                 /* GRP-ROW-FONT                 --> 17   */
+| CELL_FONT                /* GRP-CELL-FONT                --> 18   */
+/*| BITMAP                   /* GRP-BITMAP                   --> 19   */
+/*| BITMAP_NUMBER            /* GRP-BITMAP-NUMBER            --> 20   */
+/*| BITMAP_WIDTH             /* GRP-BITMAP-WIDTH             --> 21   */
+| BITMAP_TRAILING          /* GRP-BITMAP-TRAILING          --> 22   */
+| NUM_ROWS                 /* GRP-NUM-ROWS                 --> 23   */
+| CURSOR_Y                 /* GRP-CURSOR-Y                 --> 24   */
+| CURSOR_X                 /* GRP-CURSOR-X                 --> 25   */
+| CURSOR_FRAME_WIDTH       /* GRP-CURSOR-FRAME-WIDTH       --> 26   */
+| VIRTUAL_WIDTH            /* GRP-VIRTUAL-WIDTH            --> 27   */
+| DATA_TYPES               /* GRP-DATA-TYPES               --> 28   */
+| CURSOR_COLOR             /* GRP-CURSOR-COLOR             --> 29   */
+| HEADING_COLOR            /* GRP-HEADING-COLOR            --> 30   */
+| HEADING_FONT             /* GRP-HEADING-FONT             --> 31   */
+| HEADING_DIVIDER_COLOR    /* GRP-HEADING-DIVIDER-COLOR    --> 32   */
+| START_X                  /* GRP-START-X                  --> 33   */
+| START_Y                  /* GRP-START-Y                  --> 34   */
+| REGION_COLOR             /* GRP-REGION-COLOR             --> 35   */
+/*| MASS_UPDATE              /* GRP-MASS-UPDATE              --> 36   */
+| HIDDEN_DATA              /* GRP-HIDDEN-DATA              --> 37   */
+| END_COLOR                /* GRP-END-COLOR                --> 38   */
+| FILE_POS                 /* GRP-FILE-POS                 --> 39   */
+| NUM_COL_HEADINGS         /* GRP-NUM-COL-HEADINGS         --> 40   */
+| DRAG_COLOR               /* GRP-DRAG-COLOR               --> 41   */
+| FINISH_REASON            /* GRP-FINISH-REASON            --> 42   */
+| COLUMN_PROTECTION        /* GRP-COLUMN-PROTECTION        --> 43   */
+| ROW_PROTECTION           /* GRP-ROW-PROTECTION           --> 44   */
+| CELL_PROTECTION          /* GRP-CELL-PROTECTION          --> 45   */
+| RECORD_TO_ADD            /* GRP-RECORD-TO-ADD            --> 4097 */
+| RESET_GRID               /* GRP-RESET-GRID               --> 4098 */
+| CELL_DATA                /* GRP-CELL-DATA                --> 4099 */
+| RECORD_TO_DELETE         /* GRP-RECORD-TO-DELETE         --> 4100 */
+| RECORD_DATA              /* GRP-RECORD-DATA              --> 4101 */
+| LAST_ROW                 /* GRP-LAST-ROW                 --> 4102 */
+| VSCROLL_POS              /* GRP-VSCROLL-POS              --> 4103 */
+| HSCROLL_POS              /* GRP-HSCROLL-POS              --> 4104 */
+/*| ACTION                   /* GRP-ACTION                   --> 4105 */
+/*| SEARCH_TEXT              /* GRP-SEARCH-TEXT              --> 4106 */
+| SEARCH_OPTIONS           /* GRP-SEARCH-OPTIONS           --> 4107 */
+| INSERT_ROWS              /* GRP-INSERT-ROWS              --> 4108 */
+| ENTRY_REASON             /* GRP-ENTRY-REASON             --> 4109 */
+;
+
+/* TREE-VIEW style and property names */
+control_style_name_tree_view:
+/*  BOXED                    /* TVS-BOXED                    --> 1    */
+/*| NO_BOX                   /* TVS-NO-BOX                   --> 2    */
+/*| BUTTONS                  /* TVS-BUTTONS                  --> 4    */
+  SHOW_LINES               /* TVS-SHOW-LINES               --> 8    */
+| LINES_AT_ROOT            /* TVS-LINES-AT-ROOT            --> 16   */
+| SHOW_SEL_ALWAYS          /* TVS-SHOW-SEL-ALWAYS          --> 32   */
+;
+
+control_property_name_tree_view:
+  PARENT                   /* TVP-PARENT                   --> 1    */
+| PLACEMENT                /* TVP-PLACEMENT                --> 2    */
+| ITEM                     /* TVP-ITEM                     --> 3    */
+/*| BITMAP_HANDLE            /* TVP-BITMAP-HANDLE            --> 4    */
+/*| BITMAP_WIDTH             /* TVP-BITMAP-WIDTH             --> 5    */
+/*| ITEM_TO_ADD              /* TVP-ITEM-TO-ADD              --> 4097 */
+| ITEM_TEXT                /* TVP-ITEM-TEXT                --> 4098 */
+| NEXT_ITEM                /* TVP-NEXT-ITEM                --> 4099 */
+/*| ITEM_TO_DELETE           /* TVP-ITEM-TO-DELETE           --> 4100 */
+/*| RESET_LIST               /* TVP-RESET-LIST               --> 4101 */
+| ENSURE_VISIBLE           /* TVP-ENSURE-VISIBLE           --> 4102 */
+| EXPAND                   /* TVP-EXPAND                   --> 4103 */
+| ITEM_TO_EMPTY            /* TVP-ITEM-TO-EMPTY            --> 4104 */
+/*| BITMAP_NUMBER            /* TVP-BITMAP-NUMBER            --> 4105 */
+/*| HIDDEN_DATA              /* TVP-HIDDEN-DATA              --> 4106 */
+| HAS_CHILDREN             /* TVP-HAS-CHILDREN             --> 4107 */
+;
+
+/* WEB-BROWSER style and property names */
+/*control_style_name_web_browser:
+/*  NOTIFY_CHANGE            /* WBS-NOTIFY-CHANGE            --> 1    */
+/*;*/
+
+control_property_name_web_browser:
+  BUSY                     /* WBP-BUSY                     --> 1    */
+| TYPE                     /* WBP-TYPE                     --> 2    */
+| STATUS_TEXT              /* WBP-STATUS-TEXT              --> 3    */
+| NAVIGATE_URL             /* WBP-NAVIGATE-URL             --> 4    */
+| PROGRESS                 /* WBP-PROGRESS                 --> 5    */
+| MAX_PROGRESS             /* WBP-MAX-PROGRESS             --> 6    */
+| CUSTOM_PRINT_TEMPLATE    /* WBP-CUSTOM-PRINT-TEMPLATE    --> 7    */
+| FILE_NAME                /* WBP-FILE-NAME                --> 8    */
+| GO_BACK                  /* WBP-GO-BACK                  --> 4097 */
+| GO_FORWARD               /* WBP-GO-FORWARD               --> 4098 */
+| GO_HOME                  /* WBP-GO-HOME                  --> 4099 */
+| GO_SEARCH                /* WBP-GO-SEARCH                --> 4100 */
+| REFRESH                  /* WBP-REFRESH                  --> 4101 */
+//| STOP                     /* WBP-STOP                     --> 4102 */
+| PRINT                    /* WBP-PRINT                    --> 4103 */
+| PRINT_NO_PROMPT          /* WBP-PRINT-NO-PROMPT          --> 4104 */
+| PRINT_PREVIEW            /* WBP-PRINT-PREVIEW            --> 4105 */
+| PAGE_SETUP               /* WBP-PAGE-SETUP               --> 4106 */
+| SAVE_AS                  /* WBP-SAVE-AS                  --> 4107 */
+| SAVE_AS_NO_PROMPT        /* WBP-SAVE-AS-NO-PROMPT        --> 4108 */
+| PROPERTIES               /* WBP-PROPERTIES               --> 4109 */
+| COPY_SELECTION           /* WBP-COPY-SELECTION           --> 4110 */
+| SELECT_ALL               /* WBP-SELECT-ALL               --> 4111 */
+| CLEAR_SELECTION          /* WBP-CLEAR-SELECTION          --> 4112 */
+;
+
+/* ACTIVE-X style and property names */
+control_style_name_activex:
+/*  USE_RETURN               /* AXS-USE-RETURN               --> 256  */
+/*| USE_TAB                  /* AXS-USE-TAB                  --> 512  */
+  USE_ALT                  /* AXS-USE-ALT                  --> 1024 */
+;
+
+control_property_name_activex:
+  EVENT_LIST               /* AXP-EVENT-LIST               --> 1    */
+
+/* DATE-ENTRY style and property names */
+control_style_name_date_entry:
+  SHORT_DATE               /* DAS-SHORT-DATE               --> 0      */
+| CENTURY_DATE             /* DAS-CENTURY-DATE             --> 1      */
+| LONG_DATE                /* DAS-LONG-DATE                --> 2      */
+| TIME                     /* DAS-TIME                     --> 3      */
+| NO_F4                    /* DAS-NO-F4                    --> 4      */
+| NO_UPDOWN                /* DAS-NO-UPDOWN                --> 8      */
+| RIGHT_ALIGN              /* DAS-RIGHT-ALIGN              --> 16     */
+| SHOW_NONE                /* DAS-SHOW-NONE                --> 32     */
+/*| NOTIFY_CHANGE            /* DAS-NOTIFY-CHANGE            --> 32768  */
+/*| SPINNER                  /* DAS-SPINNER                  --> 262144 */
+;
+
+control_property_name_date_entry:
+  VALUE_FORMAT             /* DAP-VALUE-FORMAT             --> 1    */
+| CALENDAR_FONT            /* DAP-CALENDAR-FONT            --> 2    */
+| DISPLAY_FORMAT           /* DAP-DISPLAY-FORMAT           --> 4097 */
+;
+
+/* note: these match to the style_type_names, see comments there */
+control_style_type:
+  integer
+| identifier
+;
+
+/* note: these match to the property_type_names, see comments there */
+control_property_type:
+  integer
+//| identifier /* logic conflict because of _in_equal control_property_type */
+;
+
+changeable_control_properties:
+  changeable_control_property
+| changeable_control_properties changeable_control_property
+;
+
+changeable_control_property:
+  control_property _in_equal identifier
+| LAYOUT_DATA  _in_equal identifier
+/* more to add here ... */
+;
+
+changeable_window_properties:
+  changeable_window_property
+| changeable_window_properties changeable_window_property
+;
+
+changeable_window_property:
+  TITLE _in_equal identifier
+| SIZE  _in_equal identifier
+| LAYOUT_MANAGER  _in_equal identifier
+/* more to add here ... */
+;
+
 eol:
   EOL
 | _end_of LINE
@@ -6716,6 +7801,20 @@ minus_minus:
 | TOK_MINUS
 ;
 
+control_size:
+  num_id_or_lit control_size_unit
+;
+
+control_size_unit:
+  _cell		{ $$ = $0; }
+| PIXEL		{ $$ = cb_int1; }
+;
+
+_cell:
+  /* empty */	{ $$ = NULL; }
+| CELL			{ $$ = cb_int0; }
+;
+
 screen_line_number:
   _number _is _screen_line_plus_minus num_id_or_lit
   {
@@ -6727,9 +7826,6 @@ screen_line_number:
 
 _screen_line_plus_minus:
   /* empty */
-  {
-	/* Nothing */
-  }
 | plus_plus
   {
 	current_field->screen_flag |= COB_SCREEN_LINE_PLUS;
@@ -6861,8 +7957,6 @@ _procedure_division:
 	current_section->flag_skip_label = !!skip_statements;
 	current_section->flag_declaratives = !!in_declaratives;
 	current_section->xref.skip = 1;
-	CB_TREE (current_section)->source_file = cb_source_file;
-	CB_TREE (current_section)->source_line = cb_source_line;
 	emit_statement (CB_TREE (current_section));
 	label = cb_build_reference ("MAIN PARAGRAPH");
 	current_paragraph = CB_LABEL (cb_build_label (label, NULL));
@@ -6870,8 +7964,6 @@ _procedure_division:
 	current_paragraph->flag_skip_label = !!skip_statements;
 	current_paragraph->flag_dummy_paragraph = 1;
 	current_paragraph->xref.skip = 1;
-	CB_TREE (current_paragraph)->source_file = cb_source_file;
-	CB_TREE (current_paragraph)->source_line = cb_source_line;
 	emit_statement (CB_TREE (current_paragraph));
 	cb_set_system_names ();
   }
@@ -7202,8 +8294,6 @@ section_header:
 	current_section->flag_real_label = !in_debugging;
 	current_section->flag_declaratives = !!in_declaratives;
 	current_section->flag_skip_label = !!skip_statements;
-	CB_TREE (current_section)->source_file = cb_source_file;
-	CB_TREE (current_section)->source_line = cb_source_line;
 	current_paragraph = NULL;
   }
   _segment TOK_DOT
@@ -7251,8 +8341,6 @@ paragraph_header:
 		current_section->flag_declaratives = !!in_declaratives;
 		current_section->flag_skip_label = !!skip_statements;
 		current_section->xref.skip = 1;
-		CB_TREE (current_section)->source_file = cb_source_file;
-		CB_TREE (current_section)->source_line = cb_source_line;
 		emit_statement (CB_TREE (current_section));
 	}
 	current_paragraph = CB_LABEL (cb_build_label ($1, current_section));
@@ -7260,8 +8348,6 @@ paragraph_header:
 	current_paragraph->flag_skip_label = !!skip_statements;
 	current_paragraph->flag_real_label = !in_debugging;
 	current_paragraph->segment = current_section->segment;
-	CB_TREE (current_paragraph)->source_file = cb_source_file;
-	CB_TREE (current_paragraph)->source_line = cb_source_line;
 	emit_statement (CB_TREE (current_paragraph));
   }
 ;
@@ -7293,7 +8379,7 @@ _segment:
 | integer
   {
 	int segnum = cb_get_int ($1);
-	
+
 	$$ = NULL;
 	if (cb_verify (cb_section_segments, "SECTION segment")) {
 		if (segnum > 99) {
@@ -7349,8 +8435,6 @@ statements:
 		current_section->flag_skip_label = !!skip_statements;
 		current_section->flag_declaratives = !!in_declaratives;
 		current_section->xref.skip = 1;
-		CB_TREE (current_section)->source_file = cb_source_file;
-		CB_TREE (current_section)->source_line = cb_source_line;
 		emit_statement (CB_TREE (current_section));
 	}
 	if (!current_paragraph) {
@@ -7360,8 +8444,6 @@ statements:
 		current_paragraph->flag_skip_label = !!skip_statements;
 		current_paragraph->flag_dummy_paragraph = 1;
 		current_paragraph->xref.skip = 1;
-		CB_TREE (current_paragraph)->source_file = cb_source_file;
-		CB_TREE (current_paragraph)->source_line = cb_source_line;
 		emit_statement (CB_TREE (current_paragraph));
 	}
 	if (check_headers_present (COBC_HD_PROCEDURE_DIVISION, 0, 0, 0) == 1) {
@@ -7407,8 +8489,10 @@ statement:
 | if_statement
 | initialize_statement
 | initiate_statement
+| inquire_statement
 | inspect_statement
 | merge_statement
+| modify_statement
 | move_statement
 | multiply_statement
 | open_statement
@@ -7645,7 +8729,7 @@ accept_from_screen_clauses:
 accept_from_screen_clause:
   /* FIXME: could be optional FROM instead of optional AT */
   at_line_column
-| SIZE _is pos_num_id_or_lit /* ignored, as ACCEPT FROM is pending */
+| SIZE _is pos_num_id_or_lit_or_zero /* ignored, as ACCEPT FROM is pending */
 ;
 
 lines_or_number:
@@ -7828,15 +8912,10 @@ accp_attr:
 	set_dispattr_with_conflict ("SECURE", COB_SCREEN_SECURE,
 				    "NO-ECHO", COB_SCREEN_NO_ECHO);
   }
-| PROTECTED SIZE _is positive_id_or_lit
+| _protected SIZE _is pos_num_id_or_lit_or_zero
   {
 	check_repeated ("SIZE", SYN_CLAUSE_21, &check_duplicate);
 	set_attribs (NULL, NULL, NULL, NULL, NULL, $4, 0);
-  }
-| SIZE _is pos_num_id_or_lit
-  {
-	check_repeated ("SIZE", SYN_CLAUSE_21, &check_duplicate);
-	set_attribs (NULL, NULL, NULL, NULL, NULL, $3, 0);
   }
 | UNDERLINE
   {
@@ -8058,6 +9137,9 @@ call_statement:
   }
   call_body
   end_call
+  {
+	cobc_cs_check = 0;
+  }
 ;
 
 call_body:
@@ -8071,17 +9153,32 @@ call_body:
   call_exception_phrases
   {
 	int call_conv = 0;
+	int call_conv_local = 0;
 
 	if (current_program->prog_type == CB_PROGRAM_TYPE
 	    && !current_program->flag_recursive
 	    && is_recursive_call ($3)) {
-		cb_warning_x (COBC_WARN_FILLER, $3, _("recursive program call - assuming RECURSIVE attribute"));
+		cb_warning_x (COBC_WARN_FILLER, $3,
+			_("recursive program call - assuming RECURSIVE attribute"));
 		current_program->flag_recursive = 1;
 	}
 	call_conv = current_call_convention;
+	if ((CB_PAIR_X ($8) != NULL)
+	 && (call_conv & CB_CONV_STATIC_LINK)) {
+		cb_warning_x (COBC_WARN_FILLER, $3,
+		    _("STATIC CALL convention ignored because of ON EXCEPTION"));
+		call_conv &= ~CB_CONV_STATIC_LINK;
+	}
 	if ($1) {
 		if (CB_INTEGER_P ($1)) {
-			call_conv |= CB_INTEGER ($1)->val;
+			call_conv_local = CB_INTEGER ($1)->val;
+			if ((CB_PAIR_X ($8) != NULL)
+			 && (call_conv_local & CB_CONV_STATIC_LINK)) {
+				cb_error_x ($1, _("%s and %s are mutually exclusive"),
+					"STATIC CALL", "ON EXCEPTION");
+				call_conv_local &= ~CB_CONV_STATIC_LINK;
+			}
+			call_conv |= call_conv_local;
 			if (CB_INTEGER ($1)->val & CB_CONV_COBOL) {
 				call_conv &= ~CB_CONV_STDCALL;
 			} else {
@@ -8104,7 +9201,6 @@ _mnemonic_conv:
   /* empty */
   {
 	$$ = NULL;
-	cobc_cs_check = 0;
   }
 | STATIC	/* not active for ENTRY-CONVENTION via PROCEDURE DIVISION */
   {
@@ -8113,17 +9209,14 @@ _mnemonic_conv:
 	} else {
 		$$ = cb_int (CB_CONV_STATIC_LINK);
 	}
-	cobc_cs_check = 0;
   }
 | STDCALL	/* not active for ENTRY-CONVENTION via PROCEDURE DIVISION */
   {
 	$$ = cb_int (CB_CONV_STDCALL);
-	cobc_cs_check = 0;
   }
 | TOK_EXTERN	/* not active for ENTRY-CONVENTION via PROCEDURE DIVISION */
   {
 	$$ = cb_int (0);
-	cobc_cs_check = 0;
   }
 | MNEMONIC_NAME
   {
@@ -8140,7 +9233,6 @@ _mnemonic_conv:
 	} else {
 		$$ = NULL;
 	}
-	cobc_cs_check = 0;
   }
 ;
 
@@ -8230,7 +9322,7 @@ call_param:
   }
 | call_type _size_optional call_x
   {
-	int	save_mode;
+	int	save_mode;	/* internal single parameter only mode */
 
 	save_mode = call_mode;
 	if (call_mode != CB_CALL_BY_REFERENCE) {
@@ -8239,14 +9331,19 @@ call_param:
 			cb_error_x (CB_TREE (current_statement),
 				    _("invalid file name reference"));
 		} else if (call_mode == CB_CALL_BY_VALUE) {
+			/* FIXME: compiler configuration needed, IBM allows one-byte
+			          alphanumeric items [--> a `char`], too, while
+			          COBOL 2002/2014 allow only numeric literals
+			   --> revise after rw-merge */
 			if (cb_category_is_alpha ($3)) {
 				cb_warning_x (COBC_WARN_FILLER, $3,
-					      _("BY CONTENT assumed for alphanumeric item"));
-				save_mode = CB_CALL_BY_CONTENT;
+					      _("BY CONTENT assumed for alphanumeric item '%s'"),
+						  cb_name ($3));
+				call_mode = CB_CALL_BY_CONTENT;
 			}
 		}
 	}
-	$$ = CB_BUILD_PAIR (cb_int (save_mode), $3);
+	$$ = CB_BUILD_PAIR (cb_int (call_mode), $3);
 	CB_SIZES ($$) = size_mode;
 	call_mode = save_mode;
   }
@@ -8813,7 +9910,7 @@ display_message_box:
   MESSAGE _box x_list
   {
 	CB_UNFINISHED_X (CB_TREE(current_statement), "DISPLAY MESSAGE");
-	upon_value = NULL;  
+	upon_value = NULL;
   }
   _display_message_clauses
   {
@@ -8893,13 +9990,13 @@ display_floating_window:
 		/* TODO: set "CELL WIDTH" and "CELL HEIGHT" to "LABEL FONT" */
 		/* if not set already */
 	}
-	cb_emit_display_window (cb_int0, upon_value, $4, line_column,
+	cb_emit_display_window (cb_int0, upon_value, $5, line_column,
 			 current_statement->attr_ptr);
   }
 ;
 
 display_initial_window:
-  intial_type _graphical WINDOW
+  initial_type _graphical WINDOW
   {
 	CB_PENDING ("GRAPHICAL WINDOW");
 	current_statement->name = "DISPLAY INITIAL WINDOW";
@@ -8919,7 +10016,7 @@ display_initial_window:
   }
 ;
 
-intial_type:
+initial_type:
   TOK_INITIAL	{$$ = cb_int1;}
 | STANDARD	{$$ = cb_int2;}
 | INDEPENDENT	{$$ = cb_int3;}
@@ -8941,6 +10038,38 @@ _upon_window_handle:
   }
 ;
 
+window_handle:
+  identifier
+  {
+	struct cb_field	*f;
+
+	if (cb_ref ($1) != cb_error_node) {
+		f = CB_FIELD_PTR ($1);
+		if (f->usage != CB_USAGE_HNDL_WINDOW
+		 && f->usage != CB_USAGE_HNDL_SUBWINDOW) {
+			cb_error_x ($1, _("HANDLE must be a %s HANDLE"), "WINDOW");
+		}
+	}
+	$$ = $1;
+  }
+| WINDOW identifier
+  {
+	struct cb_field	*f;
+
+	if (cb_ref ($2) != cb_error_node) {
+		f = CB_FIELD_PTR ($2);
+		if (f->usage != CB_USAGE_HNDL) {
+			cb_error_x ($2, _("HANDLE must be a generic HANDLE"));
+		}
+	}
+	$$ = $2;
+  }
+| WINDOW	/* current window */
+  {
+	$$ = cb_null;
+  }
+;
+
 display_window_clauses:
   display_window_clause
 | display_window_clauses display_window_clause
@@ -8950,7 +10079,7 @@ display_window_clauses:
           SCREEN is optional(=implied) for ERASE here */
 display_window_clause:
   pop_up_or_handle	/* DISPLAY WINDOW actually only takes POP-UP */
-| LINES integer
+| LINES num_id_or_lit
   {
 	/* TODO: store */
   }
@@ -8990,8 +10119,8 @@ pop_up_area:
 handle_is_in:
   HANDLE _is_in identifier
   {
-	if (strcmp (current_statement->name, "DISPLAY WINDOW")) {
-		cb_error_x ($1, _("HANDLE clause invalid for %s"), 
+	if (!strcmp (current_statement->name, "DISPLAY WINDOW")) {
+		cb_error_x ($3, _("HANDLE clause invalid for %s"),
 			current_statement->name);
 		upon_value = cb_error_node;
 	} else{
@@ -9866,6 +10995,25 @@ initiate_body:
   }
 ;
 
+/* INQUIRE statement */
+
+inquire_statement:
+  INQUIRE
+  {
+	begin_statement ("INQUIRE", 0);
+	cobc_cs_check = CB_CS_INQUIRE_MODIFY;
+  }
+  inquire_body
+  {
+	cobc_cs_check = 0;
+  }  
+;
+
+inquire_body:
+  control_item  changeable_control_properties
+| window_handle changeable_window_properties
+;
+
 /* INSPECT statement */
 
 inspect_statement:
@@ -10081,6 +11229,38 @@ merge_statement:
 ;
 
 
+/* MODIFY statement */
+
+modify_statement:
+  MODIFY
+  {
+	begin_statement ("MODIFY", TERM_MODIFY);
+	cobc_cs_check = CB_CS_INQUIRE_MODIFY;
+  }
+  modify_body
+  end_modify
+  {
+	cobc_cs_check = 0;
+  }
+;
+
+modify_body:
+  control_item  control_attributes
+| window_handle changeable_window_properties
+;
+
+end_modify:
+  /* empty */	%prec SHIFT_PREFER
+  {
+	TERMINATOR_WARNING ($-2, MODIFY);
+  }
+| END_MODIFY
+  {
+	TERMINATOR_CLEAR ($-2, MODIFY);
+  }
+;
+
+
 /* MOVE statement */
 
 move_statement:
@@ -10254,28 +11434,28 @@ end_perform:
   /* empty */	%prec SHIFT_PREFER
   {
 	if (cb_relaxed_syntax_checks) {
-		TERMINATOR_WARNING ($-4, PERFORM);
+		TERMINATOR_WARNING ($-6, PERFORM);
 	} else {
-		TERMINATOR_ERROR ($-4, PERFORM);
+		TERMINATOR_ERROR ($-6, PERFORM);
 	}
   }
 | END_PERFORM
   {
-	TERMINATOR_CLEAR ($-4, PERFORM);
+	TERMINATOR_CLEAR ($-6, PERFORM);
   }
 ;
 
 term_or_dot:
   END_PERFORM
   {
-	TERMINATOR_CLEAR ($-2, PERFORM);
+	TERMINATOR_CLEAR ($-4, PERFORM);
   }
 | TOK_DOT
   {
 	if (cb_relaxed_syntax_checks) {
-		TERMINATOR_WARNING ($-2, PERFORM);
+		TERMINATOR_WARNING ($-4, PERFORM);
 	} else {
-		TERMINATOR_ERROR ($-2, PERFORM);
+		TERMINATOR_ERROR ($-4, PERFORM);
 	}
 	/* Put the dot token back into the stack for reparse */
 	cb_unput_dot ();
@@ -10349,9 +11529,21 @@ perform_varying_list:
 ;
 
 perform_varying:
-  identifier FROM x BY x UNTIL condition
+  identifier FROM x _by_phrase UNTIL condition
   {
-	$$ = cb_build_perform_varying ($1, $3, $5, $7);
+	$$ = cb_build_perform_varying ($1, $3, $4, $6);
+  }
+;
+
+_by_phrase:
+  /*empty */
+  {
+	cb_verify (cb_perform_varying_without_by, _ ("PERFORM VARYING without BY phrase"));
+	$$ = cb_build_numeric_literal (0, "1", 0);
+  }
+| BY arith_nonzero_x
+  {
+	$$ = $2;
   }
 ;
 
@@ -10979,7 +12171,7 @@ set_last_exception_to_off:
 /* SET THREAD thread-handle PRIORITY TO priority */
 
 set_thread_priority:
-  thread_reference_optional PRIORITY TO pos_num_id_or_lit
+  thread_reference_optional PRIORITY TO pos_num_id_or_lit_or_zero
   {
 	cb_emit_set_thread_priority ($1, $4);
 	CB_PENDING ("THREAD");
@@ -11230,6 +12422,7 @@ stop_statement:
   STOP RUN
   {
 	begin_statement ("STOP RUN", 0);
+	cobc_cs_check = CB_CS_STOP;
   }
   stop_returning
   {
@@ -12367,10 +13560,10 @@ expr_tokens:
 expr_token:
   x				{ push_expr ('x', $1); }
 | _is condition_or_class
-  /* This case is separate because _is _not causes a shift/reduce error. */
-| IS not condition_or_class
+  /* This case is separate because _is _not_expr causes a shift/reduce error. */
+| IS not_expr condition_or_class
   /* This case is not in condition_or_class as x contains ZERO. */
-| IS _not ZERO			{ push_expr ('x', cb_zero); }
+| IS _not_expr ZERO			{ push_expr ('x', cb_zero); }
 /* Parentheses */
 | TOK_OPEN_PAREN		{ push_expr ('(', NULL); }
 | TOK_CLOSE_PAREN		{ push_expr (')', NULL); }
@@ -12381,17 +13574,17 @@ expr_token:
 | TOK_DIV			{ push_expr ('/', NULL); }
 | EXPONENTIATION		{ push_expr ('^', NULL); }
 /* Logical operators */
-| not
+| not_expr
 | AND				{ push_expr ('&', NULL); }
 | OR				{ push_expr ('|', NULL); }
 ;
 
-_not:
+_not_expr:
   /* empty */
-| not
+| not_expr
 ;
 
-not:
+not_expr:
   NOT				{ push_expr ('!', NULL); }
 
 condition_or_class:
@@ -12981,6 +14174,38 @@ arith_x:
   }
 ;
 
+arith_nonzero_x:
+  identifier
+| nonzero_numeric_literal
+| function
+| LENGTH_OF identifier_1
+  {
+	$$ = cb_build_length ($2);
+  }
+| LENGTH_OF basic_literal
+  {
+	$$ = cb_build_length ($2);
+  }
+| LENGTH_OF function
+  {
+	$$ = cb_build_length ($2);
+  }
+;
+
+nonzero_numeric_literal:
+  LITERAL
+  {
+	if (cb_tree_category ($1) != CB_CATEGORY_NUMERIC
+	    || cb_get_int ($1) == 0) {
+		cb_error (_("non-zero value expected"));
+		$$ = cb_int1;
+	} else {
+		$$ = $1;
+	}
+  }
+;
+
+
 prog_or_entry:
   PROGRAM
 | ENTRY
@@ -13062,6 +14287,12 @@ positive_id_or_lit:
 	check_not_88_level ($1);
   }
 | report_integer
+;
+
+/* literal allowing zero and figurative constant ZERO */
+pos_num_id_or_lit_or_zero:
+  pos_num_id_or_lit
+| ZERO
 ;
 
 /* literal allowing zero */
@@ -13753,7 +14984,7 @@ flag_separate:
 
 _from_idx_to_idx:
 /* empty */			{ $$ = NULL; }
-| FROM _index pos_num_id_or_lit TO pos_num_id_or_lit
+| FROM _index pos_num_id_or_lit_or_zero TO pos_num_id_or_lit_or_zero
   {
 	cb_tree	x;
 
@@ -13764,7 +14995,7 @@ _from_idx_to_idx:
 
 _dest_index:
 /* empty */			{ $$ = NULL; }
-| DESTINATION _index pos_num_id_or_lit
+| DESTINATION _index pos_num_id_or_lit_or_zero
   {
 	$$ = $3;
   }
@@ -13816,7 +15047,9 @@ verb:
 | INITIALIZE
 | INITIATE
 | INSPECT
+| INQUIRE
 | MERGE
+| MODIFY
 | MOVE
 | MULTIPLY
 | NEXT
@@ -13852,6 +15085,7 @@ scope_terminator:
 | END_DIVIDE
 | END_EVALUATE
 | END_IF
+| END_MODIFY
 | END_MULTIPLY
 | END_PERFORM
 | END_READ
@@ -13892,6 +15126,7 @@ _final:		| FINAL ;
 _for:		| FOR ;
 _from:		| FROM ;
 _in:		| IN ;
+_in_equal:	| IN | TOK_EQUAL;
 _in_order:	| ORDER | IN ORDER ;
 _index:		| INDEX ;
 _indicate:	| INDICATE ;
@@ -13900,6 +15135,7 @@ _into:		| INTO ;
 _is:		| IS ;
 _is_equal:		| IS | TOK_EQUAL;
 _is_are:	| IS | ARE ;
+_is_are_equal:		| IS | ARE | TOK_EQUAL;
 _is_in:		| IS | IN ;
 _key:		| KEY ;
 _left_or_right:	| LEFT | RIGHT ;
@@ -13917,6 +15153,7 @@ _onoff_status:	| STATUS IS | STATUS | IS ;
 _other:		| OTHER ;
 _procedure:	| PROCEDURE ;
 _program:	| PROGRAM ;
+_protected:	| PROTECTED ;
 _record:	| RECORD ;
 _records:	| RECORD | RECORDS;
 _right:		| RIGHT ;

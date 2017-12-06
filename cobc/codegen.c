@@ -144,7 +144,7 @@ static struct field_list	*field_cache = NULL;
 static struct field_list	*local_field_cache = NULL;
 static struct call_list		*call_cache = NULL;
 static struct call_list		*func_call_cache = NULL;
-static struct static_call_list		*static_call_cache = NULL;
+static struct static_call_list	*static_call_cache = NULL;
 static struct base_list		*base_cache = NULL;
 static struct base_list		*globext_cache = NULL;
 static struct base_list		*local_base_cache = NULL;
@@ -191,7 +191,12 @@ static int			working_mem = 0;
 static int			local_working_mem = 0;
 static int			output_indent_level = 0;
 static int			last_segment = 0;
+#ifdef COBC_HAS_CUTOFF_FLAG	/* CHECKME: likely will be removed completely in 3.1 */
 static int			gen_if_level = 0;
+#endif
+static int			gen_init_working = 0;
+static int			need_plus_sign = 0;
+static int			odo_stop_now = 0;
 static unsigned int		nolitcast = 0;
 
 static unsigned int		inside_check = 0;
@@ -215,6 +220,9 @@ static void output_line (const char *, ...)	COB_A_FORMAT12;
 static void output_storage (const char *, ...)	COB_A_FORMAT12;
 static void output_local (const char *, ...)	COB_A_FORMAT12;
 
+static int	out_odoslide_grp_offset	(struct cb_field *p, struct cb_field *fld);
+static void	out_odoslide_grp_size (struct cb_field *p, struct cb_field *fld);
+
 static void output_stmt		(cb_tree);
 static void output_integer	(cb_tree);
 static void output_index	(cb_tree);
@@ -222,7 +230,6 @@ static void output_func_1	(const char *, cb_tree);
 static void output_param	(cb_tree, int);
 static void output_funcall	(cb_tree);
 
-/* Local functions */
 
 static struct cb_field *
 cb_code_field (cb_tree x)
@@ -434,6 +441,25 @@ list_cache_sort (void *inlist, int (*cmpfunc)(const void *mp1, const void *mp2))
 	}
 }
 
+/* Clear local variables */
+void
+cb_init_codegen (void)
+{
+	attr_cache = NULL;
+	base_cache = NULL;
+	call_cache = NULL;
+	field_cache = NULL;
+	func_call_cache = NULL;
+	globext_cache = NULL;
+	label_cache = NULL;
+	literal_cache = NULL;
+	local_base_cache = NULL;
+	local_field_cache = NULL;
+	static_call_cache = NULL;
+	string_buffer = NULL;
+	string_cache = NULL;
+}
+
 /* Output routines */
 
 static void
@@ -559,16 +585,13 @@ output_local (const char *fmt, ...)
 static struct cb_field *
 real_field_founder (const struct cb_field *f)
 {
-	const struct cb_field		*ff;
-
-	ff = f;
-	while (ff->parent) {
-		ff = ff->parent;
+	while (f->parent) {
+		f = f->parent;
 	}
-	if (ff->redefines) {
-		return ff->redefines;
+	if (f->redefines) {
+		f = f->redefines;
 	}
-	return (struct cb_field *)ff;
+	return (struct cb_field *)f;
 }
 
 static struct cb_field *
@@ -582,7 +605,6 @@ chk_field_variable_size (struct cb_field *f)
 	}
 	for (fc = f->children; fc; fc = fc->sister) {
 		if (fc->depending) {
-			/* FIXME: does only cater for one ODO, not for the extension nested ones */
 			f->vsize = fc;
 			f->flag_vsize_done = 1;
 			return fc;
@@ -620,6 +642,228 @@ chk_field_variable_address (struct cb_field *fld)
 	fld->vaddr = 0;
 	fld->flag_vaddr_done = 1;
 	return 0;
+}
+
+/*
+ * Output field offset from base, handle DEPENDING ON with 'odoslide'
+ */
+static int
+out_odoslide_fld_offset (struct cb_field *p, struct cb_field *fld)
+{
+
+	if (p == fld) 	/* Single field */
+		return 1;
+
+	if (p->children) {
+		if (out_odoslide_grp_offset (p, fld))
+			return 1;
+	} else {
+		if (need_plus_sign) {
+			output ("+");
+			need_plus_sign = 0;
+		}
+		if (p->depending) {
+			if (p->size != 1) {
+				output ("%d*", p->size);
+			}
+			output_integer (p->depending);
+		} else if (p->occurs_max > 1) {
+			output ("%d", p->size * p->occurs_max);
+		} else {
+			output ("%d", p->size);
+		}
+	}
+	return 0;
+}
+
+static int
+out_odoslide_grp_offset (struct cb_field *p, struct cb_field *fld)
+{
+	struct cb_field *f;
+	int	found_it;
+	int	add_size;
+
+	if (p == fld
+	 || odo_stop_now) {
+		return 1;
+	}
+	if (p->children) {
+		for (f = p->children; f; f = f->children) {
+			if (f == fld) {
+				need_plus_sign = 0;
+				odo_stop_now = 1;
+				return 1;
+			}
+		}
+		if (need_plus_sign) {
+			output ("+");
+			need_plus_sign = 0;
+		}
+		found_it = 0;
+		f = p->children;
+		if (f->sister == NULL
+	 	 && f->children == NULL
+		 && f->depending == NULL) {
+			found_it = out_odoslide_fld_offset (f, fld);
+		} else {
+			output ("(");
+			add_size = 0;
+			for (f = p->children; f; f = f->sister) {
+				if (f == fld) {
+					found_it = 1;
+					if (add_size > 0) {
+						if (need_plus_sign) {
+							output ("+");
+							need_plus_sign = 0;
+						}
+						output ("%d",add_size);
+						add_size = 0;
+					}
+					output (")");
+					return 1;
+				}
+				if (f != fld
+				 && f->depending == NULL
+				 && f->sister != NULL
+				 && f->children == NULL) {
+					if (f->occurs_max > 1) {
+						add_size += (f->size * f->occurs_max);
+					} else {
+						add_size += f->size;
+					}
+					continue;
+				}
+				if (add_size > 0) {
+					if (need_plus_sign) {
+						output ("+");
+						need_plus_sign = 0;
+					}
+					output ("%d",add_size);
+					add_size = 0;
+					need_plus_sign = 1;
+				}
+				found_it = out_odoslide_fld_offset (f, fld);
+				if (found_it)
+					break;
+				need_plus_sign = 1;
+			}
+			need_plus_sign = 0;
+			output (")");
+			if (found_it)
+				return 1;
+		}
+		if (odo_stop_now)
+			return 1;
+		if (p->depending) {
+			output ("*");
+			output_integer (p->depending);
+		} else if (p->occurs_max > 1) {
+			output ("*%d", p->occurs_max);
+		}
+		if (found_it)
+			return 1;
+	} else {
+		if (out_odoslide_fld_offset (p, fld))
+			return 1;
+	}
+	return 0;
+}
+
+static void
+out_odoslide_offset (struct cb_field *f01, struct cb_field *fld)
+{
+	need_plus_sign = 1;
+	odo_stop_now = 0;
+	out_odoslide_fld_offset (f01, fld);
+}
+
+/*
+ * Output field size, handle DEPENDING ON with 'odoslide'
+ */
+static void
+out_odoslide_fld_size (struct cb_field *p, struct cb_field *fld)
+{
+	if (p->children) {
+		out_odoslide_grp_size (p, fld);
+	} else {
+		if (p->depending) {
+			if (p->size != 1) {
+				output ("%d*", p->size);
+			}
+			output_integer (p->depending);
+		} else if (p->occurs_max > 1) {
+			output ("%d", p->size * p->occurs_max);
+		} else {
+			output ("%d", p->size);
+		}
+	}
+}
+
+static void
+out_odoslide_grp_size (struct cb_field *p, struct cb_field *fld)
+{
+	struct cb_field	*f;
+	int		add_size;
+
+	if (p->children) {
+		need_plus_sign = 0;
+		f = p->children;
+		if (f->sister == NULL
+	 	 && f->children == NULL
+		 && f->depending == NULL) {
+			out_odoslide_fld_size (f, fld);
+		} else {
+			output ("(");
+			add_size = 0;
+			for (f = p->children; f; f = f->sister) {
+				if (need_plus_sign) {
+					output ("+");
+					need_plus_sign = 0;
+				}
+				if (f != fld
+				 && f->depending == NULL
+				 && f->sister != NULL
+				 && f->children == NULL) {
+					if (f->occurs_max > 1) {
+						add_size += (f->size * f->occurs_max);
+					} else {
+						add_size += f->size;
+					}
+					continue;
+				}
+				if (add_size > 0) {
+					if (need_plus_sign) {
+						output ("+");
+					}
+					output ("%d+",add_size);
+					add_size = 0;
+					need_plus_sign = 0;
+				}
+				out_odoslide_fld_size (f, fld);
+				need_plus_sign = 1;
+			}
+			output (")");
+		}
+		need_plus_sign = 0;
+		if (p == fld) {
+			return;
+		}
+		if (p->depending) {
+			output ("*");
+			output_integer (p->depending);
+		} else if (p->occurs_max > 1) {
+			output ("*%d", p->occurs_max);
+		}
+	} else {
+		out_odoslide_fld_size (p, fld);
+	}
+}
+
+static void
+out_odoslide_size (struct cb_field *fld)
+{
+	need_plus_sign = 0;
+	out_odoslide_fld_size (fld, fld);
 }
 
 static void
@@ -694,30 +938,54 @@ output_base (struct cb_field *f, const cob_u32_t no_output)
 		output ("%s%d", CB_PREFIX_BASE, f01->id);
 	}
 
-	if (chk_field_variable_address (f)) {
-		for (p = f->parent; p; f = f->parent, p = f->parent) {
-			for (p = p->children; p != f; p = p->sister) {
-				v = chk_field_variable_size (p);
-				if (v) {
-					output (" + %d + ", v->offset - p->offset);
-					if (v->size != 1) {
-						output ("%d * ", v->size);
+	if (!gen_init_working
+	 && chk_field_variable_address (f)) {
+		if (f01->level == 0
+		 && f01->sister
+		 && strstr (f01->name, " Record")) {	/* Skip to First 01 within FD */
+			f01 = f01->sister;
+		}
+		if (cb_flag_odoslide) {
+			out_odoslide_offset (f01, f);
+		} else {
+			for (p = f->parent; p; f = f->parent, p = f->parent) {
+				for (p = p->children; p != f; p = p->sister) {
+					v = chk_field_variable_size (p);
+					if (v) {
+						output (" + %d + ", v->offset - p->offset);
+						if (v->size != 1) {
+							output ("%d * ", v->size);
+						}
+						output_integer (v->depending);
+					} else {
+						output (" + %d", p->size * p->occurs_max);
 					}
-					output_integer (v->depending);
-				} else if (p->depending && cb_flag_odoslide) {
-					output (" + ");
-					if (p->size != 1) {
-						output ("%d * ", p->size);
-					}
-					output_integer (p->depending);
-				} else {
-					output (" + %d", p->size * p->occurs_max);
 				}
 			}
 		}
 	} else if (f->offset > 0) {
 		output (" + %d", f->offset);
 	}
+}
+
+static int
+is_index_1 (cb_tree x)
+{
+	switch (CB_TREE_TAG (x)) {
+	case CB_TAG_INTEGER:
+		if (CB_INTEGER (x)->val == 1) {
+			return 1;
+		}
+		break;
+	case CB_TAG_LITERAL:
+		if (cb_get_int (x) == 1) {
+			return 1;
+		}
+		break;
+	default:
+		return 0;
+	}
+	return 0;
 }
 
 static void
@@ -734,7 +1002,7 @@ output_data (cb_tree x)
 	case CB_TAG_LITERAL:
 		l = CB_LITERAL (x);
 		if (CB_TREE_CLASS (x) == CB_CLASS_NUMERIC) {
-			output ("(cob_u8_ptr)\"%s%s\"", 
+			output ("(cob_u8_ptr)\"%s%s\"",
 					(l->sign < 0) ? "-" : (l->sign > 0) ? "+" : "",
 					(char *)l->data);
 		} else {
@@ -756,28 +1024,46 @@ output_data (cb_tree x)
 		if (r->subs) {
 			lsub = r->subs;
 			o_slide = NULL;
+			o = f;
 			for (; f && lsub; f = f->parent) {
 				/* add current field size for OCCURS */
 				if (f->flag_occurs) {
-					/* recalculate size for nested ODO ... */
-					if (unlikely(o_slide)) {
-						for (o = o_slide; o; o = o->children) {
-							if (o->depending) {
-								output (" + (%d * ", o->size);
-								output_integer (o->depending);
-								output (")");
-							}
-						}
+					/* 1 - 1 is 0 so skip it */
+					if (is_index_1 (CB_VALUE (lsub)) ) {
+						lsub = CB_CHAIN (lsub);
+						continue;
+					}
+
+					if (cb_flag_odoslide
+					 && !gen_init_working
+					 && f != o
+					 && chk_field_variable_size(f)) {
+						output (" + ");
+						out_odoslide_size (f);
 						output (" * ");
 					} else {
-					/* ... use field size otherwise */
-						output (" + ");
-						if (f->size != 1) {
-							output ("%d * ", f->size);
+						/* recalculate size for nested ODO ... */
+						if (unlikely(o_slide)) {
+							for (o = o_slide; o; o = o->children) {
+								if (o->depending) {
+									output (" + (%d * ", o->size);
+									output_integer (o->depending);
+									output (")");
+								}
+							}
+							output (" * ");
+						} else {
+						/* ... use field size otherwise */
+							output (" + ");
+							if (f->size != 1) {
+								output ("%d * ", f->size);
+							}
 						}
-					}
-					if (cb_flag_odoslide && f->depending) {
-						o_slide = f;
+						if (cb_flag_odoslide
+						 && !gen_init_working
+						 && f->depending) {
+							o_slide = f;
+						}
 					}
 
 					output_index (CB_VALUE (lsub));
@@ -829,7 +1115,7 @@ output_size (const cb_tree x)
 		break;
 	case CB_TAG_LITERAL:
 		l = CB_LITERAL (x);
-		output ("%d", (int)(l->size + ((l->sign != 0) ? 1 : 0)));
+		output ("%d", (int)(l->size + (l->sign != 0)));
 		break;
 	case CB_TAG_REFERENCE:
 		r = CB_REFERENCE (x);
@@ -843,11 +1129,17 @@ output_size (const cb_tree x)
 		} else if (r->offset && f->flag_any_length) {
 			output ("%s%d.size - ", CB_PREFIX_FIELD, f->id);
 			output_index (r->offset);
+		} else if (chk_field_variable_size (f)
+			&& cb_flag_odoslide
+			&& !gen_init_working) {
+			out_odoslide_size (f);
 		} else {
 			p = chk_field_variable_size (f);
 			q = f;
 again:
-			if (!cb_flag_odoslide && p && p->flag_odo_relative) {
+			if ((!cb_flag_odoslide || gen_init_working)
+			 && p
+			 && p->flag_odo_relative) {
 				q = p;
 				output ("%d", p->size * p->occurs_max);
 			} else if (p && (!r->flag_receiving ||
@@ -856,20 +1148,6 @@ again:
 					output ("%d + ", p->offset - q->offset);
 				}
 				if (p->size != 1) {
-#if 0 /* draft from Simon -
-		 works only if the ODOs are directly nested and
-		 have no "sister" elements,
-		 the content would only be correct if -fodoslide
-		 is active as we need a temporary field otherwise
-		 see FR #99 */
-					/* size for nested ODO */
-					if (p->odo_level > 1) {
-						output_integer (p->depending);
-						output (" * ");
-						p = q;
-						goto again;
-					}
-#endif
 					output ("%d * ", p->size);
 				}
 				output_integer (p->depending);
@@ -1381,10 +1659,15 @@ output_local_implicit_fields (void)
 static void
 output_debugging_fields (struct cb_program *prog)
 {
+#if 0 /* only needed for compilation to GnuCOBOL 2.0-2.2 level (later addition) */
+      /* directly done in libcob now, see cob_glob_ptr->cob_debugging_mode */
 	if (prog->flag_debugging) {
 		output_local ("\n/* DEBUG runtime switch */\n");
 		output_local ("static int\tcob_debugging_mode = 0;\n");
 	}
+#else
+	COB_UNUSED (prog);
+#endif
 	if (need_save_exception) {
 		output_local ("\n/* DEBUG exception code save */\n");
 		output_local ("int\t\tsave_exception_code = 0;\n");
@@ -1537,7 +1820,7 @@ output_field (cb_tree x)
 }
 
 static void
-output_local_field_cache (void)
+output_local_field_cache (int is_recursive_prog)
 {
 	struct field_list	*field;
 
@@ -1547,17 +1830,33 @@ output_local_field_cache (void)
 
 	/* Switch to local storage file */
 	output_target = current_prog->local_include->local_fp;
-	output_local ("\n/* Fields */\n");
+	if (is_recursive_prog) {
+		output_local ("\n/* Fields for recursive routine */\n");
+	} else {
+		output_local ("\n/* Fields */\n");
+	}
 
 	local_field_cache = list_cache_sort (local_field_cache,
 					     &field_cache_cmp);
 	for (field = local_field_cache; field; field = field->next) {
-		output ("static cob_field %s%d\t= ", CB_PREFIX_FIELD,
-			field->f->id);
 
 		if (!field->f->flag_local) {
+			if (is_recursive_prog
+			&& !field->f->flag_filler) {
+				output ("/* %s is not local */\n",
+				field->f->name);
+			}
+			output ("static cob_field %s%d\t= ", CB_PREFIX_FIELD,
+				field->f->id);
 			output_field (field->x);
 		} else {
+			if (is_recursive_prog) {
+				output ("       ");
+			} else {
+				output ("static ");
+			}
+			output ("cob_field %s%d\t= ", CB_PREFIX_FIELD,
+				field->f->id);
 			output ("{");
 			output_size (field->x);
 			output (", NULL, ");
@@ -2007,7 +2306,7 @@ cb_lookup_literal (cb_tree x, int make_decimal)
 		    literal->scale == l->literal->scale &&
 		    memcmp (literal->data, l->literal->data,
 			    (size_t)literal->size) == 0) {
-			if(make_decimal)
+			if (make_decimal)
 				l->make_decimal = 1;
 			return l->id;
 		}
@@ -2079,8 +2378,34 @@ output_integer (cb_tree x)
 			output (")");
 		} else {
 			output ("(");
+#ifdef	COB_NON_ALIGNED
+			if (CB_TREE_TAG (p->x) == CB_TAG_REFERENCE
+			 && p->x != cb_null) {
+				f = cb_code_field (p->x);
+				/* typecast is required on Sun because pointer
+				 * arithmetic is not allowed on (void *)
+				 */
+				if (f->usage == CB_USAGE_POINTER
+				 || f->usage == CB_USAGE_PROGRAM_POINTER) {
+					output ("(cob_u8_ptr)");
+				}
+			}
+#endif
 			output_integer (p->x);
 			output (" %c ", p->op);
+#ifdef	COB_NON_ALIGNED
+			if (CB_TREE_TAG (p->y) == CB_TAG_REFERENCE
+			 && p->y != cb_null) {
+				f = cb_code_field (p->y);
+				/* typecast is required on Sun because pointer
+				 * arithmetic is not allowed on (void *)
+				 */
+				if (f->usage == CB_USAGE_POINTER
+				 || f->usage == CB_USAGE_PROGRAM_POINTER) {
+					output ("(cob_u8_ptr)");
+				}
+			}
+#endif
 			output_integer (p->y);
 			output (")");
 		}
@@ -2556,9 +2881,9 @@ output_index (cb_tree x)
 		break;
 	default:
 		output ("(");
-		if(CB_TREE_TAG (x) == CB_TAG_REFERENCE) {
+		if (CB_TREE_TAG (x) == CB_TAG_REFERENCE) {
 			f = cb_code_field (x);
-			if(f->pic
+			if (f->pic
 			&& f->pic->have_sign == 0) {	/* Avoid ((unsigned int)(0 - 1)) */
 				f->pic->have_sign = 1;	/* Handle subscript as signed */
 				output_integer (x);
@@ -2796,15 +3121,14 @@ output_param (cb_tree x, int id)
 			break;
 		}
 
+		/* LCOV_EXCL_START */
 		if (!CB_FIELD_P (r->value)) {
-			/* LCOV_EXCL_START */
 			cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
 				"output_param", "x");
 			cobc_err_msg (_("%s is not a field"), r->word->name);
-			cobc_err_msg (_("Please report this!"));
 			COBC_ABORT ();
-			/* LCOV_EXCL_STOP */
 		}
+		/* LCOV_EXCL_STOP */
 
 		f = CB_FIELD (r->value);
 
@@ -2817,9 +3141,11 @@ output_param (cb_tree x, int id)
 			f->flag_local = 1;
 		}
 
-		if (!r->subs && !r->offset && f->count > 0 &&
-		    !chk_field_variable_size (f) &&
-		    !chk_field_variable_address (f)) {
+		if (!r->subs
+		 && !r->offset
+		 && f->count > 0
+		 && !chk_field_variable_size (f)
+		 && !chk_field_variable_address (f)) {
 			if (!f->flag_field) {
 				savetarget = output_target;
 				output_target = NULL;
@@ -2896,7 +3222,13 @@ output_param (cb_tree x, int id)
 		output ("cob_intr_binop (");
 		output_param (bp->x, id);
 		output (", ");
-		output ("%d", bp->op);
+		if (isprint(bp->op)
+		 && bp->op != '"'
+		 && bp->op != '\'') {
+			output ("'%c'", bp->op);
+		} else {
+			output ("%d", bp->op);
+		}
 		output (", ");
 		output_param (bp->y, id);
 		output (")");
@@ -2904,7 +3236,17 @@ output_param (cb_tree x, int id)
 	case CB_TAG_INTRINSIC:
 		ip = CB_INTRINSIC (x);
 		if (ip->isuser) {
-			func = user_func_upper (CB_PROTOTYPE (cb_ref (ip->name))->ext_name);
+			l = cb_ref (ip->name);
+			/* LCOV_EXCL_START */
+			if (l == cb_error_node) {
+				cobc_err_msg (_("call to '%s' with invalid parameter '%s'"),
+					"output_param", "x");
+				/* not translated as it is a highly unlikely internal abort */
+				cobc_err_msg ("%s is no valid reference", cb_name (ip->name));
+				COBC_ABORT ();
+			}
+			/* LCOV_EXCL_STOP */
+			func = user_func_upper (CB_PROTOTYPE (l)->ext_name);
 			lookup_func_call (func);
 #if	0	/* RXWRXW Func */
 			output ("cob_user_function (func_%s, &cob_dyn_%u, ",
@@ -4635,7 +4977,9 @@ output_call (struct cb_call *p)
 	}
 
 	if (dynamic_link && name_is_literal_or_prototype) {
-		if (cb_flag_static_call || (p->convention & CB_CONV_STATIC_LINK)) {
+		/* no static link for calls with exception statement */
+		if ((cb_flag_static_call && !p->stmt1)
+		 || (p->convention & CB_CONV_STATIC_LINK)) {
 			dynamic_link = 0;
 		}
 
@@ -4885,12 +5229,20 @@ output_call (struct cb_call *p)
 	/* Set number of parameters */
 	output_prefix ();
 	output ("cob_glob_ptr->cob_call_params = %u;\n", n);
+
+	/* pass information about available ON EXCEPTION */
 	output_prefix ();
 	if (p->stmt1) {
 		output ("cob_glob_ptr->cob_stmt_exception = 1;\n");
 	} else {
 		output ("cob_glob_ptr->cob_stmt_exception = 0;\n");
 	}
+
+	/* ensure that we don't have a program exception set already
+	   as this will be checked directly when returning from CALL */
+	output_line ("if (unlikely((cob_glob_ptr->cob_exception_code & 0x%04x) == 0x%04x)) "
+		"cob_glob_ptr->cob_exception_code = 0;",
+		CB_EXCEPTION_CODE(COB_EC_PROGRAM), CB_EXCEPTION_CODE(COB_EC_PROGRAM));
 
 	/* Function name */
 	output_prefix ();
@@ -5140,7 +5492,8 @@ output_call (struct cb_call *p)
 	output (");\n");
 
 	if (except_id > 0) {
-		output_line ("if (unlikely(cob_glob_ptr->cob_exception_code != 0))");
+		output_line ("if (unlikely((cob_glob_ptr->cob_exception_code & 0x%04x) == 0x%04x))",
+			CB_EXCEPTION_CODE(COB_EC_PROGRAM), CB_EXCEPTION_CODE(COB_EC_PROGRAM));
 		output_line ("\tgoto %s%d;", CB_PREFIX_LABEL, except_id);
 	}
 
@@ -5843,11 +6196,11 @@ get_ec_code_for_handler (const enum cb_handler_type handler_type)
 		return CB_EXCEPTION_CODE (COB_EC_I_O_EOP);
 	case INVALID_KEY_HANDLER:
 		return CB_EXCEPTION_CODE (COB_EC_I_O_INVALID_KEY);
+	/* LCOV_EXCL_START */
 	default:
-		/* LCOV_EXCL_START */
 		cobc_err_msg (_("unexpected handler type: %d"), (int) handler_type);
 		COBC_ABORT ();
-		/* LCOV_EXCL_STOP */
+	/* LCOV_EXCL_STOP */
 	}
 }
 
@@ -6099,6 +6452,48 @@ output_handler (struct cb_statement *stmt)
 }
 
 
+/*
+ * For OPEN and file has SELECT fields which are LINKAGE or BASED
+ * set the current address of the field at OPEN time
+ */
+static void
+output_file_variable (cb_tree x, struct cb_file *fl, struct cb_statement *p, const char *set_field, int always)
+{
+	struct cb_funcall	*c;
+	struct cb_reference	*r;
+	struct cb_field		*f;
+	int			set_address;
+	if (x == NULL)
+		return;
+	 if (!CB_REF_OR_FIELD_P (x))
+		 return;
+	r = CB_REFERENCE (x);
+	if ( r && CB_FIELD_P (r->value) ) {
+		f = CB_FIELD (r->value);
+		if (f->flag_local
+		 || f->flag_item_based
+		 || f->flag_local_storage
+		 || f->storage == CB_STORAGE_LINKAGE
+		 || f->storage == CB_STORAGE_LOCAL)
+			set_address = 1;
+		else
+			set_address = 0;
+		if (set_address
+		&& p->body
+		&& CB_TREE_TAG (CB_VALUE(p->body)) == CB_TAG_FUNCALL) {
+			c = CB_FUNCALL (CB_VALUE(p->body));
+			if (strcmp(c->name,"cob_open") == 0
+			 || strcmp(c->name,"cob_extfh_open") == 0
+			 || always) {
+				output_prefix ();
+				output ("%s%s->%s = ", CB_PREFIX_FILE, fl->cname, set_field);
+				output_param (x, -1);
+				output (";\n");
+			}
+		}
+	}
+}
+
 static void
 output_stmt (cb_tree x)
 {
@@ -6110,6 +6505,7 @@ output_stmt (cb_tree x)
 	struct cb_if		*ip;
 	struct cb_para_label	*pal;
 	struct cb_set_attr	*sap;
+	struct cb_file		*fl;
 #ifdef	COB_NON_ALIGNED
 	struct cb_cast		*cp;
 #endif
@@ -6161,6 +6557,15 @@ output_stmt (cb_tree x)
 
 		if (!p->file && (p->ex_handler || p->not_ex_handler)) {
 			output_line ("cob_glob_ptr->cob_exception_code = 0;");
+		}
+
+		if (p->file) {
+			fl = CB_FILE (p->file);
+
+			if (fl->organization == COB_ORG_RELATIVE) {
+				output_file_variable (fl->key, fl, p, "keys[0].field", 1);
+			}
+			output_file_variable (fl->assign, fl, p, "assign", 0);
 		}
 
 		if (p->null_check) {
@@ -6218,7 +6623,11 @@ output_stmt (cb_tree x)
 
 		/* Check for runtime debug flag */
 		if (current_prog->flag_debugging && lp->flag_is_debug_sect) {
+#if 0 /* only needed for compilation to GnuCOBOL 2.0-2.2 level (later addition) */
 			output_line ("if (!cob_debugging_mode)");
+#else
+			output_line ("if (!cob_glob_ptr->cob_debugging_mode)");
+#endif
 			output_line ("\tgoto %s%d;",
 				CB_PREFIX_LABEL, CB_LABEL (lp->exit_label)->id);
 		}
@@ -6433,7 +6842,9 @@ output_stmt (cb_tree x)
 			}
 			output_newline ();
 		}
+#ifdef COBC_HAS_CUTOFF_FLAG	/* CHECKME: likely will be removed completely in 3.1 */
 		gen_if_level++;
+#endif
 		code = 0;
 		output_prefix ();
 		if (ip->test == cb_false
@@ -6452,19 +6863,23 @@ output_stmt (cb_tree x)
 			} else {
 				output_line ("; /* Nothing */");
 			}
+#ifdef COBC_HAS_CUTOFF_FLAG	/* CHECKME: likely will be removed completely in 3.1 */
 			if (gen_if_level > cb_if_cutoff) {
 				if (ip->stmt2) {
 					code = cb_id++;
 					output_line ("goto l_%d;", code);
 				}
 			}
+#endif
 			output_indent_level -= 2;
 			output_line ("}");
 		}
+#ifdef COBC_HAS_CUTOFF_FLAG	/* CHECKME: likely will be removed completely in 3.1 */
 		if (ip->stmt2) {
 			if (gen_if_level <= cb_if_cutoff) {
-				if (!skip_else)
+				if (!skip_else) {
 					output_line ("else");
+				}
 				output_line ("{");
 				output_indent_level += 2;
 			}
@@ -6482,6 +6897,23 @@ output_stmt (cb_tree x)
 			}
 		}
 		gen_if_level--;
+#else /* ifdef COBC_HAS_CUTOFF_FLAG */
+		if (ip->stmt2) {
+			if (!skip_else) {
+				output_line ("else");
+			}
+			output_line ("{");
+			output_indent_level += 2;
+			if (ip->is_if) {
+				output_line ("/* ELSE */");
+			} else {
+				output_line ("/* WHEN */");
+			}
+			output_stmt (ip->stmt2);
+			output_indent_level -= 2;
+			output_line ("}");
+		}
+#endif
 		break;
 	case CB_TAG_PERFORM:
 		output_perform (CB_PERFORM (x));
@@ -7117,26 +7549,158 @@ output_initial_values (struct cb_field *f)
 	}
 }
 
-#if	0	/* BWT coerce linkage values to picture */
-/**
- * Ensure linkage items match picture
- */
+/* Code for displaying hex dumps - Ron Norman */
+#if 0
+static int field_subscript[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+static int size_subscript[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+
 static void
-output_coerce_linkage (struct cb_field *f)
+output_field_display (struct cb_field *f, int offset, int idx)
+{
+	struct cb_field *p;
+	cb_tree x;
+	int	i, svlocal;
+	char	*fname = (char*)f->name;
+
+	if (memcmp(fname,"FILLER ",7) == 0)
+		fname = (char*)"FILLER";
+	svlocal = f->flag_local;
+	f->flag_local = 0;
+	x = cb_build_field_reference (f, NULL);
+	output_prefix ();
+	output ("cob_dump_field (%2d, \"%s\", ", f->level, fname);
+	if (f->flag_local
+	 && !f->flag_data_set) {
+		output ("COB_SET_DATA (%s%d, ",
+			CB_PREFIX_FIELD, f->id);
+		output_data (x);
+		output (")");
+	} else
+	if (f->count > 0) {
+		output_param (x, 0);
+	} else {
+		output ("COB_SET_FLD(%s, ", "f0");
+		output_size (x);
+		output (", ");
+		output_data (x);
+		output (", ");
+		output_attr (x);
+		output (")");
+	}
+	output (", %d, %d", offset, idx);
+	if (idx > 0) {
+		p = f->parent;
+		for (i=0; i < idx; i++) {
+			if (field_subscript[i] < 0) {
+				output (", i_%d, ",-field_subscript[i]);
+				if (cb_flag_odoslide
+				 && p->depending) {
+					output_size (cb_build_field_reference (p, NULL));
+				} else {
+					output ("%d",size_subscript[i]);
+				}
+			} else {
+				output (", %d, 0",field_subscript[i]);
+			}
+			p = p->parent;
+		}
+	}
+	output (");\n");
+	f->flag_local = svlocal;
+}
+
+static void
+output_display_fields (struct cb_field *f, int offset, int idx)
 {
 	struct cb_field	*p;
-	cb_tree		x;
+	int		adjust;
+	int		i;
 
 	for (p = f; p; p = p->sister) {
-		x = cb_build_field_reference (p, NULL);
-		if (p->flag_item_based) {
+		if (p->redefines
+		    || (p->level == 0 && p->file == NULL)
+		    || p->level == 66
+		    || p->level == 78
+		    || p->level == 88
+		    || p->flag_item_based) {
 			continue;
 		}
 		/* For special registers */
 		if (p->flag_no_init && !p->count) {
 			continue;
 		}
-		output_stmt (cb_build_move (x, x));
+		if (p->children) {
+			output_field_display (p, offset, idx);
+			if (p->occurs_max > 2) {
+				idx++;
+				if (p->depending) {
+					output_line ("{ int i_%d,m_%d;",idx,idx);
+					output_indent_level += 2;
+					output_prefix ();
+					output ("m_%d = ",idx);
+					output_integer (p->depending);
+					output (";\n");
+					output_line ("for (i_%d=0; i_%d < m_%d; i_%d++) {",idx,idx,idx,idx);
+				} else {
+					output_line ("{ int i_%d;",idx);
+					output_indent_level += 2;
+					output_line ("for (i_%d=0; i_%d < %d; i_%d++) {",idx,idx,p->occurs_max,idx);
+				}
+				output_indent_level += 2;
+				field_subscript[idx-1] = -idx;
+				size_subscript[idx-1] = p->size;
+				output_display_fields (p->children, offset, idx);
+				output_indent_level -= 2;
+				output_line ("}");
+				output_indent_level -= 2;
+				output_line ("}");
+				idx--;
+			} else if (p->occurs_max > 1) {
+				adjust = 0;
+				for (i=1; i <= p->occurs_max; i++) {
+					field_subscript[idx] = i;
+					output_display_fields (p->children, offset+adjust, idx+1);
+					adjust += p->size;
+				}
+			} else {
+				output_display_fields (p->children, offset, idx);
+			}
+		} else {
+			if (p->occurs_max > 2) {
+				idx++;
+				if (p->depending) {
+					output_line ("{ int i_%d,m_%d;",idx,idx);
+					output_indent_level += 2;
+					output_prefix ();
+					output ("m_%d = ",idx);
+					output_integer (p->depending);
+					output (";\n");
+					output_line ("for (i_%d=0; i_%d < m_%d; i_%d++) {",idx,idx,idx,idx);
+				} else {
+					output_line ("{ int i_%d;",idx);
+					output_indent_level += 2;
+					output_line ("for (i_%d=0; i_%d < %d; i_%d++) {",idx,idx,p->occurs_max,idx);
+				}
+				output_indent_level += 2;
+				field_subscript[idx-1] = -idx;
+				size_subscript[idx-1] = p->size;
+				output_field_display (p, offset, idx);
+				output_indent_level -= 2;
+				output_line ("}");
+				output_indent_level -= 2;
+				output_line ("}");
+				idx--;
+			} else if (p->occurs_max > 1) {
+				adjust = 0;
+				for (i=1; i <= p->occurs_max; i++) {
+					field_subscript[idx] = i;
+					output_field_display (p, offset+adjust, idx+1);
+					adjust += p->size;
+				}
+			} else {
+				output_field_display (p, offset, idx);
+			}
+		}
 	}
 }
 #endif
@@ -7363,7 +7927,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 
 	/* Program local variables */
 	output_line ("/* Program local variables */");
-	output_line ("#include \"%s\"", prog->local_include->local_name);
+	output_line ("#include \"%s\"", prog->local_include->local_include_name);
 	output_newline ();
 
 	/* Alphabet-names */
@@ -7413,7 +7977,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	if (prog->decimal_index_max) {
 		output_local ("/* Decimal structures */\n");
 		for (i = 0; i < prog->decimal_index_max; i++) {
-			output_local ("\tcob_decimal\t*d%d = NULL;\n", i);
+			output_local ("cob_decimal\t*d%d = NULL;\n", i);
 		}
 		output_local ("\n");
 	}
@@ -7588,11 +8152,13 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_local ("\n");
 	}
 
+#if 0 /* only needed for compilation to GnuCOBOL 2.0-2.2 level (later addition) */
 	/* Runtime DEBUGGING MODE variable */
 	if (prog->flag_debugging) {
 		output_line ("char\t\t*s;");
 		output_newline ();
 	}
+#endif
 
 	/* Start of function proper */
 	output_line ("/* Start of function code */");
@@ -7687,6 +8253,9 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	} else {
 		output_line ("frame_ptr = frame_stack;");
 		output_line ("frame_ptr->perform_through = 0;");
+		if (cb_flag_computed_goto) {
+			output_line ("frame_ptr->return_address_ptr = &&P_cgerror;");
+		}
 		if (cb_flag_stack_check) {
 			output_line ("frame_overflow = frame_ptr + %d - 1;",
 				     cb_stack_size);
@@ -7953,13 +8522,12 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_line ("  }");
 		output_line ("/* This should never be reached */");
 		output_line ("cob_fatal_error (COB_FERROR_MODULE);");
-		output_newline ();
 	} else {
 		l = prog->entry_list;
 		output_line ("goto %s%d;", CB_PREFIX_LABEL,
 			     CB_LABEL (CB_PURPOSE (l))->id);
-		output_newline ();
 	}
+	output_newline ();
 
 	/* PROCEDURE DIVISION */
 	output_line ("/* PROCEDURE DIVISION */");
@@ -8087,19 +8655,23 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_newline ();
 	}
 
-	output_line ("/* Program return */");
-	if (prog->returning && prog->cb_return_code) {
-		output_move (prog->returning, prog->cb_return_code);
-	}
-
-	output_prefix ();
-	output ("return ");
 	if (prog->prog_type == CB_FUNCTION_TYPE) {
+		output_line ("/* Function return */");
+		output_prefix ();
+		output ("return ");
 		output_param (prog->returning, -1);
-	} else if (prog->cb_return_code) {
-		output_integer (prog->cb_return_code);
 	} else {
-		output ("0");
+		output_line ("/* Program return */");
+		if (prog->returning && prog->cb_return_code) {
+			output_move (prog->returning, prog->cb_return_code);
+		}
+		output_prefix ();
+		output ("return ");
+		if (prog->cb_return_code) {
+			output_integer (prog->cb_return_code);
+		} else {
+			output ("0");
+		}
 	}
 	output (";\n");
 
@@ -8122,9 +8694,10 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 			}
 			output_line (" }");
 		}
-		output_line (" cob_fatal_error (COB_FERROR_CODEGEN);");
-		output_newline ();
 	}
+	output_line ("P_cgerror:");
+	output_line (" cob_fatal_error (COB_FERROR_CODEGEN);");
+	output_newline ();
 
 	/* Program initialization */
 
@@ -8192,12 +8765,14 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	}
 
 
-	/* Check runtime DEBUGGING MODE variable */
+#if 0 /* only needed for compilation to GnuCOBOL 2.0-2.2 level (later addition) */
+	/* Check runtime DEBUGGING MODE variable, nowadays done directly in libcob */
 	if (prog->flag_debugging) {
 		output_line ("if ((s = getenv (\"COB_SET_DEBUG\")) && (*s == 'Y' || *s == 'y' || *s == '1'))");
 		output_line ("\tcob_debugging_mode = 1;");
 		output_newline ();
 	}
+#endif
 
 	/* Setup up CANCEL callback */
 	if (!prog->nested_level && prog->prog_type == CB_PROGRAM_TYPE) {
@@ -8227,6 +8802,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		}
 	}
 
+	gen_init_working = 1;		/* Disable use of DEPENDING ON fields */
 	/* Initialize WORKING-STORAGE EXTERNAL items */
 	for (f = prog->working_storage; f; f = f->sister) {
 		if (f->redefines) {
@@ -8253,22 +8829,23 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 				output_file_initialization (CB_FILE (CB_VALUE (l)));
 			}
 		}
-		i = 1;
-		for (m = literal_cache; m; m = m->next) {
-			if (CB_TREE_CLASS (m->x) == CB_CLASS_NUMERIC
-			 && m->make_decimal) {
-				if (i) {
-					i = 0;
-					output_line ("/* Set Decimal Constant values */");
-				}
-				output_line ("%s%d = &%s%d;", 	CB_PREFIX_DEC_CONST,m->id,
-								CB_PREFIX_DEC_FIELD,m->id);
-				output_line ("cob_decimal_init(%s%d);",CB_PREFIX_DEC_CONST,m->id);
-				output_line ("cob_decimal_set_field (%s%d, (cob_field *)&%s%d);",
-									CB_PREFIX_DEC_CONST,m->id,
-									CB_PREFIX_CONST,m->id);
-				output_newline ();
+	}
+
+	i = 1;
+	for (m = literal_cache; m; m = m->next) {
+		if (CB_TREE_CLASS (m->x) == CB_CLASS_NUMERIC
+		 && m->make_decimal) {
+			if (i) {
+				output_line ("/* Set Decimal Constant values */");
+				i = 0;
 			}
+			output_line ("%s%d = &%s%d;", 	CB_PREFIX_DEC_CONST,m->id,
+				     CB_PREFIX_DEC_FIELD,m->id);
+			output_line ("cob_decimal_init(%s%d);",CB_PREFIX_DEC_CONST,m->id);
+			output_line ("cob_decimal_set_field (%s%d, (cob_field *)&%s%d);",
+				     CB_PREFIX_DEC_CONST,m->id,
+				     CB_PREFIX_CONST,m->id);
+			output_newline ();
 		}
 	}
 
@@ -8288,6 +8865,11 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_screen_init (prog->screen_storage, NULL);
 		output_newline ();
 	}
+
+	gen_init_working = 0;		/* re-enable use of DEPENDING ON fields */
+
+	/* ensure references needed to prevent compilation warnings/errors*/
+	output_line ("if (0 == 1) goto P_cgerror;");
 
 	output_line ("initialized = 1;");
 	output_line ("goto P_ret_initialize;");
@@ -8372,10 +8954,12 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		}
 	}
 
+#if 0 /* directly done in libcob now, see cob_glob_ptr->cob_debugging_mode */
 	/* Reset DEBUGGING mode */
 	if (prog->flag_debugging) {
 		output_line ("cob_debugging_mode = 0;");
 	}
+#endif
 
 	/* Clear CALL pointers */
 	for (clp = call_cache; clp; clp = clp->next) {
@@ -8670,14 +9254,14 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 
 	/* entry convention */
 	l = CB_PURPOSE (CB_VALUE (entry));
+	/* LCOV_EXCL_START */
 	if (!l || !(CB_INTEGER_P (l) || CB_NUMERIC_LITERAL_P (l))) {
-		/* not translated as it is an unlikely internal abort, remove the check later */
-		/* LCOV_EXCL_START */
+		/* not translated as it is a highly unlikely internal abort */
 		cobc_err_msg ("Missing/wrong internal entry convention!");
-		cobc_err_msg (_("Please report this!"));
 		COBC_ABORT ();
-		/* LCOV_EXCL_STOP */
-	} else if (CB_INTEGER_P (l)) {
+	} else
+	/* LCOV_EXCL_STOP */
+	if (CB_INTEGER_P (l)) {
 		entry_convention = CB_INTEGER (l)->val;
 	} else if (CB_NUMERIC_LITERAL_P (l)) {
 		entry_convention = cb_get_int (l);
@@ -8958,7 +9542,7 @@ output_function_prototypes (struct cb_program *prog)
 #if	(defined(_WIN32) || defined(__CYGWIN__)) && !defined(__clang__)
 			for (l = cp->entry_list; l; l = CB_CHAIN (l)) {
 				const char * entry_name = CB_LABEL (CB_PURPOSE (l))->name;
-				if(0 == strcmp (entry_name, cp->program_id)) {
+				if (0 == strcmp (entry_name, cp->program_id)) {
 					continue;
 				}
 				output_entry_function (cp, l, cp->parameter_list, 0);
@@ -9069,7 +9653,9 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	gen_custom = 0;
 	gen_nested_tab = 0;
 	gen_dynamic = 0;
+#ifdef COBC_HAS_CUTOFF_FLAG	/* CHECKME: likely will be removed completely in 3.1 */
 	gen_if_level = 0;
+#endif
 	local_mem = 0;
 	local_working_mem = 0;
 	need_save_exception = 0;
@@ -9186,12 +9772,16 @@ codegen (struct cb_program *prog, const int subsequent_call)
 	output_frame_stack (prog);
 	output_dynamic_field_function_id_pointers ();
 	output_local_base_cache ();
-	output_local_field_cache ();
+	output_local_field_cache (prog->flag_recursive);
 
-	/* Skip to next program contained in the source */
+	/* Skip to next program contained in the source and
+	   adjust current_program used for error messages */
 
 	if (prog->next_program) {
+		cp = current_program;
+		current_program = prog->next_program;
 		codegen (prog->next_program, 1);
+		current_program = cp;
 		return;
 	}
 

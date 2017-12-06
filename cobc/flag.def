@@ -40,9 +40,11 @@ CB_FLAG_RQ (cb_stack_size, 0, "stack-size", 255, 1,
 	_("  -fstack-size=<number>\tdefine PERFORM stack size\n"
 	  "                       - default: 255"))
 
+#ifdef COBC_HAS_CUTOFF_FLAG	/* CHECKME: likely will be removed completely in 3.1 */
 CB_FLAG_RQ (cb_if_cutoff, 0, "if-cutoff", 3, 2,
 	_("  -fif-cutoff=<number>  define cutoff depth for IF statements\n"
 	  "                        - default: 3"))
+#endif
 
 CB_FLAG_RQ (cb_ebcdic_sign, 1, "sign", 0, 3,
 	_("  -fsign=[ASCII|EBCDIC]\tdefine display sign representation\n"
@@ -62,7 +64,8 @@ CB_FLAG_RQ (cb_default_byte, 1, "defaultbyte", -1, 6,
 	  "                        - default: initialize to picture"))
 
 CB_FLAG_RQ (cb_max_errors, 1, "max-errors", 100, 7,
-	_("  -fmax-errors=<number>\tmaximum number of errors to report\n"
+	_("  -fmax-errors=<number>\tmaximum number of errors to report before\n"
+	  "                        compilation is aborted\n"
 	  "                        - default: 100"))
 
 /* Flags with required parameter and no associated variable */
@@ -150,7 +153,7 @@ CB_FLAG (cb_flag_notrunc, 1, "notrunc",
 
 CB_FLAG (cb_flag_odoslide, 1, "odoslide",
 	_("  -fodoslide            adjust items following OCCURS DEPENDING\n"
-	  "                        - requires implicit/explicit relaxed syntax"))
+	  "                        - implies -fcomplex-odo"))
 
 CB_FLAG (cb_flag_apostrophe, 1, "single-quote",
 	_("  -fsingle-quote        use a single quote (apostrophe) for QUOTE\n"

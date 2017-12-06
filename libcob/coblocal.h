@@ -181,14 +181,9 @@
 #define offsetof(s_name,m_name) (int)(long)&(((s_name*)0))->m_name
 #endif
 
-/* Convert a digit (e.g., '0') into an integer (e.g., 0) */
-#define COB_D2I(x)		((x) & 0x0F)
-#if	0	/* RXWRXW - D2I */
+/* Convert between a digit and an integer (e.g., '0' <-> 0) */
 #define COB_D2I(x)		((x) - '0')
-#endif
-
-/* Convert an integer (e.g., 0) into a digit (e.g., '0') */
-#define COB_I2D(x)		((x) + '0')
+#define COB_I2D(x)		(char) ((x) + '0')
 
 #define	COB_MODULE_PTR		cobglobptr->cob_current_module
 #define	COB_TERM_BUFF		cobglobptr->cob_term_buff
@@ -211,7 +206,8 @@ extern "C" {
 typedef struct __cob_settings {
 	unsigned int	cob_display_warn;	/* Display warnings */
 	unsigned int	cob_env_mangle;		/* Mangle env names */
-	unsigned int	cob_line_trace;	
+	unsigned int	cob_debugging_mode;		/* Activate USE ON DEBUGGING procedures */
+	unsigned int	cob_line_trace;		/* Activate tracing for routines compiled with trace flag */
 	unsigned int	cob_config_cur;		/* Current runtime.cfg file being processed */
 	unsigned int	cob_config_num;		/* Number of different runtime.cfg files read */
 	char		**cob_config_file;	/* Keep all file names for later reporting */
@@ -296,6 +292,8 @@ struct config_tbl {
 #define ENV_ENUMVAL	(1 << 9)		/* Value must in 'enum' list as match or value */
 #define ENV_FILE 	(1 << 10)		/* a pointer to a directory/file [single path] */
 
+#define ENV_RESETS 	(1 << 14)		/* Value setting needs additional code */
+
 #define STS_ENVSET	(1 << 15)		/* value set via Env Var */
 #define STS_CNFSET	(1 << 16)		/* value set via config file */
 #define STS_ENVCLR	(1 << 17)		/* value removed from Env Var */
@@ -317,7 +315,7 @@ struct config_tbl {
 COB_HIDDEN void		cob_init_numeric	(cob_global *);
 COB_HIDDEN void		cob_init_termio		(cob_global *, cob_settings *);
 COB_HIDDEN void		cob_init_fileio		(cob_global *, cob_settings *);
-COB_HIDDEN void		cob_init_call		(cob_global *, cob_settings *);
+COB_HIDDEN void		cob_init_call		(cob_global *, cob_settings *, const int);
 COB_HIDDEN void		cob_init_intrinsic	(cob_global *);
 COB_HIDDEN void		cob_init_strings	(void);
 COB_HIDDEN void		cob_init_move		(cob_global *, cob_settings *);
@@ -354,8 +352,6 @@ COB_HIDDEN void		cob_runtime_warning	(const char *, ...) COB_A_FORMAT12;
 
 COB_HIDDEN char*	cob_save_env_value	(char*, char*);
 COB_HIDDEN cob_settings *cob_get_settings_ptr	(void);
-
-COB_HIDDEN int		cob_ctoi		(const char);
 
 #if 0 /* currently not used */
 COB_HIDDEN char		*cob_int_to_string		(int, char*);

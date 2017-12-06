@@ -1,4 +1,48 @@
 
+2017-11-11  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_fundamental.at: added tests for DEBUG module
+
+2017-11-06  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/run_extensions.at, testsuite.src/run_fundamental.at:
+	  moved debugging line checks from to run_fundamental.at
+	* testsuite.src/run_fundamental.at: added first checks for COB_SET_DEBUG
+
+2017-11-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* listings-sed.sh: use `` instead of $() - see Bug #437
+
+2017-11-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* testsuite.src/configuration.at, testsuite.src/used_binaries.at: added
+	  some checks for increasing code coverage (leading to a minor bugfix)
+
+2017-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_valgrind, atlocal_win: adjustments for cygwin
+	* atlocal_win: re-integrated missing export for COB_MSG_FORMAT
+
+2017-10-26  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_valgrind, atlocal_win: adjustments for MSYS2
+
+2017-10-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_valgrind, atlocal_win: set COBC and COBCRUN as
+	  autoconf does (including the possible EXEEXT);
+	  export COBC, COBCRUN; unified
+
+2017-09-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in: set and export variables in separate lines;
+	  use `` instead of $() - see Bug #437
+
+2017-09-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* atlocal.in, atlocal_valgrind, atlocal_win: set COB_RUNTIME_CONFIG
+	  before running `cobcrun --runtime-conf`
+
 2017-08-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* atlocal_valgrind: changed default name for valgrind log files
@@ -42,6 +86,10 @@
 
 	* Makefile.am: added .PHONY to correctly declare logical targets that
 	  always have to be executed and don't result in a file
+
+2017-05-20  Ron Norman <rjn@inglenet.com>
+
+	* testsuite.src/run_extensions.at: Test added for -fodoslide
 
 2017-05-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

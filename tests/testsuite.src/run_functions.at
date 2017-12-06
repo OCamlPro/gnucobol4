@@ -167,7 +167,7 @@ AT_DATA([prog.cob], [
 ])
 
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 7: warning: handling of USAGE NATIONAL is unfinished; implementation is likely to be changed
+[prog.cob:7: warning: handling of USAGE NATIONAL is unfinished; implementation is likely to be changed
 ])
 AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [], [])
 
@@ -3619,15 +3619,43 @@ AT_DATA([prog.cob], [
        PROGRAM-ID.      prog.
        DATA             DIVISION.
        WORKING-STORAGE  SECTION.
-       01  XYZ.
-           03 X         PIC X.
-           03 FILLER    PIC X(20).
+       01  compiled-datetime.
+           03  compiled-date.
+               05  millennium PIC X.
+               05  FILLER    PIC X(15).
+           03  timezone  PIC X(5).
        PROCEDURE        DIVISION.
-           MOVE FUNCTION WHEN-COMPILED TO XYZ.
-           IF X NOT = "2"
-              DISPLAY "NOT OK"
+           *> Check millennium.
+           MOVE FUNCTION WHEN-COMPILED TO compiled-datetime.
+           IF millennium NOT = "2"
+              DISPLAY "Millennium NOT OK: " millennium
               END-DISPLAY
            END-IF.
+
+           *> Check timezone.
+           IF timezone NOT = FUNCTION CURRENT-DATE (17:5)
+              DISPLAY "Timezone NOT OK: " timezone
+              END-DISPLAY
+           END-IF.
+
+           *> Check date format.
+           INSPECT compiled-date CONVERTING "0123456789"
+               TO "9999999999".
+           IF compiled-date NOT = ALL "9"
+               DISPLAY "Date format NOT OK: " compiled-date
+               END-DISPLAY
+           END-IF.
+
+           *> Check timezone format.
+           IF timezone NOT = "00000"
+               INSPECT timezone CONVERTING "0123456789"
+                   TO "9999999999"
+               IF timezone NOT = "+9999" AND "-9999"
+                   DISPLAY "Timezone format NOT OK: " timezone
+                   END-DISPLAY
+               END-IF
+           END-IF.
+           
            STOP RUN.
 ])
 
@@ -3730,13 +3758,13 @@ AT_CHECK([echo "$COB_HAS_UTC_OFFSET"], [0], [no
 # Previous test "failed" --> UTC offset available
 
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 11: warning: FUNCTION 'FORMATTED-CURRENT-DATE' has format in variable
-prog.cob: 18: warning: FUNCTION 'FORMATTED-DATE' has format in variable
-prog.cob: 24: warning: FUNCTION 'FORMATTED-DATETIME' has format in variable
-prog.cob: 31: warning: FUNCTION 'FORMATTED-TIME' has format in variable
-prog.cob: 37: warning: FUNCTION 'INTEGER-OF-FORMATTED-DATE' has format in variable
-prog.cob: 44: warning: FUNCTION 'SECONDS-FROM-FORMATTED-TIME' has format in variable
-prog.cob: 51: warning: FUNCTION 'TEST-FORMATTED-DATETIME' has format in variable
+[prog.cob:11: warning: FUNCTION 'FORMATTED-CURRENT-DATE' has format in variable
+prog.cob:18: warning: FUNCTION 'FORMATTED-DATE' has format in variable
+prog.cob:24: warning: FUNCTION 'FORMATTED-DATETIME' has format in variable
+prog.cob:31: warning: FUNCTION 'FORMATTED-TIME' has format in variable
+prog.cob:37: warning: FUNCTION 'INTEGER-OF-FORMATTED-DATE' has format in variable
+prog.cob:44: warning: FUNCTION 'SECONDS-FROM-FORMATTED-TIME' has format in variable
+prog.cob:51: warning: FUNCTION 'TEST-FORMATTED-DATETIME' has format in variable
 ])
 
 ,
@@ -3744,14 +3772,14 @@ prog.cob: 51: warning: FUNCTION 'TEST-FORMATTED-DATETIME' has format in variable
 # Previous test "passed" --> UTC offset is not available
 
 AT_CHECK([$COMPILE prog.cob], [0], [],
-[prog.cob: 11: warning: FUNCTION 'FORMATTED-CURRENT-DATE' has format in variable
-prog.cob: 11: warning: cannot find the UTC offset on this system
-prog.cob: 18: warning: FUNCTION 'FORMATTED-DATE' has format in variable
-prog.cob: 24: warning: FUNCTION 'FORMATTED-DATETIME' has format in variable
-prog.cob: 31: warning: FUNCTION 'FORMATTED-TIME' has format in variable
-prog.cob: 37: warning: FUNCTION 'INTEGER-OF-FORMATTED-DATE' has format in variable
-prog.cob: 44: warning: FUNCTION 'SECONDS-FROM-FORMATTED-TIME' has format in variable
-prog.cob: 51: warning: FUNCTION 'TEST-FORMATTED-DATETIME' has format in variable
+[prog.cob:11: warning: FUNCTION 'FORMATTED-CURRENT-DATE' has format in variable
+prog.cob:11: warning: cannot find the UTC offset on this system
+prog.cob:18: warning: FUNCTION 'FORMATTED-DATE' has format in variable
+prog.cob:24: warning: FUNCTION 'FORMATTED-DATETIME' has format in variable
+prog.cob:31: warning: FUNCTION 'FORMATTED-TIME' has format in variable
+prog.cob:37: warning: FUNCTION 'INTEGER-OF-FORMATTED-DATE' has format in variable
+prog.cob:44: warning: FUNCTION 'SECONDS-FROM-FORMATTED-TIME' has format in variable
+prog.cob:51: warning: FUNCTION 'TEST-FORMATTED-DATETIME' has format in variable
 ])
 
 )
@@ -3982,3 +4010,69 @@ AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
 ])
 
 AT_CLEANUP
+
+
+AT_SETUP([UDF with recursion])
+AT_KEYWORDS([functions LOCAL-STORAGE])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       FUNCTION-ID. foo.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  ttl  PIC 9 VALUE 1.
+
+       LOCAL-STORAGE SECTION.
+       01  num  PIC 9.
+
+       LINKAGE SECTION.
+       01  arg PIC 9.
+       01  ret PIC 9.
+
+       PROCEDURE DIVISION USING arg RETURNING ret.
+           IF arg < 5
+              ADD 1 TO arg GIVING num END-ADD
+              MOVE FUNCTION foo (num) TO ret
+           ELSE
+              MOVE arg TO ret
+           END-IF
+           DISPLAY "Step: " ttl ", Arg: " arg ", Return: " ret
+           END-DISPLAY
+           ADD 1 to ttl END-ADD
+           GOBACK.
+       END FUNCTION foo.
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       REPOSITORY.
+           FUNCTION foo.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 num PIC 9 VALUE 1.
+
+       PROCEDURE DIVISION.
+           DISPLAY "Return value '" FUNCTION foo (num) "'"
+             WITH NO ADVANCING
+           END-DISPLAY
+           GOBACK.
+       END PROGRAM prog.
+
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0],
+[Step: 1, Arg: 5, Return: 5
+Step: 2, Arg: 4, Return: 5
+Step: 3, Arg: 3, Return: 5
+Step: 4, Arg: 2, Return: 5
+Step: 5, Arg: 1, Return: 5
+Return value '5'], [])
+
+AT_CLEANUP
+
