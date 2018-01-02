@@ -1583,14 +1583,12 @@ locale_time(const int hours, const int minutes, const int seconds,
 	/* Get strftime format string for locale */
 	memset(buff2, 0, LOCTIME_BUFSIZE);
 	snprintf(buff2, LOCTIME_BUFSIZE - 1, "%s", nl_langinfo(T_FMT));
+	strftime(buff, LOCTIME_BUFSIZE, buff2, &tstruct);
 
 	/* Set locale if not done yet */
 	if(deflocale) {
 		(void) setlocale(LC_ALL, cobglobptr->cob_locale);
 	}
-
-	strftime(buff, LOCTIME_BUFSIZE, buff2, &tstruct);
-
 	return 0;
 }
 #else
@@ -5104,10 +5102,10 @@ cob_intr_locale_date(const int offset, const int length,
 	char buff2[128];
 	memset(buff2, 0, sizeof(buff2));
 	snprintf(buff2, sizeof(buff2) - 1, "%s", nl_langinfo(D_FMT));
+	strftime(buff, sizeof(buff), buff2, &tstruct);
 	if(deflocale) {
 		(void) setlocale(LC_ALL, cobglobptr->cob_locale);
 	}
-	strftime(buff, sizeof(buff), buff2, &tstruct);
 #else
 	LCID localeid = LOCALE_USER_DEFAULT;
 	SYSTEMTIME syst;
