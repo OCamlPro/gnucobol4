@@ -115,6 +115,12 @@ static int			accept_cursor_y;
 static int			accept_cursor_x;
 static int			pending_accept;
 static int			got_sys_char;
+
+#ifdef NCURSES_MOUSE_VERSION
+MEVENT   mevent ;
+int last_key_mouse ;
+#endif
+
 #endif
 
 /* Local function prototypes when screenio activated */
@@ -439,6 +445,12 @@ cob_screen_init (void)
 
 	cbreak ();
 	keypad (stdscr, 1);
+
+#ifdef NCURSES_MOUSE_VERSION
+        mousemask(BUTTON1_RELEASED ,  NULL) ; 
+
+#endif
+
 	nonl ();
 	noecho ();
 	if (has_colors ()) {
@@ -661,10 +673,12 @@ static void
 cob_check_pos_status (const int fret)
 {
 	cob_field	*f;
-	int		sline;
-	int		scolumn;
+	int		sline = 0;
+	int		scolumn = 0;
 	char		buff[23]; /* 10: make the compiler happy as "int" *could*
 						         have more digits than we "assume" */
+        MEVENT local_mevent ;
+        int child_win_y, child_win_x ;
 
 	if (fret) {
 		cob_set_exception (COB_EC_IMP_ACCEPT);
@@ -682,8 +696,32 @@ cob_check_pos_status (const int fret)
 				(size_t)4);
 		}
 	}
-	if (COB_MODULE_PTR->cursor_pos) {
-		getyx (stdscr, sline, scolumn);
+
+       if (COB_MODULE_PTR->cursor_pos) {
+
+          if (last_key_mouse == 1 ) {
+
+/*this is not going to work until multi-window support is added too */
+            if ( wenclose(stdscr, mevent.y, mevent.x) )  {
+             getbegyx(stdscr, child_win_y, child_win_x) ;
+             local_mevent.y = mevent.y - child_win_y ;  
+             local_mevent.x = mevent.x - child_win_x ;
+             sline   = local_mevent.y ;
+             scolumn = local_mevent.x ;
+            }  else {
+/*if the local screen in not clicked on, we want to return zeros */
+/*by placing them at -1, they will be zero after the increment below */
+            sline = sline - 1 ;
+            scolumn = scolumn - 1 ;
+            }
+    
+         } else {
+         getyx (stdscr, sline, scolumn);
+       }
+
+/*COBOL starts at 1*/
+        sline ++;
+        scolumn ++ ;
 		f = COB_MODULE_PTR->cursor_pos;
 		if (COB_FIELD_IS_NUMERIC (f) &&
 		    COB_FIELD_TYPE (f) != COB_TYPE_NUMERIC_DISPLAY) {
@@ -1225,6 +1263,7 @@ cob_screen_get_all (const int initial_curs, const int get_timeout)
 		refresh ();
 		errno = 0;
 		timeout (get_timeout);
+                last_key_mouse = FALSE ;
 		keyp = getch ();
 
 		/* FIXME: modularize (cob_screen_get_all, field_accept) and
@@ -1249,6 +1288,17 @@ cob_screen_get_all (const int initial_curs, const int get_timeout)
 		getyx (stdscr, cline, ccolumn);
 
 		switch (keyp) {
+
+		case KEY_MOUSE:
+ 			cob_beep ();
+                        last_key_mouse = TRUE ;
+                        getmouse(&mevent);
+
+			if (finalize_all_fields (cob_base_inp, totl_index)) {
+				continue;
+			}
+			goto screen_return;
+
 		case KEY_ENTER:
 			if (finalize_all_fields (cob_base_inp, totl_index)) {
 				cob_beep ();
@@ -2277,6 +2327,7 @@ field_accept (cob_field *f, const int sline, const int scolumn, cob_field *fgc,
 		}
 		errno = 0;
 		timeout (get_timeout);
+                last_key_mouse = FALSE ;
 
 		/* Get a character. */
 		keyp = getch ();
@@ -2301,6 +2352,11 @@ field_accept (cob_field *f, const int sline, const int scolumn, cob_field *fgc,
 
 		/* Return special keys */
 		switch (keyp) {
+                case KEY_MOUSE:
+                        last_key_mouse = TRUE ;
+                        getmouse(&mevent);
+                        goto field_return;
+
 		case KEY_ENTER:
 			/* Enter. */
 			goto field_return;
