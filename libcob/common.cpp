@@ -3727,8 +3727,9 @@ cob_sys_system(const void * cmdline)
 			}
 		}
 		if(i >= 0) {
-			char * buff = new char[i + 1];
+			char * buff = new char[i + 2];
 			memcpy(buff, cmd, i + 1);
+			buff[i + 1] = 0;
 			if(cobglobptr->cob_screen_initialized) {
 				cob_screen_set_mode(0);
 			}

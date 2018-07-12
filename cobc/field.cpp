@@ -1545,6 +1545,7 @@ unbounded_again:
 						p->indexes = c->indexes;
 						p->size = pad;
 						p->sister = c;
+						p->parent = f;
 						if(cprev == NULL) {
 							f->children = p;
 						} else {

@@ -1032,6 +1032,9 @@ struct cob_field_attr {
 	{}
 #endif
 };
+#ifndef __cplusplus
+	typedef struct cob_field_attr cob_field_attr;
+#endif
 
 /* Field structure */
 
@@ -1236,6 +1239,9 @@ struct cob_file_key {
 	/* ASCENDING/DESCENDING (for SORT) */
 	unsigned int	offset;	/* Offset of field */
 };
+#ifndef __cplusplus
+	typedef struct cob_file_key cob_file_key;
+#endif
 
 
 /* File version (likely can be removed from cob_file in the future) */

@@ -1,3 +1,13 @@
+2018-06-21 Sergey Kashyrin <ska@kiska.net>
+	* codegen.cpp: fix for major 2.2 bug - Set Decimal Constant values must not
+	  be for initial only
+
+2018-06-21 Sergey Kashyrin <ska@kiska.net>
+	* field.cpp: fix for SYNC - parent must be set.
+
+2018-06-20 Sergey Kashyrin <ska@kiska.net>
+	* pplex.l: fast fix for TITLE
+
 2017-11-28 Sergey Kashyrin <ska@kiska.net>
 	* Catch up with Release 2.2
 
