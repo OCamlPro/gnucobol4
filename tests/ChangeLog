@@ -1,4 +1,10 @@
 
+2018-07-19 Brian Tiffin <btiffin@gnu.org>
+
+	* atlocal.in: define COB_WITH_lang for AT_SKIP_IF testing
+	* testsuite.src/run_functions.at: Explicit test for "yes" negated for
+	  AT_SKIP_IF and the foreign language intrinsic extensions
+
 2017-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* atlocal.in, atlocal_valgrind, atlocal_win: export COB_HAS_64_BIT_POINTER

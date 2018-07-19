@@ -3901,7 +3901,7 @@ AT_CLEANUP
 AT_SETUP([REXX scripting])
 AT_KEYWORDS([functions REXX extensions])
 
-AT_SKIP_IF([test "$COB_WITH_REXX" = "no"])
+AT_SKIP_IF([test "$COB_WITH_REXX" != "yes"])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION  DIVISION.
@@ -3938,7 +3938,7 @@ AT_CLEANUP
 AT_SETUP([Python scripting])
 AT_KEYWORDS([functions Python extensions])
 
-AT_SKIP_IF([test "$COB_WITH_PYTHON" = "no"])
+AT_SKIP_IF([test "$COB_WITH_PYTHON" != "yes"])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION  DIVISION.
@@ -3975,7 +3975,7 @@ AT_CLEANUP
 AT_SETUP([Embedded JVM])
 AT_KEYWORDS([functions JVM extensions])
 
-AT_SKIP_IF([test "$COB_WITH_JVM" = "no"])
+AT_SKIP_IF([test "$COB_WITH_JVM" != "yes"])
 
 AT_DATA([TestJVM.java], [
 public class TestJVM {
@@ -4018,7 +4018,7 @@ AT_CLEANUP
 AT_SETUP([Lua scripting])
 AT_KEYWORDS([functions Lua extensions])
 
-AT_SKIP_IF([test "$COB_WITH_LUA" = "no"])
+AT_SKIP_IF([test "$COB_WITH_LUA" != "yes"])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION  DIVISION.
@@ -4055,7 +4055,7 @@ AT_CLEANUP
 AT_SETUP([Tcl scripting])
 AT_KEYWORDS([functions Tcl extensions])
 
-AT_SKIP_IF([test "$COB_WITH_TCL" = "no"])
+AT_SKIP_IF([test "$COB_WITH_TCL" != "yes"])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION  DIVISION.
