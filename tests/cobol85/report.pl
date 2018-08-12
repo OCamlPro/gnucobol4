@@ -289,9 +289,9 @@ foreach $in (sort (glob("*.{CBL,SUB}"))) {
 
 	if ($in =~ /\.CBL/) {
 		if ($ENV{'DB_HOME'}) {
-			$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; rm -f XXXXX*; rm -f $ENV{'DB_HOME'}/XXXXX*");
+			$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; rm -rf XXXXX*; rm -rf $ENV{'DB_HOME'}/XXXXX*");
 		} else {
-			$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; rm -f XXXXX*");
+			$ret = system ("trap 'exit 77' INT QUIT TERM PIPE; rm -rf XXXXX*");
 		}
 		if (($ret >> 8) == 77) {
 			die "Interrupted\n";
