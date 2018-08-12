@@ -2,7 +2,7 @@
 # Configure template for GnuCOBOL
 # Process this file with autoconf to produce a configure script.
 #
-# Copyright (C) 2001-2012, 2014-2017 Free Software Foundation, Inc.
+# Copyright (C) 2001-2012, 2014-2018 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch,
 # Edward Hart
 #
@@ -64,6 +64,7 @@ AH_TEMPLATE([MAX_CALL_FIELD_PARAMS], [Define maximum parameters for CALL])
 AH_TEMPLATE([WITH_INDEX_EXTFH], [Compile with an external ISAM handler])
 AH_TEMPLATE([WITH_SEQRA_EXTFH], [Compile with an external SEQ/RAN handler])
 AH_TEMPLATE([WITH_DB], [Use Berkeley DB library as emulation of ISAM handler])
+AH_TEMPLATE([WITH_LMDB], [Use Symas LMDB library as emulation of ISAM handler])
 AH_TEMPLATE([WITH_CISAM], [Use CISAM as ISAM handler])
 AH_TEMPLATE([WITH_DISAM], [Use DISAM as ISAM handler])
 AH_TEMPLATE([WITH_VBISAM], [Use VBISAM as ISAM handler])
@@ -443,6 +444,16 @@ if test "$with_cisam" != "yes" -a "$with_disam" != "yes"; then
 fi
 
 if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes"; then
+  AC_ARG_WITH([lmdb],
+  [AS_HELP_STRING([--with-lmdb],
+    [(GnuCOBOL) Use Symas LMDB for ISAM I/O])],
+  [ if test "$with_lmdb" = "yes"; then
+	AC_DEFINE([WITH_LMDB], [1])
+    fi ],
+  [])
+fi
+
+if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_lmdb" != "yes"; then
   AC_ARG_WITH([index-extfh],
   [AS_HELP_STRING([--with-index-extfh],
     [(GnuCOBOL) Use external ISAM file handler])],
@@ -452,7 +463,7 @@ if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "y
   [])
 fi
 
-if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_index_extfh" != "yes"; then
+if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_lmdb" != "yes" -a "$with_index_extfh" != "yes"; then
   AC_ARG_WITH([db],
   [AS_HELP_STRING([--with-db],
     [(GnuCOBOL) Use Berkeley DB >= 4.1 for ISAM I/O (default)])],
@@ -871,6 +882,20 @@ if test "$with_db" = "yes"; then
 	unset COB_BDB_HEADER
 fi
 
+# Checks for lmdb.
+
+# FIXME: add version number output and if possible version check,
+#        similar to BDB, here
+if test "$with_lmdb" = "yes"; then
+	AC_MSG_NOTICE([Check that Symas LMDB is installed  ...])
+	AC_CHECK_HEADER([lmdb.h], [],
+			AC_MSG_ERROR([Symas LMDB lmdb.h is missing]))
+	AC_CHECK_LIB([lmdb], [mdb_version],
+		[AC_DEFINE([WITH_LMDB], [1])
+		LIBCOB_LIBS="$LIBCOB_LIBS -llmdb"],
+		AC_MSG_ERROR([liblmdb is required for LMDB]), [])
+fi
+
 # Checks for dl/ltdl.
 DEFINE_DL="no"
 
@@ -1261,7 +1286,7 @@ if test "x$lt_cv_dlopen_self" != "xyes"; then
 	AC_DEFINE([COB_NO_SELFOPEN], [1])
 fi
 
-if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_index_extfh" != "yes" -a "$with_db" != "yes"; then
+if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_lmdb" != "yes" -a "$with_index_extfh" != "yes" -a "$with_db" != "yes"; then
 	COB_HAS_ISAM=no
 else
 	COB_HAS_ISAM=yes
@@ -1390,6 +1415,8 @@ elif test "$with_vbisam" = "yes"; then
   AC_MSG_NOTICE([ Use VBISAM for ISAM I/O                      yes])
 elif test "$with_db" = "yes"; then
   AC_MSG_NOTICE([ Use Berkeley DB for ISAM I/O:                yes])
+elif test "$with_lmdb" = "yes"; then
+  AC_MSG_NOTICE([ Use Symas LMDB for ISAM I/O:                 yes])
 else
   AC_MSG_NOTICE([ ISAM I/O (no handler configured):            NO])
 fi
