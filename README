@@ -125,6 +125,12 @@ The following libraries ARE required WHEN :
     DISAM is distributed under the proprietary License
     "Byte Designs Ltd. DISAM Software License".
 
+  o Symas LMDB - Lightning Memory-Mapped Database (experimental)
+    https://symas.com/lmdb/
+
+    VBISAM is distributed under OpenLDAP Public License.
+    Note: Locking is currently not supported.
+
 2) SCREEN SECTION and/or extended ACCEPT/DISPLAY is used
 
     BOTH runtime AND development components required.
@@ -236,6 +242,8 @@ these are the most important ones:
 				You will not be able to use indexed I/O
 
   --with-vbisam			Use VBISAM (libvbisam) (ISAM handler)
+
+  --with-lmdb			Use Symas LMDB (liblmdb) (ISAM handler)
 
   --with-dl			Use the system dynamic linker
 				This is the default

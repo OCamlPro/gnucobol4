@@ -446,7 +446,7 @@ fi
 if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes"; then
   AC_ARG_WITH([lmdb],
   [AS_HELP_STRING([--with-lmdb],
-    [(GnuCOBOL) Use Symas LMDB for ISAM I/O])],
+    [(GnuCOBOL) Use Symas LMDB for ISAM I/O (experimental, no locking)])],
   [ if test "$with_lmdb" = "yes"; then
 	AC_DEFINE([WITH_LMDB], [1])
     fi ],
