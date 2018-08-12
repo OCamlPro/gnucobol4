@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2002-2012, 2014-2017 Free Software Foundation, Inc.
+   Copyright (C) 2002-2012, 2014-2018 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
@@ -164,6 +164,10 @@ struct file_list {
 	struct file_list	*next;
 	cob_file		*file;
 };
+
+#if defined(WITH_DB) || defined(WITH_LMDB)
+#define WITH_BDB_OR_MDB
+#endif
 
 #ifdef	WORDS_BIGENDIAN
 #define	COB_MAYSWAP_16(x)	((unsigned short)(x))
@@ -389,11 +393,13 @@ extern int extfh_relative_rewrite	(cob_file *, const int);
 extern int extfh_relative_delete	(cob_file *);
 #endif
 
-#ifdef	WITH_DB
-
-static DB_ENV		*db_env;
-static char		*db_buff;
+#ifdef WITH_BDB_OR_MDB
 static const char	**db_data_dir;
+static char		*db_buff;
+#endif
+
+#ifdef	WITH_DB
+static DB_ENV		*db_env;
 static void		*record_lock_object;
 static size_t		rlo_size;
 static unsigned int	db_lock_id;
@@ -428,6 +434,46 @@ struct indexed_file {
 	int		write_cursor_open;
 	int		record_locked;
 	int		filenamelen;
+};
+
+#elif	defined (WITH_LMDB)
+
+#include <lmdb.h>
+#include <sys/file.h>
+#include <sys/stat.h>
+
+#define MDB_VALSET(key,fld)   \
+  key.mv_data = fld->data;  \
+  key.mv_size = (size_t) fld->size;
+
+#define MDB_SET(p,f) \
+  p->key.mv_size = (size_t) f->keys[0].field->size; \
+  p->key.mv_data = f->keys[0].field->data; \
+  p->data.mv_size = (size_t) f->record->size; \
+  p->data.mv_data = f->record->data;
+
+static const char  **db_data_dir;
+
+struct indexed_file {
+	MDB_env		*db_env;
+	MDB_dbi		**db;		/* Database handlers */
+	MDB_txn		*txn;
+	MDB_cursor	**cursor;
+	MDB_val		key;
+	MDB_val		data;
+	char		*filename;	/* Needed for record locks */
+	unsigned char	*last_key;	/* The last key written */
+	unsigned char	*temp_key;	/* Used for temporary storage */
+	unsigned char	**last_readkey;	/* The last key read */
+	cob_u32_t	*last_dupno;	/* The last number of duplicates read */
+	cob_u32_t	*rewrite_sec_key;
+	size_t		key_index;
+	cob_u32_t	write_cursor_open;
+	cob_u32_t	record_locked;
+	cob_u32_t	filenamelen;
+	cob_u32_t	db_flags;
+	cob_u32_t	txn_flags;
+	cob_u32_t	env_flags;
 };
 
 #endif	/* WITH_DB */
@@ -550,6 +596,13 @@ cob_chk_file_mapping (void)
 			strncpy (file_open_name, file_open_buff,
 				 (size_t)COB_FILE_MAX);
 		}
+#ifdef WITH_LMDB
+		if (cobsetptr->db_home == NULL) {
+			static const char name[] = ".";
+			cobsetptr->db_home = cob_malloc(sizeof(name));
+			strcpy(cobsetptr->db_home,name);
+		}
+#endif
 		return;
 	}
 
@@ -2642,7 +2695,6 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 }
 
 /* Check if a file exists in bdb data dirs */
-
 static int
 is_absolute (const char *filename)
 {
@@ -2705,6 +2757,430 @@ db_nofile (const char *filename)
 	return 1;
 }
 
+#elif	defined (WITH_LMDB)
+
+# if 0	/* TODO: Come back and implement locking */
+static int
+lock_record (cob_file *f, const char *key, const unsigned int keylen)
+{
+
+}
+
+static int
+test_record_lock (cob_file *f, const char *key, const unsigned int keylen)
+{
+
+}
+
+static int
+unlock_record (cob_file *f)
+{
+}
+#endif
+
+/* Get the next number in a set of duplicates */
+static unsigned int
+get_dupno (cob_file *f, const cob_u32_t i)
+{
+	struct indexed_file	*p;
+	int			ret;
+	unsigned int		dupno;
+
+	p = f->file;
+	dupno = 0;
+	
+	// Using a nested transaction so we don't mess up the write transacion in indexed_write
+	MDB_txn    *txn;
+	MDB_cursor *cursor;
+	txn    = cob_malloc(sizeof(MDB_txn *));
+	cursor = cob_malloc(sizeof(MDB_cursor *));
+
+	MDB_VALSET (p->key, f->keys[i].field);
+	memcpy (p->temp_key, p->key.mv_data, p->key.mv_size);
+	mdb_txn_begin(p->db_env, p->txn , 0, &txn);
+	mdb_cursor_open(txn, *p->db[i], &cursor);
+	ret = mdb_cursor_get(cursor,&p->key,&p->data,MDB_SET_RANGE);
+	while (ret == 0 && memcmp(p->key.mv_data, p->temp_key, p->key.mv_size) == 0) {
+		memcpy(&dupno,(cob_u8_ptr)p->data.mv_data + f->keys[0].field->size,sizeof(unsigned int));
+		ret = mdb_cursor_get(cursor,&p->key,&p->data,MDB_NEXT);
+	}
+	mdb_cursor_close(cursor);
+	mdb_txn_commit(txn);
+	return ++dupno;
+}
+
+static int
+check_alt_keys (cob_file *f, const int rewrite)
+{
+	struct indexed_file  *p = f->file;
+	size_t i;
+	int    ret = 0;
+	
+	// Transaction is inherited from caller
+	for (i = 1; i < f->nkeys; ++i) {
+		if (!f->keys[i].flag) {
+			MDB_VALSET (p->key, f->keys[i].field);
+			ret = mdb_get(p->txn,*p->db[i],&p->key,&p->data);
+			if (ret == 0) {
+				if (rewrite) {
+					if (memcmp (p->data.mv_data, f->keys[0].field->data,f->keys[0].field->size)) {
+						return 1;
+					}
+				} else {
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+static int
+indexed_write_internal (cob_file *f, const int rewrite, const int opt)
+{
+	struct indexed_file  *p = f->file;
+	cob_u32_t i;
+	cob_u32_t dupno;
+	cob_u32_t ret = 0;
+	cob_u32_t close_cursor;
+
+	if (p->write_cursor_open) {
+		close_cursor = 0;
+	} else {
+		mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
+		
+		/* p->cursor[0] should always be created. */
+		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != 0) {
+			mdb_txn_abort(p->txn);
+			p->write_cursor_open = 0;
+			return COB_STATUS_30_PERMANENT_ERROR;
+		}
+
+		/* Cursors for alternate keys. */
+		if (f->nkeys > 1) {
+			for (i = 1; i < f->nkeys; i++) {
+				if (f->keys[i].flag) {
+					if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != 0) {
+						mdb_txn_abort(p->txn);
+						p->write_cursor_open = 0;
+						return COB_STATUS_30_PERMANENT_ERROR;
+					}
+				}
+			}
+		}
+		p->write_cursor_open = 1;
+		close_cursor = 1;
+	}
+
+	/* Check duplicate alternate keys */
+	if (f->nkeys > 1 && !rewrite) {
+		if (check_alt_keys (f, 0)) {
+			if (close_cursor) {
+				mdb_txn_abort(p->txn);
+				p->write_cursor_open = 0;
+			}
+			return COB_STATUS_22_KEY_EXISTS;
+		}
+		MDB_VALSET (p->key, f->keys[0].field);
+	}
+
+	/* Position write cursor */
+	if (!(ret =  mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET))) {
+		if (close_cursor) {
+			mdb_txn_abort(p->txn);
+			p->write_cursor_open = 0;
+		}
+		return COB_STATUS_22_KEY_EXISTS;
+	}
+	p->data.mv_data = f->record->data;
+	p->data.mv_size = (size_t) f->record->size;
+	
+	/* Write data */
+	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, MDB_FIRST)) != 0) {
+		if (close_cursor) {
+			mdb_txn_abort(p->txn);
+			p->write_cursor_open = 0;
+		}
+		return COB_STATUS_30_PERMANENT_ERROR;
+	} 
+
+	/* Write secondary keys */
+	p->data = p->key;
+	for (i = 1; i < f->nkeys; ++i) {
+		if (rewrite && ! p->rewrite_sec_key[i]) {
+			continue;
+		}
+		if (f->keys[i].flag) { 
+			dupno = get_dupno(f, i);
+			memcpy (p->temp_key, f->keys[0].field->data, f->keys[0].field->size);
+			memcpy (p->temp_key + f->keys[0].field->size, &dupno, sizeof(unsigned int));
+			p->data.mv_data = p->temp_key;
+			p->data.mv_size = f->keys[0].field->size + sizeof(unsigned int);
+
+			MDB_VALSET(p->key,f->keys[i].field);
+			if ((ret =  mdb_cursor_put(p->cursor[i],&p->key,&p->data,0)) != 0) {
+			}
+		} else {
+			MDB_VALSET(p->key,f->keys[i].field);
+			if ((ret = mdb_put(p->txn,*p->db[i],&p->key,&p->data,MDB_NOOVERWRITE)) != 0) {
+				if (close_cursor) {
+					mdb_txn_abort(p->txn);
+					p->write_cursor_open = 0;
+				}
+				return COB_STATUS_22_KEY_EXISTS;
+			}
+		}
+	}
+
+	if (close_cursor) {
+		for (i = 0; i < f->nkeys; i++) {
+			if (i == 0 || f->keys[i].flag) {
+				mdb_cursor_close(p->cursor[i]);
+			}
+		}
+		mdb_txn_commit(p->txn);
+		p->write_cursor_open = 0;
+	}
+	return COB_STATUS_00_SUCCESS;
+}
+
+static int
+indexed_start_internal (cob_file *f, const int cond, cob_field *key,
+			const int read_opts, const int test_lock)
+{ 
+	struct indexed_file *p = f->file;
+	int ret;
+	cob_u32_t dupno;
+	dupno = 0;
+	COB_UNUSED(dupno);
+
+	for (p->key_index = 0; p->key_index < f->nkeys; p->key_index++) {
+		if (f->keys[p->key_index].field->data == key->data) {
+			break;
+		}
+	}
+
+	/* Set the key to search */
+	MDB_VALSET(p->key, key);
+	
+	/* Start the transaction */
+	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn))) {
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+	
+	/* Open a cursor for an alternate key */
+	if (p->key_index !=0) {
+		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != 0) {
+			return COB_STATUS_30_PERMANENT_ERROR;
+		}
+	}
+	
+	/* Create a cursor */
+	if ((ret = mdb_cursor_open(p->txn,*p->db[p->key_index], &p->cursor[p->key_index])) !=0) {
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+
+	if (cond == COB_FI) {
+		ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_FIRST);
+	} else if (cond == COB_LA) {
+		ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
+	}  else {
+		ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_SET_RANGE);
+	}
+
+	switch (cond) {
+		case COB_EQ:
+			if (ret == 0) {
+				ret = memcmp (p->key.mv_data, key->data, key->size);
+			}
+			break;
+		case COB_LT:
+			if (ret != 0) {
+				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
+			} else {
+				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
+			}
+			break;
+		case COB_LE:
+			if (ret != 0) {
+				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
+			} else if (memcmp(p->key.mv_data, key->data, key->size) !=0) {
+				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
+			} else if (f->keys[p->key_index].flag) {
+				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_NEXT_NODUP);
+				if (ret != 0) {
+					ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
+				} else {
+					ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
+				}
+			}
+			break;
+		case COB_GT:
+			while (ret == 0 && memcmp(p->key.mv_data, key->data, key->size) == 0) {
+				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_NEXT);
+			}
+			break;
+		case COB_GE:
+			/* nothing */
+			break;
+		case COB_FI:
+			/* nothing */
+			break;
+		case COB_LA:
+			/* nothing */
+			break;
+	}
+
+	if (ret == 0 && p->key_index > 0) {
+		memcpy(p->temp_key, p->key.mv_data, f->keys[p->key_index].field->size);
+		if (f->keys[p->key_index].flag) {
+			memcpy(&dupno, (cob_u8_ptr)p->data.mv_data + f->keys[0].field->size, sizeof(unsigned int));
+		}
+		p->key.mv_data = p->data.mv_data;
+		p->key.mv_size = f->keys[0].field->size;
+		ret = mdb_get(p->txn, *p->db[0], &p->key, &p->data);
+	}
+
+#if 0	/* TODO: Come back to lock test */
+	if (ret == 0 && test_lock) {
+
+	}
+#endif
+
+	if (ret == 0) {
+		if (p->key_index == 0) {
+			memcpy (p->last_readkey[0], p->key.mv_data, f->keys[0].field->size);
+		} else {
+			memcpy (p->last_readkey[p->key_index],
+				p->temp_key, f->keys[p->key_index].field->size);
+			memcpy (p->last_readkey[p->key_index + f->nkeys], p->key.mv_data,
+				f->keys[0].field->size);
+			if (f->keys[p->key_index].flag) {
+				p->last_dupno[p->key_index] = dupno;
+			}
+		}
+	}
+
+	mdb_cursor_close(p->cursor[p->key_index]);
+	mdb_txn_commit(p->txn);
+	return (ret == 0) ? COB_STATUS_00_SUCCESS : COB_STATUS_23_KEY_NOT_EXISTS;
+}
+
+static int
+indexed_delete_internal (cob_file *f, const int rewrite)
+{
+	struct indexed_file	*p;
+	size_t			i;
+	size_t			offset;
+	MDB_val			prim_key;
+	int			ret;
+	cob_u32_t		flags;
+	int			close_cursor;
+
+	COB_UNUSED(flags);
+	p = f->file;
+	flags = 0;
+	if (p->write_cursor_open) {
+		close_cursor = 0;
+	} else {
+		mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
+		mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0]);
+		p->write_cursor_open = 1;
+		close_cursor = 1;
+	}
+	
+#if 0	/* TODO: Come back and implement locking */
+	if (p->db_env != NULL) {
+		unlock_record (f);
+	}
+#endif
+
+	/* Find the primary key */
+	if (f->access_mode != COB_ACCESS_SEQUENTIAL) {
+		MDB_VALSET (p->key, f->keys[0].field);
+	}
+	ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_SET);
+	if ((ret != 0 && f->access_mode != COB_ACCESS_SEQUENTIAL)) {
+		if (close_cursor) {
+			mdb_txn_abort(p->txn);
+			p->write_cursor_open = 0;
+		}
+		return COB_STATUS_23_KEY_NOT_EXISTS;
+	}
+	
+#if 0	/* TODO: Come back and implement locking */
+	if (p->db_env != NULL) {
+		ret = test_record_lock (f, p->key.data, p->key.size);
+		if (ret) {
+			if (close_cursor) {
+				p->cursor[0]->c_close (p->cursor[0]);
+				p->cursor[0] = NULL;
+				p->write_cursor_open = 0;
+			}
+			return COB_STATUS_51_RECORD_LOCKED;
+		}
+	}
+#endif
+	prim_key = p->key;
+
+	/* Delete the secondary keys */
+	offset = (char *) p->data.mv_data - (char *) f->record->data;
+	for (i = 1; i < f->nkeys; ++i) {
+		MDB_VALSET (p->key, f->keys[i].field);
+		p->key.mv_data = (char *)p->key.mv_data + offset;
+		/* rewrite: no delete if secondary key is unchanged */
+		if (rewrite) {
+			p->rewrite_sec_key[i] = memcmp (p->key.mv_data, f->keys[i].field->data, (size_t)p->key.mv_size);
+			if (!p->rewrite_sec_key[i]) {
+				continue;
+			}
+		}
+		if (!f->keys[i].flag) {
+			mdb_del(p->txn,*p->db[i],&p->key,&p->data);
+		} else {
+			MDB_val sec_key = p->key;
+
+			mdb_cursor_open(p->txn,*p->db[i], &p->cursor[i]);
+			if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_SET_RANGE) == 0) {
+				while (sec_key.mv_size == p->key.mv_size
+				    && memcmp (p->key.mv_data, sec_key.mv_data,
+				       (size_t)sec_key.mv_size) == 0) {
+					if (memcmp (p->data.mv_data, prim_key.mv_data,
+						     (size_t)prim_key.mv_size) == 0) {
+						mdb_cursor_del(p->cursor[i],0);
+					}
+					if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_NEXT) != 0) {
+						break;
+					}
+				}
+			}
+			mdb_cursor_close(p->cursor[i]);
+		}
+	}
+
+	/* Delete the record */
+	if ((ret = mdb_cursor_del(p->cursor[0], 0))) {
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+
+	if (close_cursor) {
+		mdb_cursor_close(p->cursor[0]);
+		mdb_txn_commit(p->txn);
+		p->write_cursor_open = 0;
+	}
+	return COB_STATUS_00_SUCCESS;
+}
+
+static int
+db_nofile (const char *filename)
+{
+	if ((access(filename,(F_OK | R_OK | W_OK)) != 0)) {
+		if (errno == ENOENT) {
+			return 1;
+		}
+	}
+	return 0;
+}
 #endif	/* WITH_DB */
 
 /* Delete file */
@@ -3254,6 +3730,151 @@ dobuild:
 	}
 	return 0;
 
+
+#elif	defined(WITH_LMDB)
+
+	struct indexed_file	*p;
+	size_t			i;
+	size_t			maxsize;
+	int			ret = 0;
+	int			nonexistent;
+
+	COB_UNUSED (sharing);
+	cob_chk_file_mapping ();
+	nonexistent = 0;
+	if (db_nofile (filename)) {
+		nonexistent = 1;
+		if (mode != COB_OPEN_OUTPUT && f->flag_optional == 0) {
+			return COB_STATUS_35_NOT_EXISTS;
+		}
+	}
+
+	p = cob_malloc (sizeof (struct indexed_file));
+
+	switch (mode) {
+	case COB_OPEN_INPUT:
+		p->env_flags |= MDB_RDONLY;
+		p->txn_flags |= MDB_RDONLY;
+		break;
+	case COB_OPEN_OUTPUT:
+		p->db_flags |= MDB_CREATE;
+		break;
+	case COB_OPEN_I_O:
+	case COB_OPEN_EXTEND:
+		p->db_flags |= MDB_CREATE;
+		break;
+	}
+
+	ret = mdb_env_create(&p->db_env);
+	if (ret != 0 ) {
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+
+	if (f->nkeys > 1) {
+		if ((ret = mdb_env_set_maxdbs(p->db_env,f->nkeys)) !=0 ) {
+			mdb_env_close(p->db_env);
+			p->db_env = NULL;
+			return COB_STATUS_30_PERMANENT_ERROR;
+		}
+	}
+
+	p->db              = cob_malloc(sizeof (MDB_dbi *) * f->nkeys);
+	p->cursor          = cob_malloc(sizeof (MDB_cursor *) * f->nkeys);
+	p->last_readkey    = cob_malloc(sizeof(unsigned char *) * 2 * f->nkeys);
+	p->last_dupno      = cob_malloc(sizeof(unsigned int * ) * 2 * f->nkeys);
+	p->rewrite_sec_key = cob_malloc(sizeof(int) * f->nkeys);
+	maxsize = 0;
+
+	if (nonexistent) {
+		if ((ret = mkdir(filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH)) != 0) {
+			switch (ret) {
+			case EACCES:
+				return COB_STATUS_37_PERMISSION_DENIED;
+			default:
+				return COB_STATUS_30_PERMANENT_ERROR;
+			}
+		}
+		if (f->flag_optional) {
+			if (mode == COB_OPEN_I_O) {
+				return COB_STATUS_30_PERMANENT_ERROR;
+			}
+			f->open_mode = mode;
+			f->flag_nonexistent = 1;
+			f->flag_end_of_file = 1;
+			f->flag_begin_of_file = 1;
+			return COB_STATUS_05_SUCCESS_OPTIONAL;
+		}
+	}
+
+	ret = mdb_env_open(p->db_env, filename, p->env_flags, 0664);
+	if (ret != 0) {
+		mdb_env_close(p->db_env);
+		p->db_env = NULL;
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+
+	for (i = 0; i < f->nkeys; i++) {
+		if (f->keys[i].field->size > maxsize) {
+			maxsize = f->keys[i].field->size;
+		}
+	}
+
+	ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
+	if (ret != 0) {
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+	for (i = 0; i < f->nkeys; i++) {
+		if (i == 0) {
+			snprintf(runtime_buffer, (size_t)COB_FILE_MAX, "%s", filename);
+		} else {
+			snprintf(runtime_buffer, (size_t)COB_FILE_MAX, "%s.%d", filename, (int)i);
+		}
+		
+		p->db[i] = cob_malloc(sizeof(MDB_dbi *));
+		if ((ret = mdb_open(p->txn, 
+			(f->nkeys == 1) ? NULL : runtime_buffer,
+			(p->db_flags|((f->keys[i].flag)?(MDB_DUPSORT|MDB_REVERSEDUP):0)) , p->db[i])) != 0) {
+			for (int j = 0; j < i; ++j) {
+				mdb_dbi_close(p->db_env,*p->db[j]);
+			}
+			return COB_STATUS_30_PERMANENT_ERROR;
+		}
+		p->last_readkey[i] = cob_malloc (maxsize);
+		p->last_readkey[f->nkeys + i] = cob_malloc (maxsize);
+	}
+
+	p->temp_key = cob_malloc (maxsize + sizeof(unsigned int));
+
+	f->file = p;
+	p->key_index = 0;
+	p->last_key = NULL;
+
+	memset ((void *)&p->key, 0, sizeof (MDB_val));
+	memset ((void *)&p->data, 0, sizeof (MDB_val));
+	p->filenamelen = strlen(filename);
+	p->filename = cob_malloc(p->filenamelen + 1);
+	memcpy (p->filename, filename, strlen(filename));
+	p->write_cursor_open = 0;
+	p->record_locked = 0;
+	f->open_mode = mode;
+
+	MDB_VALSET(p->key, f->keys[0].field);
+
+	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != 0) {
+		return COB_STATUS_30_PERMANENT_ERROR;
+	}
+
+	ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_FIRST);
+	if (!ret) {
+		memcpy (p->last_readkey[0], p->key.mv_data, p->key.mv_size);
+	} else {
+		p->data.mv_data = NULL;
+	}
+
+	mdb_cursor_close(p->cursor[0]);
+	mdb_txn_commit(p->txn);
+	f->open_mode = mode;
+	return 0;
 #else
 	COB_UNUSED (f);
 	COB_UNUSED (filename);
@@ -3329,6 +3950,21 @@ indexed_close (cob_file *f, const int opt)
 	}
 	cob_free (p);
 
+	return COB_STATUS_00_SUCCESS;
+
+#elif defined (WITH_LMDB)
+
+	COB_UNUSED(opt);
+	struct indexed_file *p;
+
+	p = f->file;
+	/* Close DB's */
+	for (int i = 0; i < f->nkeys; i++) {
+		mdb_close(p->db_env, *p->db[i]);
+	}
+	mdb_env_close(p->db_env);
+	p->db_env = NULL;
+	if (p) cob_free(p);
 	return COB_STATUS_00_SUCCESS;
 
 #else
@@ -3442,7 +4078,7 @@ indexed_start (cob_file *f, const int cond, cob_field *key)
 	f->flag_first_read = 1;
 	return COB_STATUS_00_SUCCESS;
 
-#elif	defined(WITH_DB)
+#elif	defined(WITH_BDB_OR_MDB)
 
 	return indexed_start_internal (f, cond, key, 0, 0);
 
@@ -4147,7 +4783,7 @@ indexed_write (cob_file *f, const int opt)
 #endif
 	return 0;
 
-#elif	defined(WITH_DB)
+#elif	defined (WITH_BDB_OR_MDB)
 
 	struct indexed_file	*p;
 
@@ -4155,6 +4791,7 @@ indexed_write (cob_file *f, const int opt)
 		return COB_STATUS_48_OUTPUT_DENIED;
 	}
 	p = f->file;
+#if	defined (WITH_DB)
 	if (db_env != NULL) {
 		unlock_record (f);
 	}
@@ -4168,6 +4805,17 @@ indexed_write (cob_file *f, const int opt)
 		return COB_STATUS_21_KEY_INVALID;
 	}
 	memcpy (p->last_key, p->key.data, (size_t)p->key.size);
+#else
+	/* Check record key */
+	MDB_VALSET(p->key, f->keys[0].field);
+	if (!p->last_key) {
+		p->last_key = cob_malloc ((size_t)p->key.mv_size);
+	} else if (f->access_mode == COB_ACCESS_SEQUENTIAL &&
+			 memcmp (p->last_key, p->key.mv_data, (size_t)p->key.mv_size) > 0) {
+		return COB_STATUS_21_KEY_INVALID;
+	}
+	memcpy (p->last_key, p->key.mv_data, (size_t)p->key.mv_size);
+#endif
 
 	return indexed_write_internal (f, 0, opt);
 
@@ -4221,7 +4869,7 @@ indexed_delete (cob_file *f)
 	restorefileposition (f);
 	return ret;
 
-#elif	defined(WITH_DB)
+#elif	defined(WITH_BDB_OR_MDB)
 
 	if (f->flag_nonexistent) {
 		return COB_STATUS_49_I_O_DENIED;
@@ -4396,6 +5044,34 @@ indexed_rewrite (cob_file *f, const int opt)
 	p->write_cursor_open = 0;
 	return ret;
 
+#elif	defined(WITH_LMDB)
+	struct indexed_file	*p;
+	int			ret;
+
+	if (f->flag_nonexistent) {
+		return COB_STATUS_49_I_O_DENIED;
+	}
+	p = f->file;
+
+	/* Check duplicate alternate keys */
+	if (check_alt_keys (f, 1)) {
+		return COB_STATUS_22_KEY_EXISTS;
+	}
+
+	/* Delete the current record */
+	ret = indexed_delete_internal (f, 1);
+
+	if (ret != COB_STATUS_00_SUCCESS) {
+		return ret;
+	}
+
+	/* Write data */
+	MDB_VALSET (p->key, f->keys[0].field);
+	ret = indexed_write_internal (f, 1, opt);
+
+	p->write_cursor_open = 0;
+	return ret;
+
 #else
 	COB_UNUSED (f);
 	COB_UNUSED (opt);
@@ -4458,6 +5134,8 @@ cob_file_unlock (cob_file *f)
 				unlock_record (f);
 				db_env->lock_put (db_env, &p->db_file_lock);
 			}
+#elif	defined(WITH_LMDB)
+			/* TODO: locking*/
 #elif	defined(WITH_ANY_ISAM)
 			fh = f->file;
 			if (fh) {
@@ -6508,12 +7186,14 @@ cob_init_fileio (cob_global *lptr, cob_settings *sptr)
 	file_open_name = runtime_buffer + (2 * COB_FILE_BUFF);
 	file_open_buff = runtime_buffer + (3 * COB_FILE_BUFF);
 
-#ifdef	WITH_DB
-	db_env = NULL;
+#ifdef	WITH_BDB_OR_MDB
 	db_data_dir = NULL;
-	record_lock_object = cob_malloc ((size_t)1024);
 	db_buff = cob_malloc ((size_t)COB_SMALL_BUFF);
+#ifdef	WITH_BDB
+	db_env = NULL;
 	rlo_size = 1024;
+	record_lock_object = cob_malloc (rlo_size);
+#endif
 #endif
 
 #if	defined(WITH_INDEX_EXTFH) || defined(WITH_SEQRA_EXTFH)

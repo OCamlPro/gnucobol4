@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2018 Free Software Foundation, Inc.
 
    Authors:
    Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Brian Tiffin,
@@ -2138,6 +2138,8 @@ cobc_print_info (void)
 	cobc_var_print (_("ISAM handler"),		"EXTFH", 0);
 #elif defined	(WITH_DB)
 	cobc_var_print (_("ISAM handler"),		"BDB", 0);
+#elif defined	(WITH_LMDB)
+	cobc_var_print (_("ISAM handler"),		"LMDB (experimental)", 0);
 #elif defined	(WITH_CISAM)
 	cobc_var_print (_("ISAM handler"),		"C-ISAM", 0);
 #elif defined	(WITH_DISAM)

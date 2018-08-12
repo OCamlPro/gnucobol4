@@ -1,4 +1,10 @@
 
+2018-08-12  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: finished first working snapshot of LMDB
+	  integration.
+	  Note: Some NIST tests still fail, locking is not implemented yet.
+
 2017-12-18  Greg Noe <gnoe@symas.com>
 
 	* fileio.c, common.c, coblocal.h: replaced prefix "bdb_" with "db_"
