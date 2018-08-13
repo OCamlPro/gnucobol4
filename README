@@ -128,7 +128,7 @@ The following libraries ARE required WHEN :
   o Symas LMDB - Lightning Memory-Mapped Database (experimental)
     https://symas.com/lmdb/
 
-    VBISAM is distributed under OpenLDAP Public License.
+    LMDB is distributed under OpenLDAP Public License.
     Note: Locking is currently not supported.
 
 2) SCREEN SECTION and/or extended ACCEPT/DISPLAY is used
