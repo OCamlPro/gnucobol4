@@ -24,13 +24,14 @@ include_HEADERS = libcob.h
 SUBDIRS = lib libcob cobc bin config copy po doc extras tests
 
 # define prerequisites to fix parallel builds
-libcob: lib
+libcob: defaults.h lib
 cobc: libcob
 bin: libcob
 po: cobc
 doc: cobc
 extras: cobc
-tests: bin cobc
+test: bin cobc
+check: bin cobc
 
 ACLOCAL_AMFLAGS = -I m4 --install
 BUILT_SOURCES = defaults.h
@@ -45,9 +46,9 @@ EXTRA_DIST = gnucobol.spec po/update_linguas.sh
 #@ CODE_COVERAGE_RULES @
 
 dist-hook:
-	echo "#define COB_TAR_DATE \"`date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h
-	echo "#define COB_NUM_TAR_DATE `date -u +'%Y%m%d'`" >> $(distdir)/tarstamp.h
-	echo "#define COB_NUM_TAR_TIME `date -u +'%H%M%S'`" >> $(distdir)/tarstamp.h
+	echo "#define COB_TAR_DATE \"`LC_ALL=C date -u +'%b %d %Y %T'` UTC\"" > $(distdir)/tarstamp.h
+	echo "#define COB_NUM_TAR_DATE `LC_ALL=C date -u +'%Y%m%d'`" >> $(distdir)/tarstamp.h
+	echo "#define COB_NUM_TAR_TIME `LC_ALL=C date -u +'%H%M%S'`" >> $(distdir)/tarstamp.h
 	find $(distdir) -type d -print | xargs chmod 755
 	find $(distdir) -type f -print | xargs chmod 644
 	touch $(distdir)/m4/*.m4
@@ -115,3 +116,4 @@ test: all
 	cd tests && $(MAKE) $(AM_MAKEFLAGS) test
 
 checkall: check test
+

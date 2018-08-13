@@ -600,7 +600,8 @@ cob_sig_handler (int sig)
 #endif
 	default:
 		signal_name = _("unknown");
-		fprintf (stderr, _("cob_sig_handler caught not handled signal: %d"), sig);
+		/* not translated as it is a very unlikely error case */
+		fprintf (stderr, "cob_sig_handler caught not handled signal: %d", sig);
 		putc ('\n', stderr);
 		break;
 	}
@@ -2851,7 +2852,7 @@ cob_get_current_date_and_time (void)
 	struct cob_time	cb_time = cob_get_current_date_and_time_from_os ();
 
 #if _WIN32
-	needs_calculation = 1;	/* WIN32 allways needs a recalculation (doesn't set all items) */
+	needs_calculation = 1;	/* WIN32 always needs a recalculation (doesn't set all items) */
 #endif
 
 	/* do we have a constant time? */
@@ -3197,7 +3198,7 @@ check_current_date()
 	}
 	tmptr->tm_isdst = -1;
 
-	/* nornmalize if needed (for example 40 October is changed into 9 November),
+	/* normalize if needed (for example 40 October is changed into 9 November),
 	   set tm_wday, tm_yday and tm_isdst */
 	t = mktime (tmptr);
 
@@ -4663,7 +4664,7 @@ cob_sys_getopt_long_long (void *so, void *lo, void *idx, const int long_only, vo
 
 		optlen = strlen (cob_optarg);
 		if (optlen > opt_val_size) {
-			/* Returncode 2 for "Optionvalue too long => cut" */
+			/* Return code 2 for "Option value too long => cut" */
 			optlen = opt_val_size;
 			exit_status = 2;
 		}
@@ -5153,7 +5154,7 @@ cob_expand_env_string (char *strval)
 static void
 set_value (char *data, int len, cob_s64_t val)
 {
-	/* keep in order of occurence in data types, last nanoseconds for startup... */
+	/* keep in order of occurrence in data types, last nanoseconds for startup... */
 	if (len == sizeof (int)) {
 		*(int *)data = (int)val;
 	} else if (len == sizeof (short)) {
@@ -6053,7 +6054,7 @@ cob_fatal_error (const int fatal_error)
 			msg = _("record overflow");
 			break;
 		case COB_STATUS_46_READ_ERROR:
-			msg = _("READ after uncessful READ/START");
+			msg = _("READ after unsucessful READ/START");
 			break;
 		case COB_STATUS_47_INPUT_DENIED:
 			msg = _("READ/START not allowed, file not open for input");
@@ -6513,7 +6514,7 @@ cob_init (const int argc, char **argv)
 #endif
 	int		i;
 
-#if 0	/* Simon: Should not happen - is it neccessary anywhere?
+#if 0	/* Simon: Should not happen - is it necessary anywhere?
 		   We may change this to a runtime warning/error */
 	if (cob_initialized) {
 		return;
@@ -6631,7 +6632,7 @@ cob_init (const int argc, char **argv)
 	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
 	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;
 
-	/* Call inits with cobsetptr to get the adresses of all */
+	/* Call inits with cobsetptr to get the addresses of all */
 	/* Screen-IO might be needed for error outputs */
 	cob_init_screenio (cobglobptr, cobsetptr);
 	cob_init_numeric (cobglobptr);

@@ -4,6 +4,23 @@
 	* report.pl: removing test files not only as files but also as
 	  directories as LMDB uses a directory for each database
 
+2018-06-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: split rules for EXEC85 and EXEC85.cob to prevent
+	  unneeded recreation of the source file
+
+2018-05-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: new URL for NIST suite, using https
+
+2017-09-24  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.module.in: (new file) moved content of generated
+	  Makefiles to separate template file;
+	  splitted into multiple targets and all target
+	* Makefile.am: adjusted to `sed` the template instead of
+	  using `echo` to create the module Makefile
+
 2017-09-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* Makefile.am: extra target for summary.log

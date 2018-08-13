@@ -3311,7 +3311,7 @@ AT_SETUP([ACUCOBOL WINDOW statements])
 AT_KEYWORDS([misc acu extensions screen])
 
 # TODO: need a better tests when we implement this,
-#       likely splitted into multiple ones
+#       likely split into multiple ones
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -3425,7 +3425,7 @@ AT_SETUP([CGI: EXTERNAL-FORM])
 AT_KEYWORDS([misc acu extensions accept display])
 
 # TODO: need a better tests when we implement this,
-#       likely splitted into multiple ones
+#       likely split into multiple ones
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
@@ -3594,7 +3594,10 @@ AT_DATA([prog.cob], [
        SOURCE-COMPUTER. b.
 ])
 
-AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+# MF extension, supported by GnuCOBOL
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+# note: testing with lax configuration, otherwise there would be an error
+AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [],
 [prog.cob: 8: warning: incorrect order of SOURCE- and OBJECT-COMPUTER paragraphs used
 ])
 AT_CLEANUP
@@ -3652,7 +3655,10 @@ AT_DATA([prog.cob], [
        END PROGRAM prog4.
 ])
 
-AT_CHECK([$COMPILE_ONLY prog.cob], [0], [],
+# MF extension, supported by GnuCOBOL
+AT_CHECK([$COMPILE_ONLY prog.cob], [0], [], [])
+# note: testing with lax configuration, otherwise there would be an error
+AT_CHECK([$COMPILE_ONLY -std=acu prog.cob], [0], [],
 [prog.cob: 12: warning: incorrect order of CONFIGURATION SECTION paragraphs used
 prog.cob: 24: warning: incorrect order of CONFIGURATION SECTION paragraphs used
 prog.cob: 35: warning: incorrect order of CONFIGURATION SECTION paragraphs used
@@ -4378,7 +4384,7 @@ AT_KEYWORDS([conditions refmod IF EVALUATE])
 
 # we currently only get the last line of an expression when we compare two constants
 
-# we currently do the comparision checks for EVALUATE from last WHEN to first one
+# we currently do the comparison checks for EVALUATE from last WHEN to first one
 # to get the line numbers in order we'd need to have to postpone the check
 # until the list of WHENs is reversed
 
