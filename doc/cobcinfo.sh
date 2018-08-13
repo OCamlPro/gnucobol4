@@ -1,7 +1,7 @@
 #!/bin/sh
 # cobcinfo.sh gnucobol/doc
 #
-# Copyright (C) 2010,2012, 2016-2017 Free Software Foundation, Inc.
+# Copyright (C) 2010,2012, 2016-2018 Free Software Foundation, Inc.
 # Written by Roger While, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
@@ -23,20 +23,47 @@
 GREP_ORIG="$GREP";
 if test "x$GREP" = "x"; then GREP=grep; fi
 
-# test for grep -A
 if test "$1" != "fixtimestamps"; then
-   $GREP -A2 test /dev/null 2>/dev/null
+
+   # test for grep -A
+   $GREP -A2 test /dev/null 2>/dev/null 1>&2
    if test "$?" -ne 1; then
       GREP=ggrep
-      $GREP -A2 test /dev/null 2>/dev/null
+      $GREP -A2 test /dev/null 2>/dev/null 1>&2
       if test "$?" -ne 1; then
          echo "error: grep not working, re-run with GREP=/path/to/gnu-grep"
          echo "       GREP is currently \"$GREP_ORIG\""
          exit 1
       fi
    fi
-fi
 
+   if test "x$COBC" = "x"; then
+      echo 'WARNING: $COBC not set, defaulting to "cobc"'
+      COBC=cobc
+   fi
+   if test "x$COBCRUN" = "x"; then
+      echo 'WARNING: $COBCRUN not set, defaulting to "cobcrun"'
+      COBCRUN=cobcrun
+   fi
+   
+   # test for working executables
+   $COBC    -V 2>/dev/null 1>&2
+   ret=$?
+   if test "$ret" -ne 0; then
+     echo "error: cobc is not working, re-run with COBC=/path/to/cobc"
+	 echo "       and ensure that its dependencies can be found."
+     echo "       COBC is currently \"$COBC\""
+     exit $ret
+   fi
+   $COBCRUN -V 2>/dev/null 1>&2
+   if test "$ret" -ne 0; then
+     echo "error: cobcrun is not working, re-run with COBCRUN=/path/to/cobcrun"
+	 echo "       and ensure that its dependencies can be found."
+     echo "       COBCRUN is currently \"$COBCRUN\""
+     exit $ret
+   fi
+
+fi
 
 # Make sure to source atconfig/atlocal before running this shell
 # to use the currently compiled version of cobc
@@ -48,32 +75,32 @@ _create_file () {
 	case "$1" in
 		"cbhelp.tex")
 			echo "@verbatim"               > $1
-			cobc -q --help                 >>$1
+			$COBC -q --help                >>$1
 			echo "@end verbatim"           >>$1
 			;;
 		"cbchelp.tex")
 			echo "@verbatim"               > $1
-			cobcrun -q --help              >>$1
+			$COBCRUN -q --help             >>$1
 			echo "@end verbatim"           >>$1
 			;;
 		"cbrese.tex")
 			echo "@verbatim"               > $1
-			cobc -q --list-reserved        >>$1
+			$COBC -q --list-reserved       >>$1
 			echo "@end verbatim"           >>$1
 			;;
 		"cbintr.tex")
 			echo "@verbatim"               > $1
-			cobc -q --list-intrinsics      >>$1
+			$COBC -q --list-intrinsics     >>$1
 			echo "@end verbatim"           >>$1
 			;;
 		"cbsyst.tex")
 			echo "@verbatim"               > $1
-			cobc -q --list-system          >>$1
+			$COBC -q --list-system         >>$1
 			echo "@end verbatim"           >>$1
 			;;
 		"cbmnem.tex")
 			echo "@verbatim"               > $1
-			cobc -q --list-mnemonics       >>$1
+			$COBC -q --list-mnemonics      >>$1
 			echo "@end verbatim"           >>$1
 			;;
 		"cbconf.tex")
@@ -97,7 +124,8 @@ _create_file () {
 			      -e 's/  \([^ ].*\)$/ @code{\1}/g' \
 			      -e 's/^$/@\*/g' \
 			                               > $1
-			lines=$(expr 20 + $(cat $1 | wc -l))
+			lines=`cat $1 | wc -l`
+			lines=`expr 20 + $lines`
 			# All other sections
 			echo "@verbatim"               >>$1
 			tail -n +$lines $confdir/runtime.cfg \
@@ -112,17 +140,18 @@ _create_file () {
 
 docdir=`dirname $0`
 confdir=$docdir/../config
+created_texfiles="cbhelp.tex cbchelp.tex cbrese.tex cbintr.tex cbsyst.tex"
+created_texfiles="$created_texfiles cbmnem.tex cbconf.tex cbrunt.tex"
 
-case "$1" in
+
+# for old systems that don't support this POSIX parameter expansion:
+#case "$1" in
+# otherwise: only use filename (strip possible path)
+case "${1##*/}" in
 	"")
-		_create_file "cbhelp.tex"
-		_create_file "cbchelp.tex"
-		_create_file "cbrese.tex"
-		_create_file "cbintr.tex"
-		_create_file "cbsyst.tex"
-		_create_file "cbmnem.tex"
-		_create_file "cbconf.tex"
-		_create_file "cbrunt.tex"
+		for file in $created_texfiles; do
+			_create_file $file
+		done
 		;;
 	"help")
 		_create_file "cbhelp.tex"
@@ -164,7 +193,7 @@ case "$1" in
 		;;
 	"fixtimestamps")
 		echo $0: touch tex-includes
-		for file in $docdir/*.tex; do
+		for file in $created_texfiles; do
 			echo " touch $file"
 			touch $file
 		done

@@ -1,4 +1,22 @@
 
+2018-07-16  Brian Tiffin <btiffin@gnu.org>
+
+	* Makefile.am: add cob-config.1 to dist_man
+	* cob-config.1: added
+
+2018-06-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: remove path output when creating manpage
+
+2018-03-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am (maintainer-clean): remove generated manpage
+
+2017-10-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: moved include of top_srcdir to AM_CPPFLAGS to prevent
+	  user-specified CPPFLAGS to override own includes, see bug #452
+
 2017-08-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* cobcrun.c: use only memory and environment functions provided by libcob
@@ -59,7 +77,7 @@
 	* cobcrun.c : Changed output of --help for help2man
 	* Makefile.am : Added manpage generation + install
 
-2014-05-06  Philipp BÃ¶hme <phi.boehme@googlemail.com>
+2014-05-06  Philipp Böhme <phi.boehme@googlemail.com>
 
 	* cobcrun.c : Added --runtime-env for displaying current runtime variables.;
 	  --version shows both version numbers of cobcrun (new) and libcob.;

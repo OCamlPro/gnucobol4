@@ -1,4 +1,40 @@
 
+2018-06-19  Ludwin Janvier
+
+	* configure.ac: remove -g from default options and remove removal of -g
+	  from CFLAGS.
+
+2018-06-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac [_WIN32]: only set GCC export and linker flag
+	  if we actually compile with GCC
+
+2018-05-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac [_WIN32]: define __GMP_LIBGMP_DLL when importing
+	  and calling gmp functions (done for version check) - to use
+	  a static version define __GMP_LIBGMP_DLL=0 via CPPFLAGS
+
+2018-05-08  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: ensure that we don't replace too much when adjusting
+	  CFLAGS concerning -g
+
+2018-04-10  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: removed use of line breaks in sysout from C
+	  test compilation for extracting GMP/BDB version numbers
+
+2018-04-01  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* extras/Makefile.am: compile with -O2 and retry without optimization
+	  if first compilation did not work, see Bug #439
+
+2018-01-23  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: fix setting of COB_CFLAGS when CFLAGS contains
+	  -fstack-protector-all or -fstack-protector-strong
+
 2017-12-13  James K. Lowden <jklowden@symas.com>
 
 	* configure.ac: new option --with-lmdb as replacement for --with-db
@@ -11,6 +47,35 @@
 
 	* Makefile.am: tweaked dependencies to make sure defaults.h is
 	  even build if another target than all/check is used
+
+2017-11-05  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: new template COB_COMPUTED_GOTO, defined if
+	  computed gotos can be compiled
+
+2017-10-30  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: if --with-vbisam is given: check for isfullclose
+	  (available since 2.0) instead of isopen (available since 1.0)
+
+2017-10-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: fixed --with-curses (without option) and adjusted its
+	  help text
+
+2017-10-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: revised all uses of AC_RUN_IFELSE and changed to
+	  AC_COMPILE_IFELSE where the preparser output is enough
+	* configure.ac: allow cross-compiling with --host and --build;
+	  allow to change compiler executable called by cobc with COB_CC
+	* extras/Makefile.am, doc/Makefile.am: don't call generated binaries
+	  if not possible because of cross-compiling
+
+2017-10-19  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* bin/Makefile.am, cobcrun/Makefile.am: fixed bug #448 parallel build
+	  breaking by matching prerequisites 100% (pointed out by Nick Bowler)
 
 2017-08-13  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

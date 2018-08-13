@@ -7517,11 +7517,7 @@ main (int argc, char **argv)
 	output_name = NULL;
 
 	/* Set default computed goto usage if appropriate */
-#if	defined(__GNUC__) && !defined(__clang__)
-	cb_flag_computed_goto = 1;
-#elif	defined(__SUNPRO_C) && __SUNPRO_C >= 0x570
-	cb_flag_computed_goto = 1;
-#elif	defined(__xlc__) && defined(__IBMC__) && __IBMC__ >= 700
+#if	defined(COB_COMPUTED_GOTO) && COB_COMPUTED_GOTO
 	cb_flag_computed_goto = 1;
 #endif
 

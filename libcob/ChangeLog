@@ -4,10 +4,23 @@
 	* fileio.c [WITH_LMDB]: finished first working snapshot of LMDB
 	  integration.
 	  Note: Some NIST tests still fail, locking is not implemented yet.
+	* Makefile.am: moved include of top_srcdir to AM_CPPFLAGS to prevent
+	  user-specified CPPFLAGS to override own includes, see bug #452
+
+2018-05-18  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* common.c [_WIN32]: only define __GMP_LIBGMP_DLL if it is not
+	  defined already, allowing to use a static version by defining
+	  __GMP_LIBGMP_DLL to 0
 
 2017-12-18  Greg Noe <gnoe@symas.com>
 
 	* fileio.c, common.c, coblocal.h: replaced prefix "bdb_" with "db_"
+
+2017-10-22  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am (install-data-hook): added missing $(DESTDIR), as
+	  reported by Eric Gallager in bug #73
 
 2017-09-04  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 

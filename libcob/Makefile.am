@@ -1,7 +1,7 @@
 #
 # Makefile gnucobol/libcob
 #
-# Copyright (C) 2003-2012, 2014, 2017 Free Software Foundation, Inc.
+# Copyright (C) 2003-2012, 2014, 2017-2018 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
@@ -26,7 +26,8 @@ libcob_la_SOURCES = common.c move.c numeric.c strings.c \
 #dist_man_MANS = libcob.3
 #COBCRUN = $(top_builddir)/bin/cobcrun$(EXEEXT)
 
-libcob_la_CFLAGS = $(AM_CFLAGS) -I$(top_srcdir) $(CODE_COVERAGE_CFLAGS)
+AM_CPPFLAGS = -I$(top_srcdir)
+AM_CFLAGS = $(CODE_COVERAGE_CFLAGS)
 libcob_la_LIBADD = $(LIBCOB_LIBS) $(CODE_COVERAGE_LIBS)
 libcob_la_LDFLAGS = $(COB_FIX_LIBTOOL) -version-info 4:0:0 -no-undefined
 AM_LDFLAGS = $(COB_FIX_LIB)
@@ -36,23 +37,23 @@ pkgincludedir = $(includedir)/libcob
 pkginclude_HEADERS = common.h cobgetopt.h exception.def
 
 # FIXME: needs GNU make, even if not enabled
-# Add rules for code-coverage testing, as defined by AX_CODE_COVERAGE
-#CODE_COVERAGE_BRANCH_COVERAGE=1
+# Add rules for code-coverage testing, as provided by AX_CODE_COVERAGE
 #@ CODE_COVERAGE_RULES @
+#CODE_COVERAGE_BRANCH_COVERAGE=1
 #CODE_COVERAGE_LCOV_OPTIONS =  --no-external
 
-#libcob.3: $(top_srcdir)/bin/cobcrun.c $(top_srcdir)/configure.ac | $(COBCRUN)
+#libcob.3: $(top_srcdir)/bin/cobcrun.c $(top_srcdir)/configure.ac | cobcrun$(EXEEXT)
 #	$(HELP2MAN) --output=$@ --info-page=$(PACKAGE) $(COBCRUN) -specialflag
 
 install-data-hook:
-	rm -f $(includedir)/libcob/byteswap.h
-	rm -f $(includedir)/libcob/call.h
-	rm -f $(includedir)/libcob/fileio.h
-	rm -f $(includedir)/libcob/termio.h
-	rm -f $(includedir)/libcob/screenio.h
-	rm -f $(includedir)/libcob/move.h
-	rm -f $(includedir)/libcob/numeric.h
-	rm -f $(includedir)/libcob/strings.h
-	rm -f $(includedir)/libcob/intrinsic.h
-	rm -f $(includedir)/libcob/codegen.h
-	rm -f $(includedir)/libcob/system.def
+	rm -f $(DESTDIR)$(includedir)/libcob/byteswap.h
+	rm -f $(DESTDIR)$(includedir)/libcob/call.h
+	rm -f $(DESTDIR)$(includedir)/libcob/fileio.h
+	rm -f $(DESTDIR)$(includedir)/libcob/termio.h
+	rm -f $(DESTDIR)$(includedir)/libcob/screenio.h
+	rm -f $(DESTDIR)$(includedir)/libcob/move.h
+	rm -f $(DESTDIR)$(includedir)/libcob/numeric.h
+	rm -f $(DESTDIR)$(includedir)/libcob/strings.h
+	rm -f $(DESTDIR)$(includedir)/libcob/intrinsic.h
+	rm -f $(DESTDIR)$(includedir)/libcob/codegen.h
+	rm -f $(DESTDIR)$(includedir)/libcob/system.def
