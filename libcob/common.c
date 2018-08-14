@@ -77,6 +77,10 @@
 #include <db.h>
 #endif
 
+#ifdef  WITH_LMDB
+#include <lmdb.h>
+#endif
+
 #if defined (HAVE_NCURSESW_NCURSES_H)
 #include <ncursesw/ncurses.h>
 #elif defined (HAVE_NCURSESW_CURSES_H)
@@ -6293,6 +6297,16 @@ print_info (void)
 			"BDB", major, minor, patch, DB_VERSION_MAJOR, DB_VERSION_MINOR);
 	}
 	var_print (_("ISAM handler"), 		versbuff, "", 0);
+#elif defined (WITH_LMDB)
+	major = 0, minor = 0, patch = 0;
+	mdb_version(&major,&minor,&patch);
+	if (major == MDB_VERSION_MAJOR && minor == MDB_VERSION_MINOR) {
+		snprintf (versbuff, 55, "%s, version %d.%d.%d", "LMDB", major, minor, patch);
+	} else {
+		snprintf (versbuff, 55, "%s, version %d.%d.%d (compiled with %d.%d)",
+			"LMDB", major, minor, patch, MDB_VERSION_MAJOR, MDB_VERSION_MINOR);
+	}
+	var_print (_("ISAM handler"),     versbuff, "", 0);
 #elif defined	(WITH_CISAM)
 	var_print (_("ISAM handler"), 		"C-ISAM" "", 0);
 #elif defined	(WITH_DISAM)
