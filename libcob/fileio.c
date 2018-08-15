@@ -4730,6 +4730,266 @@ indexed_read_next (cob_file *f, const int read_opts)
 	memcpy (f->record->data, p->data.data, (size_t)p->data.size);
 
 	return COB_STATUS_00_SUCCESS;
+#elif defined(WITH_LMDB)
+
+	struct         indexed_file  *p = f->file;
+	int            ret;
+	int            read_nextprev;
+	cob_u32_t      nextprev;
+	int            file_changed;
+	cob_u32_t  dupno;
+	
+	nextprev = MDB_NEXT;
+	file_changed = 0;
+	dupno = 0;
+
+	// TODO: Come back and implement locking.
+	/*
+	if (db_env != NULL) {
+		if (f->open_mode != COB_OPEN_I_O ||
+				(f->lock_mode & COB_FILE_EXCLUSIVE)) {
+			bdb_opts &= ~COB_READ_LOCK;
+		} else if ((f->lock_mode & COB_LOCK_AUTOMATIC) &&
+					!(bdb_opts & COB_READ_NO_LOCK)) {
+			bdb_opts |= COB_READ_LOCK;
+		}
+		unlock_record (f);
+	} else {
+		bdb_opts &= ~COB_READ_LOCK;
+	}
+	*/
+
+	if (unlikely (read_opts & COB_READ_PREVIOUS)) {
+		nextprev = f->flag_end_of_file? MDB_LAST : MDB_PREV;
+	} else {
+		nextprev = f->flag_begin_of_file? MDB_FIRST : MDB_NEXT;
+	}
+	mdb_txn_begin(p->db_env, NULL, MDB_RDONLY, &p->txn);
+
+	/* The open cursor makes this function atomic */
+	if (p->key_index != 0) {
+		mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0]);
+	}
+	mdb_cursor_open(p->txn, *p->db[p->key_index], &p->cursor[p->key_index]);
+	
+	if (f->flag_first_read) {
+		/* Data is read in indexed_open or indexed_start */
+		if (p->data.mv_data == NULL || (f->flag_first_read == 2 &&
+				nextprev == MDB_PREV)) {
+			mdb_cursor_close(p->cursor[p->key_index]);
+			if (p->key_index != 0) {
+				mdb_cursor_close(p->cursor[0]);
+			}
+			mdb_txn_commit(p->txn);
+			return COB_STATUS_10_END_OF_FILE;
+		}
+		/* Check if previously read data still exists */
+		p->key.mv_size = (size_t) f->keys[p->key_index].field->size;
+		p->key.mv_data = p->last_readkey[p->key_index];
+
+		ret = mdb_cursor_get(p->cursor[p->key_index],&p->key,&p->data,MDB_SET);
+		if (!ret && p->key_index > 0) {
+			if (f->keys[p->key_index].flag) {
+				memcpy (&dupno, (cob_u8_ptr)p->data.mv_data + f->keys[0].field->size, sizeof(unsigned int));
+				while (ret == 0 &&
+							memcmp (p->key.mv_data, p->last_readkey[p->key_index], (size_t)p->key.mv_size) == 0 &&
+							dupno < p->last_dupno[p->key_index]) {
+					ret = mdb_cursor_get(p->cursor[p->key_index],&p->key,&p->data,MDB_NEXT);
+					memcpy (&dupno, (cob_u8_ptr)p->data.mv_data + f->keys[0].field->size, sizeof(unsigned int));
+				}
+				if (ret == 0 &&
+						memcmp (p->key.mv_data, p->last_readkey[p->key_index], (size_t)p->key.mv_size) == 0 &&
+						dupno == p->last_dupno[p->key_index]) {
+					ret = memcmp (p->last_readkey[p->key_index + f->nkeys], p->data.mv_data, f->keys[0].field->size);
+				} else {
+					ret = 1;
+				}
+			} else {
+				ret = memcmp (p->last_readkey[p->key_index + f->nkeys], p->data.mv_data, f->keys[0].field->size);
+			}
+			if (!ret) {
+				p->key.mv_size = (size_t) f->keys[0].field->size;
+				p->key.mv_data = p->last_readkey[p->key_index + f->nkeys];
+				ret = mdb_get(p->txn,*p->db[0],&p->key,&p->data);
+			}
+		}
+		file_changed = ret;
+
+		// TODO: Come back and implement locking
+		/*
+		if (db_env != NULL && !file_changed) {
+			if (!(bdb_opts & COB_READ_IGNORE_LOCK)) {
+				ret = test_record_lock (f, p->key.mv_data, p->key.mv_size);
+				if (ret) {
+					mdb_cursor_close(p->cursor[p->key_index])
+					if (p->key_index != 0) {
+						mdb_cursor_close(p->cursor[0]);
+					}
+					return COB_STATUS_51_RECORD_LOCKED;
+				}
+			}
+			if (bdb_opts & COB_READ_LOCK) {
+				ret = lock_record (f, p->key.mv_data, p->key.mv_size);
+				if (ret) {
+					mdb_cursor_close(p->cursor[p->key_index])
+					if (p->key_index != 0) {
+						mdb_cursor_close(p->cursor[0]);
+					}
+					return COB_STATUS_51_RECORD_LOCKED;
+				}
+			}
+		}
+		*/
+	}
+
+	if (!f->flag_first_read || file_changed) {
+		if (nextprev == MDB_FIRST || nextprev == MDB_LAST) {
+			read_nextprev = 1;
+		} else {
+			p->key.mv_size = (size_t) f->keys[p->key_index].field->size;
+			p->key.mv_data = p->last_readkey[p->key_index];
+			ret = mdb_cursor_get(p->cursor[p->key_index],&p->key,&p->data,MDB_SET_RANGE);
+			/* ret != 0 possible, records may be deleted since last read */
+			if (ret != 0) {
+				if (nextprev == MDB_PREV) {
+					nextprev = MDB_LAST;
+					read_nextprev = 1;
+				} else {
+					mdb_cursor_close(p->cursor[p->key_index]);
+					if (p->key_index != 0) {
+						mdb_cursor_close(p->cursor[0]);
+					}
+					mdb_txn_commit(p->txn);
+					return COB_STATUS_10_END_OF_FILE;
+				}
+			} else {
+				if (memcmp (p->key.mv_data, p->last_readkey[p->key_index], (size_t)p->key.mv_size) == 0) {
+					if (p->key_index > 0 && f->keys[p->key_index].flag) {
+						memcpy (&dupno, (cob_u8_ptr)p->data.mv_data + f->keys[0].field->size, sizeof(unsigned int));
+						while (ret == 0 &&
+						memcmp (p->key.mv_data, p->last_readkey[p->key_index], (size_t)p->key.mv_size) == 0 &&
+						dupno < p->last_dupno[p->key_index]) {
+							ret = mdb_cursor_get(p->cursor[p->key_index],&p->key,&p->data,MDB_NEXT);
+							memcpy (&dupno, (cob_u8_ptr)p->data.mv_data + f->keys[0].field->size, sizeof(unsigned int));
+						}
+						if (ret != 0) {
+							if (nextprev == MDB_PREV) {
+								nextprev = MDB_LAST;
+								read_nextprev = 1;
+							} else {
+								mdb_cursor_close(p->cursor[p->key_index]);
+								if (p->key_index != 0) {
+									mdb_cursor_close(p->cursor[0]);
+								}
+								mdb_txn_commit(p->txn);
+								return COB_STATUS_10_END_OF_FILE;
+							}
+						} else {
+							if (memcmp (p->key.mv_data, p->last_readkey[p->key_index], (size_t)p->key.mv_size) == 0 &&
+								dupno == p->last_dupno[p->key_index]) {
+								read_nextprev = 1;
+							} else {
+								if (nextprev == MDB_PREV) {
+									read_nextprev = 1;
+								} else {
+									read_nextprev = 0;
+								}
+							}
+						}
+					} else {
+						read_nextprev = 1;
+					}
+				} else {
+					if (nextprev == MDB_PREV) {
+						read_nextprev = 1;
+					} else {
+						read_nextprev = 0;
+					}
+				}
+			}
+		}
+		
+		if (read_nextprev) {
+			ret = mdb_cursor_get(p->cursor[p->key_index],&p->key,&p->data,nextprev);
+			if (ret != 0) {
+				mdb_cursor_close(p->cursor[p->key_index]);
+				if (p->key_index != 0) {
+					mdb_cursor_close(p->cursor[0]);
+				}
+				mdb_txn_commit(p->txn);
+				return COB_STATUS_10_END_OF_FILE;
+			}
+		}
+		
+		if (p->key_index > 0) {
+			/* Temporarily save alternate key */
+			memcpy (p->temp_key, p->key.mv_data, (size_t)p->key.mv_size);
+			if (f->keys[p->key_index].flag) {
+				memcpy (&dupno, (cob_u8_ptr)p->data.mv_data + f->keys[0].field->size, sizeof(unsigned int));
+			}
+			p->key.mv_data = p->data.mv_data;
+			p->key.mv_size = f->keys[0].field->size;
+			if (mdb_get(p->txn,*p->db[0],&p->key,&p->data) != 0) {
+				mdb_cursor_close(p->cursor[p->key_index]);
+				if (p->key_index != 0) {
+					mdb_cursor_close(p->cursor[0]);
+				}
+				mdb_txn_commit(p->txn);
+				return COB_STATUS_23_KEY_NOT_EXISTS;
+			}
+		}
+		
+		/* TODO: Come back and implement locking */
+		/*
+		if (db_env != NULL) {
+			if (!(bdb_opts & COB_READ_IGNORE_LOCK)) {
+				ret = test_record_lock (f, p->key.mv_data, p->key.mv_size);
+				if (ret) {
+					p->cursor[p->key_index]->c_close (p->cursor[p->key_index]);
+					p->cursor[p->key_index] = NULL;
+					if (p->key_index != 0) {
+						p->cursor[0]->c_close (p->cursor[0]);
+						p->cursor[0] = NULL;
+					}
+					return COB_STATUS_51_RECORD_LOCKED;
+				}
+			}
+			if (bdb_opts & COB_READ_LOCK) {
+				ret = lock_record (f, p->key.mv_data, p->key.mv_size);
+				if (ret) {
+					mdb_cursor_close(p->cursor[p->key_index])
+					if (p->key_index != 0) {
+						mdb_cursor_close(p->cursor[0]);
+					}
+					return COB_STATUS_51_RECORD_LOCKED;
+				}
+			}
+		}
+		*/
+
+		if (p->key_index == 0) {
+			memcpy (p->last_readkey[0], p->key.mv_data, (size_t)p->key.mv_size);
+		} else {
+			memcpy (p->last_readkey[p->key_index], p->temp_key,
+						f->keys[p->key_index].field->size);
+			memcpy (p->last_readkey[p->key_index + f->nkeys], p->key.mv_data, f->keys[0].field->size);
+			if (f->keys[p->key_index].flag) {
+				p->last_dupno[p->key_index] = dupno;
+			}
+		}
+	}
+
+	mdb_cursor_close(p->cursor[p->key_index]);
+	if (p->key_index != 0) {
+		mdb_cursor_close(p->cursor[0]);
+	}
+	mdb_txn_commit(p->txn);
+
+	f->record->size = p->data.mv_size;
+	memcpy (f->record->data, p->data.mv_data, (size_t)p->data.mv_size);
+
+	return COB_STATUS_00_SUCCESS;
+
 
 #else
 	COB_UNUSED (f);
