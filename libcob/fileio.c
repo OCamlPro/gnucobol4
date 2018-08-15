@@ -2951,8 +2951,9 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	struct indexed_file *p = f->file;
 	int ret;
 	cob_u32_t dupno;
+	
+	COB_UNUSED	(test_lock);
 	dupno = 0;
-	COB_UNUSED(dupno);
 
 	for (p->key_index = 0; p->key_index < f->nkeys; p->key_index++) {
 		if (f->keys[p->key_index].field->data == key->data) {
@@ -4208,6 +4209,27 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 
 	return COB_STATUS_00_SUCCESS;
 
+#elif defined (WITH_LMDB)
+	/* TODO: Return and implement locking. */
+
+	struct indexed_file	*p;
+	int			ret;
+	int			db_opts;
+	int			test_lock;
+
+	db_opts = read_opts;
+
+	ret = indexed_start_internal (f, COB_EQ, key, db_opts, test_lock);
+	if (ret != COB_STATUS_00_SUCCESS) {
+		return ret;
+	}
+	p = f->file;
+
+	f->record->size = p->data.mv_size;
+	memcpy (f->record->data, p->data.mv_data, (size_t)p->data.mv_size);
+
+	return COB_STATUS_00_SUCCESS;
+
 #else
 	COB_UNUSED (f);
 	COB_UNUSED (key);
@@ -4737,27 +4759,30 @@ indexed_read_next (cob_file *f, const int read_opts)
 	int            read_nextprev;
 	cob_u32_t      nextprev;
 	int            file_changed;
+#if 0
+	int			db_opts;
+#endif
 	cob_u32_t  dupno;
 	
 	nextprev = MDB_NEXT;
 	file_changed = 0;
 	dupno = 0;
 
-	// TODO: Come back and implement locking.
-	/*
+	
+#if 0	/* TODO: Come back and implement locking. */
 	if (db_env != NULL) {
 		if (f->open_mode != COB_OPEN_I_O ||
 				(f->lock_mode & COB_FILE_EXCLUSIVE)) {
-			bdb_opts &= ~COB_READ_LOCK;
+			db_opts &= ~COB_READ_LOCK;
 		} else if ((f->lock_mode & COB_LOCK_AUTOMATIC) &&
-					!(bdb_opts & COB_READ_NO_LOCK)) {
-			bdb_opts |= COB_READ_LOCK;
+					!(db_opts & COB_READ_NO_LOCK)) {
+			db_opts |= COB_READ_LOCK;
 		}
 		unlock_record (f);
 	} else {
-		bdb_opts &= ~COB_READ_LOCK;
+		db_opts &= ~COB_READ_LOCK;
 	}
-	*/
+#endif
 
 	if (unlikely (read_opts & COB_READ_PREVIOUS)) {
 		nextprev = f->flag_end_of_file? MDB_LAST : MDB_PREV;
@@ -4815,10 +4840,9 @@ indexed_read_next (cob_file *f, const int read_opts)
 		}
 		file_changed = ret;
 
-		// TODO: Come back and implement locking
-		/*
+#if 0 /* TODO: Come back and implement locking. */
 		if (db_env != NULL && !file_changed) {
-			if (!(bdb_opts & COB_READ_IGNORE_LOCK)) {
+			if (!(db_opts & COB_READ_IGNORE_LOCK)) {
 				ret = test_record_lock (f, p->key.mv_data, p->key.mv_size);
 				if (ret) {
 					mdb_cursor_close(p->cursor[p->key_index])
@@ -4828,7 +4852,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 					return COB_STATUS_51_RECORD_LOCKED;
 				}
 			}
-			if (bdb_opts & COB_READ_LOCK) {
+			if (db_opts & COB_READ_LOCK) {
 				ret = lock_record (f, p->key.mv_data, p->key.mv_size);
 				if (ret) {
 					mdb_cursor_close(p->cursor[p->key_index])
@@ -4839,7 +4863,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 				}
 			}
 		}
-		*/
+#endif
 	}
 
 	if (!f->flag_first_read || file_changed) {
@@ -4939,10 +4963,9 @@ indexed_read_next (cob_file *f, const int read_opts)
 			}
 		}
 		
-		/* TODO: Come back and implement locking */
-		/*
+#if 0	/* TODO: Come back and implement locking */
 		if (db_env != NULL) {
-			if (!(bdb_opts & COB_READ_IGNORE_LOCK)) {
+			if (!(db_opts & COB_READ_IGNORE_LOCK)) {
 				ret = test_record_lock (f, p->key.mv_data, p->key.mv_size);
 				if (ret) {
 					p->cursor[p->key_index]->c_close (p->cursor[p->key_index]);
@@ -4954,7 +4977,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 					return COB_STATUS_51_RECORD_LOCKED;
 				}
 			}
-			if (bdb_opts & COB_READ_LOCK) {
+			if (db_opts & COB_READ_LOCK) {
 				ret = lock_record (f, p->key.mv_data, p->key.mv_size);
 				if (ret) {
 					mdb_cursor_close(p->cursor[p->key_index])
@@ -4965,7 +4988,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 				}
 			}
 		}
-		*/
+#endif
 
 		if (p->key_index == 0) {
 			memcpy (p->last_readkey[0], p->key.mv_data, (size_t)p->key.mv_size);
@@ -4989,7 +5012,6 @@ indexed_read_next (cob_file *f, const int read_opts)
 	memcpy (f->record->data, p->data.mv_data, (size_t)p->data.mv_size);
 
 	return COB_STATUS_00_SUCCESS;
-
 
 #else
 	COB_UNUSED (f);
