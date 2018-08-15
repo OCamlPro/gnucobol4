@@ -907,6 +907,35 @@ if test "$with_lmdb" = "yes"; then
 	AC_MSG_NOTICE([Check that Symas LMDB is installed  ...])
 	AC_CHECK_HEADER([lmdb.h], [],
 			AC_MSG_ERROR([Symas LMDB lmdb.h is missing]))
+
+	# MDB header exists. Extract major/minor/patch numbers
+	COB_MDB_HEADER=''
+	COB_MDB_HEADER_STR=''
+	AC_RUN_IFELSE([AC_LANG_SOURCE([[
+		#include <stdio.h>
+		#include <lmdb.h>
+		int main (int argc, char **argv)
+		{
+			(void)argv;
+			if (argc == 2)
+				printf ("%d.%d.%d", MDB_VERSION_MAJOR, MDB_VERSION_MINOR, MDB_VERSION_PATCH);
+			if (argc == 3)
+				printf ("-%s-", MDB_VERSION_STRING);
+			return 0;
+		}
+		]])],
+		[COB_MDB_HEADER=`./conftest$ac_exeext x`]
+		[COB_MDB_HEADER_STR=`./conftest$ac_exeext x y`],
+		[AC_MSG_ERROR([Unable to extract LMDB version information from lmdb.h])],
+		[AC_MSG_WARN([cannot run test program while cross-compiling])
+		 COB_MDB_HEADER="cross"
+		 COB_MDB_HEADER_STR="cross"])
+	if test "x$COB_MDB_HEADER" = "x"; then
+		AC_MSG_ERROR([Unable to extract LMDB version information])
+	fi
+	if test "x$COB_MDB_HEADER_STR" != "x"; then
+		AC_MSG_NOTICE([lmdb.h reports version "$COB_MDB_HEADER_STR"])
+	fi
 	AC_CHECK_LIB([lmdb], [mdb_version],
 		[AC_DEFINE([WITH_LMDB], [1])
 		LIBCOB_LIBS="$LIBCOB_LIBS -llmdb"],
