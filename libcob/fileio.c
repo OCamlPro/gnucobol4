@@ -65,7 +65,7 @@
 #if !defined(__BORLANDC__) && !defined(__WATCOMC__)
 #define	getcwd		_getcwd
 #define	chdir		_chdir
-#define	mkdir		_mkdir
+#define	mkdir(x,y)		_mkdir(x)
 #define	rmdir		_rmdir
 #define	open		_open
 #define	close		_close
@@ -439,7 +439,9 @@ struct indexed_file {
 #elif	defined (WITH_LMDB)
 
 #include <lmdb.h>
+#ifndef _WIN32	/* correct would be a check for HAVE_SYS_FILE_H */
 #include <sys/file.h>
+#endif
 #include <sys/stat.h>
 
 #define MDB_VALSET(key,fld)   \
@@ -3787,8 +3789,8 @@ dobuild:
 	maxsize = 0;
 
 	if (nonexistent) {
-		if ((ret = mkdir(filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH)) != 0) {
-			switch (ret) {
+		if (mkdir (filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH) != 0) {
+			switch (errno) {
 			case EACCES:
 				return COB_STATUS_37_PERMISSION_DENIED;
 			default:
@@ -3805,6 +3807,8 @@ dobuild:
 			f->flag_begin_of_file = 1;
 			return COB_STATUS_05_SUCCESS_OPTIONAL;
 		}
+	} else if (mode == COB_OPEN_OUTPUT) {
+		/* FIXME: unlink needed (may be a file; otherwise possibly recursive) */
 	}
 
 	ret = mdb_env_open(p->db_env, filename, p->env_flags, 0664);
@@ -4180,10 +4184,9 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 	struct indexed_file	*p;
 	int			ret;
 	int			db_opts;
-	int			test_lock;
+	int			test_lock = 0;
 
 	p = f->file;
-	test_lock = 0;
 	db_opts = read_opts;
 	if (db_env != NULL) {
 		if (f->open_mode != COB_OPEN_I_O ||
@@ -4215,7 +4218,7 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 	struct indexed_file	*p;
 	int			ret;
 	int			db_opts;
-	int			test_lock;
+	int			test_lock = 0;
 
 	db_opts = read_opts;
 
@@ -6448,11 +6451,7 @@ cob_sys_create_dir (unsigned char *dir)
 		return -1;
 	}
 	fn = cob_str_from_fld (COB_MODULE_PTR->cob_procedure_params[0]);
-#ifdef	_WIN32
-	ret = mkdir (fn);
-#else
 	ret = mkdir (fn, 0770);
-#endif
 	cob_free (fn);
 	if (ret) {
 		return 128;
