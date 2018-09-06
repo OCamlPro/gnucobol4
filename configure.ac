@@ -904,9 +904,8 @@ fi
 # FIXME: add version number output and if possible version check,
 #        similar to BDB, here
 if test "$with_lmdb" = "yes"; then
-	AC_MSG_NOTICE([Check that Symas LMDB is installed  ...])
-	AC_CHECK_HEADER([lmdb.h], [],
-			AC_MSG_ERROR([Symas LMDB lmdb.h is missing]))
+	AC_MSG_NOTICE([Checks for Symas LMDB ...])
+	AC_CHECK_HEADER([lmdb.h], [],	AC_MSG_ERROR([Symas LMDB lmdb.h is missing]),[])
 
 	# MDB header exists. Extract major/minor/patch numbers
 	COB_MDB_HEADER=''
@@ -940,6 +939,22 @@ if test "$with_lmdb" = "yes"; then
 		[AC_DEFINE([WITH_LMDB], [1])
 		LIBCOB_LIBS="$LIBCOB_LIBS -llmdb"],
 		AC_MSG_ERROR([liblmdb is required for LMDB]), [])
+
+	AC_MSG_CHECKING([for Symas LMDB version >= 0.9.19])
+	COB_MDB_HEADER_MAJOR=$(echo "$COB_MDB_HEADER" | cut -d. -f1)
+	COB_MDB_HEADER_PATCH=$(echo "$COB_MDB_HEADER" | cut -d. -f3)
+	if test "$COB_MDB_HEADER_STR" != "cross"; then
+		if test $COB_MDB_HEADER_MAJOR -gt 0; then
+			AC_MSG_RESULT([yes ($COB_MDB_HEADER)])
+		else
+			if test $COB_MDB_HEADER_PATCH -gt 18; then
+				AC_MSG_RESULT([yes ($COB_MDB_HEADER)])
+			else
+				AC_MSG_RESULT([no ($COB_MDB_HEADER)])
+				AC_MSG_ERROR([Symas LMDB version < 0.9.19])
+			fi
+		fi
+	fi
 fi
 
 # Checks for dl/ltdl.
