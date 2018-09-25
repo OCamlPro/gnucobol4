@@ -3737,14 +3737,13 @@ dobuild:
 #elif	defined(WITH_LMDB)
 
 	struct indexed_file	*p;
-	size_t			i;
-	size_t			maxsize;
-	int			ret = 0;
-	int			nonexistent;
+	size_t i;
+	size_t maxsize;
+	int    ret = 0;
+	int nonexistent = 0;;
 
 	COB_UNUSED (sharing);
 	cob_chk_file_mapping ();
-	nonexistent = 0;
 	if (db_nofile (filename)) {
 		nonexistent = 1;
 		if (mode != COB_OPEN_OUTPUT && f->flag_optional == 0) {
@@ -3768,6 +3767,13 @@ dobuild:
 		break;
 	}
 
+	p->db              = cob_malloc(sizeof(MDB_dbi *) * f->nkeys);
+	p->cursor          = cob_malloc(sizeof(MDB_cursor *) * f->nkeys);
+	p->last_readkey    = cob_malloc(sizeof(unsigned char *) * 2 * f->nkeys);
+	p->last_dupno      = cob_malloc(sizeof(unsigned int * ) * 2 * f->nkeys);
+	p->rewrite_sec_key = cob_malloc(sizeof(int) * f->nkeys);
+	maxsize = 0;
+
 	ret = mdb_env_create(&p->db_env);
 	if (ret != 0 ) {
 		return COB_STATUS_30_PERMANENT_ERROR;
@@ -3781,37 +3787,27 @@ dobuild:
 		}
 	}
 
-	p->db              = cob_malloc(sizeof (MDB_dbi *) * f->nkeys);
-	p->cursor          = cob_malloc(sizeof (MDB_cursor *) * f->nkeys);
-	p->last_readkey    = cob_malloc(sizeof(unsigned char *) * 2 * f->nkeys);
-	p->last_dupno      = cob_malloc(sizeof(unsigned int * ) * 2 * f->nkeys);
-	p->rewrite_sec_key = cob_malloc(sizeof(int) * f->nkeys);
-	maxsize = 0;
-
 	if (nonexistent) {
-		if (mkdir (filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH) != 0) {
-			switch (errno) {
+		if (f->flag_optional) {
+			if (mode == COB_OPEN_INPUT) {
+				f->open_mode = mode;
+				f->flag_nonexistent = 1;
+				f->flag_end_of_file = 1;
+				f->flag_begin_of_file = 1;
+				return COB_STATUS_05_SUCCESS_OPTIONAL;
+			}
+		}
+		if ((ret = mkdir(filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH)) != 0) {
+			switch (ret) {
 			case EACCES:
 				return COB_STATUS_37_PERMISSION_DENIED;
 			default:
 				return COB_STATUS_30_PERMANENT_ERROR;
 			}
 		}
-		if (f->flag_optional) {
-			if (mode == COB_OPEN_I_O) {
-				return COB_STATUS_30_PERMANENT_ERROR;
-			}
-			f->open_mode = mode;
-			f->flag_nonexistent = 1;
-			f->flag_end_of_file = 1;
-			f->flag_begin_of_file = 1;
-			return COB_STATUS_05_SUCCESS_OPTIONAL;
-		}
-	} else if (mode == COB_OPEN_OUTPUT) {
-		/* FIXME: unlink needed (may be a file; otherwise possibly recursive) */
 	}
 
-	ret = mdb_env_open(p->db_env, filename, p->env_flags, 0664);
+	ret = mdb_env_open(p->db_env, filename, p->env_flags, 0770);
 	if (ret != 0) {
 		mdb_env_close(p->db_env);
 		p->db_env = NULL;
@@ -3879,6 +3875,9 @@ dobuild:
 	mdb_cursor_close(p->cursor[0]);
 	mdb_txn_commit(p->txn);
 	f->open_mode = mode;
+	if (f->flag_optional && nonexistent) {
+		return COB_STATUS_05_SUCCESS_OPTIONAL;
+	}
 	return 0;
 #else
 	COB_UNUSED (f);
