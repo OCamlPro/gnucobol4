@@ -3220,6 +3220,17 @@ indexed_file_delete (cob_file *f, const char *filename)
 #endif
 }
 
+static void
+cob_free_indexed_file (struct indexed_file *p) 
+{
+	if (p->db)              cob_free (p->db);
+	if (p->cursor)          cob_free (p->cursor);
+	if (p->last_readkey)    cob_free (p->last_readkey);
+	if (p->last_dupno)      cob_free (p->last_dupno);
+	if (p->rewrite_sec_key) cob_free (p->rewrite_sec_key);
+  if (cobsetptr->db_home) cob_free (cobsetptr->db_home);
+	cob_free(p);
+}
 /* OPEN INDEXED file */
 
 static int
@@ -3776,6 +3787,7 @@ dobuild:
 
 	ret = mdb_env_create(&p->db_env);
 	if (ret != 0 ) {
+		cob_free_indexed_file(p);
 		return COB_STATUS_30_PERMANENT_ERROR;
 	}
 
@@ -3783,6 +3795,7 @@ dobuild:
 		if ((ret = mdb_env_set_maxdbs(p->db_env,f->nkeys)) !=0 ) {
 			mdb_env_close(p->db_env);
 			p->db_env = NULL;
+			cob_free_indexed_file(p);
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
 	}
@@ -3800,8 +3813,10 @@ dobuild:
 		if ((ret = mkdir(filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH)) != 0) {
 			switch (ret) {
 			case EACCES:
+				cob_free_indexed_file(p);
 				return COB_STATUS_37_PERMISSION_DENIED;
 			default:
+				cob_free_indexed_file(p);
 				return COB_STATUS_30_PERMANENT_ERROR;
 			}
 		}
@@ -3811,6 +3826,7 @@ dobuild:
 	if (ret != 0) {
 		mdb_env_close(p->db_env);
 		p->db_env = NULL;
+		cob_free_indexed_file(p);
 		return COB_STATUS_30_PERMANENT_ERROR;
 	}
 
@@ -3822,6 +3838,7 @@ dobuild:
 
 	ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
 	if (ret != 0) {
+		cob_free_indexed_file(p);
 		return COB_STATUS_30_PERMANENT_ERROR;
 	}
 	for (i = 0; i < f->nkeys; i++) {
@@ -3838,6 +3855,7 @@ dobuild:
 			for (int j = 0; j < i; ++j) {
 				mdb_dbi_close(p->db_env,*p->db[j]);
 			}
+			cob_free_indexed_file(p);
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
 		p->last_readkey[i] = cob_malloc (maxsize);
