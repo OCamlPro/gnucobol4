@@ -3228,7 +3228,6 @@ cob_free_indexed_file (struct indexed_file *p)
 	if (p->last_readkey)    cob_free (p->last_readkey);
 	if (p->last_dupno)      cob_free (p->last_dupno);
 	if (p->rewrite_sec_key) cob_free (p->rewrite_sec_key);
-  if (cobsetptr->db_home) cob_free (cobsetptr->db_home);
 	cob_free(p);
 }
 /* OPEN INDEXED file */
