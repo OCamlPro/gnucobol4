@@ -3,6 +3,8 @@
 	If this program returns 95, then LMDB must be recompiled
   using the -DMDB_USE_POSIX_SEM cppflag.
 */
+#include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include "lmdb.h"
