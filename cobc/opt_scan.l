@@ -108,7 +108,7 @@ xVALUE   [[:alnum:]]+$
  xopen                    { yylval = yytext; BEGIN(eol); return XOPEN; }
  cobol2002                { yylval = yytext; BEGIN(eol); return COBOL2002; }
  cobol2014                { yylval = yytext; BEGIN(eol); return COBOL2014; }
- ibm[-]strict               { yylval = yytext; BEGIN(eol); return IBM_STRICT; }
+ ibm-strict               { yylval = yytext; BEGIN(eol); return IBM_STRICT; }
  ibm                      { yylval = yytext; BEGIN(eol); return IBM; }
  mvs-strict               { yylval = yytext; BEGIN(eol); return MVS_STRICT; }
  mvs                      { yylval = yytext; BEGIN(eol); return MVS; }
