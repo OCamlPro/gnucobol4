@@ -178,7 +178,7 @@ bool
 warning_set( enum yytokentype type, const char name[] ) {
   struct warn_opt_t *p, key = { .type = type };
   size_t n = COUNT_OF(warn_opts);
-  
+
   if( (p = lfind( &key, warn_opts, &n, sizeof(key), warn_opts_cmp)) == NULL ) {
     assert(ALL <= type && type <= UNREACHABLE);
     return false;

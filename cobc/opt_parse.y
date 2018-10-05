@@ -147,26 +147,23 @@ ffold_copy:
 
 warning:
 		WARNING warning_type
-		{
-		    warning_set(WARNING, $1);
-		}
 		;
 
 warning_type:
-		ALL
-	| 	ARCHAIC
-	| 	CALL_PARAMS
-	| 	COLUMN_OVERFLOW
-	| 	CONSTANT
-	| 	IMPLICIT_DEFINE
-	|	LINKAGE
-	| 	OBSOLETE
-	| 	PARENTHESES
-	| 	REDEFINITION
-	| 	STRICT_TYPING
-	| 	TERMINATOR
-	| 	TRUNCATE
-	| 	UNREACHABLE 
+		ALL			{ warning_set(ALL, $1); }
+	| 	ARCHAIC			{ warning_set(ARCHAIC, $1); }
+	| 	CALL_PARAMS		{ warning_set(CALL_PARAMS, $1); }
+	| 	COLUMN_OVERFLOW		{ warning_set(COLUMN_OVERFLOW, $1); }
+	| 	CONSTANT		{ warning_set(CONSTANT, $1); }
+	| 	IMPLICIT_DEFINE		{ warning_set(IMPLICIT_DEFINE, $1); }
+	|	LINKAGE			{ warning_set(LINKAGE, $1); }
+	| 	OBSOLETE		{ warning_set(OBSOLETE, $1); }
+	| 	PARENTHESES		{ warning_set(PARENTHESES, $1); }
+	| 	REDEFINITION		{ warning_set(REDEFINITION, $1); }
+	| 	STRICT_TYPING		{ warning_set(STRICT_TYPING, $1); }
+	| 	TERMINATOR		{ warning_set(TERMINATOR, $1); }
+	| 	TRUNCATE		{ warning_set(TRUNCATE, $1); }
+	| 	UNREACHABLE 		{ warning_set(UNREACHABLE, $1); }
 	;
 %%
 
