@@ -69,6 +69,29 @@ main(int argc, char *argv[])
   
   yyparse();
 
-  
+  /*
+   * print configured options
+   */
+  size_t n;
+  const struct conf_opt_t *p = options_extra(&n);
+  assert(p || n == 0);
+
+  printf( "Options that allow multiple values (%zu total)\n", n );
+
+  for( int i=0; i < n; i++ ) {
+    printf( "%-32s %s\n", p[i].name, p[i].value );
+  }
+
+  printf( "\nOther options\n");
+  for( p=option_next(NULL); p != NULL; p = option_next(p) ) {
+    printf( "%-32s %s\n", p->name, p->value );
+  }
+
+  const struct warn_opt_t *w;
+  printf( "\nWarnings\n");
+  for( w=warning_next(NULL); w != NULL; w = warning_next(w) ) {
+    printf( "%s\n", w->name );
+  }
+
   return EXIT_SUCCESS;
 }

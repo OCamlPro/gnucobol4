@@ -34,8 +34,6 @@ struct conf_opt_t {
   bool configured; // is present in configuration file
   int  ndash;      // 1 or 2 dashes
   enum yytokentype type; // option type token
-  size_t nother;
-  conf_opt_value_t *others, *next;
   char name[32]; 
   char value[PATH_MAX];
 };
@@ -50,5 +48,9 @@ struct warn_opt_t {
 bool option_set( enum yytokentype type, const char name[] );
 bool option_arg_set( enum yytokentype type, const char name[], const char value[] );
 bool warning_set( enum yytokentype type,  const char name[] );
+
+const struct conf_opt_t * option_next( const struct conf_opt_t *opt );
+const struct conf_opt_t * options_extra( size_t *pnextra );
+const struct warn_opt_t * warning_next( const struct warn_opt_t *opt );
 
 #endif

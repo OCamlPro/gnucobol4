@@ -21,10 +21,16 @@
 %option noyywrap warn
 %{
   #include <ctype.h>
+  #include <string.h>
 
   #include "opt_parse.tab.h"
   #include "options.h"
 
+  static inline char *
+  yystr() {
+      return strndup(yytext, yyleng);
+  }
+  
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wunused-parameter"
 %}
@@ -45,100 +51,100 @@ xVALUE   [[:alnum:]]+$
 {COMMENT} {}
 
 <option>{
- I                        { yylval = yytext; BEGIN(value); return I; }
- L                        { yylval = yytext; BEGIN(value); return LIB; }
- l                        { yylval = yytext; BEGIN(value); return LINK; }
- D                        { yylval = yytext; BEGIN(value); return D; }
+ I                        { yylval = yystr(); BEGIN(value); return I; }
+ L                        { yylval = yystr(); BEGIN(value); return LIB; }
+ l                        { yylval = yystr(); BEGIN(value); return LINK; }
+ D                        { yylval = yystr(); BEGIN(value); return D; }
 
- W                        { yylval = yytext; BEGIN(warn); return WARNING; }
+ W                        { yylval = yystr(); BEGIN(warn); return WARNING; }
  
- free                     { yylval = yytext; BEGIN(eol);   return FREE; }
- fixed                    { yylval = yytext; BEGIN(eol);   return FIXED; }
+ free                     { yylval = yystr(); BEGIN(eol);   return FREE; }
+ fixed                    { yylval = yystr(); BEGIN(eol);   return FIXED; }
 
- std/{EQ}                 { yylval = yytext; BEGIN(std);    return STD; }
+ std/{EQ}                 { yylval = yystr(); BEGIN(std);    return STD; }
 
- debug                    { yylval = yytext; BEGIN(eol);   return DEBUG; }
- g                        { yylval = yytext; BEGIN(eol);   return G; }
- O                        { yylval = yytext; BEGIN(eol);   return O; }
- O2                       { yylval = yytext; BEGIN(eol);   return O2; }
- Os                       { yylval = yytext; BEGIN(eol);   return OS; }
- ftrace                   { yylval = yytext; BEGIN(eol);   return FTRACE; }
- ftraceall                { yylval = yytext; BEGIN(eol);   return FTRACEALL; }
- fdebugging-line          { yylval = yytext; BEGIN(eol);   return FDEBUGGING_LINE; }
- fsource-location         { yylval = yytext; BEGIN(eol);   return FSOURCE_LOCATION; }
- fimplicit-init           { yylval = yytext; BEGIN(eol);   return FIMPLICIT_INIT; }
- fstack-check             { yylval = yytext; BEGIN(eol);   return FSTACK_CHECK; }
- fnotrunc                 { yylval = yytext; BEGIN(eol);   return FNOTRUNC; }
+ debug                    { yylval = yystr(); BEGIN(eol);   return DEBUG; }
+ g                        { yylval = yystr(); BEGIN(eol);   return G; }
+ O                        { yylval = yystr(); BEGIN(eol);   return O; }
+ O2                       { yylval = yystr(); BEGIN(eol);   return O2; }
+ Os                       { yylval = yystr(); BEGIN(eol);   return OS; }
+ ftrace                   { yylval = yystr(); BEGIN(eol);   return FTRACE; }
+ ftraceall                { yylval = yystr(); BEGIN(eol);   return FTRACEALL; }
+ fdebugging-line          { yylval = yystr(); BEGIN(eol);   return FDEBUGGING_LINE; }
+ fsource-location         { yylval = yystr(); BEGIN(eol);   return FSOURCE_LOCATION; }
+ fimplicit-init           { yylval = yystr(); BEGIN(eol);   return FIMPLICIT_INIT; }
+ fstack-check             { yylval = yystr(); BEGIN(eol);   return FSTACK_CHECK; }
+ fnotrunc                 { yylval = yystr(); BEGIN(eol);   return FNOTRUNC; }
  
- ext                      { yylval = yytext; BEGIN(value); return EXT; }
- fmfcomment               { yylval = yytext; BEGIN(eol);   return FMFCOMMENT; }
- acucomment               { yylval = yytext; BEGIN(eol);   return ACUCOMMENT; }
- fsign                    { yylval = yytext; BEGIN(fsign); return FSIGN; }
- ffold-copy               { yylval = yytext; BEGIN(ffold); return FFOLD_COPY; }
- save-temps               { yylval = yytext; BEGIN(eq);    return SAVE_TEMPS; }
+ ext                      { yylval = yystr(); BEGIN(value); return EXT; }
+ fmfcomment               { yylval = yystr(); BEGIN(eol);   return FMFCOMMENT; }
+ acucomment               { yylval = yystr(); BEGIN(eol);   return ACUCOMMENT; }
+ fsign                    { yylval = yystr(); BEGIN(fsign); return FSIGN; }
+ ffold-copy               { yylval = yystr(); BEGIN(ffold); return FFOLD_COPY; }
+ save-temps               { yylval = yystr(); BEGIN(eq);    return SAVE_TEMPS; }
 
- tlines                   { yylval = yytext; BEGIN(eq);    return TLINES; }
- ftsymbols                { yylval = yytext; BEGIN(eol);   return FTSYMBOLS; }
- fno-theader              { yylval = yytext; BEGIN(eol);   return FNO_THEADER; }
- fno-tmessages            { yylval = yytext; BEGIN(eol);   return FNO_TMESSAGES; }
- fno-tsource              { yylval = yytext; BEGIN(eol);   return FNO_TSOURCE; }
- Xref                     { yylval = yytext; BEGIN(eol);   return XREF; }
+ tlines                   { yylval = yystr(); BEGIN(eq);    return TLINES; }
+ ftsymbols                { yylval = yystr(); BEGIN(eol);   return FTSYMBOLS; }
+ fno-theader              { yylval = yystr(); BEGIN(eol);   return FNO_THEADER; }
+ fno-tmessages            { yylval = yystr(); BEGIN(eol);   return FNO_TMESSAGES; }
+ fno-tsource              { yylval = yystr(); BEGIN(eol);   return FNO_TSOURCE; }
+ Xref                     { yylval = yystr(); BEGIN(eol);   return XREF; }
 }
 
 <warn>{
- (no-)?all                { yylval = yytext; BEGIN(eol); return ALL; }
- (no-)?archaic            { yylval = yytext; BEGIN(eol); return ARCHAIC; }
- (no-)?call-params        { yylval = yytext; BEGIN(eol); return CALL_PARAMS; }
- (no-)?column-overflow    { yylval = yytext; BEGIN(eol); return COLUMN_OVERFLOW; }
- (no-)?constant           { yylval = yytext; BEGIN(eol); return CONSTANT; }
- (no-)?implicit-define    { yylval = yytext; BEGIN(eol); return IMPLICIT_DEFINE; }
- (no-)?linkage            { yylval = yytext; BEGIN(eol); return LINKAGE; }
- (no-)?obsolete           { yylval = yytext; BEGIN(eol); return OBSOLETE; }
- (no-)?parentheses        { yylval = yytext; BEGIN(eol); return PARENTHESES; }
- (no-)?redefinition       { yylval = yytext; BEGIN(eol); return REDEFINITION; }
- (no-)?strict-typing      { yylval = yytext; BEGIN(eol); return STRICT_TYPING; }
- (no-)?terminator         { yylval = yytext; BEGIN(eol); return TERMINATOR; }
- (no-)?truncate           { yylval = yytext; BEGIN(eol); return TRUNCATE; }
- (no-)?unreachable        { yylval = yytext; BEGIN(eol); return UNREACHABLE; }
+ (no-)?all                { yylval = yystr(); BEGIN(eol); return ALL; }
+ (no-)?archaic            { yylval = yystr(); BEGIN(eol); return ARCHAIC; }
+ (no-)?call-params        { yylval = yystr(); BEGIN(eol); return CALL_PARAMS; }
+ (no-)?column-overflow    { yylval = yystr(); BEGIN(eol); return COLUMN_OVERFLOW; }
+ (no-)?constant           { yylval = yystr(); BEGIN(eol); return CONSTANT; }
+ (no-)?implicit-define    { yylval = yystr(); BEGIN(eol); return IMPLICIT_DEFINE; }
+ (no-)?linkage            { yylval = yystr(); BEGIN(eol); return LINKAGE; }
+ (no-)?obsolete           { yylval = yystr(); BEGIN(eol); return OBSOLETE; }
+ (no-)?parentheses        { yylval = yystr(); BEGIN(eol); return PARENTHESES; }
+ (no-)?redefinition       { yylval = yystr(); BEGIN(eol); return REDEFINITION; }
+ (no-)?strict-typing      { yylval = yystr(); BEGIN(eol); return STRICT_TYPING; }
+ (no-)?terminator         { yylval = yystr(); BEGIN(eol); return TERMINATOR; }
+ (no-)?truncate           { yylval = yystr(); BEGIN(eol); return TRUNCATE; }
+ (no-)?unreachable        { yylval = yystr(); BEGIN(eol); return UNREACHABLE; }
 } 
 
 <std>{
- {EQ}                     { yylval = yytext; return EQ; }
- cobol85                  { yylval = yytext; BEGIN(eol); return COBOL85; }
- xopen                    { yylval = yytext; BEGIN(eol); return XOPEN; }
- cobol2002                { yylval = yytext; BEGIN(eol); return COBOL2002; }
- cobol2014                { yylval = yytext; BEGIN(eol); return COBOL2014; }
- ibm-strict               { yylval = yytext; BEGIN(eol); return IBM_STRICT; }
- ibm                      { yylval = yytext; BEGIN(eol); return IBM; }
- mvs-strict               { yylval = yytext; BEGIN(eol); return MVS_STRICT; }
- mvs                      { yylval = yytext; BEGIN(eol); return MVS; }
- mf-strict                { yylval = yytext; BEGIN(eol); return MF_STRICT; }
- mf                       { yylval = yytext; BEGIN(eol); return MF; }
- bs2000-strict            { yylval = yytext; BEGIN(eol); return BS2000_STRICT; }
- bs2000                   { yylval = yytext; BEGIN(eol); return BS2000; }
- acu-strict               { yylval = yytext; BEGIN(eol); return ACU_STRICT; }
- acu                      { yylval = yytext; BEGIN(eol); return ACU; }
- rm-strict                { yylval = yytext; BEGIN(eol); return RM_STRICT; }
- rm                       { yylval = yytext; BEGIN(eol); return RM; }
+ {EQ}                     { return EQ; }
+ cobol85                  { yylval = yystr(); BEGIN(eol); return COBOL85; }
+ xopen                    { yylval = yystr(); BEGIN(eol); return XOPEN; }
+ cobol2002                { yylval = yystr(); BEGIN(eol); return COBOL2002; }
+ cobol2014                { yylval = yystr(); BEGIN(eol); return COBOL2014; }
+ ibm-strict               { yylval = yystr(); BEGIN(eol); return IBM_STRICT; }
+ ibm                      { yylval = yystr(); BEGIN(eol); return IBM; }
+ mvs-strict               { yylval = yystr(); BEGIN(eol); return MVS_STRICT; }
+ mvs                      { yylval = yystr(); BEGIN(eol); return MVS; }
+ mf-strict                { yylval = yystr(); BEGIN(eol); return MF_STRICT; }
+ mf                       { yylval = yystr(); BEGIN(eol); return MF; }
+ bs2000-strict            { yylval = yystr(); BEGIN(eol); return BS2000_STRICT; }
+ bs2000                   { yylval = yystr(); BEGIN(eol); return BS2000; }
+ acu-strict               { yylval = yystr(); BEGIN(eol); return ACU_STRICT; }
+ acu                      { yylval = yystr(); BEGIN(eol); return ACU; }
+ rm-strict                { yylval = yystr(); BEGIN(eol); return RM_STRICT; }
+ rm                       { yylval = yystr(); BEGIN(eol); return RM; }
 }
  
 <fsign>{
- {EQ}                     { yylval = yytext; return EQ; }
- ASCII                    { yylval = yytext; BEGIN(eol); return ASCII; }
- EBCDIC                   { yylval = yytext; BEGIN(eol); return EBCDIC; }
+ {EQ}                     { return EQ; }
+ ASCII                    { yylval = yystr(); BEGIN(eol); return ASCII; }
+ EBCDIC                   { yylval = yystr(); BEGIN(eol); return EBCDIC; }
 }
 
 <ffold>{
- {EQ}                     { yylval = yytext; return EQ; }
- LOWER                    { yylval = yytext; BEGIN(eol); return LOWER; }
- UPPER                    { yylval = yytext; BEGIN(eol); return UPPER; }
+ {EQ}                     { return EQ; }
+ LOWER                    { yylval = yystr(); BEGIN(eol); return LOWER; }
+ UPPER                    { yylval = yystr(); BEGIN(eol); return UPPER; }
 }
  
 <eq>{EQ}/{INTEGER} {
     return EQ;
 }
 <eq>{INTEGER} {
-    yylval = yytext;
+    yylval = yystr();
     BEGIN(eol);
     return INTEGER;
 }
@@ -148,7 +154,7 @@ xVALUE   [[:alnum:]]+$
     return EQ;
 }	
 
-<value>{VALUE}            { yylval = yytext; BEGIN(eol); return VALUE; }
+<value>{VALUE}            { yylval = yystr(); BEGIN(eol); return VALUE; }
 
 <eq,eol>{EOL} {
     BEGIN(INITIAL);
@@ -160,4 +166,3 @@ xVALUE   [[:alnum:]]+$
 
 " " {}
 %%
-    

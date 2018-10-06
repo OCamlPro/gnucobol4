@@ -62,7 +62,7 @@
 %%
 
 input:		line
-	|	line input
+	|	input line
 	;
 line:
 		option
@@ -103,11 +103,11 @@ option_arg:
 		;
 
 option_eq_arg:
-		STD EQ std		{ option_arg_set(STD , $1, $2); }
-	| 	FSIGN EQ fsign		{ option_arg_set(FSIGN, $1, $2); }
-	| 	FFOLD_COPY EQ ffold_copy { option_arg_set(FFOLD_COPY, $1, $2); }
-	|	SAVE_TEMPS EQ VALUE	{ option_arg_set(SAVE_TEMPS, $1, $2); }
-	|	TLINES EQ INTEGER	{ option_arg_set(TLINES, $1, $2); }
+		STD EQ std		{ option_arg_set(STD , $1, $3); }
+	| 	FSIGN EQ fsign		{ option_arg_set(FSIGN, $1, $3); }
+	| 	FFOLD_COPY EQ ffold_copy { option_arg_set(FFOLD_COPY, $1, $3); }
+	|	SAVE_TEMPS EQ VALUE	{ option_arg_set(SAVE_TEMPS, $1, $3); }
+	|	TLINES EQ INTEGER	{ option_arg_set(TLINES, $1, $3); }
 		;
 
 std:

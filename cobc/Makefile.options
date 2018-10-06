@@ -18,7 +18,7 @@
 
 all: opt_parse.o options.o opt_scan.o opt_test
 
-CPPFLAGS = -I../build -I.. -D_POSIX_SOURCE -D_XOPEN_SOURCE
+CPPFLAGS = -I../build -I.. -D_POSIX_SOURCE -D_XOPEN_SOURCE=700
 CFLAGS = -g -std=c11
 
 
