@@ -18,7 +18,7 @@
    along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-%token BLANK I LINK LIB D 
+%token I LINK LIB D 
 %token FREE FIXED 
 %token STD
 %token DEBUG G O O2 OS 
@@ -37,7 +37,7 @@
 %token LINKAGE OBSOLETE PARENTHESES REDEFINITION STRICT_TYPING TERMINATOR 
 %token TRUNCATE UNREACHABLE 
 
-%token COMMENT EQ VALUE INTEGER
+%token EQ VALUE INTEGER
 
  /* standards */
 %token COBOL85 XOPEN COBOL2002 COBOL2014 IBM_STRICT IBM MVS_STRICT MVS
@@ -65,16 +65,10 @@ input:		line
 	|	line input
 	;
 line:
-		COMMENT
-	|	BLANK
-	|	option
+		option
 	|	option_arg
 	|	option_eq_arg
 	|	warning
-	|	option COMMENT
-	|	option_arg COMMENT
-	|	option_eq_arg COMMENT
-	|	warning COMMENT
 	;
 
 option:		FREE			{ option_set(FREE, $1); }

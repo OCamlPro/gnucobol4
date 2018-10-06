@@ -18,7 +18,7 @@
    along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-%option noyywrap warn debug
+%option noyywrap warn
 %{
   #include <ctype.h>
 
