@@ -69,7 +69,7 @@ static struct conf_opt_t conf_opts[] = {
   { false, 1, SAVE_TEMPS }, //  [= directory]
 
   //Listing options
-  { false, 1, TLINES },     //  = lines
+  { false, 2, TLINES },     //  = lines
   { false, 1, FTSYMBOLS },
   { false, 1, FNO_THEADER },
   { false, 1, FNO_TMESSAGES },
@@ -94,32 +94,56 @@ static struct warn_opt_t warn_opts[] = {
   { false, false, UNREACHABLE },
 };
 
-#if 0
-static char option_name[32];
-static char option_arg[PATH_MAX];
-
-bool
-option_stash( const char value[], int len ) {
-  if( sizeof(option_name) - 1 < len ) {
-    warnx("E2BIG: exceeds %zu bytes: '%s'", sizeof(option_name), value);
-    return false;
+static inline bool
+accepts_multiple( enum yytokentype type ) {
+  switch(type) {
+  case I:
+  case LINK:
+  case LIB:
+  case D:
+    return true;
+  default:
+    break;
   }
-  
-  memcpy(option_name, value, len);
-  return true;
+  return false;
 }
 
-bool
-option_arg_stash( const char value[], int len ) {
-  if( sizeof(option_arg) - 1 < len ) {
-    warnx("E2BIG: exceeds %zu bytes: '%s'", sizeof(option_arg), value);
-    return false;
+static char *
+next_other( struct conf_opt_t *opt ) {
+  assert(opt->nother > 0 || opt->others == NULL && opt->next == NULL);
+  assert(opt->next <= opt->others);
+
+  if( !opt->configured ) {
+    return opt->value;
+  }
+
+  if( opt->nother == 0 ) {
+    size_t n = 4;
+    if( (opt->others = calloc(n, sizeof(opt->others[0]))) == NULL ) {
+      err(EXIT_FAILURE, __func__);
+    }
+    opt->next = opt->others;
+    opt->nother = n;
   }
   
-  memcpy(option_arg, value, len);
-  return true;
+  if( opt->next == opt->others + opt->nother ) {
+    assert(opt->nother > 0);
+    size_t n = 2 * opt->nother;
+    if( (opt->others =
+	 realloc(opt->others, n * sizeof(opt->others[0]))) == NULL )
+    {
+      err(EXIT_FAILURE, __func__);
+    }
+    opt->next = opt->others + opt->nother;
+    opt->nother = n;
+    
+  }
+
+  char *value = *opt->next;
+  opt->next++; // next always points to next available
+  return value;
 }
-#endif
+
 static int
 conf_opts_cmp( const void *K, const void *E ) {
   const struct conf_opt_t *k = K, *e = E;
@@ -143,7 +167,7 @@ option_any_set( enum yytokentype type, const char name[], const char value[] ) {
 
   strcpy(p->name, name);
 
-  if( value == NULL ) {
+  if( value == NULL ) { // if no value, we're done
     p->value[0] = '\0';
     return p->configured = true;
   }
@@ -153,8 +177,13 @@ option_any_set( enum yytokentype type, const char name[], const char value[] ) {
     return false;
   }
 
-  strcpy(p->value, value);
-
+  if( accepts_multiple(type) ) {
+    char *next = next_other(p);
+    strcpy(next, value);
+  } else {
+    strcpy(p->value, value);
+  }
+  
   return p->configured = true;
 }
 

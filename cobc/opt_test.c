@@ -68,5 +68,7 @@ main(int argc, char *argv[])
   }
   
   yyparse();
+
+  
   return EXIT_SUCCESS;
 }

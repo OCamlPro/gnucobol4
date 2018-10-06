@@ -34,8 +34,7 @@ opt_parse.h: opt_parse.y
 opt_parse.tab.c: opt_parse.y
 	bison -d $^
 
-trivial.c: trivial.l
-	flex -o$@ $^
+opt_scan.c: opt_scan.l
+	flex -o $@ $^
 
-trivial: trivial.o
-	$(CC) -o $@ $^ -lfl
+opt_scan.o: opt_parse.h

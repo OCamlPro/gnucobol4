@@ -22,15 +22,20 @@
 #define _OPTIONS_H_
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include <limits.h>
 #include "opt_parse.tab.h"
 
 #define COUNT_OF(x) (sizeof(x)/sizeof(x[0]))
 
+typedef char conf_opt_value_t[PATH_MAX];
+  
 struct conf_opt_t {
   bool configured; // is present in configuration file
   int  ndash;      // 1 or 2 dashes
   enum yytokentype type; // option type token
+  size_t nother;
+  conf_opt_value_t *others, *next;
   char name[32]; 
   char value[PATH_MAX];
 };
