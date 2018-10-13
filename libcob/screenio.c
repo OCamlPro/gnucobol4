@@ -57,6 +57,9 @@
 #elif defined(HAVE_PDCURSES_H)
 #include <pdcurses.h>
 #define COB_GEN_SCREENIO
+#elif defined(HAVE_XCURSES_H)
+#include <xcurses.h>
+#define COB_GEN_SCREENIO
 #elif defined(HAVE_CURSES_H)
 #include <curses.h>
 #define COB_GEN_SCREENIO
@@ -544,10 +547,17 @@ cob_screen_init (void)
 #endif
 #endif
 
+#ifdef HAVE_LIBXCURSES
+	if (!Xinitscr (0, NULL)) {
+		cob_runtime_error (_("failed to initialize curses"));
+		cob_stop_run (1);
+	}
+#else
 	if (!initscr ()) {
 		cob_runtime_error (_("failed to initialize curses"));
 		cob_stop_run (1);
 	}
+#endif
 	cobglobptr->cob_screen_initialized = 1;
 #ifdef	HAVE_USE_LEGACY_CODING
 	use_legacy_coding (2);

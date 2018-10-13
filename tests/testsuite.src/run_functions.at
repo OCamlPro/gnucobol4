@@ -3945,16 +3945,16 @@ AT_DATA([prog.cob], [
        PROGRAM-ID.     prog.
        DATA            DIVISION.
        WORKING-STORAGE SECTION.
-       COPY rexxapi.
-       01  str         PIC X(30).
+       COPY pyapi.
        77  val         pic 9(02).
        
        PROCEDURE DIVISION.
-           DISPLAY FUNCTION PYTHON("result = 'abc'")
+           MOVE FUNCTION PYTHON(4) TO val
+           DISPLAY FUNCTION PYTHON("gcresult = 'abc'")
            END-DISPLAY
            
            COMPUTE val = FUNCTION NUMVAL(
-                         FUNCTION PYTHON("result = 6 * 7"))
+                         FUNCTION PYTHON("gcresult = 6 * 7"))
            END-COMPUTE
            DISPLAY val
            END-DISPLAY

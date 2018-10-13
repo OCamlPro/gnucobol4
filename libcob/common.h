@@ -1138,6 +1138,8 @@ typedef struct __cob_module {
 	unsigned char		flag_main;		/* Main module */
 	unsigned char		flag_fold_call;		/* Fold case */
 	unsigned char		flag_exit_program;	/* Exit after CALL */
+
+	unsigned char		flag_visible_display;	/* visible display */
 } cob_module;
 
 
@@ -1913,6 +1915,9 @@ COB_EXPIMP cob_field *cob_intr_test_formatted_datetime	(cob_field *, cob_field *
 
 COB_EXPIMP cob_field *cob_intr_integer_of_formatted_date	(cob_field *,
 								 cob_field *);
+COB_EXPIMP cob_field *cob_intr_content_length		(cob_field *);
+COB_EXPIMP cob_field *cob_intr_content_of		(const int, const int,
+							 const int, ...);
 
 /* Optional embedded extensions */
 COB_EXPIMP cob_field *cob_embed_jvm			(const int, const int,

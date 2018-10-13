@@ -6453,6 +6453,92 @@ cob_intr_formatted_current_date (const int offset, const int length,
 	return curr_field;
 }
 
+/**
+  FUNCTION CONTENT-LENGTH(pointer).  NUMERIC.
+
+  Return the nul byte terminated "string" length of data
+  addressed by the given pointer.
+**/
+cob_field *
+cob_intr_content_length (cob_field *srcfield)
+{
+	unsigned char	*pointed;
+	cob_u32_t	val = 0;
+
+	cob_set_exception (0);
+	if (srcfield && srcfield->data) {
+		pointed = *((unsigned char **)srcfield->data);
+		if (pointed) {
+			val = (cob_u32_t)strlen ((char *)pointed);
+		} else {
+			cob_set_exception (COB_EC_DATA_PTR_NULL);
+		}
+	} else {
+		cob_set_exception (COB_EC_DATA_PTR_NULL);
+	}
+	cob_alloc_set_field_uint (val);
+	return curr_field;
+}
+
+/**
+  FUNCTION CONTENTS-OF(pointer, [len]). ALPHANUMERIC, refmod allowed.
+
+  Retrieve the contents of a pointer indirection.
+  Either for given length, or if omitted or 0, by NUL terminator scan.
+  If the source pointer is null, points to null or an empty string,
+  return a zero length space.
+**/
+cob_field *
+cob_intr_content_of (const int offset, const int length, int params, ...)
+{
+	size_t          size = 0;
+	unsigned char   *pointed;
+	unsigned int    request_len;
+	va_list         args;
+	cob_field       field;
+	cob_field       *srcfield;
+	cob_field       *lenfield;
+	
+	va_start (args, params);
+	srcfield = va_arg(args, cob_field *);
+	if (params > 1) {
+		lenfield = va_arg (args, cob_field *);
+		request_len = cob_get_int (lenfield);
+	} else {
+		request_len = 0;
+	}
+	va_end (args);
+	
+	if (srcfield && srcfield->data) {
+		pointed = *((unsigned char **)srcfield->data);
+		if (pointed && *pointed) {
+	        	/* Fixed length or C nul terminated string */
+	        	if (request_len > 0) {
+	                	size = request_len;
+	        	} else {
+	                	size = strlen ((char *)pointed);
+	        	}
+		}
+	}
+	if (size > 0) {
+		COB_FIELD_INIT (size, NULL, &const_alpha_attr);
+		make_field_entry (&field);
+		/* Testing for memory access permissions is canonically: */
+		/*   open fake pipe, use write and test for -1 and EFAULT */
+		/* Not used here, performance hit versus programmer error */
+		memcpy (curr_field->data, pointed, size);
+	} else {
+		COB_FIELD_INIT (1, NULL, &const_alpha_attr);
+		make_field_entry (&field);
+		curr_field->data[0] = ' ';
+		curr_field->size = 0;
+	}
+	if (unlikely(offset > 0)) {
+		calc_ref_mod (curr_field, offset, length);
+	}
+	return curr_field;
+}
+
 /* RXWRXW - To be implemented */
 
 cob_field *
@@ -6527,6 +6613,1016 @@ static void *script_ret;
 #endif
 
 #ifdef WITH_JVM
+#include <jni.h>
+//#include <ffi.h>
+
+static int jvm_initialized = 0;
+static JavaVM   *jvm = NULL;
+static JNIEnv   *env = NULL;
+static void     *jvm_environment;
+static void     *jvm_env;
+
+/* BWT: test, delete this */
+void trial(int);
+void trial(int i) {fprintf(stderr, "got %d\n", i); return;}
+
+/* Invoke JVM.  class, method, spec, args */
+cob_field *
+cob_embed_jvm (const int offset, const int length,
+                const int params, ...)
+{
+        va_list         args;
+
+        cob_field       field;
+        cob_field       *cf, *mf, *sf;
+        char            *cn, *mn, *sn;
+        cob_field       *f;
+
+        char            *cobol_result;
+        size_t          cobol_length;
+
+        unsigned char   *spec;
+        int             speclen;
+        //int           specoff;
+        unsigned char   specret;
+
+        //int           ffi_stat;
+        //jvalue                ffi_return_value;
+        //void          *ffi_retval = &ffi_return_value;
+        //void          *ffi_rettype;
+        //ffi_cif               cif;
+        //ffi_arg               result;
+        //ffi_type      *jvm_types[MAX_CALL_FIELD_PARAMS];
+        //void          *jvm_values[MAX_CALL_FIELD_PARAMS];
+        jstring         newJstrings[MAX_CALL_FIELD_PARAMS];
+
+        // without libffi
+        jvalue          jvalues[MAX_CALL_FIELD_PARAMS];
+        jvalue          jret;
+        jclass          jcls = NULL;
+        jmethodID       jmid = NULL;
+        jstring         jstr;
+
+        //void          (*func)();
+
+        //int           intSlot = 0;
+        //float         floatSlot = 1.1;
+        //double                doubleSlot = 2.2;
+        //jstring               stringSlot = NULL;
+
+        //fprintf(stderr, "In JVM with %d\n", params);
+
+        //COB_FIELD_INIT (1, NULL, &const_alpha_attr);
+        //make_field_entry (&field);
+        //curr_field->size = 0;
+        //curr_field->data[0] = ' ';
+
+        /* default return value is a zero length space */
+        cobol_result = (char *)" ";
+        cobol_length = 0;
+
+        if (!jvm_initialized || (params < 2)) {
+                fprintf(stderr, "jvm not initialized or wrong param count\n");
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto deliver;
+        }
+
+        va_start (args, params);
+
+        /* class */
+        cf = va_arg (args, cob_field *);
+        cn = cob_malloc (cf->size + 1U);
+        memcpy (cn, cf->data, cf->size);
+        //fprintf(stderr, "Calling JVM FindClass %p %p %.*s\n", jvm, env, (int)cf->size, cn);
+        jclass cls = (*env)->FindClass(env, cn);
+
+        cob_free (cn);
+        if (!cls) {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+
+        /* method */
+        mf = va_arg (args, cob_field *);
+        mn = cob_malloc (mf->size + 1U);
+        memcpy (mn, mf->data, mf->size);
+
+        /* spec */
+        sf = va_arg (args, cob_field *);
+        sn = cob_malloc (sf->size + 1U);
+        memcpy (sn, sf->data, sf->size);
+
+        //fprintf(stderr, "Calling JVM GetStaticMethodID %p %p %.*s %.*s\n", env, cls, (int)mf->size, (char *)mf->data, (int)sf->size, sf->data);
+        //jmethodID mid = (*env)->GetStaticMethodID(env, cls, "test", "(I)V");
+        jmethodID mid = (*env)->GetStaticMethodID(env, cls, (char *)mf->data, (char *)sf->data);
+
+        cob_free (sn);
+        cob_free (mn);
+        if (!mid) {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+
+        /* the actual arguments */
+        //f = va_arg(args, cob_field *);
+
+        /* Parsing spec, building libffi call frame */
+        spec = sf->data;
+        speclen = sf->size;
+
+        /* validate - skipped */
+
+        specret = spec[speclen - 1];
+        //fprintf(stderr, "jvm spec: %.*s with %c\n", speclen, spec, specret);
+#if 0
+        switch (specret) {
+        case 'V':
+                //ffi_rettype = &ffi_type_void;
+                //func = FFI_FN((*env)->CallStaticVoidMethod);
+                //ffi_retval = NULL;
+                break;
+        case 'I':
+                //ffi_rettype = &ffi_type_uint;
+                //func = FFI_FN((*env)->CallStaticIntMethod);
+                //ffi_retval = &intSlot;
+                break;
+        case 'F':
+                //ffi_rettype = &ffi_type_float;
+                //func = FFI_FN((*env)->CallStaticFloatMethod);
+                //ffi_retval = &floatSlot;
+                break;
+        case 'D':
+                //ffi_rettype = &ffi_type_double;
+                //func = FFI_FN((*env)->CallStaticDoubleMethod);
+                //ffi_retval = &doubleSlot;
+                break;
+        case ';':
+                /* BWT cheating, need to scan backwards for the L */
+                //fprintf(stderr, "Java String return\n");
+                //ffi_rettype = &ffi_type_pointer;
+                //func = FFI_FN((*env)->CallStaticObjectMethod);
+                //ffi_retval = &stringSlot;
+                break;
+        default:
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+#endif
+        /* prep ffi frame */
+        //jvm_types[0] = &ffi_type_pointer;
+        //jvm_types[1] = &ffi_type_pointer;
+        //jvm_types[2] = &ffi_type_pointer;
+
+        //jvm_values[0] = &env;
+        //jvm_values[1] = &cls;
+        //jvm_values[2] = &mid;
+
+        for (int i = 3, so = 1; i < params; i++, so++) {
+                f = va_arg(args, cob_field *);
+                //jvalues[i] = f->data;
+                //jvm_values[i] = f->data; //&jvalues[i];
+                //fprintf(stderr, "marshalling %p %d\n", f->data, (int)f->size);
+                switch (spec[so]) {
+                case 'Z':
+                        //jvm_types[i] = &ffi_type_uchar;
+                        jvalues[i-3].z = *((jboolean *)f->data);
+                        break;
+                case 'B':
+                        //jvm_types[i] = &ffi_type_schar;
+                        jvalues[i-3].b = *((jbyte *)f->data);
+                        break;
+                case 'C':
+                        //jvm_types[i] = &ffi_type_ushort;
+                        jvalues[i-3].c = *((jchar *)f->data);
+                        break;
+                case 'S':
+                        //jvm_types[i] = &ffi_type_sshort;
+                        jvalues[i-3].s = *((jshort *)f->data);
+                        break;
+                case 'I':
+                        //jvm_types[i] = &ffi_type_sint;
+                        jvalues[i-3].i = *((jint *)f->data);
+                        break;
+                case 'J':
+                        //jvm_types[i] = &ffi_type_slong;
+                        jvalues[i-3].j = *((jlong *)f->data);
+                        break;
+                case 'F':
+                        //jvm_types[i] = &ffi_type_float;
+                        jvalues[i-3].f = *((float *)f->data);
+                        break;
+                case 'D':
+                        //jvm_types[i] = &ffi_type_double;
+                        jvalues[i-3].d = *((double *)f->data);
+                        break;
+                case 'L':
+                        //fprintf(stderr, "Java String parameter\n");
+                        //jvm_types[i] = &ffi_type_pointer;
+                        while (spec[so] != ';') {
+                                so++;
+                                if (so > speclen) {
+                                        /* invalid spec */
+                                        fprintf(stderr, "GOT INVALID SPEC class %d\n", so);
+                                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                                        goto dropout;
+                                }
+                        }
+                        //newJstring = (*env)->NewStringUTF (env, (char *)f->data);
+                        newJstrings[i] = (*env)->NewStringUTF (env, (char *)f->data);
+                        const char *str = (*env)->GetStringUTFChars(env, newJstrings[i], 0);
+                        //fprintf(stderr, "GetString: %s\n", str);
+                        (*env)->ReleaseStringUTFChars(env, newJstrings[i], str);
+                        //jmid midInit = (*env)->GetMethodID (env, cls, "initialize", "(Ljava/lang/String;)V");
+                        //(*env)->CallVoidMethod(env, cls, midInit, buffer);
+                        //(*env)->DeleteLocalRef(env, name);
+                        //fprintf(stderr, "Made %p from %s %d\n", newJstrings[i], f->data, (int)f->size);
+                        //newJObject = (*env)->NewObjectArray(env, (*env)->FindClass(env, "java/lang/String"), newJstring);
+                        //jvm_values[i] = &newJstrings[i];
+                        jvalues[i-3].l = newJstrings[i]; 
+                        break;
+                case '[':
+                        //jvm_types[i] = &ffi_type_pointer;
+                        so++;
+                        switch (spec[so]) {
+                        case 'Z':
+                        case 'B':
+                        case 'C':
+                        case 'S':
+                        case 'I':
+                        case 'J':
+                        case 'F':
+                        case 'D':
+                                break;
+                        case 'L':
+                                while (spec[so] != ';') {
+                                        so++;
+                                        if (so > speclen) {
+                                                /* invalid spec */
+                                                fprintf(stderr, "GOT INVALID SPEC, array, class %d\n", so);
+                                                cob_set_exception (COB_EC_IMP_SCRIPT);
+                                                goto dropout;
+                                        }
+                                }
+                                break;
+                        default:
+                                fprintf(stderr, "GOT INVALID SPEC array\n");
+                                cob_set_exception (COB_EC_IMP_SCRIPT);
+                                goto dropout;
+                        }
+                        jvalues[i-3].l = *((jarray *)f->data);
+                        break;
+                default:
+                        /* invalid spec */
+                        fprintf(stderr, "GOT INVALID SPEC\n");
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+        }
+        //fprintf(stderr, "arg: %d\n", *(int *)(f->data));
+        //sscanf(f->data, "%d", &intSlot);
+        //jvm_values[3] = f->data;
+
+#if 0
+        fprintf(stderr, "Call ffi_prep_cif with %d params\n", params);
+        ffi_stat = ffi_prep_cif (&cif, FFI_DEFAULT_ABI, params,
+                        ffi_rettype, jvm_types);
+        fprintf(stderr, "ffi_prep_cif: %d\n", ffi_stat);
+
+        //func = (*env)->CallStaticVoidMethod;
+        fprintf(stderr, "Input value (float): %g\n", *(float *)jvm_values[3]);
+        fprintf(stderr, "Input value (double): %g\n", *(double *)jvm_values[3]);
+        if (ffi_stat == FFI_OK) {
+                ffi_call (&cif, *func, ffi_retval, jvm_values);
+                //ffi_call (&cif, (*env)->CallStaticVoidMethod, ffi_retval, jvm_values);
+                //ffi_call (&cif, (*(void **)((*env)->CallStaticVoidMethod)), ffi_retval, jvm_values);
+                //ffi_call (&cif, trial, ffi_retval, jvm_values);
+        } else {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+        }
+        fprintf(stderr, "Return value: %d %g %p\n", intSlot, doubleSlot, stringSlot);
+        if (stringSlot) {
+                const char *str = (*env)->GetStringUTFChars(env, stringSlot, 0);
+                fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, stringSlot, str);
+        }
+#endif
+
+        //fprintf(stderr, "Calling JVM Method %p %p %p %p with %d\n", jvm, env, cls, mid, 42);
+        //(*env)->CallStaticVoidMethod(env, cls, mid, 42);
+
+        //fprintf(stderr, "Calling JVM MethodA %p %p %p %p with %p\n", jvm, env, cls, mid, jvalues);
+        //fprintf(stderr, "first Input value (float): %g\n", jvalues[0].f);
+        //fprintf(stderr, "first Input value (double): %g\n", jvalues[0].d);
+
+        switch (specret) {
+        case 'V':
+                //ffi_rettype = &ffi_type_void;
+                //func = FFI_FN((*env)->CallStaticVoidMethod);
+                //ffi_retval = NULL;
+                (*env)->CallStaticVoidMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "void return value\n");
+                break;
+        case 'I':
+                //ffi_rettype = &ffi_type_uint;
+                //func = FFI_FN((*env)->CallStaticIntMethod);
+                //ffi_retval = &intSlot;
+                jret.i = (*env)->CallStaticIntMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %d\n", jret.i);
+
+                jcls = (*env)->FindClass (env, "java/lang/Integer");
+                if (!jcls) {
+                        fprintf(stderr, "in I jcls: %p\n", jcls);
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(I)Ljava/lang/String;");
+                if (!jmid) {
+                        fprintf(stderr, "in I jmid: %p\n", jmid);
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.i);
+                const char *str = (*env)->GetStringUTFChars(env, jstr, 0);
+                cobol_result = (char *)str;
+                cobol_length = strlen (str);
+                if (cobol_length > 0) {
+                        COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                        make_field_entry (&field);
+                }
+
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+                //fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                break;
+        case 'F':
+                //ffi_rettype = &ffi_type_float;
+                //func = FFI_FN((*env)->CallStaticFloatMethod);
+                //ffi_retval = &floatSlot;
+                jret.f = (*env)->CallStaticFloatMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %f\n", jret.f);
+
+                jcls = (*env)->FindClass (env, "java/lang/Float");
+                if (!jcls) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(F)Ljava/lang/String;");
+                if (!jmid) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.f);
+                str = (*env)->GetStringUTFChars(env, jstr, 0);
+                cobol_result = (char *)str;
+                cobol_length = strlen (str);
+                if (cobol_length > 0) {
+                        COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                        make_field_entry (&field);
+                }
+
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+                //fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                break;
+        case 'D':
+                //ffi_rettype = &ffi_type_double;
+                //func = FFI_FN((*env)->CallStaticDoubleMethod);
+                //ffi_retval = &doubleSlot;
+                jret.d = (*env)->CallStaticDoubleMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %g\n", jret.d);
+
+                jcls = (*env)->FindClass (env, "java/lang/Double");
+                if (!jcls) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(D)Ljava/lang/String;");
+                if (!jmid) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.d);
+                str = (*env)->GetStringUTFChars(env, jstr, 0);
+                cobol_result = (char *)str;
+                cobol_length = strlen (str);
+                if (cobol_length > 0) {
+                        COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                        make_field_entry (&field);
+                }
+
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+                //fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                break;
+        case ';':
+                /* BWT cheating, need to scan backwards for the L */
+                //fprintf(stderr, "Java String return\n");
+                //ffi_rettype = &ffi_type_pointer;
+                //func = FFI_FN((*env)->CallStaticObjectMethod);
+                //ffi_retval = &stringSlot;
+                jret.l = (*env)->CallStaticObjectMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %p\n", jret.l);
+                if (jret.l) {
+                        const char *str = (*env)->GetStringUTFChars(env, jret.l, 0);
+                        cobol_result = (char *)str;
+                        cobol_length = strlen (str);
+                        if (cobol_length > 0) {
+                                COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                                make_field_entry (&field);
+                        }
+
+                        curr_field->size = cobol_length;
+                        if (cobol_length && cobol_result) {
+                                memcpy (curr_field->data, cobol_result, cobol_length);
+                        }
+                        //fprintf(stderr, "GetString from return value: %s\n", str);
+                        (*env)->ReleaseStringUTFChars(env, jret.l, str);
+                }
+                break;
+        default:
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+
+        //fprintf(stderr, "Return value: %d %f %g %p\n\n", jret.i, jret.f, jret.d, jret.l);
+        //if (jret.l) {
+        //      const char *str = (*env)->GetStringUTFChars(env, jret.l, 0);
+        //      fprintf(stderr, "GetString from return value: %s\n", str);
+        //      (*env)->ReleaseStringUTFChars(env, jret.l, str);
+        //}
+
+dropout:
+        va_end(args);
+
+        (*env)->ExceptionDescribe(env);
+
+deliver:
+        if (cobol_length == 0) {
+                COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                make_field_entry (&field);
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+        }
+
+        if (unlikely (offset > 0)) {
+                calc_ref_mod (curr_field, offset, length);
+        }
+        return curr_field;
+}
+
+/* Invoke JVM with Array.  class, method, spec, args */
+cob_field *
+cob_embed_jvm_array (const int offset, const int length,
+                const int params, ...)
+{
+        va_list         args;
+
+        cob_field       field;
+        cob_field       *cf, *mf, *sf;
+        char            *cn, *mn, *sn;
+        cob_field       *f;
+
+        char            *cobol_result;
+        size_t          cobol_length;
+
+        unsigned char   *spec;
+        int             speclen;
+        //int           specoff;
+        unsigned char   specret;
+
+        //int           ffi_stat;
+        //jvalue                ffi_return_value;
+        //void          *ffi_retval = &ffi_return_value;
+        //void          *ffi_rettype;
+        //ffi_cif               cif;
+        //ffi_arg               result;
+        //ffi_type      *jvm_types[MAX_CALL_FIELD_PARAMS];
+        //void          *jvm_values[MAX_CALL_FIELD_PARAMS];
+        jstring         newJstrings[MAX_CALL_FIELD_PARAMS];
+
+        // without libffi
+        jvalue          jvalues[MAX_CALL_FIELD_PARAMS];
+        jvalue          jret;
+        jclass          jcls = NULL;
+        jmethodID       jmid = NULL;
+        jstring         jstr;
+
+        //void          (*func)();
+
+        //int           intSlot = 0;
+        //float         floatSlot = 1.1;
+        //double                doubleSlot = 2.2;
+        //jstring               stringSlot = NULL;
+
+        //fprintf(stderr, "In JVM with %d\n", params);
+
+        //COB_FIELD_INIT (1, NULL, &const_alpha_attr);
+        //make_field_entry (&field);
+        //curr_field->size = 0;
+        //curr_field->data[0] = ' ';
+
+        /* default return value is a zero length space */
+        cobol_result = (char *)" ";
+        cobol_length = 0;
+
+        if (!jvm_initialized || (params < 2)) {
+                fprintf(stderr, "jvm not initialized or wrong param count\n");
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto deliver;
+        }
+
+        va_start (args, params);
+
+        /* class */
+        cf = va_arg (args, cob_field *);
+        cn = cob_malloc (cf->size + 1U);
+        memcpy (cn, cf->data, cf->size);
+        //fprintf(stderr, "Calling JVM FindClass %p %p %.*s\n", jvm, env, (int)cf->size, cn);
+        jclass cls = (*env)->FindClass(env, cn);
+
+        cob_free (cn);
+        if (!cls) {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+
+        /* method */
+        mf = va_arg (args, cob_field *);
+        mn = cob_malloc (mf->size + 1U);
+        memcpy (mn, mf->data, mf->size);
+
+        /* spec */
+        sf = va_arg (args, cob_field *);
+        sn = cob_malloc (sf->size + 1U);
+        memcpy (sn, sf->data, sf->size);
+
+        //fprintf(stderr, "Calling JVM GetStaticMethodID %p %p %.*s %.*s\n", env, cls, (int)mf->size, (char *)mf->data, (int)sf->size, sf->data);
+        //jmethodID mid = (*env)->GetStaticMethodID(env, cls, "test", "(I)V");
+        jmethodID mid = (*env)->GetStaticMethodID(env, cls, (char *)mf->data, (char *)sf->data);
+
+        cob_free (sn);
+        cob_free (mn);
+        if (!mid) {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+
+        /* the actual arguments */
+        //f = va_arg(args, cob_field *);
+
+        /* Parsing spec, building libffi call frame */
+        spec = sf->data;
+        speclen = sf->size;
+
+        /* validate - skipped */
+
+        specret = spec[speclen - 1];
+        //fprintf(stderr, "jvm spec: %.*s with %c\n", speclen, spec, specret);
+#if 0
+        switch (specret) {
+        case 'V':
+                //ffi_rettype = &ffi_type_void;
+                //func = FFI_FN((*env)->CallStaticVoidMethod);
+                //ffi_retval = NULL;
+                break;
+        case 'I':
+                //ffi_rettype = &ffi_type_uint;
+                //func = FFI_FN((*env)->CallStaticIntMethod);
+                //ffi_retval = &intSlot;
+                break;
+        case 'F':
+                //ffi_rettype = &ffi_type_float;
+                //func = FFI_FN((*env)->CallStaticFloatMethod);
+                //ffi_retval = &floatSlot;
+                break;
+        case 'D':
+                //ffi_rettype = &ffi_type_double;
+                //func = FFI_FN((*env)->CallStaticDoubleMethod);
+                //ffi_retval = &doubleSlot;
+                break;
+        case ';':
+                /* BWT cheating, need to scan backwards for the L */
+                //fprintf(stderr, "Java String return\n");
+                //ffi_rettype = &ffi_type_pointer;
+                //func = FFI_FN((*env)->CallStaticObjectMethod);
+                //ffi_retval = &stringSlot;
+                break;
+        default:
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+#endif
+        /* prep ffi frame */
+        //jvm_types[0] = &ffi_type_pointer;
+        //jvm_types[1] = &ffi_type_pointer;
+        //jvm_types[2] = &ffi_type_pointer;
+
+        //jvm_values[0] = &env;
+        //jvm_values[1] = &cls;
+        //jvm_values[2] = &mid;
+
+        for (int i = 3, so = 1; i < params; i++, so++) {
+                f = va_arg(args, cob_field *);
+                //jvalues[i] = f->data;
+                //jvm_values[i] = f->data; //&jvalues[i];
+                //fprintf(stderr, "marshalling %p %d\n", f->data, (int)f->size);
+                switch (spec[so]) {
+                case 'Z':
+                        //jvm_types[i] = &ffi_type_uchar;
+                        jvalues[i-3].z = *((jboolean *)f->data);
+                        break;
+                case 'B':
+                        //jvm_types[i] = &ffi_type_schar;
+                        jvalues[i-3].b = *((jbyte *)f->data);
+                        break;
+                case 'C':
+                        //jvm_types[i] = &ffi_type_ushort;
+                        jvalues[i-3].c = *((jchar *)f->data);
+                        break;
+                case 'S':
+                        //jvm_types[i] = &ffi_type_sshort;
+                        jvalues[i-3].s = *((jshort *)f->data);
+                        break;
+                case 'I':
+                        //jvm_types[i] = &ffi_type_sint;
+                        jvalues[i-3].i = *((jint *)f->data);
+                        break;
+                case 'J':
+                        //jvm_types[i] = &ffi_type_slong;
+                        jvalues[i-3].j = *((jlong *)f->data);
+                        break;
+                case 'F':
+                        //jvm_types[i] = &ffi_type_float;
+                        jvalues[i-3].f = *((float *)f->data);
+                        break;
+                case 'D':
+                        //jvm_types[i] = &ffi_type_double;
+                        jvalues[i-3].d = *((double *)f->data);
+                        break;
+                case 'L':
+                        //fprintf(stderr, "Java String parameter\n");
+                        //jvm_types[i] = &ffi_type_pointer;
+                        while (spec[so] != ';') {
+                                so++;
+                                if (so > speclen) {
+                                        /* invalid spec */
+                                        fprintf(stderr, "GOT INVALID SPEC class %d\n", so);
+                                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                                        goto dropout;
+                                }
+                        }
+                        //newJstring = (*env)->NewStringUTF (env, (char *)f->data);
+                        newJstrings[i] = (*env)->NewStringUTF (env, (char *)f->data);
+                        const char *str = (*env)->GetStringUTFChars(env, newJstrings[i], 0);
+                        //fprintf(stderr, "GetString: %s\n", str);
+                        (*env)->ReleaseStringUTFChars(env, newJstrings[i], str);
+                        //jmid midInit = (*env)->GetMethodID (env, cls, "initialize", "(Ljava/lang/String;)V");
+                        //(*env)->CallVoidMethod(env, cls, midInit, buffer);
+                        //(*env)->DeleteLocalRef(env, name);
+                        //fprintf(stderr, "Made %p from %s %d\n", newJstrings[i], f->data, (int)f->size);
+                        //newJObject = (*env)->NewObjectArray(env, (*env)->FindClass(env, "java/lang/String"), newJstring);
+                        //jvm_values[i] = &newJstrings[i];
+                        jvalues[i-3].l = newJstrings[i]; 
+                        break;
+                case '[':
+                        //jvm_types[i] = &ffi_type_pointer;
+                        so++;
+                        switch (spec[so]) {
+                        case 'Z':
+                        case 'B':
+                        case 'C':
+                        case 'S':
+                        case 'I':
+                        case 'J':
+                        case 'F':
+                        case 'D':
+                                break;
+                        case 'L':
+                                while (spec[so] != ';') {
+                                        so++;
+                                        if (so > speclen) {
+                                                /* invalid spec */
+                                                fprintf(stderr, "GOT INVALID SPEC, array, class %d\n", so);
+                                                cob_set_exception (COB_EC_IMP_SCRIPT);
+                                                goto dropout;
+                                        }
+                                }
+                                break;
+                        default:
+                                fprintf(stderr, "GOT INVALID SPEC array\n");
+                                cob_set_exception (COB_EC_IMP_SCRIPT);
+                                goto dropout;
+                        }
+                        jvalues[i-3].l = *((jarray *)f->data);
+                        break;
+                default:
+                        /* invalid spec */
+                        fprintf(stderr, "GOT INVALID SPEC\n");
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+        }
+        //fprintf(stderr, "arg: %d\n", *(int *)(f->data));
+        //sscanf(f->data, "%d", &intSlot);
+        //jvm_values[3] = f->data;
+
+#if 0
+        fprintf(stderr, "Call ffi_prep_cif with %d params\n", params);
+        ffi_stat = ffi_prep_cif (&cif, FFI_DEFAULT_ABI, params,
+                        ffi_rettype, jvm_types);
+        fprintf(stderr, "ffi_prep_cif: %d\n", ffi_stat);
+
+        //func = (*env)->CallStaticVoidMethod;
+        fprintf(stderr, "Input value (float): %g\n", *(float *)jvm_values[3]);
+        fprintf(stderr, "Input value (double): %g\n", *(double *)jvm_values[3]);
+        if (ffi_stat == FFI_OK) {
+                ffi_call (&cif, *func, ffi_retval, jvm_values);
+                //ffi_call (&cif, (*env)->CallStaticVoidMethod, ffi_retval, jvm_values);
+                //ffi_call (&cif, (*(void **)((*env)->CallStaticVoidMethod)), ffi_retval, jvm_values);
+                //ffi_call (&cif, trial, ffi_retval, jvm_values);
+        } else {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+        }
+        fprintf(stderr, "Return value: %d %g %p\n", intSlot, doubleSlot, stringSlot);
+        if (stringSlot) {
+                const char *str = (*env)->GetStringUTFChars(env, stringSlot, 0);
+                fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, stringSlot, str);
+        }
+#endif
+
+        //fprintf(stderr, "Calling JVM Method %p %p %p %p with %d\n", jvm, env, cls, mid, 42);
+        //(*env)->CallStaticVoidMethod(env, cls, mid, 42);
+
+        //fprintf(stderr, "Calling JVM MethodA %p %p %p %p with %p\n", jvm, env, cls, mid, jvalues);
+        //fprintf(stderr, "first Input value (float): %g\n", jvalues[0].f);
+        //fprintf(stderr, "first Input value (double): %g\n", jvalues[0].d);
+
+        switch (specret) {
+        case 'V':
+                //ffi_rettype = &ffi_type_void;
+                //func = FFI_FN((*env)->CallStaticVoidMethod);
+                //ffi_retval = NULL;
+                (*env)->CallStaticVoidMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "void return value\n");
+                break;
+        case 'I':
+                //ffi_rettype = &ffi_type_uint;
+                //func = FFI_FN((*env)->CallStaticIntMethod);
+                //ffi_retval = &intSlot;
+                jret.i = (*env)->CallStaticIntMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %d\n", jret.i);
+
+                jcls = (*env)->FindClass (env, "java/lang/Integer");
+                if (!jcls) {
+                        fprintf(stderr, "in I jcls: %p\n", jcls);
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(I)Ljava/lang/String;");
+                if (!jmid) {
+                        fprintf(stderr, "in I jmid: %p\n", jmid);
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.i);
+                const char *str = (*env)->GetStringUTFChars(env, jstr, 0);
+                cobol_result = (char *)str;
+                cobol_length = strlen (str);
+                if (cobol_length > 0) {
+                        COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                        make_field_entry (&field);
+                }
+
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+                //fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                break;
+        case 'F':
+                //ffi_rettype = &ffi_type_float;
+                //func = FFI_FN((*env)->CallStaticFloatMethod);
+                //ffi_retval = &floatSlot;
+                jret.f = (*env)->CallStaticFloatMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %f\n", jret.f);
+
+                jcls = (*env)->FindClass (env, "java/lang/Float");
+                if (!jcls) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(F)Ljava/lang/String;");
+                if (!jmid) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.f);
+                str = (*env)->GetStringUTFChars(env, jstr, 0);
+                cobol_result = (char *)str;
+                cobol_length = strlen (str);
+                if (cobol_length > 0) {
+                        COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                        make_field_entry (&field);
+                }
+
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+                //fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                break;
+        case 'D':
+                //ffi_rettype = &ffi_type_double;
+                //func = FFI_FN((*env)->CallStaticDoubleMethod);
+                //ffi_retval = &doubleSlot;
+                jret.d = (*env)->CallStaticDoubleMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %g\n", jret.d);
+
+                jcls = (*env)->FindClass (env, "java/lang/Double");
+                if (!jcls) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jmid = (*env)->GetStaticMethodID (env, jcls, "toString", "(D)Ljava/lang/String;");
+                if (!jmid) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                        goto dropout;
+                }
+                jstr = (*env)->CallStaticObjectMethod (env, jcls, jmid, jret.d);
+                str = (*env)->GetStringUTFChars(env, jstr, 0);
+                cobol_result = (char *)str;
+                cobol_length = strlen (str);
+                if (cobol_length > 0) {
+                        COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                        make_field_entry (&field);
+                }
+
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+                //fprintf(stderr, "GetString from return value: %s\n", str);
+                (*env)->ReleaseStringUTFChars(env, jstr, str);
+                break;
+        case ';':
+                /* BWT cheating, need to scan backwards for the L */
+                //fprintf(stderr, "Java String return\n");
+                //ffi_rettype = &ffi_type_pointer;
+                //func = FFI_FN((*env)->CallStaticObjectMethod);
+                //ffi_retval = &stringSlot;
+                jret.l = (*env)->CallStaticObjectMethodA(env, cls, mid, jvalues);
+                //fprintf(stderr, "Return value: %p\n", jret.l);
+                if (jret.l) {
+                        const char *str = (*env)->GetStringUTFChars(env, jret.l, 0);
+                        cobol_result = (char *)str;
+                        cobol_length = strlen (str);
+                        if (cobol_length > 0) {
+                                COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                                make_field_entry (&field);
+                        }
+
+                        curr_field->size = cobol_length;
+                        if (cobol_length && cobol_result) {
+                                memcpy (curr_field->data, cobol_result, cobol_length);
+                        }
+                        //fprintf(stderr, "GetString from return value: %s\n", str);
+                        (*env)->ReleaseStringUTFChars(env, jret.l, str);
+                }
+                break;
+        default:
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto dropout;
+        }
+
+        //fprintf(stderr, "Return value: %d %f %g %p\n\n", jret.i, jret.f, jret.d, jret.l);
+        //if (jret.l) {
+        //      const char *str = (*env)->GetStringUTFChars(env, jret.l, 0);
+        //      fprintf(stderr, "GetString from return value: %s\n", str);
+        //      (*env)->ReleaseStringUTFChars(env, jret.l, str);
+        //}
+
+dropout:
+        va_end(args);
+
+        (*env)->ExceptionDescribe(env);
+
+deliver:
+        if (cobol_length == 0) {
+                COB_FIELD_INIT (cobol_length, NULL, &const_alpha_attr);
+                make_field_entry (&field);
+                curr_field->size = cobol_length;
+                if (cobol_length && cobol_result) {
+                        memcpy (curr_field->data, cobol_result, cobol_length);
+                }
+        }
+
+        if (unlikely (offset > 0)) {
+                calc_ref_mod (curr_field, offset, length);
+        }
+        return curr_field;
+}
+
+/* Create JVM, args are options or single arg magic number */
+/* 0 to shutdown */
+cob_field *
+cob_embed_jvm_create (const int offset, const int length,
+                const int params, ...)
+{
+        va_list         args;
+        int             rc;
+
+        JavaVMInitArgs  vm_args;
+        JavaVMOption    options[32];
+
+        cob_field       field;
+        cob_field       *f;
+
+        /* reset any exception state */
+        cob_set_exception (0);
+
+        /* Default options */
+        options[0].optionString = (char *)"-Djava.class.path=.:/usr/share/groovy/embeddable/groovy-all-1.8.6.jar";
+        vm_args.version = JNI_VERSION_1_8;
+        vm_args.nOptions = 1;
+        vm_args.options = options;
+        vm_args.ignoreUnrecognized = JNI_FALSE;
+
+        //fprintf(stderr, "In JVM-CREATE with %d\n", params);
+
+        /* Default result field is a zero length space */
+        COB_FIELD_INIT (1, NULL, &const_alpha_attr);
+        make_field_entry (&field);
+        curr_field->size = 0;
+        curr_field->data[0] = ' ';
+
+        /* If there is already a JVM then this is the rundown call */
+        if (jvm_initialized) {
+                rc = (*jvm)->DestroyJavaVM(jvm);
+                if (rc) {
+                        cob_set_exception (COB_EC_IMP_SCRIPT);
+                }
+                jvm_initialized = 0;
+                goto deliver;
+        }
+        if (params < 1) {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                goto deliver;
+        }
+
+        /* Pull option value */
+        vm_args.version = JNI_VERSION_1_8;
+        vm_args.ignoreUnrecognized = JNI_FALSE;
+
+        va_start (args, params);
+        for (int i = 1; i <= params; i++) {
+                f = va_arg(args, cob_field *);
+                //fprintf(stderr, "arg %d %s\n", i, f->data);
+                options[i].optionString = (char *)f->data;
+        }
+        vm_args.nOptions = params + 1;
+        vm_args.options = options;
+
+        /* Try and start it up */
+        //fprintf(stderr, "Calling JNI_CreateJavaVM with %p %p\n", jvm, env);
+        rc = JNI_CreateJavaVM(&jvm, (void **)&env, &vm_args);
+        if (rc) {
+                cob_set_exception (COB_EC_IMP_SCRIPT);
+                fprintf(stderr, "JNI_CreateJavaVM failed: %d\n", rc);
+        } else {
+                jvm_initialized = 1;
+                /* Fill in the vectors for JVM-ENVIRONMENT external */
+                memcpy(jvm_environment, (void *)*env, sizeof(struct JNINativeInterface_));
+                *(JNIEnv **)jvm_env = env;
+                //fprintf(stderr, "FindClass %p\n", (*env)->FindClass);
+        }
+        //fprintf(stderr, "JNI_CreateJavaVM rc: %d\n", rc);
+
+        va_end (args);
+
+deliver:
+        if (unlikely (offset > 0)) {
+                calc_ref_mod (curr_field, offset, length);
+        }
+        return curr_field;
+}
+#endif
+
+
+#if 0
 #include <jni.h>
 //#include <ffi.h>
 
@@ -7832,9 +8928,7 @@ cob_embed_python (const int offset, const int length,
 	argv[0] = Py_DecodeLocale(argv0, NULL);
 #else
 	argv = cob_malloc ((size_t)(params) * sizeof (char *));
-	//argv[0] = cob_malloc(strlen("GnuCOBOL")+1);
 	argv[0] = cob_malloc(sizeof(argv0));
-	//memcpy(argv[0], "GnuCOBOL", strlen("GnuCOBOL")+1);
 	memcpy(argv[0], argv0, sizeof(argv0));
 #endif
 
@@ -7855,6 +8949,18 @@ cob_embed_python (const int offset, const int length,
 	if ((srcfield->size == 1) && (srcfield->data[0] == '4')) {
 		va_end (args);
 		cob_python_flags ^= PYAPI_REPORT;
+		goto deliver;
+	}
+	/* with python(5), turn on report on exception mode */
+	if ((srcfield->size == 1) && (srcfield->data[0] == '5')) {
+		va_end (args);
+		cob_python_flags |= PYAPI_REPORT;
+		goto deliver;
+	}
+	/* with python(6), turn off report on exception mode */
+	if ((srcfield->size == 1) && (srcfield->data[0] == '6')) {
+		va_end (args);
+		cob_python_flags &= !PYAPI_REPORT;
 		goto deliver;
 	}
 
@@ -7904,7 +9010,7 @@ cob_embed_python (const int offset, const int length,
 			Py_file_input, python_globals, python_globals);
 
 	if (python_status) {
-		python_result = PyDict_GetItemString (python_globals, "result");
+		python_result = PyDict_GetItemString (python_globals, "gcresult");
 		if (python_result) {
 			Py_XDECREF (python_object);
 			python_object = PyObject_Str (python_result);
@@ -7923,8 +9029,8 @@ cob_embed_python (const int offset, const int length,
 			}
 			PyDict_SetItemString (python_globals, "_",
 						python_result);
-			PyDict_DelItemString (python_globals, "result");
-		}
+			PyDict_DelItemString (python_globals, "gcresult");
+		} /* the else clause is no result */
 	} else {
 		*(int *)script_ret = 1;
 		cob_set_exception (COB_EC_IMP_SCRIPT);
@@ -7962,11 +9068,14 @@ deliver:
 	}
 	return curr_field;
 }
-#endif
+#endif  /* end WITH_PYTHON */
+
 
 #ifdef WITH_REXX
 #include <rexxsaa.h>
-
+/**
+ Embed a REXX interpreter
+*/
 static cob_field *
 cob_embed_vrexx (const int mode, const int offset, const int length,
 		const int params, va_list args)
@@ -8056,7 +9165,7 @@ cob_embed_vrexx (const int mode, const int offset, const int length,
 	return curr_field;
 }
 
-/* the REXX-UNRESTRICTED function */
+/** the REXX-UNRESTRICTED function */
 cob_field *
 cob_embed_rexx (const int offset, const int length,
 		const int params, ...)
@@ -8070,7 +9179,7 @@ cob_embed_rexx (const int offset, const int length,
 	return pass_field;
 }
 
-/* the normal REXX function */
+/** the normal REXX function */
 cob_field *
 cob_embed_rexx_restricted (const int offset, const int length,
 		const int params, ...)
@@ -8083,23 +9192,26 @@ cob_embed_rexx_restricted (const int offset, const int length,
 	va_end(args);
 	return pass_field;
 }
-#endif
+#endif /* End WITH_REXX */
 
-#ifdef WITH_TCL
+
+#if defined(WITH_TCL) || defined (WITH_TCLTK)
 #include <tcl.h>
+#ifdef WITH_TCLTK
 #include <tk.h>
+#endif
 static int		cob_tcl_initialized = 0;
 static Tcl_Interp	*cobTcl = NULL;
 static Tcl_Interp	*slaveTcl = NULL;
 static Tcl_Interp	*currentTcl = NULL;
 
 static cob_field *
-cob_embed_vtcl (const int mode, const int offset, const int length,
+cob_embed_vtcl (const int safety, const int offset, const int length,
 		const int params, va_list args)
 {
 	cob_field	field;
 	cob_field	*srcfield;
-	const char	*tcl_result;
+	const char	*tcl_result = NULL;
 
 	int		tcl_rc;
 
@@ -8110,22 +9222,22 @@ cob_embed_vtcl (const int mode, const int offset, const int length,
 		if (cobTcl) {
 			if (Tcl_Init (cobTcl) != TCL_OK) {
 				cob_set_exception (COB_EC_IMP);
-				*(APIRET *)script_ret = COB_EC_IMP;
+				*(unsigned long *)script_ret = COB_EC_IMP;
 				goto deliver;
 			}
 		} else {
 			cob_set_exception (COB_EC_IMP);
-			*(APIRET *)script_ret = COB_EC_IMP;
+			*(unsigned long *)script_ret = COB_EC_IMP;
 			goto deliver;
 		}
 	}
 	/* For safe Tcl i.e. not UNRESTRICTED, created with isSafe */
-	if (mode) {
+	if (safety) {
 		if (!slaveTcl) {
 			slaveTcl = Tcl_CreateSlave (cobTcl, "SaferTcl", 1);
 			if (!slaveTcl) {
 				cob_set_exception (COB_EC_IMP);
-				*(APIRET *)script_ret = COB_EC_IMP;
+				*(unsigned long *)script_ret = COB_EC_IMP;
 				goto deliver;
 			}
 		}	
@@ -8137,7 +9249,7 @@ cob_embed_vtcl (const int mode, const int offset, const int length,
         /* First parameter is text to evaluate */
 	srcfield = va_arg (args, cob_field *);
 	tcl_rc = Tcl_Eval (currentTcl, (char *)srcfield->data);
-	*(APIRET *)script_ret = tcl_rc;
+	*(unsigned long *)script_ret = tcl_rc;
 	if (tcl_rc) {
 		cob_set_exception (COB_EC_IMP_SCRIPT);
 	}
@@ -8178,7 +9290,7 @@ cob_embed_tcl (const int offset, const int length,
 	return pass_field;
 }
 
-/* the normal TCL function is inside a SaferTcl sub interpreter */
+/* the default TCL function is inside a SaferTcl sub interpreter */
 cob_field *
 cob_embed_tcl_restricted (const int offset, const int length,
 		const int params, ...)
@@ -8191,7 +9303,7 @@ cob_embed_tcl_restricted (const int offset, const int length,
 	va_end(args);
 	return pass_field;
 }
-#endif
+#endif /* End WITH_TCL */
 
 
 /* Initialization/exit routines */
@@ -8275,8 +9387,8 @@ cob_init_intrinsic (cob_global *lptr)
 	mpf_init2 (cob_log_half, COB_LOG_HALF_LEN);
 	mpf_set_str (cob_log_half, cob_log_half_str, 10);
 
-#if defined(WITH_REXX) || defined(WITH_PYTHON)
-	script_ret = cob_external_addr("SCRIPT_RETURN_CODE", sizeof(APIRET));
+#if defined(WITH_REXX) || defined(WITH_PYTHON) || defined(WITH_TCL)
+	script_ret = cob_external_addr("SCRIPT_RETURN_CODE", sizeof(unsigned long));
 #endif
 #if defined(WITH_JVM)
 	jvm_env = cob_external_addr("JVM_ENV", sizeof(JNIEnv *));

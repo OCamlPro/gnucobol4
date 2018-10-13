@@ -1750,6 +1750,8 @@ error_if_not_usage_display_or_nonnumeric_lit (cb_tree x)
 %token CONSTANT
 %token CONTAINS
 %token CONTENT
+%token CONTENT_LENGTH_FUNC      "FUNCTION CONTENT-LENGTH"
+%token CONTENT_OF_FUNC		"FUNCTION CONTENT-OF"
 %token CONTINUE
 %token CONTROL
 %token CONTROLS
@@ -12599,12 +12601,14 @@ func_no_parm:
 func_one_parm:
   UPPER_CASE_FUNC
 | LOWER_CASE_FUNC
+| CONTENT_LENGTH_FUNC
 | REVERSE_FUNC
 ;
 
 func_multi_parm:
   CONCATENATE_FUNC
 | FORMATTED_DATE_FUNC
+| CONTENT_OF_FUNC
 | JVM_FUNC
 | JVM_CREATE_FUNC
 | LUA_FUNC

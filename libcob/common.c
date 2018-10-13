@@ -85,6 +85,8 @@
 #include <ncurses/ncurses.h>
 #elif defined(HAVE_PDCURSES_H)
 #include <pdcurses.h>
+#elif defined(HAVE_XCURSES_H)
+#include <xcurses.h>
 #elif defined(HAVE_CURSES_H)
 #include <curses.h>
 #endif
@@ -1637,7 +1639,9 @@ cob_stop_run (const int status)
 	}
 	cob_terminate_routines ();
 	exit (status);
-}int
+}
+
+int
 cob_is_initialized (void)
 {
 	return (cobglobptr != NULL);
@@ -5534,7 +5538,7 @@ print_version (void)
 	puts (_("License LGPLv3+: GNU LGPL version 3 or later <http://gnu.org/licenses/lgpl.html>"));
 	puts (_("This is free software; see the source for copying conditions.  There is NO\n"
 	        "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
-	printf (_("Written by %s\n"), "Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Edward Hart");
+	printf (_("Written by %s\n"), "Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Edward Hart, Brian Tiffin");
 	printf (_("Built     %s"), cob_build_stamp);
 	putchar ('\n');
 	printf (_("Packaged  %s"), COB_TAR_DATE);
@@ -5834,7 +5838,7 @@ cob_init (const int argc, char **argv)
 #endif
 	int		i;
 
-#if 0	/* Simon: Should not happen - is it neccessary anywhere?
+#if 1	/* Simon: Should not happen - is it neccessary anywhere?
 		   We may change this to a runtime warning/error */
 	if (cob_initialized) {
 		return;

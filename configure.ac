@@ -24,7 +24,7 @@
 AC_PREREQ([2.64])
 
 AC_INIT([GnuCOBOL],
-	[2.0-rc3],
+	[2.0-scripting],
 	[bug-gnucobol@gnu.org],
 	[gnucobol],
 	[https://www.gnu.org/software/gnucobol/])
@@ -354,12 +354,12 @@ AC_ARG_WITH([curses],
   [AS_HELP_STRING([--with-curses],
     [(GnuCOBOL) Used curses library for extended SCREEN I/O (default=check)])],
   [case "$with_curses" in
-    ncursesw | ncurses | pdcurses | curses | check | no)
+    ncursesw | ncurses | pdcurses | XCurses | curses | check | no)
 		USE_NCURSES="$with_curses"
 		;;
     *)
 		AC_MSG_ERROR([Wrong value for --with-curses, must be one of the following
-  ncursesw, ncurses, pdcurses, curses  (use only the specified library)
+  ncursesw, ncurses, pdcurses, XCurses, curses  (use only the specified library)
   check  (use whatever curses library is usable, disable if no one usable)
   no  (disable curses usage)])
 		;;
@@ -494,46 +494,134 @@ AC_ARG_WITH([rexx],
 [])
 
 # Optional Python
-AX_PYTHON_WITH
-AX_PYTHON_CSPEC
-AX_PYTHON_LSPEC
-CFLAGS="$CFLAGS $PYTHON_CSPEC"
-LIBCOB_LIBS="$LIBCOB_LIBS $PYTHON_LSPEC"
-if test "$PYTHON" != ""; then
-    AC_DEFINE([WITH_PYTHON], [1])
-fi
-# TO BE REMOVED, BWT April 2017    
-#AC_ARG_WITH([python],
-#[AS_HELP_STRING([--with-python],
-#  [(GnuCOBOL) Allow embedded Python])],
-#[ if test "$with_python" = "yes"; then
-#  AC_CHECK_HEADERS([python3.5m/Python.h], [],
-#  	AC_MSG_ERROR([Python.h is required for embedded Python]))
-#  AC_CHECK_LIB([python3.5m], [Py_Initialize],
-#  	[AC_DEFINE([WITH_PYTHON], [1])
-#    CFLAGS="$CFLAGS -I/usr/include/python3.5m"
-#  	LIBCOB_LIBS="$LIBCOB_LIBS -lpython3.5m"],
-#  	AC_MSG_ERROR([libpython3.5m is required for embedded Python]), [])
-#  fi ],
-#[])
+AC_ARG_WITH([python],
+  [
+    AS_HELP_STRING([--with-python],
+    [(GnuCOBOL) Allow embedded Python])
+  ],
+  [
+    if test "$with_python" = "yes"; then
+      if test "$with_python3" = "yes"; then
+          AC_MSG_ERROR([Only one of python or python3])
+      fi
+      PKG_PROG_PKG_CONFIG
+      PKG_CHECK_MODULES([PYTHON], [python],
+        [
+          CFLAGS="$CFLAGS $PYTHON_CFLAGS"
+          LIBCOB_LIBS="$LIBCOB_LIBS $PYTHON_LIBS"
+          AC_SUBST([PYTHON_CFLAGS])
+          AC_SUBST([PYTHON_LIBS])
+        ],
+      )
+      AC_DEFINE([WITH_PYTHON], [1])
+    fi
+  ],
+  []
+)
+
+AC_ARG_WITH([python3],
+  [
+    AS_HELP_STRING([--with-python3],
+    [(GnuCOBOL) Allow embedded Python3])
+  ],
+  [
+    if test "$with_python3" = "yes"; then
+      if test "$with_python" = "yes"; then
+          AC_MSG_ERROR([Only one of python or python3])
+      fi
+      PKG_PROG_PKG_CONFIG
+      PKG_CHECK_MODULES([PYTHON], [python3],
+        [
+          CFLAGS="$CFLAGS $PYTHON_CFLAGS"
+          LIBCOB_LIBS="$LIBCOB_LIBS $PYTHON_LIBS"
+          AC_SUBST([PYTHON_CFLAGS])
+          AC_SUBST([PYTHON_LIBS])
+        ],
+      )
+      AC_DEFINE([WITH_PYTHON], [1])
+    fi
+  ],
+  []
+)
 
 # Optional JVM
 AC_ARG_WITH([jvm],
-[AS_HELP_STRING([--with-jvm],
+  [AS_HELP_STRING([--with-jvm],
   [(GnuCOBOL) Allow embedded Java Virtual Machine])],
-[ if test "$with_jvm" = "yes"; then
-  CFLAGS="$CFLAGS -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux"
-  echo "JVM: $CFLAGS"
-  AC_CHECK_HEADERS([jni.h], [],
-  	AC_MSG_ERROR([jni.h is required for embedded JVM]))
-  LDFLAGS="$LDFLAGS -L/usr/lib/jvm/default-java/jre/lib/amd64/server"
-  echo "JVM: $LDFLAGS"
-  AC_CHECK_LIB([jvm], [JNI_CreateJavaVM],
-  	[AC_DEFINE([WITH_JVM], [1])
-  	LIBCOB_LIBS="$LIBCOB_LIBS -L/usr/lib/jvm/default-java/jre/lib/amd64/server -ljvm"],
-  	AC_MSG_ERROR([libjvm is required for embedded JVM]), [])
-  fi ],
+  [
+    if test "$with_jvm" = "yes"; then
+      #CFLAGS="$CFLAGS -I/usr/lib/jvm/java-8-openjdk-amd64/include -I/usr/lib/jvm/java-8-openjdk-amd64/include/linux"
+      #CFLAGS="$CFLAGS -I/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.141-1.b16.fc24.x86_64/include/ -I/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.141-1.b16.fc24.x86_64/include/linux/"
+      AC_ARG_VAR([JAVA_CFLAGS], [Java Runtime Environment (JRE) include location])
+      if test "$JAVA_CFLAGS" = ""; then
+        #CFLAGS="$CFLAGS -I/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.172-9.b11.fc27.x86_64/include -I/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.172-9.b11.fc27.x86_64/include/linux"
+        CFLAGS="$CFLAGS -I/usr/lib/jvm/java-11-openjdk-11.0.ea.22-1.fc27.x86_64/include -I/usr/lib/jvm/java-11-openjdk-11.0.ea.22-1.fc27.x86_64/include/linux"
+      else
+        CFLAGS="$JAVA_CFLAGS"
+      fi
+      AC_MSG_NOTICE(["JVM CFLAGS: $CFLAGS"])
+      AC_CHECK_HEADERS([jni.h], [],
+      	AC_MSG_ERROR([jni.h is required for embedded JVM]))
+      #LDFLAGS="$LDFLAGS -L/usr/lib/jvm/default-java/jre/lib/amd64/server"
+      #LDFLAGS="$LDFLAGS -L/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.141-1.b16.fc24.x86_64/jre/lib/amd64/server"
+      AC_ARG_VAR([JAVA_LDFLAGS], [Java Runtime Environment (JRE) link flags])
+      save_LDFLAGS="$LDFLAGS"
+      if test "$JAVA_LDFLAGS" = ""; then
+        #LDFLAGS="$LDFLAGS -L/usr/lib/jvm/java-1.8.0-openjdk-1.8.0.172-9.b11.fc27.x86_64/jre/lib/amd64/server"
+        LDFLAGS="$LDFLAGS -L/usr/lib/jvm/java-11-openjdk-11.0.ea.22-1.fc27.x86_64/lib/server"
+      else
+        LDFLAGS="$LDFLAGS $JAVA_LDFLAGS"
+      fi
+      AC_MSG_NOTICE(["JVM LDFLAGS: $LDFLAGS"])
+      AC_CHECK_LIB([jvm], [JNI_CreateJavaVM],
+      	[AC_DEFINE([WITH_JVM], [1])
+      	LIBCOB_LIBS="$LIBCOB_LIBS -L$JAVA_HOME/lib/amd64/server -L/usr/lib/jvm/java-11-openjdk-11.0.ea.22-1.fc27.x86_64/lib/server -ljvm"],
+      	AC_MSG_ERROR([libjvm is required for embedded JVM]), [])
+      LDFLAGS="$save_LDFLAGS"
+    fi
+  ],
 [])
+
+#AC_ARG_WITH([jvm],
+#  [
+#    AS_HELP_STRING([--with-jvm],
+#    [(GnuCOBOL) Allow embedded Java Virtual Machine])
+#  ],
+#  [
+#    if test "$with_jvm" = "yes"; then
+#      location=`type -p java`
+#      location=`readlink -f "$location"`
+#      echo $location
+#      for JNI_INCLUDE_DIR in $JNI_INCLUDE_DIRS
+#      do    
+#          CFLAGS="$CFLAGS -I$JNI_INCLUDE_DIR"
+#      done
+#      AC_CHECK_HEADER([jni.h], [have_jni=yes])
+#      
+#      AC_ARG_VAR([JAVA_HOME], [Java Runtime Environment (JRE) location])
+#      case $target_cpu in
+#           x86_64) JVM_ARCH=amd64 ;;
+#           i?86)   JVM_ARCH=i386 ;;
+#           *)      JVM_ARCH=$target_cpu ;;
+#      esac
+#      AC_SUBST([JVM_ARCH])
+#      AS_IF(
+#        [test "$have_jni" != "yes"],
+#        [AC_MSG_ERROR([Java Native Interface jni.h required.])]
+#      )
+#      AS_IF(
+#        [test -z "$JAVA_HOME"],
+#        [AC_MSG_WARN([JAVA_HOME not set. JAVA_HOME may be set at run time to locate libjvm])],
+#        [save_LDFLAGS=$LDFLAGS
+#         LDFLAGS="-L$JAVA_HOME/lib/$JVM_ARCH/client -L$JAVA_HOME/lib/$JVM_ARCH/server $LDFLAGS"
+#         AC_CHECK_LIB([jvm], [JNI_CreateJavaVM], [LIBCOB_LIBS="$LIBCOB_LIBS -ljvm"], [AC_MSG_WARN([no libjvm found at JAVA_HOME])])
+#         LDFLAGS=$save_LDFLAGS
+#        ]
+#      )
+#    fi
+#  ]
+#)
+
 
 # TO BE REMOVED, BWT May 2017    
 #AC_PROG_JAVAC
@@ -544,7 +632,6 @@ AC_ARG_WITH([jvm],
 #do    
 #    CFLAGS="$CFLAGS -I$JNI_INCLUDE_DIR"
 #done
-
 
 # AC_CHECK_HEADER([jni.h], [have_jni=yes])
 # AC_ARG_VAR([JAVA_HOME], [Java Runtime Environment (JRE) location])
@@ -571,36 +658,58 @@ AC_ARG_WITH([jvm],
 
 # Optional Lua
 AC_ARG_WITH([lua],
-[AS_HELP_STRING([--with-lua],
-  [(GnuCOBOL) Allow embedded Lua])],
-[ if test "$with_lua" = "yes"; then
-  CFLAGS="$CFLAGS -I/usr/include/lua5.3"
-  AC_CHECK_HEADERS([lua.h], [],
-  	AC_MSG_ERROR([lua.h is required for embedded Lua]))
-  AC_CHECK_LIB([lua5.3], [luaL_newstate],
-  	[AC_DEFINE([WITH_LUA], [1])
-  	LIBCOB_LIBS="$LIBCOB_LIBS -llua5.3"],
-  	AC_MSG_ERROR([liblua5.3 is required for embedded Lua]), [])
-  fi ],
-[])
+  [
+    AS_HELP_STRING([--with-lua],
+    [(GnuCOBOL) Allow embedded Lua])
+  ],
+  [
+    if test "$with_lua" = "yes"; then
+      PKG_PROG_PKG_CONFIG
+      PKG_CHECK_MODULES([LUA], [lua],
+        [
+          CFLAGS="$CFLAGS $LUA_CFLAGS"
+          LIBCOB_LIBS="$LIBCOB_LIBS $LUA_LIBS"
+          AC_SUBST([LUA_CFLAGS])
+          AC_SUBST([LUA_LIBS])
+        ],
+      )
+      AC_DEFINE([WITH_LUA], [1])
+    fi
+  ],
+  []
+)
 
 # Optional Tcl
 AC_ARG_WITH([tcl],
-[AS_HELP_STRING([--with-tcl],
-  [(GnuCOBOL) Allow embedded Tcl])],
-[ if test "$with_tcl" = "yes"; then
-  CFLAGS="$CFLAGS -I/usr/include/tcl8.6"
-  AC_CHECK_HEADERS([tcl.h], [],
-  	AC_MSG_ERROR([tcl.h is required for embedded Tcl]))
-  AC_CHECK_LIB([tcl], [Tcl_CreateInterp],
-  	[AC_DEFINE([WITH_TCL], [1])
-  	LIBCOB_LIBS="$LIBCOB_LIBS -ltcl"],
-  	AC_MSG_ERROR([libtcl is required for embedded Tcl]), [])
-  AC_CHECK_LIB([tk], [Tk_Init],
-  	[LIBCOB_LIBS="$LIBCOB_LIBS -ltk"],
-  	AC_MSG_ERROR([libtk is required for embedded Tk]), [])
-  fi ],
-[])
+  [
+    AS_HELP_STRING([--with-tcl],
+    [(GnuCOBOL) Allow embedded Tcl])
+  ],
+  [
+    if test "$with_tcl" = "yes"; then
+      PKG_PROG_PKG_CONFIG
+      PKG_CHECK_MODULES([TCL], [tcl],
+        [
+          CFLAGS="$CFLAGS $TCL_CFLAGS"
+          LIBCOB_LIBS="$LIBCOB_LIBS $TCL_LIBS"
+          AC_SUBST([TCL_CFLAGS])
+          AC_SUBST([TCL_LIBS])
+        ]
+      )
+      AC_DEFINE([WITH_TCL], [1])
+      PKG_CHECK_MODULES([TK], [tk],
+        [
+          CFLAGS="$CFLAGS $TK_CFLAGS"
+          LIBCOB_LIBS="$LIBCOB_LIBS $TK_LIBS"
+          AC_SUBST([TK_CFLAGS])
+          AC_SUBST([TK_LIBS])
+        ],
+        []
+      )
+    fi
+  ],
+  []
+)
 
 # Checks for gmp.
 AC_MSG_NOTICE([Checks for GMP ...])
@@ -751,7 +860,7 @@ fi
 # AM_ICONV
 AM_LANGINFO_CODESET
 
-# Checks for ncurses/pdcurses/curses.
+# Checks for ncurses/pdcurses/XCurses/curses.
 AC_MSG_NOTICE([Checks for curses ...])
 
 if test "$USE_NCURSES" = "ncursesw" -o "$USE_NCURSES" = "check"; then
@@ -810,6 +919,27 @@ if test "$USE_NCURSES" = "pdcurses" -o "$USE_NCURSES" = "check"; then
   fi
 fi
 
+if test "$USE_NCURSES" = "XCurses" -o "$USE_NCURSES" = "check"; then
+  echo "GOT XCurses in configure"
+  AC_CHECK_LIB([XCurses], [initscr], [], [], [])
+  if test "x$ac_cv_lib_XCurses_initscr" = "xyes"; then
+    echo "GOT XCurses initscr in configure"
+    AC_CHECK_HEADERS([xcurses.h], [USE_NCURSES="XCurses"],
+      [AC_CHECK_HEADERS([curses.h], [USE_NCURSES="XCurses"],
+         [if test "$USE_NCURSES" = "XCurses"; then
+            USE_NCURSES="missing_header"
+          fi], [])], [])
+    if test "$USE_NCURSES" = "XCurses"; then
+      echo "GOT XCurses LIBCOB in configure"
+      LIBCOB_LIBS="$LIBCOB_LIBS -lXCurses"
+    fi
+  else
+    if test "$USE_NCURSES" = "XCurses"; then
+      USE_NCURSES="missing_lib"
+    fi
+  fi
+fi
+
 if test "$USE_NCURSES" = "curses" -o "$USE_NCURSES" = "check"; then
   AC_CHECK_LIB([curses], [initscr], [], [], [])
   if test "x$ac_cv_lib_curses_initscr" = "xyes"; then
@@ -850,6 +980,9 @@ case "$USE_NCURSES" in
   pdcurses)
 	AC_DEFINE([WITH_CURSES], ["pdcurses"])
 	;;
+  XCurses)
+	AC_DEFINE([WITH_CURSES], ["XCurses"])
+	;;
   curses)
 	AC_DEFINE([WITH_CURSES], ["curses"])
 	;;
@@ -886,6 +1019,8 @@ if test "$USE_NCURSES" != "no" -a "$USE_NCURSES" != "not_found"; then
 	#include <ncurses/ncurses.h>
 	#elif defined (HAVE_PDCURSES_H)
 	#include <pdcurses.h>
+	#elif defined (HAVE_XCURSES_H)
+	#include <xcurses.h>
 	#elif defined (HAVE_CURSES_H)
 	#include <curses.h>
 	#endif]], [[
@@ -1373,7 +1508,7 @@ else
     COB_WITH_REXX=no
 fi
 
-if test "$with_python" = "yes"; then
+if test "$with_python" = "yes" -o "$with_python3" = "yes" ; then
     COB_WITH_PYTHON=yes
 else
     COB_WITH_PYTHON=no
@@ -1501,7 +1636,7 @@ case "$USE_NCURSES" in
     AC_MSG_NOTICE([ screen I/O (disabled):                       NO])
 	;;
   *)
-    AC_MSG_NOTICE([ Use ncurses/pdcurses/curses for screen I/O:  ${USE_NCURSES}])
+    AC_MSG_NOTICE([ Use ncurses/pdcurses/xcurses/curses for screen I/O:  ${USE_NCURSES}])
 	;;
 esac
 if test "$with_seqra_extfh" = "yes"; then
@@ -1528,11 +1663,11 @@ fi
 if test "$with_rexx" = "yes"; then
   AC_MSG_NOTICE([ Allow embedded REXX                          yes])
 fi
-#if test "$with_python" = "yes"; then
-#  AC_MSG_NOTICE([ Allow embedded Python                        yes])
-#fi
-if test "$PYTHON" != ""; then
-  AC_MSG_NOTICE([ Allow embedded Python                        yes ${PYTHON}])
+if test "$with_python" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded Python                        yes, python])
+fi
+if test "$with_python3" = "yes"; then
+  AC_MSG_NOTICE([ Allow embedded Python                        yes, python3])
 fi
 if test "$with_jvm" = "yes"; then
   AC_MSG_NOTICE([ Allow embedded Java Virtual Machine          yes])
@@ -1541,5 +1676,5 @@ if test "$with_lua" = "yes"; then
   AC_MSG_NOTICE([ Allow embedded Lua                           yes])
 fi
 if test "$with_tcl" = "yes"; then
-  AC_MSG_NOTICE([ Allow embedded Tcl/Tk                        yes])
+  AC_MSG_NOTICE([ Allow embedded Tcl                           yes])
 fi

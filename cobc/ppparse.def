@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2010-2012 Free Software Foundation, Inc.
-   Written by Roger While
+   Copyright (C) 2010-2012, 2017 Free Software Foundation, Inc.
+   Written by Roger While, Brian Tiffin
 
    This file is part of GnuCOBOL.
 
@@ -37,3 +37,24 @@ CB_PARSE_DEF ("IBMCOMP",		cb_binary_size == CB_BINARY_SIZE_2_4_8)
 CB_PARSE_DEF ("OCCOMP",			cb_binary_size == CB_BINARY_SIZE_1_2_4_8)
 CB_PARSE_DEF ("GCCOMP",			cb_binary_size == CB_BINARY_SIZE_1_2_4_8)
 CB_PARSE_DEF ("NOIBMCOMP",		cb_binary_size != CB_BINARY_SIZE_2_4_8)
+
+#ifdef WITH_JVM
+CB_PARSE_DEF ("INTRINSIC-JVM",      1U)
+#endif
+
+#ifdef WITH_LUA
+CB_PARSE_DEF ("INTRINSIC-LUA",      1U)
+#endif
+
+#ifdef WITH_PYTHON
+CB_PARSE_DEF ("INTRINSIC-PYTHON",       1U)
+#endif
+
+#ifdef WITH_REXX
+CB_PARSE_DEF ("INTRINSIC-REXX",     1U)
+#endif
+
+#ifdef WITH_TCL
+CB_PARSE_DEF ("INTRINSIC-TCL",      1U)
+#endif
+

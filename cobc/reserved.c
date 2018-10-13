@@ -2079,6 +2079,16 @@ static const struct cb_intrinsic_table function_list[] = {
 					-1, 1,
 					CB_CATEGORY_ALPHANUMERIC, 1
   },
+  { "CONTENT-LENGTH",			"cob_intr_content_length",
+ 					CB_INTR_CONTENT_LENGTH, CONTENT_LENGTH_FUNC, 1,
+					1, 1,
+					CB_CATEGORY_NUMERIC, 0
+  },
+  { "CONTENT-OF",			"cob_intr_content_of",
+					CB_INTR_CONTENT_OF, CONTENT_OF_FUNC, 1,
+					2, 1,
+					CB_CATEGORY_ALPHANUMERIC, 1
+  },
   { "COS",				"cob_intr_cos",
 					CB_INTR_COS, FUNCTION_NAME, 1,
 					1, 1,

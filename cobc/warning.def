@@ -27,7 +27,7 @@
 /* Do not include warning with -Wall */
 /* CB_NOWARNDEF (var, name, doc) */
 
-CB_ONWARNDEF (cb_warn_unfinished, "unfinished",
+CB_WARNDEF (cb_warn_unfinished, "unfinished",
 	    _("do not warn if unfinished features are used"))
 
 CB_ONWARNDEF (cb_warn_pending, "pending",

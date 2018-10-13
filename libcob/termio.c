@@ -27,6 +27,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <ctype.h>
 #ifdef	HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -149,7 +150,19 @@ display_alnum (cob_field *f, FILE *fp)
 	size_t	i;
 
 	for (i = 0; i < f->size; ++i) {
-		putc (f->data[i], fp);
+		if (COB_MODULE_PTR->flag_visible_display) {
+			if (isprint (f->data[i])) {
+				putc (f->data[i], fp);
+			} else {
+				if (isspace (f->data[i])) {
+					putc ('^', fp);
+				} else {
+					putc ('~', fp);
+				}
+			}
+		} else {
+			putc (f->data[i], fp);
+		}
 	}
 }
 

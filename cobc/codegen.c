@@ -7112,6 +7112,7 @@ output_module_init (struct cb_program *prog)
 	output_line ("module->flag_main = %d;", cobc_flag_main);
 	output_line ("module->flag_fold_call = %d;", cb_fold_call);
 	output_line ("module->flag_exit_program = 0;");
+	output_line ("module->flag_visible_display = 0;");
 	output_newline ();
 }
 

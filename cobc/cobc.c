@@ -1736,7 +1736,7 @@ cobc_print_version (void)
 	puts (_("License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>"));
 	puts (_("This is free software; see the source for copying conditions.  There is NO\n"
 	        "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."));
-	printf (_("Written by %s\n"), "Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Edward Hart");
+	printf (_("Written by %s\n"), "Keisuke Nishida, Roger While, Ron Norman, Simon Sobisch, Edward Hart, Brian Tiffin");
 	printf (_("Built     %s"), cb_cobc_build_stamp);
 	putchar ('\n');
 	printf (_("Packaged  %s"), COB_TAR_DATE);
@@ -3117,10 +3117,10 @@ process_filename (const char *filename)
 		fn->translate = cobc_main_strdup (output_name);
 	} else if (save_all_src || save_temps || save_c_src ||
 		   cb_compile_level == CB_LEVEL_TRANSLATE) {
-		fn->translate = cobc_stradd_dup (fbasename, ".c");
+		fn->translate = cobc_stradd_dup (fbasename, ".gc.c");
 	} else {
 		fn->translate = cobc_main_malloc(COB_FILE_MAX);
-		cob_temp_name ((char *)fn->translate, ".c");
+		cob_temp_name ((char *)fn->translate, ".gc.c");
 	}
 	fn->translate_len = strlen (fn->translate);
 
@@ -5991,7 +5991,7 @@ process_compile (struct filename *fn)
 	} else {
 		name = file_basename (fn->source);
 #ifndef	_MSC_VER
-		strcat (name, ".s");
+		strcat (name, ".gc.s");
 #endif
 	}
 	size = strlen (name);
