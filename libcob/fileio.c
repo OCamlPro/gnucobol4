@@ -440,7 +440,9 @@ struct indexed_file {
 
 #include <lmdb.h>
 #ifndef _WIN32	/* correct would be a check for HAVE_SYS_FILE_H */
+#include <libgen.h>
 #include <sys/file.h>
+#define MNTPTH "/proc/mounts"
 #endif
 #include <sys/stat.h>
 
@@ -3184,7 +3186,50 @@ db_nofile (const char *filename)
 	}
 	return 0;
 }
-#endif	/* WITH_DB */
+
+static int
+mdb_check_shared_fs (char *dir)
+{
+	/* Using LMDB on shared (NFS-type) filesystems is not recommended. This checks if 
+     the LMDB directory resides on a shared filesystem. i
+   
+     NOTE: This will not work with Solaris */
+
+	int rc = 0;
+#ifndef _WIN32
+	FILE* fp = fopen(MNTPTH,"r");
+	if (fp == NULL) {
+		return errno;
+	}
+	const int ll = 256;
+	char l[ll];
+	char *t, *p = NULL;
+	const char d[2] = " ";
+	unsigned char c = ':';
+
+	while (fgets(l,ll,fp) && rc == 0) {
+		t = strtok(l,d);
+		if (strchr(t,c) != 0) {
+			t = strtok(NULL,d);
+			while (p == NULL) {
+				p = realpath((dir = dirname(dir)),NULL);
+			}
+			if (strncmp(t,p,strlen(t)) == 0) {
+				rc = 1;
+			}
+		}
+	}
+
+	fclose(fp);
+	free(p);
+
+#else
+	/* TODO: Come back for WIN32 */
+#endif
+	return rc;
+}
+
+#endif	/* WITH_LMDB */
 
 /* Delete file */
 
@@ -3230,6 +3275,7 @@ cob_free_indexed_file (struct indexed_file *p)
 	if (p->rewrite_sec_key) cob_free (p->rewrite_sec_key);
 	cob_free(p);
 }
+
 /* OPEN INDEXED file */
 
 static int
@@ -3754,12 +3800,20 @@ dobuild:
 
 	COB_UNUSED (sharing);
 	cob_chk_file_mapping ();
+
+	if (getenv("MDB_NO_SHARED_FS_CHK") == 0) {
+		if ((ret = mdb_check_shared_fs (filename)) != 0) {
+			fprintf(stderr,"Shared filesystem detected!\n");
+			return COB_STATUS_30_PERMANENT_ERROR;
+		}
+	}
+
 	if (db_nofile (filename)) {
 		nonexistent = 1;
 		if (mode != COB_OPEN_OUTPUT && f->flag_optional == 0) {
 			return COB_STATUS_35_NOT_EXISTS;
 		}
-	}
+	} 
 
 	p = cob_malloc (sizeof (struct indexed_file));
 
@@ -3809,6 +3863,7 @@ dobuild:
 				return COB_STATUS_05_SUCCESS_OPTIONAL;
 			}
 		}
+
 		if ((ret = mkdir(filename, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IXOTH)) != 0) {
 			switch (ret) {
 			case EACCES:
