@@ -445,6 +445,7 @@ struct indexed_file {
 #define MNTPTH "/proc/mounts"
 #endif
 #include <sys/stat.h>
+#define MDB_MAX_MAP_INC 1073741824
 
 #define MDB_VALSET(key,fld)   \
   key.mv_data = fld->data;  \
@@ -480,7 +481,7 @@ struct indexed_file {
 	cob_u32_t	env_flags;
 };
 
-#endif	/* WITH_DB */
+#endif	/* WITH_LMDB */
 
 
 /* Local functions */
@@ -2905,7 +2906,12 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
 		}
-		return COB_STATUS_30_PERMANENT_ERROR;
+		switch (ret) {
+			case MDB_MAP_FULL:
+				return MDB_MAP_FULL;
+			default:
+				return COB_STATUS_30_PERMANENT_ERROR;
+		}
 	} 
 
 	/* Write secondary keys */
@@ -2931,7 +2937,14 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 					mdb_txn_abort(p->txn);
 					p->write_cursor_open = 0;
 				}
-				return COB_STATUS_22_KEY_EXISTS;
+				switch (ret) {
+					case MDB_KEYEXIST:
+						return COB_STATUS_22_KEY_EXISTS;
+					case MDB_MAP_FULL:
+						return MDB_MAP_FULL;
+					default:
+						return COB_STATUS_30_PERMANENT_ERROR;
+				}
 			}
 		}
 	}
@@ -2942,10 +2955,10 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				mdb_cursor_close(p->cursor[i]);
 			}
 		}
-		mdb_txn_commit(p->txn);
+		ret = mdb_txn_commit(p->txn);
 		p->write_cursor_open = 0;
 	}
-	return COB_STATUS_00_SUCCESS;
+	return ret;
 }
 
 static int
@@ -3227,6 +3240,18 @@ mdb_check_shared_fs (char *dir)
 	/* TODO: Come back for WIN32 */
 #endif
 	return rc;
+}
+
+static int
+mdb_resize_env (MDB_env* e)
+{
+	fprintf(stderr,"** RESIZING **\n");
+	MDB_envinfo *ei;
+	ei = malloc(sizeof(MDB_envinfo));
+	mdb_env_info(e,ei);
+	size_t newsize = (ei->me_mapsize > MDB_MAX_MAP_INC) ? (ei->me_mapsize + MDB_MAX_MAP_INC) : (ei->me_mapsize * 1.5);
+	free(ei);
+	return  mdb_env_set_mapsize(e,newsize);
 }
 
 #endif	/* WITH_LMDB */
@@ -5095,13 +5120,12 @@ indexed_read_next (cob_file *f, const int read_opts)
 #endif
 }
 
-
 /* WRITE to the INDEXED file  */
 
 static int
 indexed_write (cob_file *f, const int opt)
 {
-#ifdef	WITH_INDEX_EXTFH
+ #ifdef	WITH_INDEX_EXTFH 
 
 	return extfh_indexed_write (f, opt);
 
@@ -5161,7 +5185,9 @@ indexed_write (cob_file *f, const int opt)
 		return COB_STATUS_21_KEY_INVALID;
 	}
 	memcpy (p->last_key, p->key.data, (size_t)p->key.size);
-#else
+	return indexed_write_internal (f, 0, opt);
+#else /* WITH_LMDB */
+	int rc = 0;
 	/* Check record key */
 	MDB_VALSET(p->key, f->keys[0].field);
 	if (!p->last_key) {
@@ -5171,9 +5197,18 @@ indexed_write (cob_file *f, const int opt)
 		return COB_STATUS_21_KEY_INVALID;
 	}
 	memcpy (p->last_key, p->key.mv_data, (size_t)p->key.mv_size);
+	while ((rc = indexed_write_internal(f, 0, opt)) != COB_STATUS_00_SUCCESS) {
+		if (rc == MDB_MAP_FULL) {
+			mdb_resize_env(p->db_env);
+		} else if (rc == MDB_TXN_FULL) {
+			fprintf(stderr,"HIT THE ERROR: %s\n",mdb_strerror(rc));
+			return rc;
+		} else {
+			return rc;
+		}
+	}
 #endif
 
-	return indexed_write_internal (f, 0, opt);
 
 #else
 	COB_UNUSED (f);
