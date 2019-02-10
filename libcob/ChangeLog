@@ -1,4 +1,13 @@
 
+2019-10-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c: refactoring to better match BDB and LMDB implementation
+	  (at least started) by redefining LMDB defines using BDB names,
+	  using macros used with BDB like DB_SEQ for reads; cleanup
+	* fileio.c: fixed "unused" warnings and errors with older compilers
+	  (definition needs to be at the block start)
+	* fileio.c [cob_init_fileio](WITH_DB): fixed initialization (typo)
+
 2018-11-09  Greg Noe <gnoe@symas.com>
 
 	* fileio.c [WITH_LMDB]: added (mdb_resize_env) and automatically resize
