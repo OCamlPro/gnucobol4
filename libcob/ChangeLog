@@ -1,8 +1,41 @@
 
+2018-11-09  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: added (mdb_resize_env) and automatically resize
+	  underlying MDB database when needed
+
+2018-11-05  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: added (mdb_check_shared_fs) checking directory
+	  during open to not reside on NFS-type file systems which is know to
+	  be broken (unsupported by LMDB)
+
+2018-10-01  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: added (cob_free_indexed_file) fixing memory leaks
+
+2018-09-25  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB] (indexed_open): fixes for handling OPTIONAL files
+
 2018-08-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* fileio.c [_WIN32]: fix compilation
 	* fileio.c (indexed_open) [WITH_LMDB]: fixed missing status 37
+
+2018-08-15  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c [WITH_LMDB] (indexed_read): added part missing
+	  in change 2018-08-12
+
+2018-08-15  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB] (indexed_read_next): added part missing
+	  in change 2018-08-12
+
+2018-08-14  Greg Noe <gnoe@symas.com>
+
+	* common.c (print_info) [WITH_LMDB]: added LMDB version info output
 
 2018-08-12  Greg Noe <gnoe@symas.com>
 
