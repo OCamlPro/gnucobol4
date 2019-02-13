@@ -4926,12 +4926,11 @@ cb_list_reserved (void)
 
 	/* Build list of reserved words */
 	word_descriptions = cobc_malloc (num_reserved_words * sizeof (struct list_reserved_line));
-	j = -1;
+	j = 0;
 	for (i = 0; i < num_reserved_words; ++i) {
-		do {
-			++j;
-		} while (!reserved_word_map[j]);
-
+		while (!reserved_word_map[j]) {
+			j++;
+		}
 		if (reserved_word_map[j]->token > 0) {
 			if (reserved_word_map[j]->context_sens) {
 				p = _("Yes (Context sensitive)");

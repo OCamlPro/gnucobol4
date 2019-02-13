@@ -240,7 +240,7 @@ typedef struct __cob_settings {
 	unsigned int	cob_ls_fixed;
 	unsigned int	cob_varseq_type;
 	char 		*cob_file_path;
-	char		*bdb_home;
+	char		*db_home;
 	size_t		cob_sort_memory;
 	size_t		cob_sort_chunk;
 

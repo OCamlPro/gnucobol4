@@ -29,6 +29,11 @@
 	* report.pl: allow to run a single test by passing the test name
 	  as parameter or compiling libs only by passing "lib"
 
+2018-08-12  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* report.pl: removing test files not only as files but also as
+	  directories as LMDB uses a directory for each database
+
 2018-06-05  Simon Sobisch <simonsobisch@gnu.org>
 
 	* Makefile.am: split rules for EXEC85 and EXEC85.cob to prevent

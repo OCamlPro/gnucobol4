@@ -78,6 +78,11 @@
 #include <db.h>
 #endif
 
+#ifdef  WITH_LMDB
+#define INTTYPES_H_MISSING
+#include <lmdb.h>
+#endif
+
 #if defined (HAVE_NCURSESW_NCURSES_H)
 #include <ncursesw/ncurses.h>
 #elif defined (HAVE_NCURSESW_CURSES_H)
@@ -372,7 +377,7 @@ static struct config_tbl gc_conf[] = {
 	{"COB_SORT_MEMORY", "sort_memory", 	"128M", 	NULL, GRP_FILE, ENV_SIZE, SETPOS (cob_sort_memory), (1024*1024), 4294967294 /* max. guaranteed - 1 */},
 	{"COB_SYNC", "sync", 			"0", 	syncopts, GRP_FILE, ENV_BOOL, SETPOS (cob_do_sync)},
 #ifdef  WITH_DB
-	{"DB_HOME", "db_home", 			NULL, 	NULL, GRP_FILE, ENV_FILE, SETPOS (bdb_home)},
+	{"DB_HOME", "db_home", 			NULL, 	NULL, GRP_FILE, ENV_FILE, SETPOS (db_home)},
 #endif
 	{"COB_DISPLAY_PRINT_PIPE", "display_print_pipe",		NULL,	NULL, GRP_SCREEN, ENV_STR, SETPOS (cob_display_print_pipe)},
 	{"COBPRINTER", "printer",		NULL,	NULL, GRP_HIDE, ENV_STR, SETPOS (cob_display_print_pipe)},
@@ -7231,6 +7236,16 @@ print_info (void)
 			"BDB", major, minor, patch, DB_VERSION_MAJOR, DB_VERSION_MINOR);
 	}
 	var_print (_("ISAM handler"), 		versbuff, "", 0);
+#elif defined (WITH_LMDB)
+	major = 0, minor = 0, patch = 0;
+	mdb_version(&major,&minor,&patch);
+	if (major == MDB_VERSION_MAJOR && minor == MDB_VERSION_MINOR) {
+		snprintf (versbuff, 55, "%s, version %d.%d.%d", "LMDB", major, minor, patch);
+	} else {
+		snprintf (versbuff, 55, "%s, version %d.%d.%d (compiled with %d.%d)",
+			"LMDB", major, minor, patch, MDB_VERSION_MAJOR, MDB_VERSION_MINOR);
+	}
+	var_print (_("ISAM handler"),     versbuff, "", 0);
 #elif defined	(WITH_CISAM)
 	var_print (_("ISAM handler"), 		"C-ISAM" "", 0);
 #elif defined	(WITH_DISAM)

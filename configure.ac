@@ -74,6 +74,7 @@ AH_TEMPLATE([WITH_SEQRA_EXTFH], [Compile with an external SEQ/RAN handler])
 AH_TEMPLATE([WITH_DB], [Use Berkeley DB library as emulation of ISAM handler])
 # FIXME: may be specified with different file version
 # AH_TEMPLATE([COB_BDB_BAD_DUPNO], [Retain incorrect duplicate sequence for compatibility on little endian!])
+AH_TEMPLATE([WITH_LMDB], [Use LMDB library as emulation of ISAM handler])
 AH_TEMPLATE([WITH_CISAM], [Use CISAM as ISAM handler])
 AH_TEMPLATE([WITH_DISAM], [Use DISAM as ISAM handler])
 AH_TEMPLATE([WITH_VBISAM], [Use VBISAM as ISAM handler])
@@ -483,6 +484,16 @@ if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "y
 fi
 
 if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_index_extfh" != "yes"; then
+  AC_ARG_WITH([lmdb],
+  [AS_HELP_STRING([--with-lmdb],
+    [(GnuCOBOL) Use Lightning Memory-Mapped Database (LMDB) for ISAM I/O (experimental, no locking or support for shared storage)])],
+  [ if test "$with_lmdb" = "yes"; then
+	AC_DEFINE([WITH_LMDB], [1])
+    fi ],
+  [])
+fi
+
+if test "$with_cisam" != "yes" -a "$with_disam" != "yes" -a "$with_vbisam" != "yes" -a "$with_lmdb" != "yes" -a "$with_index_extfh" != "yes"; then
   AC_ARG_WITH([db],
   [AS_HELP_STRING([--with-db],
     [(GnuCOBOL) Use Berkeley DB >= 4.1 for ISAM I/O (default)])],
@@ -1040,6 +1051,62 @@ if test "$with_db" = "yes"; then
 	unset COB_BDB_HEADER
 fi
 
+# Checks for lmdb.
+
+if test "$with_lmdb" = "yes"; then
+	AC_MSG_NOTICE([Checks for Lightning Memory-Mapped Database (LMDB) ...])
+	AC_CHECK_HEADER([lmdb.h], [],	AC_MSG_ERROR([LMDB lmdb.h is missing]),[])
+
+	# MDB header exists. Extract major/minor/patch numbers
+	COB_MDB_HEADER=''
+	COB_MDB_HEADER_STR=''
+	AC_RUN_IFELSE([AC_LANG_SOURCE([[
+		#include <stdio.h>
+		#include <lmdb.h>
+		int main (int argc, char **argv)
+		{
+			(void)argv;
+			if (argc == 2)
+				printf ("%d.%d.%d", MDB_VERSION_MAJOR, MDB_VERSION_MINOR, MDB_VERSION_PATCH);
+			if (argc == 3)
+				printf ("-%s-", MDB_VERSION_STRING);
+			return 0;
+		}
+		]])],
+		[COB_MDB_HEADER=`./conftest$ac_exeext x`]
+		[COB_MDB_HEADER_STR=`./conftest$ac_exeext x y`],
+		[AC_MSG_ERROR([Unable to extract LMDB version information from lmdb.h])],
+		[AC_MSG_WARN([cannot run test program while cross-compiling])
+		 COB_MDB_HEADER="cross"
+		 COB_MDB_HEADER_STR="cross"])
+	if test "x$COB_MDB_HEADER" = "x"; then
+		AC_MSG_ERROR([Unable to extract LMDB version information])
+	fi
+	if test "x$COB_MDB_HEADER_STR" != "x"; then
+		AC_MSG_NOTICE([lmdb.h reports version "$COB_MDB_HEADER_STR"])
+	fi
+	AC_CHECK_LIB([lmdb], [mdb_version],
+		[AC_DEFINE([WITH_LMDB], [1])
+		LIBCOB_LIBS="$LIBCOB_LIBS -llmdb"],
+		AC_MSG_ERROR([liblmdb is required for LMDB]), [])
+
+	AC_MSG_CHECKING([for Symas LMDB version >= 0.9.19])
+	COB_MDB_HEADER_MAJOR=$(echo "$COB_MDB_HEADER" | cut -d. -f1)
+	COB_MDB_HEADER_PATCH=$(echo "$COB_MDB_HEADER" | cut -d. -f3)
+	if test "$COB_MDB_HEADER_STR" != "cross"; then
+		if test $COB_MDB_HEADER_MAJOR -gt 0; then
+			AC_MSG_RESULT([yes ($COB_MDB_HEADER)])
+		else
+			if test $COB_MDB_HEADER_PATCH -gt 18; then
+				AC_MSG_RESULT([yes ($COB_MDB_HEADER)])
+			else
+				AC_MSG_RESULT([no ($COB_MDB_HEADER)])
+				AC_MSG_ERROR([LMDB version < 0.9.19])
+			fi
+		fi
+	fi
+fi
+
 # Checks for dl/ltdl.
 DEFINE_DL="no"
 
@@ -1484,6 +1551,8 @@ elif test "$with_vbisam" = "yes"; then
 	COB_HAS_ISAM=vbisam
 elif test "$with_db" = "yes"; then
 	COB_HAS_ISAM=db
+elif test "$with_lmdb" = "yes"; then
+	COB_HAS_ISAM=lmdb
 elif test "$with_index_extfh" = "yes"; then
 	COB_HAS_ISAM=index_extfh
 else
@@ -1626,6 +1695,8 @@ elif test "$with_vbisam" = "yes"; then
   AC_MSG_NOTICE([ Use VBISAM for ISAM I/O                      yes])
 elif test "$with_db" = "yes"; then
   AC_MSG_NOTICE([ Use Berkeley DB for ISAM I/O:                yes])
+elif test "$with_lmdb" = "yes"; then
+  AC_MSG_NOTICE([ Use LMDB for ISAM I/O:                       yes])
 else
   AC_MSG_NOTICE([ ISAM I/O (no handler configured):            NO])
 fi

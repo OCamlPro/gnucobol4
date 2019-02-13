@@ -1,4 +1,15 @@
 
+2019-10-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c: refactoring to better match BDB and LMDB implementation
+	  (at least started) by redefining LMDB defines using BDB names,
+	  using macros used with BDB like DB_SEQ for reads; cleanup
+	* fileio.c: fixed "unused" warnings and errors with older compilers
+	  (definition needs to be at the block start)
+	* fileio.c [cob_init_fileio](WITH_DB): fixed initialization (typo)
+	* fileio.c: merged LMDB branch with heavily adjustments to be compatible
+	  to current codebase *BDB and ANY_ISAM working, LMDB only compiling *
+
 2019-01-29  Simon Sobisch <simonsobisch@gnu.org>
 
 	* common.c, termio.c, coblocal.h: added COB_DISPLAY_PUNCH_FILE
@@ -103,6 +114,17 @@
 	* common.h [COB_WITHOUT_EXCEPTIONS]: allow include of libcob.h without
 	  any other libcob header
 
+2018-11-09  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: added (mdb_resize_env) and automatically resize
+	  underlying MDB database when needed
+
+2018-11-05  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: added (mdb_check_shared_fs) checking directory
+	  during open to not reside on NFS-type file systems which is know to
+	  be broken (unsupported by LMDB)
+
 2018-11-01  Simon Sobisch <simonsobisch@gnu.org>
 
 	* common.h [COB_WITHOUT_DECIMAL]: allow include of libcob.h without
@@ -119,6 +141,10 @@
 
 	* common.h: exchanged system-specific PTRFILLER define for FCD3 by union
 
+2018-10-01  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: added (cob_free_indexed_file) fixing memory leaks
+
 2018-09-30  Simon Sobisch <simonsobisch@gnu.org>
 
 	* fileio.c [HAVE_FCNTL]: minor code cleanup
@@ -131,6 +157,10 @@
 	  static char * initialization, postpone msgid translation
 	* common.c (print_runtime_conf, get_config_val, var_print):
 	  adjusted output of cobcrun -runtime-conf (boolean print as yes/no now)
+
+2018-09-25  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB] (indexed_open): fixes for handling OPTIONAL files
 
 2018-09-22  Simon Sobisch <simonsobisch@gnu.org>
 
@@ -149,6 +179,11 @@
 	* xml.c (set_xml_code): partially fix bug #548: don't try to set XML-CODE
 	  if the module has no reference (and therefore no field) for it
 
+2018-08-28  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c [_WIN32]: fix compilation
+	* fileio.c (indexed_open) [WITH_LMDB]: fixed missing status 37
+
 2018-08-19  Simon Sobisch <simonsobisch@gnu.org>
 
 	* xml.c [!WITH_XML2] (cob_is_valid_uri): added minimal implementation,
@@ -165,7 +200,27 @@
 
 	* coblocal.h, numeric.c (cob_decimal_init2): fixed compiler warning
 
-2018-06-21  Brian Tiffin <btiffin@gnu.org>
+2018-08-15  Simon Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c [WITH_LMDB] (indexed_read): added part missing
+	  in change 2018-08-12
+
+2018-08-15  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB] (indexed_read_next): added part missing
+	  in change 2018-08-12
+
+2018-08-14  Greg Noe <gnoe@symas.com>
+
+	* common.c (print_info) [WITH_LMDB]: added LMDB version info output
+
+2018-08-12  Greg Noe <gnoe@symas.com>
+
+	* fileio.c [WITH_LMDB]: finished first working snapshot of LMDB
+	  integration.
+	  Note: Some NIST tests still fail, locking is not implemented yet.
+
+2018-08-07  Brian Tiffin <btiffin@gnu.org>
 
 	* common.h, intrinsic.c: CONTENTS-OF renamed to CONTENT-OF
 
@@ -456,6 +511,10 @@
 	  adjust the scale until the number is within the allowed max number of
 	  digits so only if the scale is out of bounds will you get an OVERFLOW
 	  and then ON SIZE ERROR
+
+2017-12-18  Greg Noe <gnoe@symas.com>
+
+	* fileio.c, coblocal.h: replaced prefix "bdb_" with "db_"
 
 2017-12-17  Simon Sobisch <simonsobisch@gnu.org>
 

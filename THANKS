@@ -38,3 +38,4 @@ Warren Gay - For testing systems that we didn't known that we even support!
 Ron Norman - Work on C/D/VB-ISAM handler
            - Development of Report Writer
 Fabrizio Calabretta - Work on the EXTFH interface
+Greg Noe <gnoe@symas.com> - Work on LMDB handler
