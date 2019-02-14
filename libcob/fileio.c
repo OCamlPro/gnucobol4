@@ -3359,7 +3359,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	p->data.mv_size = (size_t) f->record->size;
 	
 	/* Write data */
-	if ((ret = DB_SEQ (p->cursor[0], DB_FIRST)) != 0) {
+	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, MDB_FIRST)) != 0) {
 		if (close_cursor) {
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
@@ -3368,8 +3368,8 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 			case MDB_MAP_FULL:
 				return MDB_MAP_FULL;
 			default:
-		return COB_STATUS_30_PERMANENT_ERROR;
-	} 
+				return COB_STATUS_30_PERMANENT_ERROR;
+		}
 	} 
 
 	/* Write secondary keys */
@@ -3397,7 +3397,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				}
 				switch (ret) {
 					case MDB_KEYEXIST:
-				return COB_STATUS_22_KEY_EXISTS;
+						return COB_STATUS_22_KEY_EXISTS;
 					case MDB_MAP_FULL:
 						return MDB_MAP_FULL;
 					default:
@@ -3545,7 +3545,6 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	mdb_txn_commit(p->txn);
 	return (ret == 0) ? COB_STATUS_00_SUCCESS : COB_STATUS_23_KEY_NOT_EXISTS;
 }
-
 
 static int
 indexed_delete_internal (cob_file *f, const int rewrite)
