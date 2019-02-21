@@ -669,6 +669,7 @@ struct indexed_file {
 
 #define INTTYPES_H_MISSING
 #include <lmdb.h>
+#include <stdbool.h>
 #ifndef _WIN32	/* correct would be a check for HAVE_SYS_FILE_H */
 #include <libgen.h>
 #include <sys/file.h>
@@ -3260,7 +3261,7 @@ check_alt_keys (cob_file *f, const int rewrite)
 	
 	// Transaction is inherited from caller
 	for (i = 1; i < f->nkeys; ++i) {
-		if (!f->keys[i].flag) {
+		if (!f->keys[i].tf_duplicates) {
 			int ret;
 			DBT_SET (p->key, f->keys[i].field);
 			ret = mdb_get(p->txn,*p->db[i],&p->key,&p->data);
@@ -3308,7 +3309,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				if (db_suppresskey(f, i)) {
 					continue;
 				}
-				if (f->keys[i].flag) {
+				if (f->keys[i].tf_duplicates) {
 					if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != 0) {
 						mdb_txn_abort(p->txn);
 						p->write_cursor_open = 0;
@@ -3330,11 +3331,13 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 			}
 			return COB_STATUS_22_KEY_EXISTS;
 		}
+		//db_setkey(f, 0);
 		DBT_SET (p->key, f->keys[0].field);
 	}
 
 	/* Position write cursor */
-	if ((ret =  mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) != 0) {
+	/* add rewrite check - if rewrite and if key not found throw error 23 */
+	if ((ret =  mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) == 0) {
 		if (close_cursor) {
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
@@ -3345,6 +3348,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	p->data.mv_size = (size_t) f->record->size;
 	
 	/* Write data */
+	/*  */
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, MDB_FIRST)) != 0) {
 		if (close_cursor) {
 			mdb_txn_abort(p->txn);
@@ -3364,7 +3368,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 		if (rewrite && ! p->rewrite_sec_key[i]) {
 			continue;
 		}
-		if (f->keys[i].flag) { 
+		if (f->keys[i].tf_duplicates) { 
 			dupno = get_dupno(f, i);
 			memcpy (p->temp_key, f->keys[0].field->data, f->keys[0].field->size);
 			memcpy (p->temp_key + f->keys[0].field->size, &dupno, sizeof(unsigned int));
@@ -3395,7 +3399,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 
 	if (close_cursor) {
 		for (i = 0; i < f->nkeys; i++) {
-			if (i == 0 || f->keys[i].flag) {
+			if (i == 0 || f->keys[i].tf_duplicates) {
 				mdb_cursor_close(p->cursor[i]);
 			}
 		}
@@ -3601,7 +3605,7 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 				continue;
 			}
 		}
-		if (!f->keys[i].flag) {
+		if (!f->keys[i].tf_duplicates) {
 			mdb_del(p->txn,*p->db[i],&p->key,&p->data);
 		} else {
 			MDB_val sec_key = p->key;
@@ -3648,47 +3652,36 @@ db_nofile (const char *filename)
 	return 0;
 }
 
-static int
-mdb_check_shared_fs (char *dir)
-{
-	/* Using LMDB on shared (NFS-type) filesystems is not recommended. This checks if 
-     the LMDB directory resides on a shared filesystem. i
-   
-     NOTE: This will not work with Solaris */
-
-	int rc = 0;
+static bool
+local_file( dev_t device, char **pname /*output*/ ) {
 #ifndef _WIN32
-	FILE* fp = fopen(MNTPTH,"r");
-	if (fp == NULL) {
-		return errno;
-	}
-	const int ll = 256;
-	char l[ll];
-	char *t, *p = NULL;
-	const char d[2] = " ";
-	unsigned char c = ':';
+	static const char filename[] = "/proc/partitions";
+	FILE *file;
 
-	while (fgets(l,ll,fp) && rc == 0) {
-		t = strtok(l,d);
-		if (strchr(t,c) != 0) {
-			t = strtok(NULL,d);
-			while (p == NULL) {
-				p = realpath((dir = dirname(dir)),NULL);
-			}
-			if (strncmp(t,p,strlen(t)) == 0) {
-				rc = 1;
-			}
+	if( (file = fopen(filename, "r")) == NULL ) {
+		err(EXIT_FAILURE, "could not open %s", filename);
+	}
+
+	int n, maj, min, nblock;
+	char *s;
+	static char line[128];
+	static char devname[128];
+
+	while( (s = fgets(line, sizeof(line), file)) != NULL ) {
+		if( (n = sscanf(line, "%d%d%d%s",			&maj, &min, &nblock, devname)) == EOF ) {
+			continue;
 		}
+		if( n == 4 ) {
+			if( maj == major(device) && min == minor(device) ) {
+				*pname = devname;
+				return true;
+			}
+		} 
 	}
-
-	fclose(fp);
-	free(p);
-
 #else
-	/* TODO: Come back for WIN32 */
-	COB_UNUSED (dir);
+	/* TODO: Come back for Win32? */
 #endif
-	return rc;
+  return false;
 }
 
 static int
@@ -4301,7 +4294,14 @@ dobuild:
 	cob_chk_file_mapping ();
 
 	if (getenv("MDB_NO_SHARED_FS_CHK") == 0) {
-		if ((ret = mdb_check_shared_fs (filename)) != 0) {
+		struct stat sb;
+		if (stat(dirname(filename), &sb) == -1) {
+			fprintf(stderr, "Could not stat %s\n", filename);
+			return COB_STATUS_30_PERMANENT_ERROR;
+		}
+		char *devname;
+		bool is_local = local_file(sb.st_dev, &devname);
+		if (is_local == false) {
 			fprintf(stderr,"Shared filesystem detected!\n");
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
@@ -4404,7 +4404,7 @@ dobuild:
 		p->db[i] = cob_malloc(sizeof(MDB_dbi *));
 		if ((ret = mdb_open(p->txn, 
 			(f->nkeys == 1) ? NULL : runtime_buffer,
-			(p->db_flags|((f->keys[i].flag)?(MDB_DUPSORT|MDB_REVERSEDUP):0)) , p->db[i])) != 0) {
+			(p->db_flags|((f->keys[i].tf_duplicates)?(MDB_DUPSORT|MDB_REVERSEDUP):0)) , p->db[i])) != 0) {
 			int j;
 			for (j = 0; j < i; ++j) {
 				mdb_dbi_close(p->db_env,*p->db[j]);
