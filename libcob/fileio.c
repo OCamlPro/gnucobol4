@@ -667,6 +667,11 @@ struct indexed_file {
 
 #elif	defined (WITH_LMDB)
 
+#define WARN(format, ...)  {				\
+    cob_runtime_warning("%s:%d: " format "\n",		\
+            __func__, __LINE__, ## __VA_ARGS__);        \
+}
+
 #define INTTYPES_H_MISSING
 #include <lmdb.h>
 #include <stdbool.h>
@@ -3280,6 +3285,42 @@ check_alt_keys (cob_file *f, const int rewrite)
 }
 
 static int
+cob_mdb_status( int mdb_error ) {
+	switch (mdb_error) {
+	case MDB_KEYEXIST:
+		return COB_STATUS_22_KEY_EXISTS;			
+	case MDB_NOTFOUND:
+		return COB_STATUS_23_KEY_NOT_EXISTS;
+	case EACCES:
+		return COB_STATUS_37_PERMISSION_DENIED;
+
+	case MDB_BAD_DBI:
+	case MDB_BAD_RSLOT:
+	case MDB_BAD_TXN:
+	case MDB_BAD_VALSIZE:
+	case MDB_CORRUPTED:
+	case MDB_CURSOR_FULL:
+	case MDB_DBS_FULL:
+	case MDB_INCOMPATIBLE:
+	case MDB_INVALID:
+	case MDB_LAST_ERRCODE:
+	case MDB_MAP_FULL:
+	case MDB_MAP_RESIZED:
+	case MDB_PAGE_FULL:
+	case MDB_PAGE_NOTFOUND:
+	case MDB_PANIC:
+	case MDB_READERS_FULL:
+	case MDB_TLS_FULL:
+	case MDB_TXN_FULL:
+	case MDB_VERSION_MISMATCH:
+		/* fall through */
+	default:
+		WARN("%s", mdb_strerror(mdb_error));
+	}
+	return COB_STATUS_30_PERMANENT_ERROR;
+}
+
+static int
 indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 {
 	struct indexed_file	*p = f->file;
@@ -3335,31 +3376,29 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 		DBT_SET (p->key, f->keys[0].field);
 	}
 
-	/* Position write cursor */
-	/* add rewrite check - if rewrite and if key not found throw error 23 */
-	if ((ret =  mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) == 0) {
-		if (close_cursor) {
-			mdb_txn_abort(p->txn);
-			p->write_cursor_open = 0;
+	if (rewrite) {
+		/* Position write cursor */
+		if ((ret =
+		     mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) != MDB_SUCCESS) {
+			if (close_cursor) {
+				mdb_txn_abort(p->txn);
+				p->write_cursor_open = 0;
+			}
+			
+			return cob_mdb_status(ret);
 		}
-		return COB_STATUS_22_KEY_EXISTS;
 	}
 	p->data.mv_data = f->record->data;
 	p->data.mv_size = (size_t) f->record->size;
 	
 	/* Write data */
-	/*  */
-	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, MDB_FIRST)) != 0) {
+	const int flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;
+	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		if (close_cursor) {
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
 		}
-		switch (ret) {
-			case MDB_MAP_FULL:
-				return MDB_MAP_FULL;
-			default:
-				return COB_STATUS_30_PERMANENT_ERROR;
-		}
+		return cob_mdb_status(ret);
 	} 
 
 	/* Write secondary keys */
@@ -3654,12 +3693,15 @@ db_nofile (const char *filename)
 
 static bool
 local_file( dev_t device, char **pname /*output*/ ) {
-#ifndef _WIN32
+#ifdef _WIN32
+	/* TODO: Come back for Win32? */
+	return true;
+#endif
 	static const char filename[] = "/proc/partitions";
 	FILE *file;
 
 	if( (file = fopen(filename, "r")) == NULL ) {
-		err(EXIT_FAILURE, "could not open %s", filename);
+		WARN("could not open %s", filename);
 	}
 
 	int n, maj, min, nblock;
@@ -3668,7 +3710,7 @@ local_file( dev_t device, char **pname /*output*/ ) {
 	static char devname[128];
 
 	while( (s = fgets(line, sizeof(line), file)) != NULL ) {
-		if( (n = sscanf(line, "%d%d%d%s",			&maj, &min, &nblock, devname)) == EOF ) {
+		if( (n = sscanf(line, "%d%d%d%s", &maj, &min, &nblock, devname)) == EOF ) {
 			continue;
 		}
 		if( n == 4 ) {
@@ -3678,10 +3720,8 @@ local_file( dev_t device, char **pname /*output*/ ) {
 			}
 		} 
 	}
-#else
-	/* TODO: Come back for Win32? */
-#endif
-  return false;
+
+	return false;
 }
 
 static int
