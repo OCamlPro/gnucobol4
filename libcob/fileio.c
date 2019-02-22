@@ -667,9 +667,9 @@ struct indexed_file {
 
 #elif	defined (WITH_LMDB)
 
-#define WARN(format, ...)  {				\
-    cob_runtime_warning("%s:%d: " format "\n",		\
-            __func__, __LINE__, ## __VA_ARGS__);        \
+#define WARN(format, ...)  {						\
+   cob_runtime_warning("%s:%d: " format "\n",				\
+		       __func__, __LINE__, ## __VA_ARGS__);		\
 }
 
 #define INTTYPES_H_MISSING
@@ -4335,8 +4335,11 @@ dobuild:
 
 	if (getenv("MDB_NO_SHARED_FS_CHK") == 0) {
 		struct stat sb;
-		if (stat(dirname(filename), &sb) == -1) {
-			fprintf(stderr, "Could not stat %s\n", filename);
+		char dir[ 1 + strlen(filename) ];
+		
+		sprintf(dir, "%s", filename);
+		if (stat(dirname(dir), &sb) == -1) {
+			////("Could not stat %s for %s (%s)\n", dir, filename, strerror(errno));
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
 		char *devname;
