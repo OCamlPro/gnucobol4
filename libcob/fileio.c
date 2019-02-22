@@ -3303,12 +3303,12 @@ cob_mdb_status( int mdb_error ) {
 	case MDB_DBS_FULL:
 	case MDB_INCOMPATIBLE:
 	case MDB_INVALID:
-	case MDB_LAST_ERRCODE:
 	case MDB_MAP_FULL:
 	case MDB_MAP_RESIZED:
 	case MDB_PAGE_FULL:
 	case MDB_PAGE_NOTFOUND:
 	case MDB_PANIC:
+	case MDB_PROBLEM:
 	case MDB_READERS_FULL:
 	case MDB_TLS_FULL:
 	case MDB_TXN_FULL:
