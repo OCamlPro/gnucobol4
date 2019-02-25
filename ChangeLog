@@ -1,4 +1,9 @@
 
+2019-02-18  Simon Sobisch <simonsobisch@gnu.org>
+
+	* autogen.sh: new, wrapper for build_aux/bootstrap
+	* Makefile.am: cleanup distribution rules
+
 2019-02-10  Simon Sobisch <simonsobisch@gnu.org>
 
 	* configure.ac: added --with-lmdb option, partially per James K. Lowden

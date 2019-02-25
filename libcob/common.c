@@ -7186,16 +7186,13 @@ print_info (void)
 #define CURSES_CMP_MINOR	NCURSES_VERSION_MINOR
 #endif
 #if !defined (RESOLVED_PDC_VER)
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wformat-security"
-	snprintf (versbuff2, 100, curses_version ());
+	snprintf (versbuff2, 100, "%s", curses_version ());
 	major = 0, minor = 0, patch = 0;
 	if ((sscanf (versbuff2, "%s %s %d.%d.%d", (char *)&versbuff, (char *)&versbuff, &major, &minor, &patch) < 4)
 	 && (sscanf (versbuff2, "%s %d.%d.%d", (char *)&versbuff, &major, &minor, &patch) < 3)
 	 && (sscanf (versbuff2, "%d.%d.%d", &major, &minor, &patch) < 2)) {
 		major = 0, minor = 0;
 	}
-# pragma GCC diagnostic pop
 #endif
 	if (major == CURSES_CMP_MAJOR && minor == CURSES_CMP_MINOR) {
 		snprintf (versbuff, 55, _("%s, version %d.%d.%d"), WITH_CURSES, major, minor, patch);
