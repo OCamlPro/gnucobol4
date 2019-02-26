@@ -667,6 +667,9 @@ struct indexed_file {
 
 #elif	defined (WITH_LMDB)
 
+#if defined ( WIN32 )
+#define __func__ __FUNCTION__
+#endif
 #define WARN(format, ...)  {						\
    cob_runtime_warning("%s:%d: " format "\n",				\
 		       __func__, __LINE__, ## __VA_ARGS__);		\
@@ -674,7 +677,6 @@ struct indexed_file {
 
 #define INTTYPES_H_MISSING
 #include <lmdb.h>
-#include <stdbool.h>
 #ifndef _WIN32	/* correct would be a check for HAVE_SYS_FILE_H */
 #include <libgen.h>
 #include <sys/file.h>
@@ -3308,7 +3310,9 @@ cob_mdb_status( int mdb_error ) {
 	case MDB_PAGE_FULL:
 	case MDB_PAGE_NOTFOUND:
 	case MDB_PANIC:
+#ifdef MDB_PROBLEM
 	case MDB_PROBLEM:
+#endif
 	case MDB_READERS_FULL:
 	case MDB_TLS_FULL:
 	case MDB_TXN_FULL:
@@ -3328,6 +3332,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	cob_u32_t	dupno;
 	cob_u32_t	ret = 0;
 	cob_u32_t	close_cursor;
+	const int flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;	
 
 	COB_UNUSED(opt);
 
@@ -3392,7 +3397,6 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	p->data.mv_size = (size_t) f->record->size;
 	
 	/* Write data */
-	const int flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		if (close_cursor) {
 			mdb_txn_abort(p->txn);
@@ -3691,37 +3695,41 @@ db_nofile (const char *filename)
 	return 0;
 }
 
-static bool
-local_file( dev_t device, char **pname /*output*/ ) {
+static int
+local_file (dev_t device, char **pname /*output*/ ) {
 #ifdef _WIN32
 	/* TODO: Come back for Win32? */
-	return true;
-#endif
+	return 1;
+#else
 	static const char filename[] = "/proc/partitions";
+	static char line[128];
 	FILE *file;
 
 	if( (file = fopen(filename, "r")) == NULL ) {
 		WARN("could not open %s", filename);
+		return 1;	// is this correct?
 	}
 
-	int n, maj, min, nblock;
-	char *s;
-	static char line[128];
-	static char devname[128];
 
-	while( (s = fgets(line, sizeof(line), file)) != NULL ) {
+	while( fgets(line, sizeof(line), file) != NULL ) {
+		static char devname[128];
+		int n, maj, min, nblock;
+
 		if( (n = sscanf(line, "%d%d%d%s", &maj, &min, &nblock, devname)) == EOF ) {
 			continue;
 		}
 		if( n == 4 ) {
 			if( maj == major(device) && min == minor(device) ) {
-				*pname = devname;
-				return true;
+				if (pname != NULL) {
+					*pname = devname;
+				}
+				return 1;
 			}
 		} 
 	}
 
-	return false;
+	return 0;
+#endif
 }
 
 static int
@@ -4335,16 +4343,11 @@ dobuild:
 
 	if (getenv("MDB_NO_SHARED_FS_CHK") == 0) {
 		struct stat sb;
-		char dir[ 1 + strlen(filename) ];
-		
-		sprintf(dir, "%s", filename);
-		if (stat(dirname(dir), &sb) == -1) {
+		if (stat(dirname(filename), &sb) == -1) {
 			////("Could not stat %s for %s (%s)\n", dir, filename, strerror(errno));
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
-		char *devname;
-		bool is_local = local_file(sb.st_dev, &devname);
-		if (is_local == false) {
+		if (!local_file(sb.st_dev, NULL)) {
 			fprintf(stderr,"Shared filesystem detected!\n");
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}

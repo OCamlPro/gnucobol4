@@ -1,4 +1,11 @@
 
+2019-26-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
+
+	* fileio.c: macro guard for MDB_PROBLEM, removed bool,
+	  minor WIN32 changes
+	* fileio.c (local_file): changed to return int,
+	  draft to not need external devname storage
+
 2019-10-02  Simon 'sf-mensch/human' Sobisch <simonsobisch@gnu.org>
 
 	* fileio.c: refactoring to better match BDB and LMDB implementation
