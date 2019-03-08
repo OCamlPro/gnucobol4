@@ -22,6 +22,8 @@
 #ifndef COB_LOCAL_H
 #define COB_LOCAL_H
 
+#include <stdio.h>
+
 #ifdef	HAVE_STRINGS_H
 #include <strings.h>
 #endif

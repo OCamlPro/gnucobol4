@@ -19,10 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
 
+
+AUTOMAKE_OPTIONS = subdir-objects
+
 lib_LTLIBRARIES = libcob.la
 libcob_la_SOURCES = common.c move.c numeric.c strings.c \
 	fileio.c call.c intrinsic.c termio.c screenio.c reportio.c cobgetopt.c \
-	mlio.c
+	mlio.c \
+	isam/bdb.c isam/lmdb.c isam/dbutil.c isam/xisam.c
+
 #ToDo Man Page
 #dist_man_MANS = libcob.3
 #COBCRUN = $(top_builddir)/bin/cobcrun$(EXEEXT)

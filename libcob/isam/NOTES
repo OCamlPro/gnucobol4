@@ -1,0 +1,24 @@
+Common functions with minor tweaks:
+
+static void
+cob_chk_file_mapping (void)
+//// 994: #ifdef WITH_LMDB
+		if (cobsetptr->db_home == NULL) {
+			static const char name[] = ".";
+			cobsetptr->db_home = cob_malloc(sizeof(name));
+			strcpy(cobsetptr->db_home,name);
+		}
+//// 1000: #endif
+
+void
+cob_init_fileio (cob_global *lptr, cob_settings *sptr)
+//// 8146: #ifdef	WITH_BDB_OR_MDB
+	db_data_dir = NULL;
+	db_buff = cob_malloc ((size_t)COB_SMALL_BUFF);
+//// 8153: #endif
+
+
+Functions to split that might want pointers:
+static void
+cob_sync (cob_file *f)
+

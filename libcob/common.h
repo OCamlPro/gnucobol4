@@ -33,6 +33,8 @@
 #define	cob_sli_t		long int
 #define	cob_uli_t		unsigned long int
 
+#include <stddef.h>
+
 #if	defined(_WIN32) && !defined(__MINGW32__)
 
 #define	cob_s64_t		__int64
@@ -1548,6 +1550,7 @@ struct cob_fileio_funcs {
 	int	(*write)	(cob_file *, const int);
 	int	(*rewrite)	(cob_file *, const int);
 	int	(*fdelete)	(cob_file *);
+        int	(*unlink)	(cob_file *, const char *);
 };
 
 /* Low level jump structure */
