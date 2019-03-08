@@ -10,7 +10,7 @@ lmdb.o	t	dummy_delete
 lmdb.o	t	dummy_read
 lmdb.o	t	dummy_rnxt_rewrite
 lmdb.o	t	dummy_start
-lmdb.o	r	__func__.8038
+lmdb.o	r	__func__.8031
 lmdb.o	t	get_dupno
 lmdb.o	t	indexed_close
 lmdb.o	t	indexed_delete
@@ -28,6 +28,6 @@ lmdb.o	t	indexed_write
 lmdb.o	t	indexed_write_internal
 lmdb.o	T	isam_sync
 lmdb.o	t	mdb_resize_env
-lmdb.o	r	name.8130
+lmdb.o	r	name.8124
 lmdb.o	r	prefix
 lmdb.o	t	unique_copy
