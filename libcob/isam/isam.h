@@ -259,6 +259,7 @@ void isam_sync (cob_file *f);
 int db_findkey (cob_file *f, cob_field *kf, int *fullkeylen, int *partlen);
 int db_keylen (cob_file *f, int idx);
 int db_savekey (cob_file *f, unsigned char *keyarea, unsigned char *record, int idx);
+int db_cmpkey (cob_file *f, unsigned char *keyarea, unsigned char * record, int idx, int partlen);
 
 #if 0
 // implementation

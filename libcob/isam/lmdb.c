@@ -107,10 +107,6 @@ struct indexed_file {
 	DBT_SET(p->key,f->keys[0].field); \
 	DBT_SET(p->data,f->record)
 
-//// 728: #endif	/* WITH_DB */
-
-
-
 /* Local functions */
 
 static int
@@ -172,6 +168,48 @@ db_suppresskey (cob_file *f, int idx)
 	return 1;
 }
 
+static void
+db_setkey (cob_file *f, int idx)
+{
+	struct indexed_file *p = f->file;
+	int len;
+
+	memset (p->savekey, 0, p->maxkeylen);
+	len = db_savekey (f, p->savekey, f->record->data, idx);
+
+	p->key.mv_data = p->savekey;
+	p->key.mv_size = len;
+} 
+
+/*
+static int
+db_cmpkey (cob_file *f, unsigned char *keyarea, unsigned char *record, int idx, int partlen)
+{
+	int sts, part, totlen;
+	size_t cl;
+
+	if (partlen <= 0) {
+		partlen = db_keylen(f, idx);
+	}
+	if (f->keys[idx].count_components > 0) {
+		totlen = 0;
+		for (part = 0; part < f->keys[idx].count_components && partlen > 0; part++) {
+			cl = partlen > f->keys[idx].component[part]->size ? f->keys[idx].component[part]->size : partlen;
+			sts = memcmp (keyarea + totlen, 
+				record + (f->keys[idx].component[part]->data - f->record->data), cl);
+			if (sts != 0) {
+				return sts;
+			}
+			totlen += f->keys[idx].component[part]->size;
+			partlen -= f->keys[idx].component[part]->size;
+		}
+		return 0;
+	}
+	cl = partlen > f->keys[idx].field->size ? f->keys[idx].field->size : partlen;
+	return memcmp (keyarea, record + (f->keys[idx].field->data - f->record->data), cl);
+}
+*/
+
 void
 isam_sync (cob_file *f) {}
 
@@ -213,13 +251,17 @@ get_dupno (cob_file *f, const cob_u32_t i)
 	txn    = cob_malloc(sizeof(MDB_txn *));
 	cursor = cob_malloc(sizeof(MDB_cursor *));
 
-	DBT_SET (p->key, f->keys[i].field);
-	memcpy (p->temp_key, p->key.mv_data, p->key.mv_size);
+	
+	db_setkey(f, i);
+	//memcpy (p->temp_key, p->key.mv_data, p->key.mv_size); //REVISIT:
+	memcpy (p->temp_key, p->key.mv_data, (size_t)p->maxkeylen);
 	mdb_txn_begin(p->db_env, p->txn , 0, &txn);
 	mdb_cursor_open(txn, *p->db[i], &cursor);
 	ret = mdb_cursor_get(cursor,&p->key,&p->data,MDB_SET_RANGE);
-	while (ret == 0 && memcmp(p->key.mv_data, p->temp_key, p->key.mv_size) == 0) {
-		memcpy(&dupno,(cob_u8_ptr)p->data.mv_data + f->keys[0].field->size,sizeof(unsigned int));
+	//while (ret == 0 && memcmp(p->key.mv_data, p->temp_key, p->key.mv_size) == 0) {
+	while (ret == 0 && memcmp(p->key.mv_data, p->temp_key, (size_t)p->key.mv_size) == 0) { //REVISIT: Cast may be unnecessary
+		//memcpy(&dupno,(cob_u8_ptr)p->data.mv_data + f->keys[0].field->size,sizeof(unsigned int));
+		memcpy(&dupno,(cob_u8_ptr)p->data.mv_data + p->primekeylen, sizeof(unsigned int));
 		ret = mdb_cursor_get(cursor,&p->key,&p->data,MDB_NEXT);
 	}
 	mdb_cursor_close(cursor);
@@ -239,11 +281,11 @@ check_alt_keys (cob_file *f, const int rewrite)
 	for (i = 1; i < f->nkeys; ++i) {
 		if (!f->keys[i].tf_duplicates) {
 			int ret;
-			DBT_SET (p->key, f->keys[i].field);
+			db_setkey(f, i);
 			ret = mdb_get(p->txn,*p->db[i],&p->key,&p->data);
 			if (ret == 0) {
 				if (rewrite) {
-					if (memcmp (p->data.mv_data, f->keys[0].field->data,f->keys[0].field->size)) {
+					if (db_cmpkey(f, p->data.mv_data, f->record->data, 0, 0)) {
 						return 1;
 					}
 				} else {
@@ -256,7 +298,8 @@ check_alt_keys (cob_file *f, const int rewrite)
 }
 
 static int
-cob_mdb_status( int mdb_error ) {
+cob_mdb_status( int mdb_error ) 
+{
 	switch (mdb_error) {
 	case MDB_KEYEXIST:
 		return COB_STATUS_22_KEY_EXISTS;			
@@ -279,7 +322,6 @@ cob_mdb_status( int mdb_error ) {
 	case MDB_PAGE_FULL:
 	case MDB_PAGE_NOTFOUND:
 	case MDB_PANIC:
-	case MDB_PROBLEM:
 	case MDB_READERS_FULL:
 	case MDB_TLS_FULL:
 	case MDB_TXN_FULL:
@@ -295,10 +337,10 @@ static int
 indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 {
 	struct indexed_file	*p = f->file;
-	cob_u32_t	i;
+	cob_u32_t	i, len;
 	cob_u32_t	dupno;
-	cob_u32_t	ret = 0;
 	cob_u32_t	close_cursor;
+	int	ret = COB_STATUS_00_SUCCESS;
 
 	COB_UNUSED(opt);
 
@@ -317,10 +359,6 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 		/* Cursors for alternate keys. */
 		if (f->nkeys > 1) {
 			for (i = 1; i < f->nkeys; i++) {
-				// CHECKME: is this the correct place?
-				if (db_suppresskey(f, i)) {
-					continue;
-				}
 				if (f->keys[i].tf_duplicates) {
 					if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != 0) {
 						mdb_txn_abort(p->txn);
@@ -343,8 +381,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 			}
 			return COB_STATUS_22_KEY_EXISTS;
 		}
-		//db_setkey(f, 0);
-		DBT_SET (p->key, f->keys[0].field);
+		db_setkey(f, 0);
 	}
 
 	if (rewrite) {
@@ -355,7 +392,6 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				mdb_txn_abort(p->txn);
 				p->write_cursor_open = 0;
 			}
-			
 			return cob_mdb_status(ret);
 		}
 	}
@@ -363,7 +399,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	p->data.mv_size = (size_t) f->record->size;
 	
 	/* Write data */
-	const int flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;
+	cob_u32_t flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		if (close_cursor) {
 			mdb_txn_abort(p->txn);
@@ -378,15 +414,25 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 		if (rewrite && ! p->rewrite_sec_key[i]) {
 			continue;
 		}
+		if (db_suppresskey(f, i)) {
+			continue;
+		}
+		db_setkey(f, i);
 		if (f->keys[i].tf_duplicates) { 
+			flags = 0;
 			dupno = get_dupno(f, i);
-			memcpy (p->temp_key, f->keys[0].field->data, f->keys[0].field->size);
-			memcpy (p->temp_key + f->keys[0].field->size, &dupno, sizeof(unsigned int));
+			if (dupno > 1) {
+				ret = COB_STATUS_02_SUCCESS_DUPLICATE;
+			}
+			len = db_savekey(f, p->temp_key, f->record->data, 0);
 			p->data.mv_data = p->temp_key;
-			p->data.mv_size = f->keys[0].field->size + sizeof(unsigned int);
-
-			DBT_SET (p->key,f->keys[i].field);
+			p->data.mv_size = len;
+			memcpy (((char *)(p->data.mv_data)) + p->data.mv_size, &dupno, sizeof(unsigned int));
+			p->data.mv_size += sizeof(unsigned int);
+			DBT_SET (p->key,f->keys[i].field); // REVISIT: ??
 			if ((ret =  mdb_cursor_put(p->cursor[i],&p->key,&p->data,0)) != 0) {
+				cob_mdb_status(ret);
+				// REVISIT: Should probably do something here?
 			}
 		} else {
 			DBT_SET (p->key,f->keys[i].field);
@@ -422,7 +468,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 static int
 indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 			const int read_opts, const int test_lock)
-{ 
+{
 	struct indexed_file	*p = f->file;
 	int			fullkeylen, partlen;
 	int			ret = 0;
@@ -440,7 +486,8 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	p->key_index = (unsigned int)key_index;
 
 	/* Set the key to search */
-	DBT_SET (p->key, key);
+	db_setkey (f, p->key_index);
+	p->key.mv_size = partlen;
 	
 	/* Start the transaction */
 	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn))) {
@@ -470,7 +517,8 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	switch (cond) {
 	case COB_EQ:
 		if (ret == 0) {
-			ret = memcmp (p->key.mv_data, key->data, key->size);
+			//ret = memcmp (p->key.mv_data, key->data, key->size);
+			ret = db_cmpkey (f, p->key.mv_data, f->record->data, p->key_index, partlen);
 		}
 		break;
 	case COB_LT:
@@ -483,7 +531,8 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	case COB_LE:
 		if (ret != 0) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
-		} else if (memcmp(p->key.mv_data, key->data, key->size) !=0) {
+		// } else if (memcmp(p->key.mv_data, key->data, key->size) !=0) {
+		} else if (db_cmpkey(f, p->key.mv_data, f->record->data, p->key_index, partlen) !=0) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
 		} else if (f->keys[p->key_index].flag) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_NEXT_NODUP);
@@ -495,7 +544,8 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 		}
 		break;
 	case COB_GT:
-		while (ret == 0 && memcmp(p->key.mv_data, key->data, key->size) == 0) {
+		// while (ret == 0 && memcmp(p->key.mv_data, key->data, key->size) == 0) {
+		while (ret == 0 && db_cmpkey (f, p->key.mv_data, f->record->data, p->key_index, partlen)  == 0) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_NEXT);
 		}
 		break;
@@ -550,7 +600,7 @@ static int
 indexed_delete_internal (cob_file *f, const int rewrite)
 {
 	struct indexed_file	*p = f->file;
-	size_t			i;
+	size_t			i, len;
 	size_t			offset;
 	MDB_val			prim_key;
 	int			ret;
@@ -577,7 +627,7 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 
 	/* Find the primary key */
 	if (f->access_mode != COB_ACCESS_SEQUENTIAL) {
-		DBT_SET (p->key, f->keys[0].field);
+		db_setkey(f, 0);
 	}
 	ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_SET);
 	if ((ret != 0 && f->access_mode != COB_ACCESS_SEQUENTIAL)) {
@@ -602,15 +652,24 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	}
 #endif
 	prim_key = p->key;
+	memcpy(p->saverec, p->data.mv_data, p->data.mv_size);    /* Save old record image  */
+	memcpy(p->temp_key, prim_key.mv_data, prim_key.mv_size); /* Save primary key value */
+	prim_key.mv_data = p->temp_key;
 
 	/* Delete the secondary keys */
 	offset = (char *) p->data.mv_data - (char *) f->record->data;
 	for (i = 1; i < f->nkeys; ++i) {
-		DBT_SET (p->key, f->keys[i].field);
+		len = db_savekey(f, p->suppkey, p->data.mv_data, i);
+		memset(p->savekey, 0, p->maxkeylen);
+		len = db_savekey(f, p->savekey, p->saverec, i);
+		p->key.mv_data = p->savekey;
+		p->key.mv_size = (cob_dbtsize_t) len;
+		// DBT_SET (p->key, f->keys[i].field);
 		p->key.mv_data = (char *)p->key.mv_data + offset;
 		/* rewrite: no delete if secondary key is unchanged */
 		if (rewrite) {
-			p->rewrite_sec_key[i] = memcmp (p->key.mv_data, f->keys[i].field->data, (size_t)p->key.mv_size);
+			//p->rewrite_sec_key[i] = memcmp (p->key.mv_data, f->keys[i].field->data, (size_t)p->key.mv_size);
+			p->rewrite_sec_key[i] = db_cmpkey (f, p->suppkey, f->record->data, i, 0);
 			if (!p->rewrite_sec_key[i]) {
 				continue;
 			}
@@ -623,10 +682,8 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 			mdb_cursor_open(p->txn,*p->db[i], &p->cursor[i]);
 			if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_SET_RANGE) == 0) {
 				while (sec_key.mv_size == p->key.mv_size
-				    && memcmp (p->key.mv_data, sec_key.mv_data,
-				       (size_t)sec_key.mv_size) == 0) {
-					if (memcmp (p->data.mv_data, prim_key.mv_data,
-						     (size_t)prim_key.mv_size) == 0) {
+				    && memcmp (p->key.mv_data, sec_key.mv_data, (size_t)sec_key.mv_size) == 0) {
+					if (memcmp (p->data.mv_data, prim_key.mv_data, (size_t)prim_key.mv_size) == 0) {
 						mdb_cursor_del (p->cursor[i],0);
 					}
 					if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_NEXT) != 0) {
@@ -701,7 +758,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 //// 4325: #elif	defined(WITH_LMDB)
 
 	struct indexed_file	*p;
-	size_t i;
+	size_t i, j;
 	size_t maxsize;
 	int    ret = 0;
 	int nonexistent = 0;
@@ -758,7 +815,13 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	p->last_readkey    = cob_malloc(sizeof(unsigned char *) * 2 * f->nkeys);
 	p->last_dupno      = cob_malloc(sizeof(unsigned int * ) * 2 * f->nkeys);
 	p->rewrite_sec_key = cob_malloc(sizeof(int) * f->nkeys);
-	maxsize = 0;
+	maxsize = p->primekeylen = db_keylen(f, 0);
+	for (i = 1; i < f->nkeys; ++i) {
+		j = db_keylen(f, i);
+		if (j > maxsize)
+			maxsize = j;
+	}
+	p->maxkeylen = maxsize;
 
 	ret = mdb_env_create(&p->db_env);
 	if (ret != 0 ) {
@@ -807,7 +870,6 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	}
 
 	if (sharing) {
-		printf("SHARING FOR SURE\n");
 		if (mode == COB_OPEN_OUTPUT || mode == COB_OPEN_EXTEND ||
 		    (f->lock_mode & COB_FILE_EXCLUSIVE) ||
 		    (mode == COB_OPEN_I_O && !f->lock_mode)) {
@@ -827,9 +889,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		errno = 0;
 		int fcd = 0;
 		fcd = fcntl(p->fd, F_SETLK, &p->lock);
-		printf("FCD: %d\n",fcd);
 		if (fcd < 0) {
-			//if (fcntl (p->fd, F_SETLK, &p->lock) < 0) {
 			ret = errno;
 			p->fd = -1;
 			switch (ret) {
@@ -877,7 +937,10 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		p->last_readkey[f->nkeys + i] = cob_malloc (maxsize);
 	}
 
-	p->temp_key = cob_malloc (maxsize + sizeof(unsigned int));
+	p->temp_key = cob_malloc (maxsize + sizeof (unsigned long));
+	p->savekey  = cob_malloc (maxsize + sizeof (unsigned long));
+	p->suppkey  = cob_malloc (maxsize + sizeof (unsigned long));
+	p->saverec  = cob_malloc (f->record_max + sizeof (unsigned long));
 
 	f->file = p;
 	p->key_index = 0;
@@ -892,7 +955,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	p->record_locked = 0;
 	f->open_mode = mode;
 
-	DBT_SET (p->key, f->keys[0].field);
+	db_setkey (f, 0);
 
 	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != 0) {
 		return COB_STATUS_30_PERMANENT_ERROR;
@@ -901,6 +964,11 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_FIRST);
 	if (!ret) {
 		memcpy (p->last_readkey[0], p->key.mv_data, p->key.mv_size);
+		if (p->data.mv_data != NULL
+			&& p->data.mv_size > 0
+			&& p->data.mv_size > f->record_max) {
+				return COB_STATUS_39_CONFLICT_ATTRIBUTE;
+		}
 	} else {
 		p->data.mv_data = NULL;
 	}
@@ -957,18 +1025,24 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 	int			db_opts;
 	int			test_lock = 0;
 
+	p = f->file;
 	db_opts = read_opts;
 
 	ret = indexed_start_internal (f, COB_EQ, key, db_opts, test_lock);
 	if (ret != COB_STATUS_00_SUCCESS) {
 		return ret;
 	}
-	p = f->file;
 
 	f->record->size = p->data.mv_size;
-	memcpy (f->record->data, p->data.mv_data, (size_t)p->data.mv_size);
+	if (f->record->size > f->record_max) {
+		f->record->size = f->record_max;
+		ret = COB_STATUS_43_READ_NOT_DONE;
+	} else {
+		ret = COB_STATUS_00_SUCCESS;
+	}
+	memcpy (f->record->data, p->data.mv_data, f->record->size);
 
-	return COB_STATUS_00_SUCCESS;
+	return ret;
 }
 
 /* Sequential READ of the INDEXED file */
@@ -1227,9 +1301,15 @@ indexed_read_next (cob_file *f, const int read_opts)
 	mdb_txn_commit(p->txn);
 
 	f->record->size = p->data.mv_size;
-	memcpy (f->record->data, p->data.mv_data, (size_t)p->data.mv_size);
+	if (f->record->size > f->record_max) {
+		f->record->size = f->record_max;
+		ret = COB_STATUS_43_READ_NOT_DONE;
+	} else {
+		ret = COB_STATUS_00_SUCCESS;
+	}
+	memcpy (f->record->data, p->data.mv_data, f->record->size);
 
-	return COB_STATUS_00_SUCCESS;
+	return ret;
 }
 
 /* WRITE to the INDEXED file  */
@@ -1246,7 +1326,7 @@ indexed_write (cob_file *f, const int opt)
 	p = f->file;
 
 	/* Check record key */
-	DBT_SET (p->key, f->keys[0].field);
+	db_setkey (f, 0);
 	if (!p->last_key) {
 		p->last_key = cob_malloc ((size_t)p->key.mv_size);
 	} else if (f->access_mode == COB_ACCESS_SEQUENTIAL &&
@@ -1259,14 +1339,12 @@ indexed_write (cob_file *f, const int opt)
 		if (rc == MDB_MAP_FULL) {
 			mdb_resize_env(p->db_env);
 		} else if (rc == MDB_TXN_FULL) {
-			fprintf (stderr,"HIT THE ERROR: %s\n", mdb_strerror(rc));
 			return rc; /* should return a COBOL status */
 		} else {
 			return rc; /* should return a COBOL status */
 		}
 	}
 
-	/* TODO: is this correct? */
 	return COB_STATUS_00_SUCCESS;
 }
 
@@ -1308,7 +1386,7 @@ indexed_rewrite (cob_file *f, const int opt)
 	}
 
 	/* Write data */
-	DBT_SET (p->key, f->keys[0].field);
+	db_setkey (f, 0);
 	ret = indexed_write_internal (f, 1, opt);
 
 	p->write_cursor_open = 0;

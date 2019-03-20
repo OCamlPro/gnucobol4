@@ -54,21 +54,15 @@ const struct cob_fileio_funcs indexed_funcs = {
 	indexed_delete
 };
 
-//// 600: #ifdef WITH_BDB_OR_MDB
 static char		*db_buff = NULL;
 static const char	**db_data_dir = NULL;
 
-//// 604: #ifdef WITH_DB
 #define DB_PUT(db,flags)	db->put (db, NULL, &p->key, &p->data, flags)
 #define DB_GET(db,flags)	db->get (db, NULL, &p->key, &p->data, flags)
 #define DB_SEQ(db,flags)	db->c_get (db, &p->key, &p->data, flags)
 #define DB_DEL(db,key,flags)	db->del (db, NULL, key, flags)
 #define DB_CLOSE(db)		db->close (db, 0)
 #define DB_SYNC(db)		db->sync (db, 0)
-//// 611: #endif
-
-//// 626: #ifdef	WITH_DB
-
 #define	cob_dbtsize_t		u_int32_t
 
 static DB_ENV		*db_env = NULL;
@@ -142,6 +136,7 @@ db_setkey (cob_file *f, int idx)
 
 /* Compare key for given index 'keyarea' to 'record'.
    returns compare status */
+/*
 static int
 db_cmpkey (cob_file *f, unsigned char *keyarea, unsigned char *record, int idx, int partlen)
 {
@@ -171,7 +166,7 @@ db_cmpkey (cob_file *f, unsigned char *keyarea, unsigned char *record, int idx, 
 			record  + (f->keys[idx].field->data - f->record->data),
 			cl);
 }
-
+*/
 
 /* Local functions */
 
@@ -1103,8 +1098,6 @@ indexed_start (cob_file *f, const int cond, cob_field *key)
 static int
 indexed_read (cob_file *f, cob_field *key, const int read_opts)
 {
-//// 4798: #elif	defined(WITH_DB)
-
 	struct indexed_file	*p;
 	int			ret;
 	int			db_opts;
@@ -1148,8 +1141,6 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 static int
 indexed_read_next (cob_file *f, const int read_opts)
 {
-//// 5119: #elif	defined(WITH_DB)
-
 	struct indexed_file	*p = f->file;
 	int			ret;
 	int			read_nextprev;
@@ -1468,8 +1459,6 @@ indexed_delete (cob_file *f)
 static int
 indexed_rewrite (cob_file *f, const int opt)
 {
-//// 5939: #elif	defined(WITH_DB)
-
 	struct indexed_file	*p;
 	int			ret;
 	cob_u32_t		flags;
@@ -1552,7 +1541,8 @@ cob_init_fileio_epilogue (cob_global *lptr, cob_settings *sptr)
 }
 
 void
-cob_file_unlock_internal (cob_file *f) {
+cob_file_unlock_internal (cob_file *f) 
+{
 	if (f->file) {
 		if (db_env != NULL) {
 			struct indexed_file	*p = f->file;
