@@ -563,6 +563,7 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 		}
 		p->key.mv_data = p->data.mv_data;
 		p->key.mv_size = p->primekeylen;
+		ret = mdb_get(p->txn,*p->db[0],&p->key,&p->data);
 	}
 
 #if 0	/* TODO: Come back to lock test */
@@ -656,7 +657,7 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 		memset(p->savekey, 0, p->maxkeylen);
 		len = db_savekey(f, p->savekey, p->saverec, i);
 		p->key.mv_data = p->savekey;
-		p->key.mv_size = (cob_dbtsize_t) len;
+		p->key.mv_size = (size_t) len;
 		// DBT_SET (p->key, f->keys[i].field);
 		p->key.mv_data = (char *)p->key.mv_data + offset;
 		/* rewrite: no delete if secondary key is unchanged */
