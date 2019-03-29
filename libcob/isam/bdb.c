@@ -756,7 +756,6 @@ is_absolute (const char *filename)
 static int
 indexed_file_delete (cob_file *f, const char *filename)
 {
-//// 3777: #elif	defined(WITH_DB)
 	size_t	i;
 
 	for (i = 0; i < f->nkeys; ++i) {
@@ -1037,8 +1036,6 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 static int
 indexed_close (cob_file *f, const int opt)
 {
-//// 4535: #elif	defined(WITH_DB)
-
 	struct indexed_file	*p;
 	int			i;
 
@@ -1088,7 +1085,6 @@ indexed_close (cob_file *f, const int opt)
 static int
 indexed_start (cob_file *f, const int cond, cob_field *key)
 {
-//// 4704: #elif	defined(WITH_BDB_OR_MDB)
 
 	return indexed_start_internal (f, cond, key, 0, 0);
 }
@@ -1415,16 +1411,13 @@ indexed_read_next (cob_file *f, const int read_opts)
 static int
 indexed_write (cob_file *f, const int opt)
 {
-//// 5697: #elif	defined (WITH_BDB_OR_MDB)
-
 	struct indexed_file	*p;
-//// 5702: #endif
 
 	if (f->flag_nonexistent) {
 		return COB_STATUS_48_OUTPUT_DENIED;
 	}
 	p = f->file;
-//// 5708: #if	defined (WITH_DB)
+
 	if (db_env != NULL) {
 		unlock_record (f);
 	}
@@ -1446,8 +1439,6 @@ indexed_write (cob_file *f, const int opt)
 static int
 indexed_delete (cob_file *f)
 {
-//// 5800: #elif	defined(WITH_BDB_OR_MDB)
-
 	if (f->flag_nonexistent) {
 		return COB_STATUS_49_I_O_DENIED;
 	}

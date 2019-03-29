@@ -392,7 +392,8 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				mdb_txn_abort(p->txn);
 				p->write_cursor_open = 0;
 			}
-			return mdb_cob_status(ret);
+			//return mdb_cob_status(ret);
+			return ret;
 		}
 	}
 	p->data.mv_data = f->record->data;
@@ -402,10 +403,20 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		if (close_cursor) {
+			
+			for (i = 0; i < f->nkeys; i++) {
+				if (i == 0 || f->keys[i].tf_duplicates) {
+					if (p->cursor[i]) {
+						mdb_cursor_close(p->cursor[i]);
+					}
+				}
+			}
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
 		}
-		return mdb_cob_status(ret);
+      
+			//return mdb_cob_status(ret);
+			return ret;
 	} 
 
 	/* Write secondary keys */
@@ -441,18 +452,22 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 			if (close_cursor) {
 				mdb_cursor_close(p->cursor[i]);
 			}
-			mdb_cob_status(ret);
+			//mdb_cob_status(ret);
+			return ret;
 		}
 	}
 
 	if (close_cursor) {
 		for (i = 0; i < f->nkeys; i++) {
 			if (i == 0 || f->keys[i].tf_duplicates) {
-				mdb_cursor_close(p->cursor[i]);
+				if (p->cursor[i]) {
+					mdb_cursor_close(p->cursor[i]);
+				}
 			}
 		}
 		if ((ret = mdb_txn_commit(p->txn)) != MDB_SUCCESS) {
-			mdb_cob_status(ret);
+			//mdb_cob_status(ret);
+			return ret;
 		}
 		p->write_cursor_open = 0;
 	}
@@ -1342,13 +1357,10 @@ indexed_write (cob_file *f, const int opt)
 	while ((rc = indexed_write_internal(f, 0, opt)) != COB_STATUS_00_SUCCESS) {
 		if (rc == MDB_MAP_FULL) {
 			mdb_resize_env(p->db_env);
-		} else if (rc == MDB_TXN_FULL) {
-			return rc; /* should return a COBOL status */
 		} else {
-			return rc; /* should return a COBOL status */
+			return mdb_cob_status(rc);
 		}
 	}
-
 	return COB_STATUS_00_SUCCESS;
 }
 
