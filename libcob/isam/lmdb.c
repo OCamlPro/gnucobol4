@@ -340,7 +340,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 	cob_u32_t	i, len;
 	cob_u32_t	dupno;
 	cob_u32_t	close_cursor;
-	cob_u32_t flags;
+	cob_u32_t flags = 0;
 	int	ret = COB_STATUS_00_SUCCESS;
 
 	COB_UNUSED(opt);
@@ -354,18 +354,16 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
-			return mdb_cob_status(ret);
+			return ret;
 		}
 
 		/* Cursors for alternate keys. */
-		if (f->nkeys > 1) {
-			for (i = 1; i < f->nkeys; i++) {
-				if (f->keys[i].tf_duplicates) {
-					if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != MDB_SUCCESS) {
-						mdb_txn_abort(p->txn);
-						p->write_cursor_open = 0;
-						return mdb_cob_status(ret);
-					}
+		for (i = 1; i < f->nkeys; i++) {
+			if (f->keys[i].tf_duplicates) {
+				if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != MDB_SUCCESS) {
+					mdb_txn_abort(p->txn);
+					p->write_cursor_open = 0;
+					return ret;
 				}
 			}
 		}
@@ -380,7 +378,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				mdb_txn_abort(p->txn);
 				p->write_cursor_open = 0;
 			}
-			return COB_STATUS_22_KEY_EXISTS;
+			return MDB_KEYEXIST;
 		}
 		db_setkey(f, 0);
 	}
@@ -392,7 +390,6 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 				mdb_txn_abort(p->txn);
 				p->write_cursor_open = 0;
 			}
-			//return mdb_cob_status(ret);
 			return ret;
 		}
 	}
@@ -414,9 +411,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 			mdb_txn_abort(p->txn);
 			p->write_cursor_open = 0;
 		}
-      
-			//return mdb_cob_status(ret);
-			return ret;
+		return ret;
 	} 
 
 	/* Write secondary keys */
@@ -451,8 +446,8 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt)
 		if ((ret = mdb_cursor_put(p->cursor[i],&p->key,&p->data,flags)) != MDB_SUCCESS) {
 			if (close_cursor) {
 				mdb_cursor_close(p->cursor[i]);
+				p->write_cursor_open = 0;
 			}
-			//mdb_cob_status(ret);
 			return ret;
 		}
 	}
@@ -721,23 +716,9 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 static int
 mdb_resize_env (MDB_env* e)
 {
-	size_t newsize;
-	MDB_envinfo *ei;
-
-#if 0	/* TODO: use COB_DEBUG_LOG here */
-	fprintf (stderr, "** RESIZING **\n");
-#endif
-	
-	ei = cob_malloc (sizeof(MDB_envinfo));
-	mdb_env_info (e, ei);
-	if (ei->me_mapsize > MDB_MAX_MAP_INC) {
-		newsize = ei->me_mapsize + (size_t) MDB_MAX_MAP_INC;
-	} else {
-		newsize = (size_t) (ei->me_mapsize * 1.5);
-	}
-	cob_free (ei);
-
-	return mdb_env_set_mapsize (e, newsize);
+	MDB_envinfo ei;
+	mdb_env_info (e, &ei);
+	return mdb_env_set_mapsize (e, ei.me_mapsize * 2 );
 }
 
 /* Delete file */
