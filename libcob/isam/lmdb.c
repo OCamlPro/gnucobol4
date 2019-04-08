@@ -334,139 +334,107 @@ mdb_cob_status( int mdb_error )
 }
 
 static int
-indexed_write_internal (cob_file *f, const int rewrite, const int opt)
+indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned int ds)
 {
 	struct indexed_file	*p = f->file;
 	cob_u32_t	i, len;
 	cob_u32_t	dupno;
-	cob_u32_t	close_cursor;
-	cob_u32_t flags = 0;
+	cob_u32_t flags;
 	int	ret = COB_STATUS_00_SUCCESS;
 
 	COB_UNUSED(opt);
 
-	if (p->write_cursor_open) {
-		close_cursor = 0;
-	} else {
-		mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
-		
-		/* p->cursor[0] should always be created. */
-		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
+	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn)) != MDB_SUCCESS) {
+		return ret;
+	}
+	
+	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
+		mdb_txn_abort(p->txn);
+		return ret;
+	}
+
+	/* Cursors. */
+	for (i = 1; i < f->nkeys; i++) {
+		if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != MDB_SUCCESS) {
 			mdb_txn_abort(p->txn);
-			p->write_cursor_open = 0;
 			return ret;
 		}
-
-		/* Cursors for alternate keys. */
-		for (i = 1; i < f->nkeys; i++) {
-			if (f->keys[i].tf_duplicates) {
-				if ((ret = mdb_cursor_open(p->txn, *p->db[i], &p->cursor[i])) != MDB_SUCCESS) {
-					mdb_txn_abort(p->txn);
-					p->write_cursor_open = 0;
-					return ret;
-				}
-			}
-		}
-		p->write_cursor_open = 1;
-		close_cursor = 1;
 	}
 
 	/* Check duplicate alternate keys */
+	/*
 	if (f->nkeys > 1 && !rewrite) {
 		if (check_alt_keys (f, 0)) {
-			if (close_cursor) {
-				mdb_txn_abort(p->txn);
-				p->write_cursor_open = 0;
-			}
+			mdb_txn_abort(p->txn);
 			return MDB_KEYEXIST;
 		}
 		db_setkey(f, 0);
 	}
+	*/
 
+	/* Position write cursor */
 	if (rewrite) {
-		/* Position write cursor */
 		if ((ret = mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) != MDB_SUCCESS) {
-			if (close_cursor) {
-				mdb_txn_abort(p->txn);
-				p->write_cursor_open = 0;
-			}
+			mdb_txn_abort(p->txn);
 			return ret;
 		}
 	}
+
 	p->data.mv_data = f->record->data;
 	p->data.mv_size = (size_t) f->record->size;
 	
-	/* Write data */
-	flags = rewrite? MDB_CURRENT : MDB_NOOVERWRITE;
+	flags = (rewrite) ? MDB_CURRENT : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
-		if (close_cursor) {
-			
-			for (i = 0; i < f->nkeys; i++) {
-				if (i == 0 || f->keys[i].tf_duplicates) {
-					if (p->cursor[i]) {
-						mdb_cursor_close(p->cursor[i]);
-					}
-				}
-			}
-			mdb_txn_abort(p->txn);
-			p->write_cursor_open = 0;
-		}
+		mdb_txn_abort(p->txn);
 		return ret;
 	} 
 
+	if (f->nkeys == 1) {
+		return mdb_txn_commit(p->txn);
+	}
+
 	/* Write secondary keys */
+	// This sets the data of the secondary key
 	p->data = p->key;
 	for (i = 1; i < f->nkeys; ++i) {
+
+		// Don't write if this is a rewrite and the secondary key doesn't need a rewrite
 		if (rewrite && ! p->rewrite_sec_key[i]) {
 			continue;
 		}
+
+		// Don't write if the key is to be suppressed.
 		if (db_suppresskey(f, i)) {
 			continue;
 		}
+
+		// Set the key of the secondary key
 		db_setkey(f, i);
-		if (f->keys[i].tf_duplicates) { 
-			flags = 0;
-			dupno = get_dupno(f, i);
-			if (dupno > 1) {
-				ret = COB_STATUS_02_SUCCESS_DUPLICATE;
-			}
-			len = db_savekey(f, p->temp_key, f->record->data, 0);
-			p->data.mv_data = p->temp_key;
-			p->data.mv_size = len;
+
+		len = db_savekey(f, p->temp_key, f->record->data, 0);
+		p->data.mv_data = p->temp_key;
+		p->data.mv_size = len;
+		if (f->keys[i].tf_duplicates) {
+			flags = MDB_NODUPDATA;
 			memcpy (((char *)(p->data.mv_data)) + p->data.mv_size, &dupno, sizeof(unsigned int));
 			p->data.mv_size += sizeof(unsigned int);
 		} else {
-			len = db_savekey(f, p->temp_key, f->record->data,0);
-			p->data.mv_data = p->temp_key;
-			p->data.mv_size = len;
 			flags = MDB_NOOVERWRITE;
-			dupno = 0;
 		}
-		db_setkey (f, i);
+
 		if ((ret = mdb_cursor_put(p->cursor[i],&p->key,&p->data,flags)) != MDB_SUCCESS) {
-			if (close_cursor) {
-				mdb_cursor_close(p->cursor[i]);
-				p->write_cursor_open = 0;
-			}
+			mdb_txn_abort(p->txn);
 			return ret;
 		}
 	}
 
-	if (close_cursor) {
-		for (i = 0; i < f->nkeys; i++) {
-			if (i == 0 || f->keys[i].tf_duplicates) {
-				if (p->cursor[i]) {
-					mdb_cursor_close(p->cursor[i]);
-				}
-			}
+	if ((ret = mdb_txn_commit(p->txn)) == MDB_SUCCESS) {
+		if (f->keys[i].tf_duplicates) {
+			ds = COB_STATUS_02_SUCCESS_DUPLICATE;
 		}
-		if ((ret = mdb_txn_commit(p->txn)) != MDB_SUCCESS) {
-			//mdb_cob_status(ret);
-			return ret;
-		}
-		p->write_cursor_open = 0;
 	}
-	return ret;
+
+	return ret; 
 }
 
 static int
@@ -476,6 +444,7 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	struct indexed_file	*p = f->file;
 	int			len, fullkeylen, partlen;
 	int			ret = 0;
+	int     rc = 0;
 	cob_u32_t		dupno = 0;
 	int			key_index;
 
@@ -494,19 +463,20 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	p->key.mv_size = partlen;
 	
 	/* Start the transaction */
-	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn))) {
+	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn)) != MDB_SUCCESS) {
 		return mdb_cob_status(ret);
 	}
 	
 	/* Open a cursor for an alternate key */
 	if (p->key_index !=0) {
-		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != 0) {
+		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
+			mdb_txn_abort(p->txn);
 			return mdb_cob_status(ret);
 		}
 	}
 	
 	/* Create a cursor */
-	if ((ret = mdb_cursor_open(p->txn,*p->db[p->key_index], &p->cursor[p->key_index])) !=0) {
+	if ((ret = mdb_cursor_open(p->txn,*p->db[p->key_index], &p->cursor[p->key_index])) != MDB_SUCCESS) {
 		return mdb_cob_status(ret);
 	}
 
@@ -520,27 +490,27 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 
 	switch (cond) {
 	case COB_EQ:
-		if (ret == 0) {
+		if (ret == MDB_SUCCESS) {
 			//ret = memcmp (p->key.mv_data, key->data, key->size);
 			ret = db_cmpkey (f, p->key.mv_data, f->record->data, p->key_index, partlen);
 		}
 		break;
 	case COB_LT:
-		if (ret != 0) {
+		if (ret != MDB_SUCCESS) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
 		} else {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
 		}
 		break;
 	case COB_LE:
-		if (ret != 0) {
+		if (ret != MDB_SUCCESS) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
 		// } else if (memcmp(p->key.mv_data, key->data, key->size) !=0) {
 		} else if (db_cmpkey(f, p->key.mv_data, f->record->data, p->key_index, partlen) !=0) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
 		} else if (f->keys[p->key_index].flag) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_NEXT_NODUP);
-			if (ret != 0) {
+			if (ret != MDB_SUCCESS) {
 				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_LAST);
 			} else {
 				ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_PREV);
@@ -549,7 +519,7 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 		break;
 	case COB_GT:
 		// while (ret == 0 && memcmp(p->key.mv_data, key->data, key->size) == 0) {
-		while (ret == 0 && db_cmpkey (f, p->key.mv_data, f->record->data, p->key_index, partlen)  == MDB_SUCCESS) {
+		while (ret == MDB_SUCCESS && db_cmpkey (f, p->key.mv_data, f->record->data, p->key_index, partlen)  == MDB_SUCCESS) {
 			ret = mdb_cursor_get(p->cursor[p->key_index], &p->key, &p->data, MDB_NEXT);
 		}
 		break;
@@ -564,7 +534,7 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 		break;
 	}
 
-	if (ret == 0 && p->key_index > 0) {
+	if (ret == MDB_SUCCESS && p->key_index > 0) {
 		/* Temporarily save alternate key */
 		len = p->key.mv_size;
 		memcpy(p->temp_key, p->key.mv_data, len);
@@ -582,7 +552,7 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	}
 #endif
 
-	if (ret == 0) {
+	if (ret == MDB_SUCCESS) {
 		if (p->key_index == 0) {
 			memcpy (p->last_readkey[0], p->key.mv_data, p->primekeylen);
 		} else {
@@ -596,8 +566,11 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	}
 
 	mdb_cursor_close(p->cursor[p->key_index]);
-	mdb_txn_commit(p->txn);
-	return (ret == 0) ? COB_STATUS_00_SUCCESS : COB_STATUS_23_KEY_NOT_EXISTS;
+	if ((rc = mdb_txn_commit(p->txn)) != MDB_SUCCESS) {
+		return mdb_cob_status(rc);
+	}
+	return (ret == MDB_SUCCESS) ? COB_STATUS_00_SUCCESS : COB_STATUS_23_KEY_NOT_EXISTS;
+
 }
 
 static int
@@ -609,18 +582,15 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	MDB_val			prim_key;
 	int			ret;
 	cob_u32_t		flags;
-	int			close_cursor;
-
 	COB_UNUSED(flags);
 
 	flags = 0;
-	if (p->write_cursor_open) {
-		close_cursor = 0;
-	} else {
-		mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
-		mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0]);
-		p->write_cursor_open = 1;
-		close_cursor = 1;
+	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn)) != MDB_SUCCESS) {
+		return mdb_cob_status(ret);
+	}
+
+	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
+		return mdb_cob_status(ret);
 	}
 	
 #if 0	/* TODO: Come back and implement locking */
@@ -633,13 +603,12 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	if (f->access_mode != COB_ACCESS_SEQUENTIAL) {
 		db_setkey(f, 0);
 	}
-	ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_SET);
-	if ((ret != 0 && f->access_mode != COB_ACCESS_SEQUENTIAL)) {
-		if (close_cursor) {
+
+	if ((ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_SET)) != MDB_SUCCESS) {
+		if (f->access_mode != COB_ACCESS_SEQUENTIAL) {
 			mdb_txn_abort(p->txn);
-			p->write_cursor_open = 0;
 		}
-		return COB_STATUS_23_KEY_NOT_EXISTS;
+		return mdb_cob_status(ret);
 	}
 	
 #if 0	/* TODO: Come back and implement locking */
@@ -668,7 +637,6 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 		len = db_savekey(f, p->savekey, p->saverec, i);
 		p->key.mv_data = p->savekey;
 		p->key.mv_size = (size_t) len;
-		// DBT_SET (p->key, f->keys[i].field);
 		p->key.mv_data = (char *)p->key.mv_data + offset;
 		/* rewrite: no delete if secondary key is unchanged */
 		if (rewrite) {
@@ -679,18 +647,25 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 			}
 		}
 		if (!f->keys[i].tf_duplicates) {
-			mdb_del(p->txn,*p->db[i],&p->key,&p->data);
+			if ((ret = mdb_del(p->txn,*p->db[i],&p->key,&p->data)) != MDB_SUCCESS) {
+				mdb_txn_abort(p->txn);
+				return mdb_cob_status(ret);
+			}
 		} else {
 			MDB_val sec_key = p->key;
 
-			mdb_cursor_open(p->txn,*p->db[i], &p->cursor[i]);
-			if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_SET_RANGE) == 0) {
+			if (( ret = mdb_cursor_open(p->txn,*p->db[i], &p->cursor[i])) != MDB_SUCCESS) {
+				mdb_txn_abort(p->txn);
+				return mdb_cob_status(ret);
+			}
+
+			if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_SET_RANGE) == MDB_SUCCESS) {
 				while (sec_key.mv_size == p->key.mv_size
 				    && memcmp (p->key.mv_data, sec_key.mv_data, (size_t)sec_key.mv_size) == 0) {
 					if (memcmp (p->data.mv_data, prim_key.mv_data, (size_t)prim_key.mv_size) == 0) {
 						mdb_cursor_del (p->cursor[i],0);
 					}
-					if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_NEXT) != 0) {
+					if (mdb_cursor_get(p->cursor[i],&p->key,&p->data,MDB_NEXT) != MDB_SUCCESS) {
 						break;
 					}
 				}
@@ -700,18 +675,15 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	}
 
 	/* Delete the record */
-	if ((ret = mdb_cursor_del(p->cursor[0], 0))) {
-		return COB_STATUS_30_PERMANENT_ERROR;
+	if ((ret = mdb_cursor_del(p->cursor[0], 0)) != MDB_SUCCESS) {
+		return mdb_cob_status(ret);
 	}
 
-	if (close_cursor) {
-		mdb_cursor_close(p->cursor[0]);
-		mdb_txn_commit(p->txn);
-		p->write_cursor_open = 0;
+	if ((ret = mdb_txn_commit(p->txn)) != MDB_SUCCESS) {
+		return mdb_cob_status(ret);	
 	}
 	return COB_STATUS_00_SUCCESS;
 }
-
 
 static int
 mdb_resize_env (MDB_env* e)
@@ -722,14 +694,11 @@ mdb_resize_env (MDB_env* e)
 }
 
 /* Delete file */
-
 static int
 indexed_file_delete (cob_file *f, const char *filename)
 {
-//// 3791 (bdb): #else
 	COB_UNUSED (f);
 	COB_UNUSED (filename);
-////#endif
 	return COB_STATUS_00_SUCCESS;
 }
 
@@ -744,8 +713,6 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 {
 	/* Note filename points to file_open_name */
 	/* cob_chk_file_mapping manipulates file_open_name directly */
-
-//// 4325: #elif	defined(WITH_LMDB)
 
 	struct indexed_file	*p;
 	size_t i, j;
@@ -766,12 +733,13 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		char dir[ 1 + strlen(filename) ];
 		
 		sprintf(dir, "%s", filename);
-		if (stat(dirname(dir), &sb) == -1) {
+		if ((stat(dirname(dir), &sb) == -1) || (!S_ISDIR(sb.st_mode))) {
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
+
 		char *devname;
 		bool is_local = local_file(sb.st_dev, &devname);
-		if (is_local == false) {
+		if (!is_local) {
 			fprintf(stderr,"Shared filesystem detected!\n");
 			return COB_STATUS_30_PERMANENT_ERROR;
 		}
@@ -813,18 +781,19 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	}
 	p->maxkeylen = maxsize;
 
-	ret = mdb_env_create(&p->db_env);
-	if (ret != 0 ) {
+	if ((ret = mdb_env_create(&p->db_env)) != MDB_SUCCESS) {
 		indexed_file_free(p);
-		return COB_STATUS_30_PERMANENT_ERROR;
+		return mdb_cob_status(ret);
+		//return COB_STATUS_30_PERMANENT_ERROR;
 	}
 
 	if (f->nkeys > 1) {
-		if ((ret = mdb_env_set_maxdbs(p->db_env,f->nkeys)) !=0 ) {
+		if ((ret = mdb_env_set_maxdbs(p->db_env,f->nkeys)) != MDB_SUCCESS ) {
 			mdb_env_close(p->db_env);
 			p->db_env = NULL;
 			indexed_file_free(p);
-			return COB_STATUS_30_PERMANENT_ERROR;
+			return mdb_cob_status(ret);
+			//return COB_STATUS_30_PERMANENT_ERROR;
 		}
 	}
 
@@ -851,12 +820,12 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		}
 	}
 
-	ret = mdb_env_open(p->db_env, filename, p->env_flags, 0770);
-	if (ret != 0) {
+	if ((ret = mdb_env_open(p->db_env, filename, p->env_flags, 0770)) != MDB_SUCCESS) {
 		mdb_env_close(p->db_env);
 		p->db_env = NULL;
 		indexed_file_free(p);
-		return COB_STATUS_30_PERMANENT_ERROR;
+		return mdb_cob_status(ret);
+		//return COB_STATUS_30_PERMANENT_ERROR;
 	}
 
 	if (sharing) {
@@ -868,7 +837,12 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 			lock_mode = F_RDLCK;
 		}
                
-		ret = mdb_env_get_fd(p->db_env, &p->fd); 
+		if ((ret = mdb_env_get_fd(p->db_env, &p->fd)) != MDB_SUCCESS) {
+			mdb_env_close(p->db_env);
+			p->db_env = NULL;
+			indexed_file_free(p);
+			return mdb_cob_status(ret);
+		}
 
 		memset((void *)&p->lock, 0, sizeof (struct flock));
 		p->lock.l_type = lock_mode;
@@ -900,11 +874,14 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		}
 	}
 
-	ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn);
-	if (ret != 0) {
+	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn)) != MDB_SUCCESS) {
+		mdb_env_close(p->db_env);
+		p->db_env = NULL;
 		indexed_file_free(p);
-		return COB_STATUS_30_PERMANENT_ERROR;
+		return mdb_cob_status(ret);
+		//return COB_STATUS_30_PERMANENT_ERROR;
 	}
+
 	for (i = 0; i < f->nkeys; i++) {
 		if (i == 0) {
 			snprintf(runtime_buffer, (size_t)COB_FILE_MAX, "%s", filename);
@@ -915,13 +892,16 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		p->db[i] = cob_malloc(sizeof(MDB_dbi *));
 		if ((ret = mdb_open(p->txn, 
 			(f->nkeys == 1) ? NULL : runtime_buffer,
-			(p->db_flags|((f->keys[i].tf_duplicates)?(MDB_DUPSORT|MDB_REVERSEDUP):0)) , p->db[i])) != 0) {
+			(p->db_flags|((f->keys[i].tf_duplicates)?(MDB_DUPSORT|MDB_REVERSEDUP):0)) , p->db[i])) != MDB_SUCCESS) {
 			int j;
 			for (j = 0; j < i; ++j) {
 				mdb_dbi_close(p->db_env,*p->db[j]);
 			}
+			mdb_env_close(p->db_env);
+			p->db_env = NULL;
 			indexed_file_free(p);
-			return COB_STATUS_30_PERMANENT_ERROR;
+			return mdb_cob_status(ret);
+			//return COB_STATUS_30_PERMANENT_ERROR;
 		}
 		p->last_readkey[i] = cob_malloc (maxsize);
 		p->last_readkey[f->nkeys + i] = cob_malloc (maxsize);
@@ -948,11 +928,10 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	db_setkey (f, 0);
 
 	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != 0) {
-		return COB_STATUS_30_PERMANENT_ERROR;
+		return mdb_cob_status(ret);
 	}
 
-	ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_FIRST);
-	if (!ret) {
+	if ((ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_FIRST)) != MDB_SUCCESS) {
 		memcpy (p->last_readkey[0], p->key.mv_data, p->key.mv_size);
 		if (p->data.mv_data != NULL
 			&& p->data.mv_size > 0
@@ -964,7 +943,17 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	}
 
 	mdb_cursor_close(p->cursor[0]);
-	mdb_txn_commit(p->txn);
+	if ((ret = mdb_txn_commit(p->txn)) != MDB_SUCCESS) {
+			int j;
+			for (j = 0; j < i; ++j) {
+				mdb_dbi_close(p->db_env,*p->db[j]);
+			}
+			mdb_env_close(p->db_env);
+			p->db_env = NULL;
+			indexed_file_free(p);
+			return mdb_cob_status(ret);
+	}
+
 	f->open_mode = mode;
 	if (f->flag_optional && nonexistent) {
 		return COB_STATUS_05_SUCCESS_OPTIONAL;
@@ -977,14 +966,10 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 static int
 indexed_close (cob_file *f, const int opt)
 {
-//// 4579: #elif defined (WITH_LMDB)
-
 	struct indexed_file *p = f->file;
 	int i;
-
 	COB_UNUSED(opt);
 
-	/* Close DB's */
 	for (i = 0; i < f->nkeys; i++) {
 		mdb_close(p->db_env, *p->db[i]);
 	}
@@ -993,7 +978,6 @@ indexed_close (cob_file *f, const int opt)
 	if (p) cob_free(p);
 	return COB_STATUS_00_SUCCESS;
 }
-
 
 /* START INDEXED file with positioning */
 
@@ -1018,8 +1002,7 @@ indexed_read (cob_file *f, cob_field *key, const int read_opts)
 	p = f->file;
 	db_opts = read_opts;
 
-	ret = indexed_start_internal (f, COB_EQ, key, db_opts, test_lock);
-	if (ret != COB_STATUS_00_SUCCESS) {
+	if ((ret = indexed_start_internal (f, COB_EQ, key, db_opts, test_lock)) != COB_STATUS_00_SUCCESS) {
 		return ret;
 	}
 
@@ -1046,10 +1029,8 @@ indexed_read_next (cob_file *f, const int read_opts)
 	cob_u32_t	nextprev;
 	int		file_changed;
 	cob_u32_t	dupno = 0;
-	
 	nextprev = MDB_NEXT;
 	file_changed = 0;
-
 	
 #if 0	/* TODO: Come back and implement locking. */
 	if (db_env != NULL) {
@@ -1082,13 +1063,21 @@ indexed_read_next (cob_file *f, const int read_opts)
 	} else if (f->flag_begin_of_file) {
 		nextprev = MDB_FIRST;
 	}
-	mdb_txn_begin(p->db_env, NULL, MDB_RDONLY, &p->txn);
+
+	if ((ret = 	mdb_txn_begin(p->db_env, NULL, MDB_RDONLY, &p->txn)) != MDB_SUCCESS) {
+		return mdb_cob_status(ret);
+	}
 
 	/* The open cursor makes this function atomic */
 	if (p->key_index != 0) {
-		mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0]);
+		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
+			return mdb_cob_status(ret);
+		}
 	}
-	mdb_cursor_open(p->txn, *p->db[p->key_index], &p->cursor[p->key_index]);
+
+	if ((ret = mdb_cursor_open(p->txn, *p->db[p->key_index], &p->cursor[p->key_index])) != MDB_SUCCESS) {
+		return mdb_cob_status(ret);
+	}
 	
 	if (f->flag_first_read) {
 		/* Data is read in indexed_open or indexed_start */
@@ -1098,9 +1087,10 @@ indexed_read_next (cob_file *f, const int read_opts)
 			if (p->key_index != 0) {
 				mdb_cursor_close(p->cursor[0]);
 			}
-			mdb_txn_commit(p->txn);
+			mdb_txn_abort(p->txn);
 			return COB_STATUS_10_END_OF_FILE;
 		}
+
 		/* Check if previously read data still exists */
 		p->key.mv_size = (size_t) db_keylen(f,p->key_index);
 		p->key.mv_data = p->last_readkey[p->key_index];
@@ -1320,6 +1310,7 @@ indexed_write (cob_file *f, const int opt)
 {
 	struct indexed_file	*p;
 	int rc = 0;
+	unsigned int cs = COB_STATUS_00_SUCCESS;
 
 	if (f->flag_nonexistent) {
 		return COB_STATUS_48_OUTPUT_DENIED;
@@ -1335,16 +1326,15 @@ indexed_write (cob_file *f, const int opt)
 		return COB_STATUS_21_KEY_INVALID;
 	}
 	memcpy (p->last_key, p->key.mv_data, (size_t)p->key.mv_size);
-	while ((rc = indexed_write_internal(f, 0, opt)) != COB_STATUS_00_SUCCESS) {
+	while ((rc = indexed_write_internal(f, 0, opt, cs)) != MDB_SUCCESS) {
 		if (rc == MDB_MAP_FULL) {
 			mdb_resize_env(p->db_env);
 		} else {
 			return mdb_cob_status(rc);
 		}
 	}
-	return COB_STATUS_00_SUCCESS;
+	return (cs != COB_STATUS_00_SUCCESS) ? cs : COB_STATUS_00_SUCCESS;
 }
-
 
 /* DELETE record from the INDEXED file  */
 
@@ -1362,13 +1352,11 @@ indexed_delete (cob_file *f)
 static int
 indexed_rewrite (cob_file *f, const int opt)
 {
-	struct indexed_file	*p;
-	int			ret;
-
 	if (f->flag_nonexistent) {
 		return COB_STATUS_49_I_O_DENIED;
 	}
-	p = f->file;
+	struct indexed_file	*p = f->file;
+	int			ret;
 
 	/* Check duplicate alternate keys */
 	if (check_alt_keys (f, 1)) {
@@ -1376,18 +1364,20 @@ indexed_rewrite (cob_file *f, const int opt)
 	}
 
 	/* Delete the current record */
-	ret = indexed_delete_internal (f, 1);
-
-	if (ret != COB_STATUS_00_SUCCESS) {
+	if ((ret = indexed_delete_internal (f, 1)) != COB_STATUS_00_SUCCESS) {
 		return ret;
 	}
 
 	/* Write data */
 	db_setkey (f, 0);
-	ret = indexed_write_internal (f, 1, opt);
-
-	p->write_cursor_open = 0;
-	return ret;
+	while ((ret = indexed_write_internal (f, 1, opt, 0)) != MDB_SUCCESS) {
+		if (ret == MDB_MAP_FULL) {
+			mdb_resize_env(p->db_env);
+		} else {
+			return mdb_cob_status(ret);
+		}
+	}
+	return COB_STATUS_00_SUCCESS;
 }
 
 /* Initialization/Termination
