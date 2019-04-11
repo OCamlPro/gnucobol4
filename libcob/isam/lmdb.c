@@ -374,16 +374,17 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 
 	/* Position write cursor */
 	if (rewrite) {
-		if ((ret = mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) != MDB_SUCCESS) {
+		//if ((ret = mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) != MDB_SUCCESS) {
+		if ((ret = mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) == MDB_SUCCESS) {
 			mdb_txn_abort(p->txn);
-			return ret;
+			return MDB_KEYEXIST;
 		}
 	}
 
 	p->data.mv_data = f->record->data;
 	p->data.mv_size = (size_t) f->record->size;
 	
-	flags = (rewrite) ? MDB_CURRENT : MDB_NOOVERWRITE;
+	flags = 0; //(rewrite) ? MDB_CURRENT : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		mdb_txn_abort(p->txn);
 		return ret;
@@ -578,7 +579,6 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 {
 	struct indexed_file	*p = f->file;
 	size_t			i, len;
-	size_t			offset;
 	MDB_val			prim_key;
 	int			ret;
 	cob_u32_t		flags;
@@ -630,14 +630,13 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	prim_key.mv_data = p->temp_key;
 
 	/* Delete the secondary keys */
-	offset = (char *) p->data.mv_data - (char *) f->record->data;
 	for (i = 1; i < f->nkeys; ++i) {
 		len = db_savekey(f, p->suppkey, p->data.mv_data, i);
 		memset(p->savekey, 0, p->maxkeylen);
 		len = db_savekey(f, p->savekey, p->saverec, i);
 		p->key.mv_data = p->savekey;
 		p->key.mv_size = (size_t) len;
-		p->key.mv_data = (char *)p->key.mv_data + offset;
+		p->key.mv_data = (char *)p->key.mv_data;
 		/* rewrite: no delete if secondary key is unchanged */
 		if (rewrite) {
 			//p->rewrite_sec_key[i] = memcmp (p->key.mv_data, f->keys[i].field->data, (size_t)p->key.mv_size);
@@ -892,7 +891,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		p->db[i] = cob_malloc(sizeof(MDB_dbi *));
 		if ((ret = mdb_open(p->txn, 
 			(f->nkeys == 1) ? NULL : runtime_buffer,
-			(p->db_flags|((f->keys[i].tf_duplicates)?(MDB_DUPSORT|MDB_REVERSEDUP):0)) , p->db[i])) != MDB_SUCCESS) {
+			(p->db_flags|((f->keys[i].tf_duplicates)?(MDB_DUPSORT):0)) , p->db[i])) != MDB_SUCCESS) {
 			int j;
 			for (j = 0; j < i; ++j) {
 				mdb_dbi_close(p->db_env,*p->db[j]);
