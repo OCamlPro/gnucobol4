@@ -424,7 +424,8 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 		}
 
 		if ((ret = mdb_cursor_put(p->cursor[i],&p->key,&p->data,flags)) != MDB_SUCCESS) {
-			mdb_txn_abort(p->txn);
+			//mdb_txn_abort(p->txn);
+			mdb_txn_commit(p->txn);
 			return ret;
 		}
 	}
@@ -930,7 +931,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		return mdb_cob_status(ret);
 	}
 
-	if ((ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_FIRST)) != MDB_SUCCESS) {
+	if ((ret = mdb_cursor_get(p->cursor[0],&p->key,&p->data,MDB_FIRST)) == MDB_SUCCESS) {
 		memcpy (p->last_readkey[0], p->key.mv_data, p->key.mv_size);
 		if (p->data.mv_data != NULL
 			&& p->data.mv_size > 0
