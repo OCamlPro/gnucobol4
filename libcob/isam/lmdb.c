@@ -380,7 +380,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 	p->data.mv_data = f->record->data;
 	p->data.mv_size = (size_t) f->record->size;
 	
-	flags = 0; //(rewrite) ? MDB_CURRENT : MDB_NOOVERWRITE;
+	flags = (rewrite) ? 0 : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		mdb_txn_abort(p->txn);
 		return ret;
@@ -415,7 +415,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 		} else {
 			len = db_savekey(f, p->temp_key,  f->record->data, 0);
 			p->data.mv_data = p->temp_key;
-			p->data.mv_size = len
+			p->data.mv_size = len;
 			flags = MDB_NOOVERWRITE;
 			dupno = 0;
 		}
@@ -1355,6 +1355,7 @@ indexed_rewrite (cob_file *f, const int opt)
 	}
 	struct indexed_file	*p = f->file;
 	int			ret;
+	unsigned int cs = COB_STATUS_00_SUCCESS;
 
 	/* Check duplicate alternate keys */
 	if (check_alt_keys (f, 1)) {
@@ -1368,14 +1369,14 @@ indexed_rewrite (cob_file *f, const int opt)
 
 	/* Write data */
 	db_setkey (f, 0);
-	while ((ret = indexed_write_internal (f, 1, opt, 0)) != MDB_SUCCESS) {
+	while ((ret = indexed_write_internal (f, 1, opt, cs)) != MDB_SUCCESS) {
 		if (ret == MDB_MAP_FULL) {
 			mdb_resize_env(p->db_env);
 		} else {
 			return mdb_cob_status(ret);
 		}
 	}
-	return COB_STATUS_00_SUCCESS;
+	return (cs != COB_STATUS_00_SUCCESS) ? cs : COB_STATUS_00_SUCCESS;
 }
 
 /* Initialization/Termination
