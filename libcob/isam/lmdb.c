@@ -250,7 +250,6 @@ get_dupno (cob_file *f, const cob_u32_t i)
 	MDB_cursor *cursor;
 	txn    = cob_malloc(sizeof(MDB_txn *));
 	cursor = cob_malloc(sizeof(MDB_cursor *));
-
 	
 	db_setkey(f, i);
 	//memcpy (p->temp_key, p->key.mv_data, p->key.mv_size); //REVISIT:
@@ -362,7 +361,6 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 	}
 
 	/* Check duplicate alternate keys */
-	/*
 	if (f->nkeys > 1 && !rewrite) {
 		if (check_alt_keys (f, 0)) {
 			mdb_txn_abort(p->txn);
@@ -370,11 +368,9 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 		}
 		db_setkey(f, 0);
 	}
-	*/
 
 	/* Position write cursor */
 	if (rewrite) {
-		//if ((ret = mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) != MDB_SUCCESS) {
 		if ((ret = mdb_cursor_get(p->cursor[0],&p->key, &p->data, MDB_SET)) == MDB_SUCCESS) {
 			mdb_txn_abort(p->txn);
 			return MDB_KEYEXIST;
@@ -395,33 +391,35 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 	}
 
 	/* Write secondary keys */
-	// This sets the data of the secondary key
 	p->data = p->key;
 	for (i = 1; i < f->nkeys; ++i) {
-
-		// Don't write if this is a rewrite and the secondary key doesn't need a rewrite
 		if (rewrite && ! p->rewrite_sec_key[i]) {
 			continue;
 		}
-
-		// Don't write if the key is to be suppressed.
 		if (db_suppresskey(f, i)) {
 			continue;
 		}
-
 		// Set the key of the secondary key
 		db_setkey(f, i);
-
-		len = db_savekey(f, p->temp_key, f->record->data, 0);
-		p->data.mv_data = p->temp_key;
-		p->data.mv_size = len;
-		if (f->keys[i].tf_duplicates) {
-			flags = MDB_NODUPDATA;
-			memcpy (((char *)(p->data.mv_data)) + p->data.mv_size, &dupno, sizeof(unsigned int));
+		if (f->keys[i].tf_duplicates)	{
+			flags = 0;
+			dupno = get_dupno(f, i);
+			if (dupno > 1) {
+				ret = COB_STATUS_02_SUCCESS_DUPLICATE;
+			}
+			len = db_savekey(f, p->temp_key, f->record->data, 0);
+			p->data.mv_data = p->temp_key;
+			p->data.mv_size = len;
+			memcpy (((char *)(p->data.mv_data)) + p->data.mv_size, &dupno, sizeof (unsigned int));
 			p->data.mv_size += sizeof(unsigned int);
 		} else {
+			len = db_savekey(f, p->temp_key,  f->record->data, 0);
+			p->data.mv_data = p->temp_key;
+			p->data.mv_size = len
 			flags = MDB_NOOVERWRITE;
+			dupno = 0;
 		}
+		db_setkey (f, i);
 
 		if ((ret = mdb_cursor_put(p->cursor[i],&p->key,&p->data,flags)) != MDB_SUCCESS) {
 			//mdb_txn_abort(p->txn);
