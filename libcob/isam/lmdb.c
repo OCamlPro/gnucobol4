@@ -27,7 +27,6 @@
 
 /* Local variables */
 
-
 static int indexed_open		(cob_file *, char *, const int, const int);
 static int indexed_close	(cob_file *, const int);
 static int indexed_start	(cob_file *, const int, cob_field *);
@@ -63,6 +62,163 @@ static const char	**db_data_dir = NULL;
 
 #include <sys/stat.h>
 #define MDB_MAX_MAP_INC 1073741824
+
+#define module_trace(fmt, ...) {				\
+    if( getenv("ISAM_TRACE") ) {				\
+      fprintf(stderr, "%s:%d: " fmt "\n", ## __VA_ARGS__);	\
+    }								\
+  }
+
+/* Create a cursor handle. */
+static int
+lmdb_cursor_open (const char func[], int line,
+		  MDB_txn *txn, MDB_dbi dbi, MDB_cursor **cursor) {
+  module_trace( "mdb_cursor_open(%p, %d, %p)", func, line, 
+		txn, dbi, cursor);
+  return mdb_cursor_open(txn, dbi, cursor);
+}
+#define mdb_cursor_open(txn, dbi, cursor) \
+  lmdb_cursor_open(__func__, __LINE__, (txn) , (dbi) , (cursor) )
+
+/* Close a cursor handle. */
+static void
+lmdb_cursor_close (const char func[], int line, MDB_cursor *cursor) {
+    module_trace( "mdb_cursor_close(%p)", func, line, cursor);
+    return mdb_cursor_close (cursor);
+}
+#define mdb_cursor_close(cursor)		\
+  lmdb_cursor_close (__func__, __LINE__, (cursor));
+
+/* Renew a cursor handle. */
+static int
+lmdb_cursor_renew (const char func[], int line,
+		   MDB_txn *txn, MDB_cursor *cursor) {
+  module_trace( "mdb_cursor_renew(%p, %p)", func, line, txn, cursor) ;
+  return mdb_cursor_renew (txn, cursor);
+}
+#define mdb_cursor_renew(txn, cursor)		\
+  lmdb_cursor_renew (__func__, __LINE__, (txn) , (cursor) );
+
+/* Retrieve by cursor. */
+static int
+lmdb_cursor_get (const char func[], int line,
+		 MDB_cursor *cursor, MDB_val *key, MDB_val *data,
+		 MDB_cursor_op op) {
+    module_trace( "mdb_cursor_get(%p, %p, %p, %d)", func, line, cursor, key, data, op);
+    return mdb_cursor_get(cursor, key, data, op);
+}
+#define mdb_cursor_get(cursor, key, data,  op)	\
+  lmdb_cursor_get(__func__, __LINE__, (cursor) , (key) , (data) , (op) )
+
+/* Store by cursor. */
+static int
+lmdb_cursor_put (const char func[], int line,
+		 MDB_cursor *cursor, MDB_val *key, MDB_val *data,
+		 unsigned int flags) {
+  module_trace( "mdb_cursor_put(%p, %p, %p, %u)", func, line, cursor, key, data, flags);
+  return mdb_cursor_put(cursor, key, data, flags);
+}
+#define mdb_cursor_put(cursor, key, data, flags)	\
+  lmdb_cursor_put (__func__, __LINE__, (cursor), (key), (data), (flags))
+
+/* Delete current key/data pair. */
+static int
+lmdb_cursor_del (const char func[], int line,
+		 MDB_cursor *cursor, unsigned int flags) {
+  module_trace( "mdb_cursor_del(%p, %u)", func, line, cursor, flags);
+  return mdb_cursor_del(cursor, flags);
+}
+#define mdb_cursor_del(cursor, flags)		\
+  lmdb_cursor_del(__func__, __LINE__, (cursor), (flags))
+
+/* Open a database in the environment. */
+static int
+lmdb_dbi_open (const char func[], int line,
+MDB_txn *txn, const char *name, unsigned int flags, MDB_dbi *dbi)
+{
+  module_trace("mdb_dbi_open(%p, %s, %u, %p)", func, line, (txn), (name), (flags), (dbi) );
+  return mdb_dbi_open( (txn), (name), (flags), (dbi) );
+}
+#define mdb_dbi_open(txn, name, flags, dbi)		\
+  lmdb_dbi_open(__func__, __LINE__,  (txn), (name), (flags), (dbi) )
+
+/* Close a database handle. Normally unnecessary. */
+static void
+lmdb_dbi_close (const char func[], int line,
+		MDB_env *env, MDB_dbi dbi) {
+  module_trace("mdb_dbi_close(%p, %d)", func, line, (env), (dbi));
+  return mdb_dbi_close( (env), (dbi) );
+}
+#define mdb_dbi_close(env, dbi)			\
+  lmdb_dbi_close(__func__, __LINE__,  (env), (dbi) )
+
+/* Get items from a database. */
+static int
+lmdb_get (const char func[], int line,
+	  MDB_txn *txn, MDB_dbi dbi, MDB_val *key, MDB_val *data) {
+  module_trace("mdb_get(%p, %d, %p, %p)", func, line, (txn), (dbi), (key), (data) );
+  return mdb_get( (txn), (dbi), (key), (data) );
+}
+#define mdb_get(txn, dbi, key, data)		\
+  lmdb_get(__func__, __LINE__,  (txn), (dbi), (key), (data) )
+
+/* Store items into a database. */
+static int
+lmdb_put (const char func[], int line, MDB_txn *txn, MDB_dbi dbi,
+	  MDB_val *key, MDB_val *data, unsigned int flags) {
+      module_trace("mdb_put(%p, %d, %p, %p, %u)", func, line, txn, dbi, key, data, flags);
+      return mdb_put(txn, dbi, key, data, flags);
+}
+#define mdb_put(txn, dbi, key, data, flags)		\
+  lmdb_put(__func__, __LINE__, (txn), (dbi), (key), (data), (flags) )
+
+/* Abandon all the operations of the transaction. */
+static void
+lmdb_txn_abort (const char func[], int line, MDB_txn *txn) {
+  module_trace("mdb_txn_abort(%p)", func, line, txn);
+      return mdb_txn_abort(txn);
+}
+#define mdb_txn_abort(txn)			\
+  lmdb_txn_abort(__func__, __LINE__, (txn))
+
+/* Create a transaction for use with the environment. */
+static int
+lmdb_txn_begin (const char func[], int line,
+		MDB_env *env, MDB_txn *parent, unsigned int flags,
+		MDB_txn **txn) {
+  module_trace("mdb_txn_begin(%p, %p, %u, %p)", func, line, env, parent, flags, txn);
+  return mdb_txn_begin( env, parent, flags, txn);
+}
+#define mdb_txn_begin(env, parent, flags, txn)		\
+      lmdb_txn_begin(__func__, __LINE__,  (env), (parent), (flags), (txn) )
+
+/* Commit all the operations of a transaction into the database. */
+static int
+lmdb_txn_commit (const char func[], int line, MDB_txn *txn) {
+  module_trace("mdb_txn_commit(%p)", func, line, txn);
+  return mdb_txn_commit(txn);			
+}
+#define mdb_txn_commit(txn)			\
+  lmdb_txn_commit(__func__, __LINE__, (txn))
+
+/* Renew a read-only transaction. */
+static int
+lmdb_txn_renew (const char func[], int line, MDB_txn *txn) {
+  module_trace("mdb_txn_renew(%p)", func, line, txn);
+  return mdb_txn_renew(txn);			
+}
+#define mdb_txn_renew(txn)			\
+  lmdb_txn_renew(__func__, __LINE__, (txn))
+
+/* Reset a read-only transaction. */
+static void
+lmdb_txn_reset (const char func[], int line, MDB_txn *txn) {
+  module_trace("mdb_txn_reset(%p)", func, line, txn);
+  mdb_txn_reset(txn);			
+}
+#define mdb_txn_reset(txn)			\
+  lmdb_txn_reset(__func__, __LINE__, (txn))
+/* end trace macros */
 
 #define	cob_dbtsize_t		size_t
 
@@ -179,7 +335,7 @@ db_setkey (cob_file *f, int idx)
 
 	p->key.mv_data = p->savekey;
 	p->key.mv_size = len;
-} 
+}
 
 /*
 static int
@@ -195,7 +351,7 @@ db_cmpkey (cob_file *f, unsigned char *keyarea, unsigned char *record, int idx, 
 		totlen = 0;
 		for (part = 0; part < f->keys[idx].count_components && partlen > 0; part++) {
 			cl = partlen > f->keys[idx].component[part]->size ? f->keys[idx].component[part]->size : partlen;
-			sts = memcmp (keyarea + totlen, 
+			sts = memcmp (keyarea + totlen,
 				record + (f->keys[idx].component[part]->data - f->record->data), cl);
 			if (sts != 0) {
 				return sts;
@@ -244,13 +400,13 @@ get_dupno (cob_file *f, const cob_u32_t i)
 	struct indexed_file	*p = f->file;
 	int			ret;
 	cob_u32_t		dupno = 0;
-	
+
 	// Using a nested transaction so we don't mess up the write transacion in indexed_write
 	MDB_txn    *txn;
 	MDB_cursor *cursor;
 	txn    = cob_malloc(sizeof(MDB_txn *));
 	cursor = cob_malloc(sizeof(MDB_cursor *));
-	
+
 	db_setkey(f, i);
 	//memcpy (p->temp_key, p->key.mv_data, p->key.mv_size); //REVISIT:
 	memcpy (p->temp_key, p->key.mv_data, (size_t)p->maxkeylen);
@@ -275,7 +431,7 @@ check_alt_keys (cob_file *f, const int rewrite)
 {
 	struct indexed_file  *p = f->file;
 	size_t i;
-	
+
 	// Transaction is inherited from caller
 	for (i = 1; i < f->nkeys; ++i) {
 		if (!f->keys[i].tf_duplicates) {
@@ -297,11 +453,11 @@ check_alt_keys (cob_file *f, const int rewrite)
 }
 
 static int
-mdb_cob_status( int mdb_error ) 
+mdb_cob_status( int mdb_error )
 {
 	switch (mdb_error) {
 	case MDB_KEYEXIST:
-		return COB_STATUS_22_KEY_EXISTS;			
+		return COB_STATUS_22_KEY_EXISTS;
 	case MDB_NOTFOUND:
 		return COB_STATUS_23_KEY_NOT_EXISTS;
 	case EACCES:
@@ -346,7 +502,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn)) != MDB_SUCCESS) {
 		return ret;
 	}
-	
+
 	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
 		mdb_txn_abort(p->txn);
 		return ret;
@@ -379,12 +535,12 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 
 	p->data.mv_data = f->record->data;
 	p->data.mv_size = (size_t) f->record->size;
-	
+
 	flags = (rewrite) ? 0 : MDB_NOOVERWRITE;
 	if ((ret = mdb_cursor_put(p->cursor[0], &p->key, &p->data, flags)) != MDB_SUCCESS) {
 		mdb_txn_abort(p->txn);
 		return ret;
-	} 
+	}
 
 	if (f->nkeys == 1) {
 		return mdb_txn_commit(p->txn);
@@ -434,7 +590,7 @@ indexed_write_internal (cob_file *f, const int rewrite, const int opt, unsigned 
 		}
 	}
 
-	return ret; 
+	return ret;
 }
 
 static int
@@ -461,12 +617,12 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 	/* Set the key to search */
 	db_setkey (f, p->key_index);
 	p->key.mv_size = partlen;
-	
+
 	/* Start the transaction */
 	if ((ret = mdb_txn_begin(p->db_env, NULL, p->txn_flags, &p->txn)) != MDB_SUCCESS) {
 		return mdb_cob_status(ret);
 	}
-	
+
 	/* Open a cursor for an alternate key */
 	if (p->key_index !=0) {
 		if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
@@ -474,7 +630,7 @@ indexed_start_internal (cob_file *f, const int cond, cob_field *key,
 			return mdb_cob_status(ret);
 		}
 	}
-	
+
 	/* Create a cursor */
 	if ((ret = mdb_cursor_open(p->txn,*p->db[p->key_index], &p->cursor[p->key_index])) != MDB_SUCCESS) {
 		return mdb_cob_status(ret);
@@ -591,7 +747,7 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	if ((ret = mdb_cursor_open(p->txn, *p->db[0], &p->cursor[0])) != MDB_SUCCESS) {
 		return mdb_cob_status(ret);
 	}
-	
+
 #if 0	/* TODO: Come back and implement locking */
 	if (p->db_env != NULL) {
 		unlock_record (f);
@@ -609,7 +765,7 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 		}
 		return mdb_cob_status(ret);
 	}
-	
+
 #if 0	/* TODO: Come back and implement locking */
 	if (p->db_env != NULL) {
 		ret = test_record_lock (f, p->key.data, p->key.size);
@@ -678,7 +834,7 @@ indexed_delete_internal (cob_file *f, const int rewrite)
 	}
 
 	if ((ret = mdb_txn_commit(p->txn)) != MDB_SUCCESS) {
-		return mdb_cob_status(ret);	
+		return mdb_cob_status(ret);
 	}
 	return COB_STATUS_00_SUCCESS;
 }
@@ -729,7 +885,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 	if (getenv("MDB_NO_SHARED_FS_CHK") == 0) {
 		struct stat sb;
 		char dir[ 1 + strlen(filename) ];
-		
+
 		sprintf(dir, "%s", filename);
 		if ((stat(dirname(dir), &sb) == -1) || (!S_ISDIR(sb.st_mode))) {
 			return COB_STATUS_30_PERMANENT_ERROR;
@@ -834,7 +990,7 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		} else {
 			lock_mode = F_RDLCK;
 		}
-               
+
 		if ((ret = mdb_env_get_fd(p->db_env, &p->fd)) != MDB_SUCCESS) {
 			mdb_env_close(p->db_env);
 			p->db_env = NULL;
@@ -886,9 +1042,9 @@ indexed_open (cob_file *f, char *filename, const int mode, const int sharing)
 		} else {
 			snprintf(runtime_buffer, (size_t)COB_FILE_MAX, "%s.%d", filename, (int)i);
 		}
-		
+
 		p->db[i] = cob_malloc(sizeof(MDB_dbi *));
-		if ((ret = mdb_open(p->txn, 
+		if ((ret = mdb_open(p->txn,
 			(f->nkeys == 1) ? NULL : runtime_buffer,
 			(p->db_flags|((f->keys[i].tf_duplicates)?(MDB_DUPSORT):0)) , p->db[i])) != MDB_SUCCESS) {
 			int j;
@@ -1029,7 +1185,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 	cob_u32_t	dupno = 0;
 	nextprev = MDB_NEXT;
 	file_changed = 0;
-	
+
 #if 0	/* TODO: Come back and implement locking. */
 	if (db_env != NULL) {
 		if (f->open_mode != COB_OPEN_I_O ||
@@ -1076,7 +1232,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 	if ((ret = mdb_cursor_open(p->txn, *p->db[p->key_index], &p->cursor[p->key_index])) != MDB_SUCCESS) {
 		return mdb_cob_status(ret);
 	}
-	
+
 	if (f->flag_first_read) {
 		/* Data is read in indexed_open or indexed_start */
 		if (p->data.mv_data == NULL || (f->flag_first_read == 2 &&
@@ -1213,7 +1369,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 				}
 			}
 		}
-		
+
 		if (read_nextprev) {
 			ret = mdb_cursor_get(p->cursor[p->key_index],&p->key,&p->data,nextprev);
 			if (ret != 0) {
@@ -1225,7 +1381,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 				return COB_STATUS_10_END_OF_FILE;
 			}
 		}
-		
+
 		if (p->key_index > 0) {
 			/* Temporarily save alternate key */
 			memcpy (p->temp_key, p->key.mv_data, (size_t)p->key.mv_size);
@@ -1243,7 +1399,7 @@ indexed_read_next (cob_file *f, const int read_opts)
 				return COB_STATUS_23_KEY_NOT_EXISTS;
 			}
 		}
-		
+
 #if 0	/* TODO: Come back and implement locking */
 		if (db_env != NULL) {
 			if (!(db_opts & COB_READ_IGNORE_LOCK)) {
@@ -1403,4 +1559,3 @@ void cob_file_unlock_internal (cob_file *f) {}
 
 
 #endif
-
