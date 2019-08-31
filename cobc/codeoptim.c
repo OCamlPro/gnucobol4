@@ -15,11 +15,10 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "config.h"
-#include "defaults.h"
+#include <config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,6 +46,7 @@ output_storage (const char *fmt, ...)
 void
 cob_gen_optim (const enum cb_optim val)
 {
+	output_storage ("");
 	switch (val) {
 
 	case COB_SET_SCREEN:
@@ -82,6 +82,31 @@ cob_gen_optim (const enum cb_optim val)
 		output_storage ("	r->report_file = pfile;");
 		output_storage ("}");
 		return;
+
+	case COB_SET_ML_TREE:
+		output_storage ("static void COB_NOINLINE");
+		output_storage ("cob_set_ml_attr (cob_ml_attr *attr, cob_field *name,");
+		output_storage ("		cob_field *value, unsigned int is_suppressed,");
+		output_storage ("		cob_ml_attr *sibling)");
+		output_storage ("{");
+		output_storage ("	attr->name = name;");
+		output_storage ("	attr->value = value;");
+		output_storage ("	attr->is_suppressed = is_suppressed;");
+		output_storage ("	attr->sibling = sibling;");
+		output_storage ("}");
+		output_storage ("static void COB_NOINLINE");
+		output_storage ("cob_set_ml_tree (cob_ml_tree *tree, cob_field *name, cob_ml_attr *attrs,");
+		output_storage ("		cob_field *content, unsigned int is_suppressed,");
+		output_storage ("		cob_ml_tree *children, cob_ml_tree *sibling)");
+		output_storage ("{");
+		output_storage ("       tree->name = name;");
+		output_storage ("	tree->attrs = attrs;");
+		output_storage ("	tree->content = content;");
+		output_storage ("	tree->is_suppressed = is_suppressed;");
+		output_storage ("	tree->children = children;");
+		output_storage ("	tree->sibling = sibling;");
+		output_storage ("}");
+		return;		
 
 	case COB_POINTER_MANIP:
 		output_storage ("static void COB_NOINLINE");

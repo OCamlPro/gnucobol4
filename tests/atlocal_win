@@ -2,9 +2,9 @@
 # atlocal_win gnucobol/tests
 #
 # This script is a special variant of the atlocal script for testing
-# a not POSIX build (VisualStudio build for example) in a POSIX environment.
+# a not POSIX build (Visual Studio build for example) in a POSIX environment.
 #
-# Copyright (C) 2003-2012, 2014-2018 Free Software Foundation, Inc.
+# Copyright (C) 2003-2012, 2014-2019 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
@@ -20,7 +20,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+# along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 
 COB_SRC_PATH="$(cd ${abs_srcdir}/.. ; pwd)"
 COB_WIN_BUILDPATH="$COB_SRC_PATH/build_windows/Win32/Release"
@@ -37,9 +37,6 @@ FLAGS="-debug -Wall ${COBOL_FLAGS}"
 COMPILE="${COBC} -x ${FLAGS}"
 COMPILE_ONLY="${COBC} -fsyntax-only ${FLAGS}"
 COMPILE_MODULE="${COBC} -m ${FLAGS}"
-
-COB_OBJECT_EXT="obj"
-COB_EXE_EXT=".exe"
 
 # Fix for testcases where cobc uses win32 paths internally
 PATHSEP=";"
@@ -89,6 +86,8 @@ COB_LIBRARY_PATH="$(_return_path "$COB_WIN_BUILDPATH"):$(_return_path ":$COB_LIB
 COB_UNIX_LF=YES
 COB_MSG_FORMAT=GCC
 
+COB_OBJECT_EXT="$(cobc --info | grep COB_OBJECT_EXT | cut -d: -f2 | cut -b2-)"
+COB_EXE_EXT="$(cobc    --info | grep COB_EXE_EXT    | cut -d: -f2 | cut -b2-)"
 
 COB_HAS_64_BIT_POINTER=`$COBCRUN --info | grep "64bit-mode" | cut -d: -f2 | cut -b2-`
 if test $($COBC --info | grep -i -c "ISAM.*disabled") = 0; then
@@ -96,7 +95,16 @@ if test $($COBC --info | grep -i -c "ISAM.*disabled") = 0; then
 else
 	COB_HAS_ISAM="no"
 fi
-
+if test $($COBC --info | grep -i -c "XML library.*disabled") = 0; then
+	COB_HAS_XML2="yes"
+else
+	COB_HAS_XML2="no"
+fi
+if test $($COBC --info | grep -i -c "JSON library.*disabled") = 0; then
+	COB_HAS_CJSON="yes"
+else
+	COB_HAS_CJSON="no"
+fi
 COB_HAS_CURSES="no"
 #if test "x$MSYSTEM" != "x" -o "$OSTYPE" = "cygwin"; then
 	# running MSYS builds as not-visible child processes result in
@@ -115,7 +123,7 @@ export COB_CONFIG_DIR COB_RUNTIME_CONFIG COB_COPY_DIR
 export LD_LIBRARY_PATH DYLD_LIBRARY_PATH SHLIB_PATH LIBPATH
 export COB_LIBRARY_PATH
 export COB_MSG_FORMAT COB_UNIX_LF
-export COB_HAS_ISAM COB_HAS_CURSES COB_HAS_64_BIT_POINTER
+export COB_HAS_ISAM COB_HAS_XML2 COB_HAS_CJSON COB_HAS_CURSES COB_HAS_64_BIT_POINTER
 
 
 # For rare cases where cobc/libcob may need to know if they're running in test mode:

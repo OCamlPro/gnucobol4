@@ -1,4 +1,24 @@
+:: Copyright (C) 2014-2017,2019 Free Software Foundation, Inc.
+:: Written by Simon Sobisch
+::
+:: This file is part of GnuCOBOL.
+::
+:: The GnuCOBOL compiler is free software: you can redistribute it
+:: and/or modify it under the terms of the GNU General Public License
+:: as published by the Free Software Foundation, either version 3 of the
+:: License, or (at your option) any later version.
+::
+:: GnuCOBOL is distributed in the hope that it will be useful,
+:: but WITHOUT ANY WARRANTY; without even the implied warranty of
+:: MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+:: GNU General Public License for more details.
+::
+:: You should have received a copy of the GNU General Public License
+:: along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
+
 :: Batch for generating the Bison / Flex C sources
+:: Pass argument filebasename to generate only a single file,
+:: oterhwise eall files will be generated.
 
 @echo off
 setlocal
@@ -8,6 +28,10 @@ pushd "%~dp0..\cobc"
 
 :: file prefix used for temporary files
 set tmp_prf=mbfbat
+
+:: limit on one file, must be specified as "ppparse", "pplex",
+:: or "parser.y", "scanner.l"
+set single_file=%*
 
 :: check executables
 call :exe_check "%BISON%" bison "GNU Bison" BISON
@@ -96,6 +120,11 @@ goto :eof
 
 
 :bisoncall
+if not "%single_file%"=="" ^
+if not "%single_file%"=="%1" ^
+if not "%single_file%"=="%1.y" (
+  goto :eof
+)
 echo generating %1.c, %1.h ...
 call :store_old %1.c
 call :store_old %1.h
@@ -114,6 +143,11 @@ call :print_separator
 goto :eof
 
 :flexcall
+if not "%single_file%"=="" ^
+if not "%single_file%"=="%1" ^
+if not "%single_file%"=="%1.l" (
+  goto :eof
+)
 echo generating %1.c ...
 call :store_old %1.c
 %FLEX%  -o "%1.c"   "%1.l"

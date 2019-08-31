@@ -15,11 +15,11 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 
-#include "config.h"
+#include <config.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +52,7 @@ print_error_prefix (const char *file, int line, const char *prefix)
 	if (file) {
 		if (line > 0) {
 			if (cb_msg_style == CB_MSG_STYLE_MSC) {
-				fprintf (stderr, "%s (%d): ", file, line);
+				fprintf (stderr, "%s(%d): ", file, line);
 			} else {
 				fprintf (stderr, "%s:%d: ", file, line);
 			}
@@ -70,8 +70,6 @@ print_error (const char *file, int line, const char *prefix,
 	     const char *fmt, va_list ap)
 {
 	char			errmsg[BUFSIZ];
-	struct list_error	*err;
-	struct list_files	*cfile;
 
 	if (!file) {
 		file = cb_source_file;
@@ -110,51 +108,9 @@ print_error (const char *file, int line, const char *prefix,
 	fprintf (stderr, "%s\n", errmsg);
 
 	if (cb_src_list_file) {
-		/* If we have a file, queue message for listing processing */
-		if (cb_current_file) {
-			/* set up listing error */
-			err = cobc_malloc (sizeof (struct list_error));
-			err->line = line;
-			if (file) {
-				err->file = cobc_strdup (file);
-			} else {
-				err->file = NULL;
-			}
-			if (prefix) {
-				err->prefix = cobc_strdup (prefix);
-			} else {
-				err->prefix = NULL;
-			}
-			err->msg = cobc_strdup (errmsg);
-
-			/* set correct listing entry for this file */
-			cfile = cb_current_file;
-			if (!cfile->name
-			 || (file && strcmp (cfile->name, file))) {
-				cfile = cfile->copy_head;
-				while (cfile) {
-					if (file && cfile->name
-					 && !strcmp (cfile->name, file)) {
-						break;
-					}
-					cfile = cfile->next;
-				}
-			}
-			/* if file doesn't exist in the list then add to current file */
-			if (!cfile) {
-				cfile = cb_current_file;
-			}
-			/* add error to listing entry */
-			err->next = cfile->err_head;
-			cfile->err_head = err;
-
-		/* Otherwise, just write error to the listing file */
-		} else {
-			fprintf (cb_src_list_file, "%s\n", errmsg);
-		}
+		cb_add_error_to_listing (file, line, prefix, errmsg);
 	}
 }
-
 static void
 configuration_error_head (void)
 {
@@ -194,6 +150,71 @@ cb_set_ignore_error (int state)
 		ignore_error = state;
 	}
 	return prev;
+}
+
+void 
+cb_add_error_to_listing (const char *file, int line,
+		const char *prefix, char *errmsg)
+{
+	/* If we have a file, queue message for listing processing */
+	if (cb_current_file) {
+		struct list_error	*err;
+		struct list_files	*cfile;
+
+		/* set up listing error */
+		err = cobc_malloc (sizeof (struct list_error));
+		err->line = line;
+		if (file) {
+			err->file = cobc_strdup (file);
+		} else {
+			err->file = NULL;
+		}
+		if (prefix) {
+			err->prefix = cobc_strdup (prefix);
+		} else {
+			err->prefix = NULL;
+		}
+		err->msg = cobc_strdup (errmsg);
+
+		/* set correct listing entry for this file */
+		cfile = cb_current_file;
+		if (!cfile->name
+			|| (file && strcmp (cfile->name, file))) {
+			cfile = cfile->copy_head;
+			while (cfile) {
+				if (file && cfile->name
+					&& !strcmp (cfile->name, file)) {
+					break;
+				}
+				cfile = cfile->next;
+			}
+		}
+		/* if file doesn't exist in the list then add to current file */
+		if (!cfile) {
+			cfile = cb_current_file;
+		}
+		/* add error to listing entry */
+		err->next = cfile->err_head;
+		cfile->err_head = err;
+
+		/* Otherwise, just write error to the listing file */
+	} else {
+		if (file) {
+			if (line > 0) {
+				if (cb_msg_style == CB_MSG_STYLE_MSC) {
+					fprintf (stderr, "%s(%d): ", file, line);
+				} else {
+					fprintf (stderr, "%s:%d: ", file, line);
+				}
+			} else {
+				fprintf (cb_src_list_file, "%s: ", file);
+			}
+		}
+		if (prefix) {
+			fprintf (cb_src_list_file, "%s ", prefix);
+		}
+		fprintf (cb_src_list_file, "%s\n", errmsg);
+	}
 }
 
 void
@@ -547,7 +568,10 @@ cb_verify_x (cb_tree x, const enum cb_support tag, const char *feature)
 		COBC_ABORT ();
 	/* LCOV_EXCL_STOP */
 	}
+#ifndef _MSC_VER
+	/* not reached */
 	return 0;
+#endif
 }
 
 /**
@@ -555,7 +579,6 @@ cb_verify_x (cb_tree x, const enum cb_support tag, const char *feature)
  * current position is used for raising warning/errors
  * \returns	1 = ok/warning/obsolete, 0 = skip/ignore/error/unconformable
  */
-
 unsigned int
 cb_verify (const enum cb_support tag, const char *feature)
 {

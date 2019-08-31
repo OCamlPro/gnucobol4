@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2003-2012, 2014-2018 Free Software Foundation, Inc.
+   Copyright (C) 2003-2012, 2014-2019 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch, Ron Norman
 
    This file is part of GnuCOBOL.
@@ -15,12 +15,12 @@
    GNU Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public License
-   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 
-#include "config.h"
-#include "defaults.h"
+#include <config.h>
+#include <defaults.h>
 
 #ifndef	_GNU_SOURCE
 #define _GNU_SOURCE	1
@@ -72,10 +72,6 @@ lt_dlsym (HMODULE hmod, const char *p)
 	return modun.voidptr;
 }
 
-#if	0	/* RXWRXW - Win dlsym */
-#define lt_dlsym(x,y)	GetProcAddress(x, y)
-#endif
-
 #define lt_dlclose(x)	FreeLibrary(x)
 #define	lt_dlinit()
 #define	lt_dlexit()
@@ -111,7 +107,6 @@ lt_dlerror (void)
 
 /* Force symbol exports */
 #define	COB_LIB_EXPIMP
-
 #include "libcob.h"
 #include "coblocal.h"
 
@@ -167,8 +162,6 @@ static char			*resolve_alloc;
 static char			*resolve_error_buff;
 static void			*call_buffer;
 static char			*call_filename_buff;
-static char			*call_entry_buff;
-static unsigned char		*call_entry2_buff;
 
 #ifndef	COB_BORKED_DLOPEN
 static lt_dlhandle		mainhandle;
@@ -379,7 +372,7 @@ do_cancel_module (struct call_hash *p, struct call_hash **base_hash,
 		nocancel = 1;
 	}
 #ifdef _MSC_VER
-#pragma warning(suppress: 4113) // funcint is a generic function prototype
+#pragma warning(suppress: 4113) /* funcint is a generic function prototype */
 	cancel_func = p->module->module_cancel.funcint;
 #else
 	cancel_func = p->module->module_cancel.funcint;
@@ -598,9 +591,79 @@ lookup (const char *name)
 	return NULL;
 }
 
+/** encode given name
+  \param name to encode
+  \param name_buff to place the encoded name to
+  \param buff_size available
+  \param fold_case may be COB_FOLD_UPPER or COB_FOLD_LOWER
+  \return size of the encoded name, negative if the buffer size would be exceeded
+ */
+int
+cob_encode_program_id (const unsigned char *const name,
+	unsigned char *const name_buff,
+	const int buff_size, const int fold_case)
+{
+	const unsigned char *s = name;
+	int pos = 0;
+
+	/* Encode the initial digit */
+	if (unlikely (*name <= (unsigned char)'9' && *name >= (unsigned char)'0')) {
+		name_buff[pos++] = (unsigned char)'_';
+	}
+	/* Encode invalid letters */
+	for (; *s; ++s) {
+		if (pos >= buff_size - 3) {
+			name_buff[pos] = 0;
+			return -pos;
+		}
+		if (likely (valid_char[*s])) {
+			name_buff[pos++] = *s;
+		} else {
+			name_buff[pos++] = (unsigned char)'_';
+			if (*s == (unsigned char)'-') {
+				name_buff[pos++] = (unsigned char)'_';
+			} else {
+				name_buff[pos++] = hexval[*s / 16U];
+				name_buff[pos++] = hexval[*s % 16U];
+			}
+		}
+	}
+	name_buff[pos] = 0;
+
+	/* Check case folding */
+	switch (fold_case) {
+	case COB_FOLD_NONE:
+		break;
+	case COB_FOLD_UPPER:
+	{
+		unsigned char *p = name_buff;
+		for (p = name_buff; *p; p++) {
+			if (islower (*p)) {
+				*p = (cob_u8_t)toupper (*p);
+			}
+		}
+		break;
+	}
+	case COB_FOLD_LOWER:
+	{
+		unsigned char *p = name_buff;
+		for (p = name_buff; *p; p++) {
+			if (isupper (*p)) {
+				*p = (cob_u8_t)tolower (*p);
+			}
+		}
+		break;
+	}
+	default:
+		break;
+	}
+	
+	return pos;
+}
+
 static void *
 cob_resolve_internal (const char *name, const char *dirent,
-		      const int fold_case)
+	const int fold_case)
 {
 	unsigned char		*p;
 	const unsigned char	*s;
@@ -608,6 +671,8 @@ cob_resolve_internal (const char *name, const char *dirent,
 	struct struct_handle	*preptr;
 	lt_dlhandle		handle;
 	size_t			i;
+	char call_entry_buff[COB_MINI_BUFF];
+	char call_entry2_buff[COB_MINI_BUFF];
 
 	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
@@ -622,46 +687,11 @@ cob_resolve_internal (const char *name, const char *dirent,
 		return func;
 	}
 
-	/* Encode program name */
-	p = (unsigned char *)call_entry_buff;
 	s = (const unsigned char *)name;
-	if (unlikely(*s <= (unsigned char)'9' && *s >= (unsigned char)'0')) {
-		*p++ = (unsigned char)'_';
-	}
-	for (; *s; ++s) {
-		if (likely(valid_char[*s])) {
-			*p++ = *s;
-		} else {
-			*p++ = (unsigned char)'_';
-			if (*s == (unsigned char)'-') {
-				*p++ = (unsigned char)'_';
-			} else {
-				*p++ = hexval[*s / 16U];
-				*p++ = hexval[*s % 16U];
-			}
-		}
-	}
-	*p = 0;
 
-	/* Check case folding */
-	switch (fold_case) {
-	case COB_FOLD_UPPER:
-		for (p = (unsigned char *)call_entry_buff; *p; p++) {
-			if (islower (*p)) {
-				*p = (cob_u8_t)toupper (*p);
-			}
-		}
-		break;
-	case COB_FOLD_LOWER:
-		for (p = (unsigned char *)call_entry_buff; *p; p++) {
-			if (isupper (*p)) {
-				*p = (cob_u8_t)tolower (*p);
-			}
-		}
-		break;
-	default:
-		break;
-	}
+	/* Encode program name, including case folding */
+	cob_encode_program_id (s, (unsigned char *)call_entry_buff,
+		COB_MINI_MAX, fold_case);
 
 #ifndef	COB_BORKED_DLOPEN
 	/* Search the main program */
@@ -714,10 +744,7 @@ cob_resolve_internal (const char *name, const char *dirent,
 
 	/* Check if name needs conversion */
 	if (unlikely(cobsetptr->name_convert != 0)) {
-		if (!call_entry2_buff) {
-			call_entry2_buff = cob_malloc ((size_t)COB_SMALL_BUFF);
-		}
-		p = call_entry2_buff;
+		p = (unsigned char *)call_entry2_buff;
 		for (; *s; ++s, ++p) {
 			if (cobsetptr->name_convert == 1 && isupper (*s)) {
 				*p = (cob_u8_t) tolower (*s);
@@ -974,7 +1001,7 @@ cob_call_field (const cob_field *f, const struct cob_call_struct *cs,
 	char				*buff;
 	char				*entry;
 	char				*dirent;
-	int				len;
+	size_t				len;
 
 	/* LCOV_EXCL_START */
 	if (unlikely(!cobglobptr)) {
@@ -990,7 +1017,7 @@ cob_call_field (const cob_field *f, const struct cob_call_struct *cs,
 		/* same warning as in cobc/typeck.c */
 		cob_runtime_warning (
 			_("'%s' literal includes leading spaces which are omitted"), buff);
-		len = strlen(buff);
+		len = strlen (buff);
 		while (*buff == ' ') {
 			memmove (buff, buff + 1, --len);
 		}
@@ -1097,7 +1124,7 @@ cob_cancel_field (const cob_field *f, const struct cob_call_struct *cs)
 		if (!strcmp (entry, s->cob_cstr_name)) {
 			if (s->cob_cstr_cancel.funcvoid) {
 #ifdef _MSC_VER
-#pragma warning(suppress: 4113) // funcint is a generic function prototype
+#pragma warning(suppress: 4113) /* funcint is a generic function prototype */
 				cancel_func = s->cob_cstr_cancel.funcint;
 #else
 				cancel_func = s->cob_cstr_cancel.funcint;
@@ -1299,14 +1326,6 @@ cob_exit_call (void)
 		cob_free (call_filename_buff);
 		call_filename_buff = NULL;
 	}
-	if (call_entry_buff) {
-		cob_free (call_entry_buff);
-		call_entry_buff = NULL;
-	}
-	if (call_entry2_buff) {
-		cob_free (call_entry2_buff);
-		call_entry2_buff = NULL;
-	}
 	if (call_buffer) {
 		cob_free (call_buffer);
 		call_buffer = NULL;
@@ -1413,7 +1432,6 @@ cob_init_call (cob_global *lptr, cob_settings* sptr, const int check_mainhandle)
 	resolve_alloc = NULL;
 	resolve_error = NULL;
 	call_buffer = NULL;
-	call_entry2_buff = NULL;
 	call_lastsize = 0;
 	cob_jmp_primed = 0;
 
@@ -1434,7 +1452,6 @@ cob_init_call (cob_global *lptr, cob_settings* sptr, const int check_mainhandle)
 #endif
 
 	call_filename_buff = cob_malloc ((size_t)COB_NORMAL_BUFF);
-	call_entry_buff = cob_malloc ((size_t)COB_SMALL_BUFF);
 
 	buff = cob_fast_malloc ((size_t)COB_MEDIUM_BUFF);
 	if (cobsetptr->cob_library_path == NULL
@@ -1542,9 +1559,10 @@ cob_get_num_params (void)
 	if (cobglobptr) {
 		return cobglobptr->cob_call_params;
 	}
-		/* note: same message in call.c */
-		cob_runtime_warning_external ("cob_get_num_params", 1,
-			_("cob_init() has not been called"));
+
+	/* note: same message in call.c */
+	cob_runtime_warning_external ("cob_get_num_params", 1,
+		_("cob_init() has not been called"));
 	return -1;
 }
 
@@ -1668,11 +1686,11 @@ cob_get_s64_param (int n)
 		return cob_get_s64_comp3 (cbl_data, size);
 	case COB_TYPE_NUMERIC_FLOAT:
 		dbl = cob_get_comp1 (cbl_data);
-		val = (cob_s64_t)dbl; // possible data loss is explicit requested
+		val = (cob_s64_t)dbl; /* possible data loss is explicit requested */
 		return val;
 	case COB_TYPE_NUMERIC_DOUBLE:
 		dbl = cob_get_comp2 (cbl_data);
-		val = (cob_s64_t)dbl; // possible data loss is explicit requested
+		val = (cob_s64_t)dbl; /* possible data loss is explicit requested */
 		return val;
 	case COB_TYPE_NUMERIC_EDITED:
 		return cob_get_s64_pic9 (cbl_data, size);
@@ -1721,11 +1739,11 @@ cob_get_u64_param (int n)
 
 	case COB_TYPE_NUMERIC_FLOAT:
 		dbl = cob_get_comp1 (cbl_data);
-		val = (cob_u64_t)dbl; // possible data loss is explicit requested
+		val = (cob_u64_t)dbl; /* possible data loss is explicit requested */
 		return val;
 	case COB_TYPE_NUMERIC_DOUBLE:
 		dbl = cob_get_comp2 (cbl_data);
-		val = (cob_u64_t)dbl; // possible data loss is explicit requested
+		val = (cob_u64_t)dbl; /* possible data loss is explicit requested */
 		return val;
 	case COB_TYPE_NUMERIC_EDITED:
 		return cob_get_u64_pic9 (cbl_data, size);
@@ -1794,12 +1812,12 @@ cob_put_s64_param (int n, cob_s64_t val)
 		return;
 
 	case COB_TYPE_NUMERIC_FLOAT:
-		flt = (float)val;  // possible data loss is explicit requested
+		flt = (float)val;  /* possible data loss is explicit requested */
 		cob_put_comp1 (flt, cbl_data);
 		return;
 
 	case COB_TYPE_NUMERIC_DOUBLE:
-		dbl = (double)val; // possible data loss is explicit requested
+		dbl = (double)val; /* possible data loss is explicit requested */
 		cob_put_comp2 (dbl, cbl_data);
 		return;
 	default:	/* COB_TYPE_NUMERIC_EDITED, ... */
@@ -1856,12 +1874,12 @@ cob_put_u64_param (int n, cob_u64_t val)
 		return;
 
 	case COB_TYPE_NUMERIC_FLOAT:
-		flt = (float)val;  // possible data loss is explicit requested
+		flt = (float)val;  /* possible data loss is explicit requested */
 		cob_put_comp1 (flt, cbl_data);
 		return;
 
 	case COB_TYPE_NUMERIC_DOUBLE:
-		dbl = (double)val;  // possible data loss is explicit requested
+		dbl = (double)val;  /* possible data loss is explicit requested */
 		cob_put_comp2 (dbl, cbl_data);
 		return;
 	default:	/* COB_TYPE_NUMERIC_EDITED, ... */

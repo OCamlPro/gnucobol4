@@ -18,6 +18,9 @@
     <ClCompile Include="..\..\libcob\call.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\libcob\cobgetopt.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\libcob\common.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -45,7 +48,7 @@
     <ClCompile Include="..\..\libcob\termio.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\libcob\cobgetopt.c">
+    <ClCompile Include="..\..\libcob\mlio.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -54,9 +57,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\defaults.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\cobc\tree.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\libcob\cobgetopt.h">

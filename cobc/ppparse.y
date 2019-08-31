@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2001-2012, 2015-2017 Free Software Foundation, Inc.
+   Copyright (C) 2001-2012, 2015-2019 Free Software Foundation, Inc.
    Written by Keisuke Nishida, Roger While, Simon Sobisch
 
    This file is part of GnuCOBOL.
@@ -15,7 +15,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+   along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 
@@ -24,7 +24,7 @@
 %defines
 %error-verbose
 %verbose
-%name-prefix="pp" // recent versions want %api.prefix "pp", older cannot compile this
+%name-prefix="pp" /* recent versions want %api.prefix "pp", older cannot compile this */
 
 /* NOTE:
    support without = was added in Bison 2.4 (released 2008-11-02, we currently use 2.3),
@@ -32,7 +32,7 @@
 */
 
 %{
-#include "config.h"
+#include <config.h>
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -447,7 +447,7 @@ ppp_check_needs_quote (const char *envval)
 		size++;
 	}
 
-	if (*s || size <= (dot_seen + sign_seen)) {
+	if (*s || size <= ((size_t)dot_seen + sign_seen)) {
 		return 1;
 	}
 	return 0;
@@ -584,6 +584,7 @@ ppparse_clear_vars (const struct cb_define_struct *p)
 %token SET_DIRECTIVE
 %token ADDRSV
 %token ADDSYN
+%token CALLFH
 %token COMP1
 %token CONSTANT
 %token FOLDCOPYNAME
@@ -623,10 +624,12 @@ ppparse_clear_vars (const struct cb_define_struct *p)
 %token TERMINATOR	"end of line"
 
 %token <s> TOKEN		"Identifier or Literal"
+%token <s> TEXT_NAME	"Text-Name"
 %token <s> VARIABLE_NAME	"Variable"
 %token <s> LITERAL		"Literal"
 
 %type <s>	copy_in
+%type <s>	copy_source
 
 %type <l>	token_list
 %type <l>	identifier
@@ -739,6 +742,20 @@ set_choice:
 	      fprintf (ppout, "#ADDSYN %s %s\n", l->text, l->next->text);
       }
   }
+| CALLFH LITERAL
+  {
+	char	*p = $2;
+	/* Remove surrounding quotes/brackets */
+	size_t	size;
+	++p;
+	size = strlen (p) - 1;
+	p[size] = '\0';
+	fprintf (ppout, "#CALLFH \"%s\"\n", p);
+  }
+| CALLFH
+  {
+	fprintf (ppout, "#CALLFH \"EXTFH\"\n");
+  }
 | COMP1 LITERAL
   {
 	char	*p = $2;
@@ -816,8 +833,8 @@ set_choice:
 		cb_source_format = CB_FORMAT_FREE;
 	} else if (!strcasecmp (p, "VARIABLE")) {
 		cb_source_format = CB_FORMAT_FIXED;
-		/* This is an arbitrary value; perhaps change later? */
-		cb_text_column = 500;
+		/* This value matches most MF Visual COBOL 4.0 version. */
+		cb_text_column = 250;
 	} else {
 		ppp_error_invalid_option ("SOURCEFORMAT", p);
 	}
@@ -1183,24 +1200,31 @@ condition_clause:
 ;
 
 copy_statement:
-  COPY TOKEN copy_in copy_suppress copy_replacing
+  COPY copy_source copy_in copy_suppress copy_replacing
   {
 	fputc ('\n', ppout);
-	$2 = fix_filename ($2);
-	if (cb_fold_copy == COB_FOLD_LOWER) {
-		$2 = fold_lower ($2);
-	} else if (cb_fold_copy == COB_FOLD_UPPER) {
-		$2 = fold_upper ($2);
-	}
-	if ($3) {
-		$3 = fix_filename ($3);
-		if (cb_fold_copy == COB_FOLD_LOWER) {
-			$3 = fold_lower ($3);
-		} else if (cb_fold_copy == COB_FOLD_UPPER) {
-			$3 = fold_upper ($3);
-		}
-	}
 	ppcopy ($2, $3, $5);
+  }
+;
+
+copy_source:
+  TOKEN
+  {
+	$$ = fix_filename ($1);
+	if (cb_fold_copy == COB_FOLD_LOWER) {
+		$$ = fold_lower ($$);
+	} else if (cb_fold_copy == COB_FOLD_UPPER) {
+		$$ = fold_upper ($$);
+	}
+  }
+| TEXT_NAME
+  {
+	$$ = $1;
+	if (cb_fold_copy == COB_FOLD_LOWER) {
+		$$ = fold_lower ($$);
+	} else {
+		$$ = fold_upper ($$);
+	}
   }
 ;
 
@@ -1209,7 +1233,7 @@ copy_in:
   {
 	$$ = NULL;
   }
-| in_or_of TOKEN
+| in_or_of copy_source
   {
 	$$ = $2;
   }

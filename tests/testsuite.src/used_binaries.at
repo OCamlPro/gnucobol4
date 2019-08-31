@@ -1,4 +1,4 @@
-## Copyright (C) 2014-2018 Free Software Foundation, Inc.
+## Copyright (C) 2014-2019 Free Software Foundation, Inc.
 ## Written by Simon Sobisch, Brian Tiffin
 ##
 ## This file is part of GnuCOBOL.
@@ -14,7 +14,7 @@
 ## GNU General Public License for more details.
 ##
 ## You should have received a copy of the GNU General Public License
-## along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+## along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 
 ### GnuCOBOL Test Suite
 
@@ -185,14 +185,47 @@ AT_CHECK([$COMPILE_ONLY prog.cob], [1], [],
 AT_CLEANUP
 
 
+AT_SETUP([Temporary path invalid])
+AT_KEYWORDS([cobc runmisc])
+
+# Note: may be either removed completely as there was a report about
+#       this test "failing" - or skipped as this very often fails for
+#       WIN32 builds
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION   DIVISION.
+       PROGRAM-ID.      prog.
+       PROCEDURE        DIVISION.
+           DISPLAY "OK" NO ADVANCING
+           END-DISPLAY.
+           EXIT PROGRAM.
+])
+
+AT_CHECK([TMPDIR="" TMP="notthere" TEMP="" $COMPILE prog.cob], [0], [],
+[libcob: warning: Temporary directory TMP is invalid, adjust TMPDIR!
+])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [OK], [])
+AT_CHECK([TMPDIR="" TMP="" TEMP="./prog.cob" $COMPILE prog.cob], [0], [],
+[libcob: warning: Temporary directory TEMP is invalid, adjust TMPDIR!
+])
+# TMPDIR is only checked when actually needed which is currently only the case
+# for SORT
+#AT_CHECK([TMPDIR="./prog.cob" $COBCRUN_DIRECT ./prog], [0], [OK],
+#[libcob: warning: Temporary directory TEMP is invalid, adjust TMPDIR!
+#])
+#AT_CHECK([COB_DISABLE_WARNINGS=1 TMPDIR="./prog.cob" $COBCRUN_DIRECT ./prog], [0], [OK],
+#[libcob: warning: Temporary directory TEMP is invalid, adjust TMPDIR!
+#])
+
+AT_CLEANUP
+
+
 AT_SETUP([Using full path for cobc])
 AT_KEYWORDS([runmisc])
 
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
        PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
        PROCEDURE        DIVISION.
            DISPLAY "OK" NO ADVANCING
            END-DISPLAY.
@@ -211,8 +244,6 @@ AT_KEYWORDS([runmisc cobc optimization])
 AT_DATA([prog.cob], [
        IDENTIFICATION   DIVISION.
        PROGRAM-ID.      prog.
-       DATA             DIVISION.
-       WORKING-STORAGE  SECTION.
        PROCEDURE        DIVISION.
            DISPLAY "OK" NO ADVANCING
            END-DISPLAY.
@@ -524,7 +555,7 @@ AT_CHECK([$COBCRUN -q -prog], [1], [],
 [cobcrun: unrecognized option '-prog'
 ])
 AT_CHECK([$COBCRUN noprog], [1], [],
-[libcob: module 'noprog' not found
+[libcob: error: module 'noprog' not found
 ])
 AT_CHECK([$COBCRUN -q -M], [1], [],
 [cobcrun: option requires an argument -- M

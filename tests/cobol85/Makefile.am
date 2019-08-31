@@ -1,7 +1,7 @@
 #
 # Makefile gnucobol/tests/cobol85
 #
-# Copyright (C) 2003-2012, 2015-2017 Free Software Foundation, Inc.
+# Copyright (C) 2003-2012, 2015-2019 Free Software Foundation, Inc.
 # Written by Keisuke Nishida, Roger While, Simon Sobisch
 #
 # This file is part of GnuCOBOL.
@@ -17,10 +17,12 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with GnuCOBOL.  If not, see <http://www.gnu.org/licenses/>.
+# along with GnuCOBOL.  If not, see <https://www.gnu.org/licenses/>.
 
 # FIXME: doesn't work when EXEC85$(EXEEXT) exists in sourcedir but not
 #        in builddir
+
+RM = rm -rf
 
 MODULES_ALL = NC SM IC SQ RL ST SG OB IF RW DB IX DBNOIX CM
 
@@ -29,10 +31,12 @@ if COB_MAKE_IX
 MODULES = NC SM IC SQ RL ST SG OB IF RW DB IX
 MODULES_RUN = NC_RUN SM_RUN IC_RUN SQ_RUN RL_RUN \
 	ST_RUN SG_RUN OB_RUN IF_RUN RW_RUN DB_RUN IX_RUN
+SUMMARY = summary.txt
 else
 MODULES = NC SM IC SQ RL ST SG OB IF RW DBNOIX
 MODULES_RUN = NC_RUN SM_RUN IC_RUN SQ_RUN RL_RUN \
 	ST_RUN SG_RUN OB_RUN IF_RUN RW_RUN DBNOIX_RUN
+SUMMARY = summarynoix.txt
 endif
 
 EXTRA_DIST = EXEC85.conf.in expand.pl report.pl summary.pl summary.txt \
@@ -42,11 +46,14 @@ EXTRA_DIST = EXEC85.conf.in expand.pl report.pl summary.pl summary.txt \
 #CLEANFILES = EXEC85$(EXEEXT) summary.log
 
 COB85DIR = "`cd $(srcdir) && pwd`"
+WGET_FLAGS = -t1 -T5
+DIFF_FLAGS = @DIFF_FLAGS@
+COBC_FLAGS = -std=cobol85 -debug
 
 # MAKEFLAGS = --no-print-directory
 
 # targets that are only logical targets instead of files
-.PHONY: test diff-summary diff $(MODULES_RUN)
+.PHONY: test diff-summary diff summary.log $(MODULES_RUN) unpack-Z unpack-gz
 
 NC_RUN: NC
 	@cd NC && $(MAKE) -k
@@ -90,43 +97,86 @@ DBNOIX_RUN: DBNOIX
 CM_RUN: CM
 	@cd CM && $(MAKE) -k
 
+modules: $(MODULES_ALL)
+
+duration.log:
+	@echo "Collecting durations for each module..."
+	@echo "Duration for modules: $(MODULES)" > $@
+	@echo "" >> $@
+	@for m in $(MODULES); do \
+		cat "$$m/duration.txt" >> $@; \
+	done
+	@echo Done
 
 test: $(MODULES_RUN)
 	@echo
-	@perl $(srcdir)/summary.pl $(MODULES) > summary.log
 	$(MAKE) diff-summary
 
 summary.log:
-	@perl $(srcdir)/summary.pl $(MODULES) > summary.log
+	@echo "Computing total test results..."
+	@perl "$(srcdir)/summary.pl" $(MODULES) > $@
 
-diff: summary.log
-	@for m in $(MODULES); do \
-		(diff $(srcdir)/$$m.txt $$m/report.txt) \
-	done
+diff:
+	@echo "Comparing test results for each module"
+	@retd=0; for m in $(MODULES); do \
+		echo "diff $$m/report.txt..."; \
+		diff $(DIFF_FLAGS) "$(srcdir)/$$m.txt" "$$m/report.txt"; \
+		ret=$$? && if test $$ret -gt $$retd; then retd=$$ret; fi \
+	done; \
+		if test $$retd -gt 1; then exit $$retd; fi
+	@echo Done
 	$(MAKE) diff-summary
 
 diff-summary:
-	@echo "Comparing total test results"
-if COB_MAKE_IX
-	diff $(srcdir)/summary.txt summary.log
-else
-	diff $(srcdir)/summarynoix.txt summary.log
-endif
-	@echo
+	$(MAKE) summary.log
+	@echo "Comparing total test results..."
+	@echo "diff $(SUMMARY)..."
+	@diff $(DIFF_FLAGS) "$(srcdir)/$(SUMMARY)" "summary.log"
+	@echo Done
 
 newcob.val.Z:
-	@if ! test -f "newcob.val"; then \
-		echo "Trying to download newcob.val.Z...";  \
-		wget "http://www.itl.nist.gov/div897/ctg/suites/newcob.val.Z";  \
-	fi
+	@echo "Trying to download newcob.val.Z..."
+	@wget $(WGET_FLAGS) "https://www.itl.nist.gov/div897/ctg/suites/newcob.val.Z"
 
-newcob.val: newcob.val.Z
-	@if ! test -f "newcob.val"; then \
-		if test "$(<D)" != "."; then \
-			echo "Copying $< to current directory..." && cp "$<" .; \
-		fi; \
-		echo "Unpacking newcob.val.Z..."; \
-		gunzip "$(<F)" || gzip -d "$(<F)" || uncompress "$(<F)"; \
+newcob.val.tar.gz:
+	@echo "Trying to download newcob.val.tar.gz..."
+	@wget $(WGET_FLAGS) -O $@ "https://sourceforge.net/projects/open-cobol/files/nist/newcob.val.tar.gz/download"
+
+unpack-Z: newcob.val.Z
+	@echo "Unpacking $@..."
+	@gunzip "$<" || gzip -d "$<" || uncompress "$<"
+
+unpack-gz: newcob.val.tar.gz
+	@echo "Unpacking $<..."
+	@tar -xf "$<"
+
+# always copy source / pack from srcdir, if possible
+newcob.val:
+	@if test -f "$(srcdir)/newcob.val"; then \
+		echo "Copying newcob.val to current directory..."; \
+		cp "$$(srcdir)/newcob.val" . ;                     \
+	else \
+		if test -f "$(srcdir)/newcob.val.tar.gz"; then      \
+			if test ! -f "$(abs_builddir)/newcob.val.tar.gz"; then \
+				export pack=newcob.val.tar.gz &&                 \
+				echo "Copying $$pack to current directory..." && \
+				cp "$(srcdir)/$$pack" . ;                        \
+			fi;                                             \
+			$(MAKE) unpack-gz;                              \
+		else \
+			if test -f "$(srcdir)/newcob.val.Z"; then            \
+				if test ! -f "$(abs_builddir)/newcob.val.Z"; then \
+					export pack=newcob.val.Z &&                      \
+					echo "Copying $$pack to current directory..." && \
+					cp "$(srcdir)/$$pack" . ;                        \
+				fi;                                             \
+				$(MAKE) unpack-Z; \
+			else \
+				($(MAKE) newcob.val.Z      && $(MAKE) unpack-Z) || \
+				(echo Fallback to sourceforge.net && \
+				 $(MAKE) newcob.val.tar.gz && $(MAKE) unpack-gz);  \
+			fi;  \
+		fi;  \
 	fi
 	@if ! test -f "newcob.val"; then \
 		echo "newcob.val missing, automatic download and uncompress did not work"; \
@@ -134,9 +184,9 @@ newcob.val: newcob.val.Z
 	fi
 
 clean-local:
-	rm -rf copy copyalt $(MODULES_ALL) EXEC85$(EXEEXT) summary.log EXEC85.cob
+	$(RM) copy copyalt $(MODULES_ALL) EXEC85$(EXEEXT) summary.log EXEC85.cob
 
-$(MODULES_ALL): newcob.val EXEC85$(EXEEXT) $(srcdir)/EXEC85.conf.in
+$(MODULES_ALL): newcob.val EXEC85$(EXEEXT) $(srcdir)/EXEC85.conf.in Makefile.module.in
 	@echo "Building module directory $@ ..."
 	@mkdir -p ./$@
 	@echo "*SELECT-MODULE `echo $@ | sed 's/\(..\).*/\1/'`" > ./$@/EXEC85.conf
@@ -148,15 +198,18 @@ $(MODULES_ALL): newcob.val EXEC85$(EXEEXT) $(srcdir)/EXEC85.conf.in
 	else \
 		export NEWCOB_VAL=$<; \
 	fi; \
-	. ../atconfig && . ../atlocal NIST_EXEC85_$@ && cd $@ && $$COBCRUN_DIRECT ../EXEC85$(EXEEXT)
+	cd $@ && "$(abs_top_builddir)/pre-inst-env" ../EXEC85$(EXEEXT)
 	@perl $(srcdir)/expand.pl $@/newcob.tmp $@
-#	@rm -f ./$@/newcob.tmp ./$@/newcob.log ./$@/EXEC85.conf
-	@sed -e 's/##MODULE##/'"$@"'/'            \
+#	@$(RM) ./$@/newcob.tmp ./$@/newcob.log ./$@/EXEC85.conf
+	@export CBL_LIST="`ls $@/*.CBL | cut -b4- | tr "\n" " "`"  && \
+	 sed -e 's/##MODULE##/'"$@"'/'            \
 	     -e 's|##COB85DIR##|'"$(COB85DIR)"'|' \
+	     -e 's|##TESTS##|'"` echo $$CBL_LIST | sed -e 's/\.CBL//g'`"'|' \
+	     -e 's|##TESTS_LOCAL##|'"`echo $$CBL_LIST | sed -e 's/\.CBL/-local/g'`"'|' \
 	    $(srcdir)/Makefile.module.in > $@/Makefile
 	@echo "Finished module directory $@."
 
-EXEC85$(EXEEXT): newcob.val
+EXEC85.cob: newcob.val
 	@echo "Extracting EXEC85 program from newcob.val"
 #	setting NEWCOB_VAL to the full name for the sed invocation
 #	(for make not supporting $< this would be empty -> guess newcob.val is in builddir)
@@ -173,6 +226,8 @@ EXEC85$(EXEEXT): newcob.val
 	    -e 's/^003400.*/           "unused"./'                                   \
 	    -e 's/^003700.*/           "newcob.log"./'                               \
 	    -e 's/^004000.*/           "EXEC85.conf" ORGANIZATION LINE SEQUENTIAL./' \
-	    "$$NEWCOB_VAL" > EXEC85.cob
+	    "$$NEWCOB_VAL" > EXEC85.cob || ($(RM) EXEC85.cob && false)
+
+EXEC85$(EXEEXT): EXEC85.cob
 	@echo "Compiling EXEC85 program"
-	@. ../atconfig && . ../atlocal EXEC85 && $$COBC -std=cobol85 -x EXEC85.cob
+	@"$(top_builddir)/pre-inst-env" cobc$(EXEEXT) $(COBC_FLAGS) -x $<
