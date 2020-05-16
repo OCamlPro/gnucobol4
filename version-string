@@ -1,0 +1,13 @@
+#! /bin/sh
+set -e
+
+cd $(dirname $0)
+
+branch="$(svn info | awk -F/ '/^Relative URL.+branches/ {print $3}')"
+
+printf '%s-%s\n'			\
+       ${branch:-trunk}				\
+       $(svn log | awk '/^r/ {print $1; exit}')
+
+
+
