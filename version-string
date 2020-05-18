@@ -3,11 +3,14 @@ set -e
 
 cd $(dirname $0)
 
-branch="$(svn info | awk -F/ '/^Relative URL.+branches/ {print $3}')"
-
-printf '%s-%s\n'			\
-       ${branch:-trunk}				\
-       $(svn log | awk '/^r/ {print $1; exit}')
+svn info |
+    awk -F '[/ :]+' \
+	'
+		BEGIN { branch = "trunk" }
+                /^Relative URL.+branches/ { branch = $5}
+                /^Revision/ { revision = $2}
+		END { print branch "-r" revision }
+        '
 
 
 
