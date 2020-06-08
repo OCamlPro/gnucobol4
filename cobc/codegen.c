@@ -7696,7 +7696,7 @@ output_stmt (cb_tree x)
 		if (cb_flag_c_line_directives) {
 			output_cobol_info (x);
 		}
-		if (cb_flag_c_labels && (lp->flag_entry || lp->flag_section)) {
+		if (cb_flag_c_labels && (lp->flag_entry  || lp->flag_section)) {
 			/* possibly come back later adding paragraphs, too */
 			const char *prf;
 			unsigned char buff[COB_MINI_BUFF];
