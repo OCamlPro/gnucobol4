@@ -618,11 +618,13 @@ ppparse_clear_vars (const struct cb_define_struct *p)
 %token ASSIGN
 %token BOUND
 %token CALLFH
+%token CHECKREFMOD
 %token COMP1
 %token CONSTANT
 %token FOLDCOPYNAME
 %token MAKESYN
 %token NOBOUND
+%token NOCHECKREFMOD
 %token NOFOLDCOPYNAME
 %token NOSSRANGE
 /* OVERRIDE token defined above. */
@@ -818,6 +820,34 @@ set_choice:
   {
 	fprintf (ppout, "#CALLFH \"EXTFH\"\n");
   }
+| CHECKREFMOD _literal
+  {
+	char	*p = $2;
+	size_t	size;
+
+	
+	/* Remove surrounding quotes/brackets */
+	if (p) {
+		++p;
+		size = strlen (p) - 1;
+		p[size] = '\0';
+	}
+
+	/* Enable EC-BOUND-REF-MOD checking */
+	if (!p) {
+		/*
+		  At compile- and runtime, and allowing zero-length ref mod at
+		  runtime. 
+		*/
+		CB_PENDING ("CHECKREFMOD without NOZEROLENGTH");
+	} else if (p && !strcasecmp (p, "NOZEROLENGTH")) {
+		/*  At compile- and runtime */
+		append_to_turn_list (ppp_list_add (NULL, "EC-BOUND-REF-MOD"),
+				     1, 0);
+	} else {
+		ppp_error_invalid_option ("CHECKREFMOD", p);
+	}
+  }
 | COMP1 LITERAL
   {
 	char	*p = $2;
@@ -862,6 +892,11 @@ set_choice:
   {
 	/* Disable EC-BOUND-SUBSCRIPT checking */
 	append_to_turn_list (ppp_list_add (NULL, "EC-BOUND-SUBSCRIPT"), 0, 0);
+  }
+| NOCHECKREFMOD
+  {
+	/* Disable EC-BOUND-REF-MOD checking */
+	append_to_turn_list (ppp_list_add (NULL, "EC-BOUND-REF-MOD"), 0, 0);
   }
 | NOFOLDCOPYNAME
   {
