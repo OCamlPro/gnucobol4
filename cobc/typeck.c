@@ -1054,8 +1054,12 @@ cb_build_register_return_code (const char *name, const char *definition)
 		}
 	}
 
-	/* take care of GLOBAL */
+	/* take care of (likely) GLOBAL */
+#if 0	/* more to adjust in other places */
+	if (current_program->nested_level && strstr (definition, "GLOBAL")) {
+#else
 	if (current_program->nested_level) {
+#endif
 		return;
 	}
 
@@ -1077,6 +1081,13 @@ cb_build_register_sort_return (const char *name, const char *definition)
 			return;
 		}
 	}
+
+#if 0	/* more to adjust in other places */
+	/* take care of (unlikely) GLOBAL */
+	if (current_program->nested_level && strstr (definition, "GLOBAL")) {
+		return;
+	}
+#endif
 
 	field = cb_build_index (cb_build_reference (name), cb_zero, 0, NULL);
 	CB_FIELD_PTR (field)->flag_no_init = 1;
@@ -3085,6 +3096,64 @@ cb_validate_crt_status (cb_tree ref, cb_tree field_tree) {
 }
 
 static void
+validate_file_status (cb_tree fs)
+{
+	struct cb_field	*fs_field;
+	enum cb_category category;
+	
+	/* TO-DO: If not defined, implicitly define PIC XX */
+	if (fs == cb_error_node
+	    || cb_ref (fs) == cb_error_node) {
+		return;
+	}
+
+	if (!CB_FIELD_P (cb_ref (fs))) {
+		cb_error (_("FILE STATUS '%s' is not a field"), CB_NAME (fs));
+	}
+
+	fs_field = CB_FIELD_PTR (fs);
+	category = cb_tree_category (CB_TREE (fs_field));
+	if (category == CB_CATEGORY_ALPHANUMERIC) {
+		/* ok */
+	} else if (category == CB_CATEGORY_NUMERIC) {
+		if (fs_field->pic
+		    && fs_field->pic->scale != 0) {
+			cb_error_x (fs, _("FILE STATUS '%s' may not be a decimal or have a PIC with a P"),
+				    CB_NAME (fs));
+		}
+		cb_warning_x (cb_warn_additional, fs, _("FILE STATUS '%s' is a numeric field, but I-O status codes are not numeric in general"),
+			      CB_NAME (fs));
+	} else {
+		cb_error_x (fs, _("FILE STATUS '%s' must be alphanumeric or numeric field"),
+			    CB_NAME (fs));
+		return;
+	}
+
+	if (fs_field->usage != CB_USAGE_DISPLAY) {
+		cb_error_x (fs, _("FILE STATUS '%s' must be USAGE DISPLAY"),
+			    CB_NAME (fs));
+	}
+
+	/* Check file status is two characters long */
+	if (fs_field->size != 2) {
+		cb_error_x (fs, _("FILE STATUS '%s' must be 2 characters long"),
+			    CB_NAME (fs));
+	}
+
+	if (fs_field->storage != CB_STORAGE_WORKING
+	    && fs_field->storage != CB_STORAGE_LOCAL
+	    && fs_field->storage != CB_STORAGE_LINKAGE) {
+		cb_error_x (fs, _("FILE STATUS '%s' must be in WORKING-STORAGE, LOCAL-STORAGE or LINKAGE"),
+			    CB_NAME (fs));
+	}
+
+	if (fs_field->flag_odo_relative) {
+		cb_error_x (fs, _("FILE STATUS '%s' may not be located after an OCCURS DEPENDING field"),
+			    CB_NAME (fs));
+	}
+}
+
+static void
 create_implicit_assign_dynamic_var (struct cb_program * const prog,
 				    cb_tree assign)
 {
@@ -3155,7 +3224,6 @@ validate_assign_name (struct cb_file * const f,
 	cb_tree	assign = f->assign;
 	cb_tree	x;
 	struct cb_field	*p;
-	unsigned char	*c;
 
 	if (!assign) {
 		return;
@@ -3176,8 +3244,8 @@ validate_assign_name (struct cb_file * const f,
 	/* If assign is a 78-level, change assign to the 78-level's literal. */
 	p = check_level_78 (CB_NAME (assign));
 	if (p) {
-		c = (unsigned char *)CB_LITERAL(CB_VALUE(p->values))->data;
-		assign = CB_TREE (build_literal (CB_CATEGORY_ALPHANUMERIC, c, strlen ((char *)c)));
+		char *c = (char *)CB_LITERAL(CB_VALUE(p->values))->data;
+		assign = CB_TREE (build_literal (CB_CATEGORY_ALPHANUMERIC, c, strlen (c)));
 		f->assign = assign;
 		return;
 	}
@@ -3374,22 +3442,8 @@ cb_validate_program_data (struct cb_program *prog)
 		    && cb_ref (file->key) != cb_error_node) {
 			validate_relative_key_field (file);
 		}
-		if (file->assign != NULL) {
-			if (CB_LITERAL_P (file->assign)) {
-				/* ASSIGN TO 'literal' */
-			} else if ((CB_REFERENCE_P (file->assign)
-				    && cb_ref (file->assign) != cb_error_node)
-				   || CB_FIELD_P (file->assign)) {
-				field = CB_FIELD_PTR (file->assign);
-				if (cb_select_working
-					&& field->storage != CB_STORAGE_WORKING
-					&& field->storage != CB_STORAGE_FILE
-					&& field->storage != CB_STORAGE_LOCAL) {
-					cb_error_x (file->assign,
-						_("file %s: ASSIGN %s declared outside WORKING-STORAGE"),
-						file->name, field->name);
-				}
-			}
+		if (file->file_status) {
+			validate_file_status (file->file_status);
 		}
 	}
 

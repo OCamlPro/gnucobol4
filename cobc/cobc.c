@@ -1671,11 +1671,8 @@ turn_ec_io (struct cb_exception ec_to_turn,
 	    cb_tree loc,
 	    struct cb_text_list ** const ec_list)
 {
-	cb_tree	l;
-	struct cb_file	*f;
-	
 	if (!(*ec_list)->next
-	    || !strncmp ((*ec_list)->next->text, "EC-", 3)) {
+	 || !strncmp ((*ec_list)->next->text, "EC-", 3)) {
 		/* This >>TURN applies globally */
 		turn_ec_for_table (cb_exception_table,
 				   cb_exception_table_len,
@@ -1686,16 +1683,20 @@ turn_ec_io (struct cb_exception ec_to_turn,
 
 	/* The >>TURN applies to a list of files */
 	do {
+		struct cb_file	*f = NULL;
+		cb_tree	l = NULL;
 		*ec_list = (*ec_list)->next;
+
 		/* Find file */
 		for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
 			f = CB_FILE (CB_VALUE (l));
-			if (!strcmp (f->name, (*ec_list)->text)) {
+			if (!strcasecmp (f->name, (*ec_list)->text)) {
 				break;
 			}
+			f = NULL;
 		}
 		/* Error if no file */
-		if (!l) {
+		if (!f) {
 			cb_error_x (loc, _("file '%s' does not exist"), (*ec_list)->text);
 			return 1;
 		}
@@ -1746,7 +1747,6 @@ cobc_turn_ec (struct cb_text_list *ec_list, const cob_u32_t to_on_off, cb_tree l
 
 	if (to_on_off) {
 		/* TO-DO: Only if >>TURN ... ON WITH LOCATION found? */
-		/* TO-DO: Only if to_on_off = 1? */
 		cb_flag_source_location = 1;
 	}
 
@@ -1815,18 +1815,26 @@ cobc_apply_turn_directives (void)
 	}
 }
 
+/* set the specified exception-name to the given value,
+   note: exception-name may also specified without EC-prefix here */
 static unsigned int
 cobc_deciph_ec (const char *opt, const cob_u32_t to_on_off)
 {
 	struct cb_text_list	*cb_ec_list = NULL;
 	char	*p;
 	char	*q;
+	char	wrk[COB_MAX_NAMELEN + 1];
 	struct cb_tree_common	loc;
 
 	p = cobc_strdup (opt);
 	q = strtok (p, " ");
 	while (q) {
-		CB_TEXT_LIST_ADD (cb_ec_list, q);
+		if (strncasecmp (q, "ec-", 3)) {
+			snprintf (wrk, COB_MAX_NAMELEN, "EC-%s", q);
+			CB_TEXT_LIST_ADD (cb_ec_list, wrk);
+		} else {
+			CB_TEXT_LIST_ADD (cb_ec_list, q);
+		}
 		q = strtok (NULL, " ");
 	}
 	cobc_free (p);
@@ -1835,7 +1843,6 @@ cobc_deciph_ec (const char *opt, const cob_u32_t to_on_off)
 	loc.source_column = 0;
 	loc.source_line = 0;
 	return cobc_turn_ec (cb_ec_list, to_on_off, &loc);
-
 }
 
 /* Local functions */
@@ -3486,17 +3493,18 @@ process_command_line (const int argc, char **argv)
 			break;
 
 		case 11:
-			/* -fenable-ec=<xx> : COBOL exception-name, e.g. EC-BOUND-OVERFLOW */
+			/* -fec=<xx> : COBOL exception-name, e.g. EC-BOUND-OVERFLOW,
+			               also allows to skip the prefix e.g. BOUND-OVERFLOW */
 			if (cobc_deciph_ec (cob_optarg, 1U)) {
-				cobc_err_exit (COBC_INV_PAR, "-fenable-ec");
-			};
+				cobc_err_exit (COBC_INV_PAR, "-fec");
+			}
 			break;
 
 		case 12:
-			/* -fdisable-ec=<xx> : COBOL exception-name, e.g. EC-BOUND-OVERFLOW */
+			/* -fno-ec=<xx> : COBOL exception-name, e.g. EC-BOUND-OVERFLOW */
 			if (cobc_deciph_ec (cob_optarg, 0)) {
-				cobc_err_exit (COBC_INV_PAR, "-fenable-ec");
-			};
+				cobc_err_exit (COBC_INV_PAR, "-fno-ec");
+			}
 			break;
 
 		case 'A':
@@ -6280,6 +6288,16 @@ print_line (struct list_files *cfile, char *line, int line_num, int in_copy)
 	}
 }
 
+#define RET_IF_OVERFLOW(x)					\
+	do {							\
+		if (out_pos < CB_LINE_LENGTH) {			\
+			(x);					\
+		} else {					\
+			cmp_line[CB_LINE_LENGTH] = '\0';	\
+			return last_col;			\
+		}						\
+	} ONCE_COB
+		
 /*
   Copy each token in pline from the start of pline[first_idx] to the end of
   pline[last_idx] into cmp_line, separated by a space. Tokens are copied from
@@ -6318,7 +6336,7 @@ compare_prepare (char *cmp_line, char *pline[CB_READ_AHEAD],
 		/* Copy chars between the first and last non-space characters */
 		while (i <= last_nonspace) {
 			if (isspace ((unsigned char)pline[line_idx][i])) {
-				cmp_line[out_pos++] = ' ';
+				RET_IF_OVERFLOW (cmp_line[out_pos++] = ' ');
 				for (i++; (i <= last_nonspace) && isspace ((unsigned char)pline[line_idx][i]); i++);
 				if (i > last_nonspace) {
 					break;
@@ -6332,22 +6350,22 @@ compare_prepare (char *cmp_line, char *pline[CB_READ_AHEAD],
 				if (in_string) {
 					i++;
 				} else {
-					cmp_line[out_pos++] = pline[line_idx][i++];
+					RET_IF_OVERFLOW (cmp_line[out_pos++] = pline[line_idx][i++]);
 					in_string = 1;
 				}
 
 				for (; (i <= last_nonspace) && (pline[line_idx][i] != '"'); ) {
-					cmp_line[out_pos++] = pline[line_idx][i++];
+					RET_IF_OVERFLOW (cmp_line[out_pos++] = pline[line_idx][i++]);
 				}
 				if (pline[line_idx][i] == '"') {
-					cmp_line[out_pos++] = pline[line_idx][i++];
+					RET_IF_OVERFLOW (cmp_line[out_pos++] = pline[line_idx][i++]);
 					in_string = 0;
 				}
 				if (i > last_nonspace) {
 					break;
 				}
 			} else {
-				cmp_line[out_pos++] = pline[line_idx][i++];
+				RET_IF_OVERFLOW (cmp_line[out_pos++] = pline[line_idx][i++]);
 			}
 		}
 	}
@@ -6357,6 +6375,8 @@ compare_prepare (char *cmp_line, char *pline[CB_READ_AHEAD],
 #endif
 	return last_col;
 }
+
+#undef RET_IF_OVERFLOW
 
 /*
   Add adjust to each line number less than line_num (if appropriate) in cfile's
