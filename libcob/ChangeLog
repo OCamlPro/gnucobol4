@@ -4,6 +4,7 @@
 	* common.c, common.h, coblocal.h: added COB_DISABLE_ECS runtime option.
 	* common.c, common.h, fileio.c: added runtime exception tables for
 	  modules and files.
+	* exception-io.def: merged I-O exceptions back into exception.def.
 
 2020-06-30  Simon Sobisch <simonsobisch@gnu.org>
 
