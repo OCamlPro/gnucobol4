@@ -10075,6 +10075,28 @@ output_module_init_function (struct cb_program *prog)
 		output_line ("module->module_sources = NULL;");
 	}
 
+	if (prog->initial_exception_table) {
+		output_line ("module->exception_table = %s_%d_exception_table;",
+			     prog->program_id, prog->toplev_count);
+
+		output_storage ("static struct cob_exception %s_%d_exception_table[] = {\n",
+				prog->program_id, prog->toplev_count);
+		for (int i = 0; i < COB_NUM_ECS; ++i) {
+			output_storage ("\t{\"%s\",%d,%d,%d}",
+					prog->initial_exception_table[i].name,
+					prog->initial_exception_table[i].code,
+					prog->initial_exception_table[i].enable,
+					prog->initial_exception_table[i].explicit_enable_val);
+			if (i < COB_NUM_ECS - 1) {
+				output_storage (",");
+			}
+			output_storage ("\n");
+		}
+		output_storage ("};\n");
+	} else {
+		output_line ("module->exception_table = NULL;");
+	}
+
 	output_block_close ();
 	output_newline ();
 }
@@ -12282,7 +12304,6 @@ codegen (struct cb_program *prog, const char *translate_name, const int subseque
 			progid++;
 		}
 	}
-
 
 	output_internal_function (prog, prog->parameter_list);
 

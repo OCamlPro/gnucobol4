@@ -5080,6 +5080,10 @@ cob_file_free (cob_file **pfl, cob_file_key **pky)
 			cob_cache_free (fl->linorkeyptr);
 			fl->linorkeyptr = NULL;
 		}
+		if (fl->exception_table) {
+			cob_cache_free (fl->exception_table);
+			fl->exception_table = NULL;
+		}
 		if (*pfl != NULL) {
 			cob_cache_free (*pfl);
 			*pfl = NULL;

@@ -1,4 +1,8 @@
 
+2020-07-07  Edward Hart <edward.dan.hart@gmail.com>
+
+	* runtime.cfg: added comments for new option disable_ecs.
+
 2020-05-11  Simon Sobisch <simonsobisch@gnu.org>
 
 	* general: added options type-to-clause and usage-type

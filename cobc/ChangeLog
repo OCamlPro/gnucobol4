@@ -1,4 +1,17 @@
 
+2020-07-08  Edward Hart <edward.dan.hart@gmail.com>
+
+	* cobc.c, typeck.c: >>TURN directives now translated to C, to be
+	  transmitted to libcob.
+	* cobc.c, cobc.h: move cb_exception and cobc_turn_ec to libcob.
+	* cobc.c, typeck.c: replace use cob_exception in parameters with an
+	  EC code, where possible.
+	* cobc.c: move save/restore exception table logic to process_translate,
+	  since preprocess no longer changes the exception table.
+	* cobc.c (turn_ec_io): now sets files' exception tables for non-file-
+	  specific >>TURN's, since they are the sole source of whether an EC is
+	  enabled for a file or not.
+
 2020-07-07  Simon Sobisch <simonsobisch@gnu.org>
 
 	FR #53 TURN directive

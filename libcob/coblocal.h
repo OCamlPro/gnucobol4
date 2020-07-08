@@ -224,6 +224,7 @@ typedef struct __cob_settings {
 	char		*cob_sys_type;		/* OSTYPE setting from env */
 	char		*cob_debug_log;
 	char		*cob_date;		/* Date override for testing purposes / UTC hint */
+	char		*cob_disabled_ecs;	/* ECs to disable checking for */
 	struct cob_time	cob_time_constant;
 
 	/* call.c */

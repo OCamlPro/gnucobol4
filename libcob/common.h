@@ -831,6 +831,9 @@ enum cob_exception_id {
 #undef	COB_EXCEPTION
 #endif
 
+#define COB_NUM_ECS (1 + (int)COB_EC_MAX)
+#define COB_NUM_I_O_ECS (1 + (int)COB_EC_I_O_MAX - (int)COB_EC_I_O)
+
 /* File attributes */
 
 /* Start conditions */
@@ -1283,6 +1286,8 @@ typedef struct __cob_module {
 
 	cob_field		*json_code;		/* JSON-CODE */
 	cob_field		*json_status;		/* JSON-STATUS */
+
+	struct cob_exception	*exception_table;	/* Whether checking is enabled for exception */
 } cob_module;
 
 
@@ -1323,7 +1328,7 @@ typedef struct __cob_file_key {
 /* File structure */
 
 /*NOTE: *** Add new fields to end  ***
- *       cob_file is now allocated by cob_file_malloc in common.c
+ *       cob_file is now allocated by cob_file_malloc in fileio.c
  *       so as long as you add new fields to the end there should be no
  *       need to change COB_FILE_VERSION
  */
@@ -1362,9 +1367,10 @@ typedef struct __cob_file {
 	unsigned char		file_version;		/* File I/O version */
 
 	unsigned char		flag_line_adv;		/* LINE ADVANCING */
-	short				curkey;			/* Current file index read sequentially */
-	short 				mapkey;			/* Remapped index number, when FD does not match file */
+	short			curkey;			/* Current file index read sequentially */
+	short 			mapkey;			/* Remapped index number, when FD does not match file */
 
+	struct cob_exception	*exception_table;	/* What EC-I-O conditions have checking enabled */
 } cob_file;
 
 
@@ -1564,7 +1570,7 @@ typedef struct __cob_global {
 	unsigned int		cob_stmt_exception;	/* Statement has 'On Exception' */
 
 	unsigned int		cob_debugging_mode;	/* activation of USE ON DEBUGGING code */
-
+	struct cob_exception	*cob_disabled_ecs;	/* Disabled ECs */
 } cob_global;
 
 /* File I/O function pointer structure */
@@ -1599,8 +1605,24 @@ COB_EXPIMP void		print_version	(void);
 COB_EXPIMP int		cob_load_config	(void);
 COB_EXPIMP void		print_runtime_conf	(void);
 
-COB_EXPIMP void		cob_set_exception	(const int);
+/* Exception structure */
+struct cob_exception {
+	const char	*name;			/* Exception name */
+	const int	code;			/* Exception code */
+	int		enable;			/* If turned on */
+	int		explicit_enable_val;	/* enable has been set explicitly */
+};
+
+/* TO-DO: Should this be here? Internal, but should be shared between cobc and libcob. */
+COB_EXPIMP void cob_turn_ec_for_table	(struct cob_exception *, const size_t,
+					 const int, const int);
+COB_EXPIMP void cob_turn		(const int, const int);
+COB_EXPIMP void cob_turn_file		(cob_file *, const int, const int);
+COB_EXPIMP void		cob_set_exception	(const enum cob_exception_id);
 COB_EXPIMP int		cob_last_exception_is	(const int);
+COB_EXPIMP int		cob_exception_enabled	(const enum cob_exception_id);
+COB_EXPIMP int		cob_file_exception_enabled	(const enum cob_exception_id,
+							 cob_file *);
 
 COB_EXPIMP void		cob_runtime_hint	(const char *, ...) COB_A_FORMAT12;
 COB_EXPIMP void		cob_runtime_error	(const char *, ...) COB_A_FORMAT12;

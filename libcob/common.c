@@ -199,14 +199,14 @@
 #define GC_C_VERSION	CB_XSTRINGIFY(__TINYC__)
 #elif  defined(__HP_cc)
 #define GC_C_VERSION_PRF       "(HP aC++/ANSI C) "
-#define GC_C_VERSION   CB_XSTRINGIFY(__HP_cc) 
+#define GC_C_VERSION   CB_XSTRINGIFY(__HP_cc)
 #elif  defined(__hpux) || defined(_HPUX_SOURCE)
 #if  defined(__ia64)
 #define GC_C_VERSION_PRF       "(HPUX IA64) "
 #else
 #define GC_C_VERSION_PRF       "(HPUX PA-RISC) "
 #endif
-#define GC_C_VERSION   " C"  
+#define GC_C_VERSION   " C"
 #else
 #define GC_C_VERSION_PRF	""
 #define GC_C_VERSION	_("unknown")
@@ -315,25 +315,15 @@ static void		(*cob_ext_sighdl) (int) = NULL;
 static VOID		(WINAPI *time_as_filetime_func) (LPFILETIME) = NULL;
 #endif
 
-#undef	COB_EXCEPTION
-#define COB_EXCEPTION(code, tag, name, critical)	name,
-static const char		* const cob_exception_tab_name[] = {
-	"None",		/* COB_EC_ZERO */
-#include "exception.def"
-	"Invalid"	/* COB_EC_MAX */
+/* Exceptions */
+
+#define	COB_EXCEPTION(code,tag,name,critical) {name, 0x##code, 1, 0},
+struct cob_exception cob_exception_table[] = {
+	{NULL, 0, 0, 0},		/* CB_EC_ZERO */
+#include "libcob/exception.def"
+	{NULL, 0, 0, 0}		/* CB_EC_MAX */
 };
-
 #undef	COB_EXCEPTION
-#define COB_EXCEPTION(code, tag, name, critical)	0x##code,
-static const int		cob_exception_tab_code[] = {
-	0,		/* COB_EC_ZERO */
-#include "exception.def"
-	0		/* COB_EC_MAX */
-};
-
-#undef	COB_EXCEPTION
-
-#define EXCEPTION_TAB_SIZE	sizeof (cob_exception_tab_code) / sizeof (int)
 
 /* Switches */
 #define	COB_SWITCH_MAX	36  /* (must match cobc/tree.h)*/
@@ -437,6 +427,7 @@ static struct config_tbl gc_conf[] = {
 	{"COB_EXIT_MSG", "exit_msg", 		NULL, NULL, GRP_SCREEN, ENV_STR, SETPOS (cob_exit_msg)},	/* default set in cob_init_screenio() */
 	{"COB_CURRENT_DATE" ,"current_date",	NULL,	NULL, GRP_MISC, ENV_STR, SETPOS (cob_date)},
 	{"COB_DATE", "date",			NULL,	NULL, GRP_HIDE, ENV_STR, SETPOS (cob_date)},
+	{"COB_DISABLE_ECS", "disable_ecs",	NULL,	NULL, GRP_MISC, ENV_STR, SETPOS (cob_disabled_ecs)},
 	{NULL, NULL, 0, 0}
 };
 #define NUM_CONFIG (sizeof (gc_conf) /sizeof (struct config_tbl) - 1)
@@ -1564,9 +1555,9 @@ cob_get_last_exception_name (void)
 {
 	size_t	n;
 
-	for (n = 0; n < EXCEPTION_TAB_SIZE; ++n) {
-		if (last_exception_code == cob_exception_tab_code[n]) {
-			return cob_exception_tab_name[n];
+	for (n = 0; n < COB_NUM_ECS; ++n) {
+		if (last_exception_code == COB_MODULE_PTR->exception_table[n].code) {
+			return COB_MODULE_PTR->exception_table[n].name;
 		}
 	}
 	return NULL;
@@ -1576,23 +1567,91 @@ cob_get_last_exception_name (void)
 int
 cob_last_exception_is (const int exception_to_check)
 {
-	if ((last_exception_code & cob_exception_tab_code[exception_to_check])
-	 == cob_exception_tab_code[exception_to_check]) {
-		return 1;
+	int	ec_code = COB_MODULE_PTR->exception_table[exception_to_check].code;
+	
+	return (last_exception_code & ec_code) == ec_code;
+}
+
+int
+cob_exception_enabled (const enum cob_exception_id ec)
+{
+	return COB_MODULE_PTR
+		&& COB_MODULE_PTR->exception_table
+		&& COB_MODULE_PTR->exception_table[ec].enable
+		&& cobglobptr->cob_disabled_ecs[ec].enable;
+}
+
+int
+cob_file_exception_enabled (const enum cob_exception_id ec, cob_file *f)
+{
+	return f->exception_table[(int)ec - (int)COB_EC_I_O].enable
+		&& cobglobptr->cob_disabled_ecs[ec].enable;
+}
+
+void
+cob_turn_ec_for_table (struct cob_exception *table, const size_t table_len,
+		       const int ec_code, const int to_on_off)
+{
+	int	i;
+
+	if (ec_code & 0x00FF) {
+		/* Set individual level-1 EC */
+		for (i = 0; i < table_len; ++i) {
+			if (table[i].code == ec_code) {
+				table[i].enable = to_on_off;
+				table[i].explicit_enable_val = 1;
+				break;
+			}
+		}
+	} else if (ec_code != 0) {
+		/* Set all ECs subordinate to level-2 EC */
+		for (i = 0; i < table_len; ++i) {
+			if ((table[i].code & 0xFF00) == ec_code) {
+				table[i].enable = to_on_off;
+				table[i].explicit_enable_val = 1;
+			}
+		}
 	} else {
-		return 0;
+		/* EC-ALL; set all ECs */
+		for (i = 0; i < table_len; ++i) {
+			table[i].enable = to_on_off;
+			table[i].explicit_enable_val = 1;
+		}
 	}
+}
+
+
+void
+cob_turn (const int code, const int enable)
+{
+	cob_turn_ec_for_table (COB_MODULE_PTR->exception_table,
+			       COB_NUM_ECS, code, enable);
+}
+
+void
+cob_turn_file (cob_file *f, const int code, const int enable)
+{
+	cob_turn_ec_for_table (f->exception_table,
+			       COB_NUM_I_O_ECS,
+			       code, enable);
 }
 
 /* set last exception,
    used for EXCEPTION- functions and for cob_accept_exception_status,
    only reset on SET LAST EXCEPTION TO OFF */
 void
-cob_set_exception (const int id)
+cob_set_exception (const enum cob_exception_id ec)
 {
-	cobglobptr->cob_exception_code = cob_exception_tab_code[id];
+	/* TO-DO: Delete this - all calls to cob_set_exception should be
+	   guarded. It's set_exception, not set_exception_if...
+	*/
+	if (ec && !cob_exception_enabled (ec)) {
+		return;
+	}
+
+	cobglobptr->cob_exception_code = COB_MODULE_PTR->exception_table[ec].code;
 	last_exception_code = cobglobptr->cob_exception_code;
-	if (id) {
+	if (ec) {
 		cobglobptr->cob_got_exception = 1;
 		cobglobptr->last_exception_statement = cob_source_statement;
 		cobglobptr->last_exception_line = cob_source_line;
@@ -1656,7 +1715,7 @@ cob_realloc (void * optr, const size_t osize, const size_t nsize)
 
 	if (unlikely (osize == nsize)) {	/* No size change */
 		return optr;
-	} 
+	}
 	if (unlikely (osize > nsize)) {		/* Reducing size */
 		return realloc (optr, nsize);
 	}
@@ -4452,7 +4511,7 @@ check_valid_dir (const char *dir)
 #if 0
 	print_stat (dir, sb);
 #endif
-	
+
 	return 0;
 }
 
@@ -4740,7 +4799,7 @@ cob_sys_system (const void *cmdline)
 				memcpy (command, cmd, (size_t)i + 1);
 #ifdef _WIN32
 			}
-#endif 
+#endif
 			{
 				int status;
 				if (cobglobptr->cob_screen_initialized) {
@@ -7269,7 +7328,7 @@ cob_fatal_error (const enum cob_fatal_error fatal_error)
 		break;
 	case COB_FERROR_JSON:
 		cob_runtime_error (_("attempt to use non-implemented JSON I/O"));
-		break;		
+		break;
 	default:
 		/* internal rare error, no need for translation */
 		cob_runtime_error ("unknown failure: %d", fatal_error);
@@ -7450,7 +7509,7 @@ get_screenio_and_mouse_info (char *version_buffer, size_t size, const int verbos
 	} else {
 		snprintf (buff, 55, _("%s, version %s"), WITH_CURSES, version_buffer);
 	}
-#if defined (RESOLVED_PDC_VER) 
+#if defined (RESOLVED_PDC_VER)
 	{
 		const int	chtype_val = (int)sizeof (chtype) * 8;
 		char	chtype_def[10] = { '\0' };
@@ -7995,6 +8054,63 @@ cob_common_init (void *setptr)
 #endif
 }
 
+static void
+apply_disabled_ecs (void)
+{
+	char	*disabled_ecs = cobsetptr->cob_disabled_ecs;
+	char	*p;
+	char	*comma;
+	size_t	len;
+	int	i;
+
+	if (!disabled_ecs) {
+		return;
+	}
+
+	/* Uppercase disabled_ecs */
+	for (p = disabled_ecs; *p; ++p) {
+		*p = toupper (*p);
+	}
+
+	/* Disable each EC in the comma-separated string */
+	do {
+		comma = strchr (disabled_ecs + 1, ',');
+
+		if (comma) {
+			len = comma - disabled_ecs;
+		} else {
+			len = strlen (disabled_ecs);
+		}
+		for (i = 1; i < COB_NUM_ECS; ++i) {
+			if (!strncmp (disabled_ecs,
+				      cobglobptr->cob_disabled_ecs[i].name,
+				      len)) {
+				break;
+			}
+		}
+
+		if (i < COB_NUM_ECS) {
+			cob_turn_ec_for_table (cobglobptr->cob_disabled_ecs,
+					       COB_NUM_ECS,
+					       cobglobptr->cob_disabled_ecs[i].code,
+					       0);
+		} else {
+			/* Warn if EC not found */
+			if (comma) {
+				*comma = '\0';
+			}
+			cob_runtime_warning (_("'%s' is not an exception condition"),
+					     disabled_ecs);
+			if (comma) {
+				*comma = ',';
+			}
+		}
+
+
+		disabled_ecs = comma + 1;
+	} while (comma);
+}
+
 void
 cob_init (const int argc, char **argv)
 {
@@ -8097,6 +8213,11 @@ cob_init (const int argc, char **argv)
 	if (unlikely (cob_load_config () < 0)) {
 		cob_stop_run (1);
 	}
+
+	/* Allocate and initialise cob_disabled_ecs */
+	cobglobptr->cob_disabled_ecs = cob_cache_malloc (sizeof (struct cob_exception) * COB_NUM_ECS);
+	memcpy (cobglobptr->cob_disabled_ecs, cob_exception_table, sizeof (struct cob_exception) * COB_NUM_ECS);
+	apply_disabled_ecs ();
 
 	/* Copy COB_PHYSICAL_CANCEL from settings (internal) to global structure */
 	cobglobptr->cob_physical_cancel = cobsetptr->cob_physical_cancel;

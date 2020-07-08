@@ -4062,10 +4062,11 @@ build_file (cb_tree name)
 	p->access_mode = COB_ACCESS_SEQUENTIAL;
 	p->handler = CB_LABEL (cb_standard_error_handler);
 	p->handler_prog = current_program;
-	p->exception_table = cobc_parse_malloc (sizeof (struct cb_exception)
-						* cb_io_exception_table_len);
-	memcpy (p->exception_table, cb_io_exception_table,
-		sizeof (struct cb_exception) * cb_io_exception_table_len);
+	p->exception_table = cobc_parse_malloc (sizeof (struct cob_exception)
+						* COB_NUM_I_O_ECS);
+	memcpy (p->exception_table,
+		cb_exception_table + COB_EC_I_O,
+		sizeof (struct cob_exception) * COB_NUM_I_O_ECS);
 
 	return p;
 }

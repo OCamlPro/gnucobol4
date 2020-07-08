@@ -298,21 +298,17 @@ unsigned int	cb_correct_program_order = 0;
 
 cob_u32_t		optimize_defs[COB_OPTIM_MAX] = { 0 };
 
+//#error "TO-DO: Fix cb_emit_turn"
+//#error "TO-DO: Create tests for COB_DISABLED_ECS."
+//#error "TO-DO: Check recursive CALLs behave as expected"
+//#error "TO-DO: Add comment explaining design choice for runtime exception disable table"
+
 #define	COB_EXCEPTION(code,tag,name,critical) {name, 0x##code, 0, 0},
-struct cb_exception cb_exception_table[] = {
+struct cob_exception cb_exception_table[] = {
 	{NULL, 0, 0, 0},		/* CB_EC_ZERO */
 #include "libcob/exception.def"
-	{NULL, 0, 0, 0}		/* CB_EC_MAX */
+	{NULL, 0, 0, 0}		/* COB_EC_MAX */
 };
-
-const struct cb_exception cb_io_exception_table[] = {
-	{NULL, 0, 0, 0},
-#include "libcob/exception-io.def"
-	{NULL, 0, 0, 0}		/* CB_EC_MAX */
-};
-#undef	COB_EXCEPTION
-const size_t	cb_io_exception_table_len = sizeof (cb_io_exception_table) / sizeof (struct cb_exception);
-static const size_t	cb_exception_table_len = sizeof (cb_exception_table) / sizeof (struct cb_exception);
 
 struct cb_turn_list	*cb_turn_list = NULL;
 
@@ -642,6 +638,7 @@ static const struct option long_options[] = {
 DECLNORET static void COB_A_NORETURN	cobc_abort_terminate (int);
 DECLNORET static void COB_A_NORETURN	cobc_early_exit (int);
 DECLNORET static void COB_A_NORETURN	cobc_err_exit (const char *, ...) COB_A_FORMAT12;
+static unsigned int	turn_ec (struct cb_text_list *ec_list, const cob_u32_t to_on_off, cb_tree loc);
 static void	free_list_file		(struct list_files *);
 static void	print_program	(struct list_files *, int);
 static void	set_standard_title	(void);
@@ -1626,171 +1623,6 @@ cobc_check_valid_name (const char *name, const enum cobc_name_type prechk)
 	return 0;
 }
 
-/* Turn generation of runtime exceptions on/off */
-
-static void
-turn_ec_for_table (struct cb_exception *table, const size_t table_len,
-		   struct cb_exception ec, const int to_on_off)
-{
-	int	i;
-
-	if (ec.code & 0x00FF) {
-		/* Set individual level-1 EC */
-		for (i = 0; i < table_len; ++i) {
-			if (table[i].code == ec.code) {
-				table[i].enable = to_on_off;
-				table[i].explicit_enable_val = 1;
-				break;
-			}
-		}
-	} else if (ec.code != 0) {
-		/*
-		  Simon: ToDo: Group activation; check occurences of
-		  EC-generation
-		*/
-		/* Set all ECs subordinate to level-2 EC */
-		for (i = 0; i < table_len; ++i) {
-			if ((table[i].code & 0xFF00) == ec.code) {
-				table[i].enable = to_on_off;
-				table[i].explicit_enable_val = 1;
-			}
-		}
-	} else {
-		/* EC-ALL; set all ECs */
-		for (i = 0; i < table_len; ++i) {
-			table[i].enable = to_on_off;
-			table[i].explicit_enable_val = 1;
-		}
-	}
-}
-
-
-static unsigned int
-turn_ec_io (struct cb_exception ec_to_turn,
-	    const cob_u32_t to_on_off,
-	    cb_tree loc,
-	    struct cb_text_list ** const ec_list)
-{
-	if (!(*ec_list)->next
-	 || !strncmp ((*ec_list)->next->text, "EC-", 3)) {
-		/* This >>TURN applies globally */
-		turn_ec_for_table (cb_exception_table,
-				   cb_exception_table_len,
-				   ec_to_turn,
-				   to_on_off);
-		return 0;
-	}
-
-	/* The >>TURN applies to a list of files */
-	do {
-		struct cb_file	*f = NULL;
-		cb_tree	l = NULL;
-		*ec_list = (*ec_list)->next;
-
-		/* Find file */
-		for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
-			f = CB_FILE (CB_VALUE (l));
-			if (!strcasecmp (f->name, (*ec_list)->text)) {
-				break;
-			}
-			f = NULL;
-		}
-		/* Error if no file */
-		if (!f) {
-			cb_error_x (loc, _("file '%s' does not exist"), (*ec_list)->text);
-			return 1;
-		}
-		
-		/* Apply to file's exception list */
-		turn_ec_for_table (f->exception_table, cb_io_exception_table_len,
-				   ec_to_turn, to_on_off);
-	} while ((*ec_list)->next && !strncmp ((*ec_list)->next->text, "EC-", 3));
-
-	return 0;
-}
-
-static unsigned int
-ec_duped (struct cb_text_list *ec_list, struct cb_text_list *ec,
-	  const cob_u32_t ec_idx, cb_tree loc)
-{
-	struct cb_text_list	*ec_dupchk;
-
-	/* TO-DO: Is duplication a problem? */
-	/* TO-DO: Does this algo work? */
-	for (ec_dupchk = ec_list; ec_dupchk; ec_dupchk = ec_dupchk->next) {
-		if (ec_dupchk == ec) {
-			return 0;
-		}
-		if (ec_dupchk->text
-		    && !strcasecmp(ec->text, ec_dupchk->text)) {
-			cb_error_x (loc, _("duplicate exception '%s'"),
-				    CB_EXCEPTION_NAME (ec_idx));
-			ec_dupchk = NULL;
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-/*
-  Simon: ToDo: Move save/restore of activated exceptions before
-  preparse; after C generation A dynamic save (only if changed)
-  and restore (only if set) would be nice
-*/
-unsigned int
-cobc_turn_ec (struct cb_text_list *ec_list, const cob_u32_t to_on_off, cb_tree loc)
-{
-	cob_u32_t ec_idx, i;
-	struct cb_text_list	*ec;
-	unsigned char *upme;
-
-	if (to_on_off) {
-		/* TO-DO: Only if >>TURN ... ON WITH LOCATION found? */
-		cb_flag_source_location = 1;
-	}
-
-	for (ec = ec_list; ec; ec = ec->next) {
-		/* Extract exception code via text comparison */
-		ec_idx = 0;
-		for (i = (enum cob_exception_id)1; i < COB_EC_MAX; ++i) {
-			if (!strcasecmp (ec->text, CB_EXCEPTION_NAME (i))) {
-				ec_idx = i;
-				break;
-			}
-		}
-
-		/* Error if not a known exception name */
-		/* TO-DO: What about EC-USER? */
-		if (ec_idx == 0) {
-			upme = (unsigned char *)ec->text;
-			for (i = 0; i < strlen(ec->text); ++i) {
-				upme[i] = (cob_u8_t)toupper (upme[i]);
-			}
-			cb_error_x (loc, _("invalid exception-name: %s"),
-				    ec->text);
-			return 1;
-		}
-
-		if (ec_duped (ec_list, ec, ec_idx, loc)) {
-			return 1;
-		}
-
-		if (!strncmp(CB_EXCEPTION_NAME(ec_idx), "EC-I-O", 6)) {
-			if (turn_ec_io (cb_exception_table[ec_idx], to_on_off,
-					loc, &ec)) {
-				return 1;
-			}
-		} else {
-			turn_ec_for_table (cb_exception_table,
-					   cb_exception_table_len,
-					   cb_exception_table[ec_idx], to_on_off);
-		}
-	}
-
-	return 0;
-}
-
 void
 cobc_apply_turn_directives (void)
 {
@@ -1798,7 +1630,7 @@ cobc_apply_turn_directives (void)
 
 	loc.source_file = cb_source_file;
 	loc.source_column = 0;
-	
+
 	/* Apply all >>TURN directives the scanner has passed */
 	while (cb_turn_list
 	       && cb_turn_list->line <= cb_source_line
@@ -1807,7 +1639,7 @@ cobc_apply_turn_directives (void)
 			cb_flag_source_location = 1;
 		}
 		loc.source_line = cb_turn_list->line;
-		cobc_turn_ec (cb_turn_list->ec_names, cb_turn_list->enable, &loc);
+		turn_ec (cb_turn_list->ec_names, cb_turn_list->enable, &loc);
 
 		cb_turn_list = cb_turn_list->next;
 		/* CHECKME: Should head of cb_turn_list be freed? Why doesn't
@@ -1842,10 +1674,157 @@ cobc_deciph_ec (const char *opt, const cob_u32_t to_on_off)
 	loc.source_file = cb_source_file;
 	loc.source_column = 0;
 	loc.source_line = 0;
-	return cobc_turn_ec (cb_ec_list, to_on_off, &loc);
+	return turn_ec (cb_ec_list, to_on_off, &loc);
 }
 
 /* Local functions */
+
+/* Turn generation of runtime exceptions on/off */
+
+static unsigned int
+turn_ec_io (const int ec_code,
+	    const cob_u32_t to_on_off,
+	    cb_tree loc,
+	    struct cb_text_list ** const ec_list)
+{
+	cb_tree	l;
+	struct cb_file	*f;
+
+
+	if (!(*ec_list)->next
+	 || !strncmp ((*ec_list)->next->text, "EC-", 3)) {
+		/* This >>TURN applies globally */
+		cob_turn_ec_for_table (cb_exception_table,
+				       COB_NUM_ECS,
+				       ec_code,
+				       to_on_off);
+		if (current_program) {
+			for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
+				f = CB_FILE (CB_VALUE (l));
+				cob_turn_ec_for_table (f->exception_table,
+						       COB_NUM_I_O_ECS,
+						       ec_code, to_on_off);
+				cb_emit_turn (ec_code, f, to_on_off);
+			}
+		}
+		return 0;
+	}
+
+	/* The >>TURN applies to a list of files */
+	do {
+		l = NULL;
+		f = NULL;
+		*ec_list = (*ec_list)->next;
+
+		/* Find file */
+		for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
+			f = CB_FILE (CB_VALUE (l));
+			if (!strcasecmp (f->name, (*ec_list)->text)) {
+				break;
+			}
+			f = NULL;
+		}
+		/* Error if no file */
+		if (!f) {
+			cb_error_x (loc, _("file '%s' does not exist"), (*ec_list)->text);
+			return 1;
+		}
+
+		/* Apply to file's exception list */
+		cob_turn_ec_for_table (f->exception_table, COB_NUM_I_O_ECS,
+				       ec_code, to_on_off);
+		if (current_program) {
+			cb_emit_turn (ec_code, f, to_on_off);
+		}
+	} while ((*ec_list)->next && !strncmp ((*ec_list)->next->text, "EC-", 3));
+
+	return 0;
+}
+
+static unsigned int
+ec_duped (struct cb_text_list *ec_list, struct cb_text_list *ec,
+	  const cob_u32_t ec_idx, cb_tree loc)
+{
+	struct cb_text_list	*ec_dupchk;
+
+	/* TO-DO: Is duplication a problem? */
+	/* TO-DO: Does this algo work? */
+	for (ec_dupchk = ec_list; ec_dupchk; ec_dupchk = ec_dupchk->next) {
+		if (ec_dupchk == ec) {
+			return 0;
+		}
+		if (ec_dupchk->text
+		    && !strcasecmp(ec->text, ec_dupchk->text)) {
+			cb_error_x (loc, _("duplicate exception '%s'"),
+				    CB_EXCEPTION_NAME (ec_idx));
+			ec_dupchk = NULL;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static unsigned int
+turn_ec (struct cb_text_list *ec_list, const cob_u32_t to_on_off, cb_tree loc)
+{
+	cob_u32_t ec_idx, i;
+	int ec_code;
+	struct cb_text_list	*ec;
+	unsigned char *upme;
+
+	if (to_on_off) {
+		/* TO-DO: Only if >>TURN ... ON WITH LOCATION found? */
+		cb_flag_source_location = 1;
+	}
+
+	for (ec = ec_list; ec; ec = ec->next) {
+		/* Extract exception code via text comparison */
+		ec_idx = 0;
+		for (i = (enum cob_exception_id)1; i < COB_NUM_ECS; ++i) {
+			if (CB_EXCEPTION_NAME (i)
+			    && !strcasecmp (ec->text, CB_EXCEPTION_NAME (i))) {
+				ec_idx = i;
+				break;
+			}
+		}
+
+		/* Error if not a known exception name */
+		/* TO-DO: What about EC-USER? */
+		if (ec_idx == 0) {
+			upme = (unsigned char *)ec->text;
+			for (i = 0; i < strlen(ec->text); ++i) {
+				upme[i] = (cob_u8_t)toupper (upme[i]);
+			}
+			cb_error_x (loc, _("invalid exception-name: %s"),
+				    ec->text);
+			return 1;
+		}
+
+		if (ec_duped (ec_list, ec, ec_idx, loc)) {
+			return 1;
+		}
+
+		ec_code = cb_exception_table[ec_idx].code;
+		if (!strncmp(CB_EXCEPTION_NAME(ec_idx), "EC-I-O", 6)) {
+			if (turn_ec_io (ec_code, to_on_off, loc, &ec)) {
+				return 1;
+			}
+		} else {
+			cob_turn_ec_for_table (cb_exception_table, COB_NUM_ECS,
+					       ec_code, to_on_off);
+			if (current_program) {
+				cb_emit_turn (ec_code, NULL, to_on_off);
+			}
+			/*
+			  TO-DO: If file is EXTERNAL or GLOBAL, need code to (re)store
+			  file's EC table on CALL stack
+			*/
+		}
+	}
+
+	return 0;
+}
 
 static void
 cobc_chk_buff_size (const size_t bufflen)
@@ -4701,7 +4680,6 @@ static int
 preprocess (struct filename *fn)
 {
 	const char		*sourcename;
-	struct cb_exception	save_exception_table[COB_EC_MAX];
 	int			save_source_format;
 	int			save_fold_copy;
 	int			save_fold_call;
@@ -4758,8 +4736,7 @@ preprocess (struct filename *fn)
 	plex_clear_vars ();
 	ppparse_clear_vars (cb_define_list);
 
-	/* Save default exceptions and flags in case program directives change them */
-	memcpy(save_exception_table, cb_exception_table, sizeof(struct cb_exception) * COB_EC_MAX);
+	/* Save default flags in case program directives change them */
 	save_source_format = cb_source_format;
 	save_fold_copy = cb_fold_copy;
 	save_fold_call = cb_fold_call;
@@ -4767,8 +4744,7 @@ preprocess (struct filename *fn)
 	/* Preprocess */
 	ppparse ();
 
-	/* Restore default exceptions and flags */
-	memcpy(cb_exception_table, save_exception_table, sizeof(struct cb_exception) * COB_EC_MAX);
+	/* Restore default and flags */
 	cb_source_format = save_source_format;
 	cb_fold_copy = save_fold_copy;
 	cb_fold_call = save_fold_call;
@@ -6297,7 +6273,7 @@ print_line (struct list_files *cfile, char *line, int line_num, int in_copy)
 			return last_col;			\
 		}						\
 	} ONCE_COB
-		
+
 /*
   Copy each token in pline from the start of pline[first_idx] to the end of
   pline[last_idx] into cmp_line, separated by a space. Tokens are copied from
@@ -7365,12 +7341,14 @@ process_translate (struct filename *fn)
 	struct local_filename	*lf;
 	int			ret;
 	int			i;
-	char	*buffer;
+	char			*buffer;
+	struct cob_exception	save_exception_table[COB_NUM_ECS];
 
 	/* Initialize */
 	cb_source_file = NULL;
 	cb_source_line = 0;
-
+	memcpy (save_exception_table, cb_exception_table, sizeof (struct cob_exception) * COB_NUM_ECS);
+	
 	/* Open the input file */
 	yyin = fopen (fn->preprocess, "r");
 	if (!yyin) {
@@ -7445,6 +7423,7 @@ process_translate (struct filename *fn)
 	current_paragraph = NULL;
 	current_statement = NULL;
 	cb_source_line = 0;
+	memcpy (cb_exception_table, save_exception_table, sizeof (struct cob_exception) * COB_NUM_ECS);
 
 	/* Open the output file */
 	if (cb_unix_lf) {

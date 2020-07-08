@@ -12524,3 +12524,24 @@ cb_emit_json_generate (cb_tree out, cb_tree from, cb_tree count,
 	cb_emit (cb_build_ml_suppress_checks (tree));
 	cb_emit (CB_BUILD_FUNCALL_3 ("cob_json_generate", out, CB_TREE (tree), count));
 }
+
+void
+cb_emit_turn (const int ec_code, struct cb_file *f, const int enable)
+{
+	cb_tree	ec_code_int = cb_int ((int) ec_code);
+	cb_tree	enable_int = cb_int (enable);
+
+	/* TO-DO: Create new statement */
+	current_paragraph->flag_statement = 1;
+	current_statement = cb_build_statement (">>TURN directive");
+	CB_TREE (current_statement)->source_file = cb_source_file;
+	CB_TREE (current_statement)->source_line = cb_source_line;
+	CB_ADD_TO_CHAIN (CB_TREE (current_statement), current_program->exec_list);
+	
+	if (f) {
+		cb_emit (CB_BUILD_FUNCALL_3 ("cob_turn_file", CB_TREE (f),
+					     ec_code_int, enable_int));
+	} else {
+		cb_emit (CB_BUILD_FUNCALL_2 ("cob_turn", ec_code_int, enable_int));
+	}
+}

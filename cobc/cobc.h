@@ -288,14 +288,6 @@ struct filename {
 	int			file_is_stdin;		/* dash used as filename */
 };
 
-/* Exception structure */
-struct cb_exception {
-	const char	*name;			/* Exception name */
-	const int	code;			/* Exception code */
-	int		enable;			/* If turned on */
-	int		explicit_enable_val;	/* enable has been set explicitly */
-};
-
 /* >>TURN directive list */
 struct cb_turn_list {
 	struct cb_turn_list	*next;
@@ -370,9 +362,8 @@ extern struct list_files	*cb_current_file;
 extern enum cb_format		cb_source_format;
 extern int			cb_text_column;	/* end of area B (in single-byte characters) */
 
-extern struct cb_exception	cb_exception_table[];
-extern const struct cb_exception	cb_io_exception_table[];
-extern const size_t		cb_io_exception_table_len;
+extern struct cob_exception	cb_exception_table[];
+extern const size_t		CB_IO_EXCEPTION_TABLE_LEN;
 
 #define CB_EXCEPTION_NAME(id)	cb_exception_table[id].name
 #define CB_EXCEPTION_CODE(id)	cb_exception_table[id].code
@@ -542,7 +533,6 @@ DECLNORET extern void		cobc_too_many_errors (void) COB_A_NORETURN;
 extern size_t			cobc_check_valid_name (const char *,
 						       const enum cobc_name_type);
 
-extern unsigned int		cobc_turn_ec (struct cb_text_list *, const cob_u32_t, struct cb_tree_common *);
 extern void			cobc_apply_turn_directives (void);
 
 /* help.c (used only within cobc.c) */

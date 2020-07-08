@@ -9648,6 +9648,12 @@ procedure_division:
 	check_duplicate = 0;
 	cobc_in_procedure = 1U;
 	cb_set_system_names ();
+	
+	current_program->initial_exception_table = cobc_parse_malloc (sizeof(struct cob_exception) * COB_NUM_ECS);
+	memcpy (current_program->initial_exception_table,
+		cb_exception_table,
+		sizeof(struct cob_exception) * COB_NUM_ECS);
+	
 	backup_current_pos ();
   }
   _mnemonic_conv _conv_linkage _procedure_using_chaining _procedure_returning TOK_DOT

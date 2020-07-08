@@ -1054,7 +1054,7 @@ struct cb_file {
            EXTERNAL/DYNAMIC/USING/... word" */
 	unsigned int		flag_assign_no_keyword : 1;
 	/* Exceptions enabled for file */
-	struct cb_exception	*exception_table;
+	struct cob_exception	*exception_table;
 };
 
 #define CB_FILE(x)	(CB_TREE_CAST (CB_TAG_FILE, struct cb_file, x))
@@ -1608,6 +1608,7 @@ struct cb_program {
 	struct cb_call_xref	call_xref;		/* CALL Xref list */
 	struct cb_ml_generate_tree	*ml_trees;	/* XML GENERATE trees */
 	const char		*extfh;		/* CALLFH for this program */
+	struct cob_exception	*initial_exception_table;	/* What ECs are enabled at program start */
 
 	int			last_source_line;	/* Line of (implicit) END PROGRAM/FUNCTION */
 
@@ -2259,6 +2260,9 @@ extern void		cb_emit_xml_generate (cb_tree, cb_tree, cb_tree,
 					      cb_tree);
 extern void		cb_emit_json_generate (cb_tree, cb_tree, cb_tree,
 					       cb_tree, cb_tree);
+
+extern void		cb_emit_turn (const int, struct cb_file *, const int);
+
 
 #ifdef	COB_TREE_DEBUG
 extern cb_tree		cobc_tree_cast_check (const cb_tree, const char *,
