@@ -11930,3 +11930,96 @@ NOT JUMPED
 ], [])
 
 AT_CLEANUP
+
+
+AT_SETUP([Exceptions for arithmetic statements])
+AT_KEYWORDS([exception EC-SIZE ADD])
+
+# FIXME: ECs are suppressed if a statement has a SIZE ERROR clause. But libcob
+# uses ECs to indicate whether to run the SIZE ERROR clause!
+AT_XFAIL_IF([true])
+
+AT_DATA([prog.cob], [      
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x PIC 9 VALUE 9.
+       01  y PIC 9 VALUE 2.
+       01  z PIC 9.
+       
+       PROCEDURE DIVISION.
+       >>TURN EC-SIZE CHECKING ON
+           MOVE 0 TO z
+           ADD x TO y GIVING z
+           IF FUNCTION EXCEPTION-STATUS <> "EC-SIZE-OVERFLOW"
+               DISPLAY "Error 1: " FUNCTION EXCEPTION-STATUS
+           END-IF
+
+           MOVE 0 TO z
+           ADD x TO y GIVING z
+               SIZE ERROR
+                   IF FUNCTION EXCEPTION-STATUS <> SPACES
+                       DISPLAY "Error 2: " FUNCTION EXCEPTION-STATUS
+                   END-IF
+                   IF z <> 0
+                       DISPLAY "Error 3: " z
+                   END-IF
+           END-ADD
+
+       >>TURN EC-SIZE CHECKING OFF
+           SET LAST EXCEPTION TO OFF
+           MOVE 0 TO z
+           ADD x TO y GIVING z
+           IF FUNCTION EXCEPTION-STATUS <> SPACES
+               DISPLAY "Error 4: " FUNCTION EXCEPTION-STATUS
+           END-IF
+
+           MOVE 0 TO z
+           ADD x TO y GIVING z
+               NOT SIZE ERROR
+                   DISPLAY "Error 5"
+           END-ADD
+           .
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [])
+
+AT_CLEANUP
+
+
+AT_SETUP([Exceptions for STRING])
+AT_KEYWORDS([exception EC-OVERFLOW])
+
+# FIXME: Currently overflows buffer. OVERFLOW clause should enable checking
+# irrespective of EC-OVERFLOW checking.
+AT_XFAIL_IF([true])
+
+AT_DATA([prog.cob], [      
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  n PIC 9 VALUE 0.
+       01  x PIC X(10).
+       
+       PROCEDURE DIVISION.
+       >>TURN EC-OVERFLOW-STRING CHECKING OFF
+           STRING "hi", " world!" INTO x POINTER n
+               OVERFLOW
+                   IF FUNCTION EXCEPTION-STATUS <> SPACES
+                       DISPLAY "Error 1: " FUNCTION EXCEPTION-STATUS
+                   END-IF
+               NOT OVERFLOW
+                   DISPLAY "Error 2"
+           END-STRING
+           .
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [0], [])
+
+AT_CLEANUP

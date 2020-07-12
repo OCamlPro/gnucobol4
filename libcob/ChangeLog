@@ -1,4 +1,9 @@
 
+2020-07-12  Edward Hart <edward.dan.hart@gmail.com>
+
+	* general: review use of cob_set_exception, replacing most uses with the
+	  >>TURN-sensitive cob_try_set_(file_)exception.
+
 2020-07-08  Edward Hart <edward.dan.hart@gmail.com>
 
 	* common.c, common.h, coblocal.h: added COB_DISABLE_ECS runtime option.

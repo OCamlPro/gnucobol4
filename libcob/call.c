@@ -269,7 +269,7 @@ static void
 set_resolve_error (void)
 {
 	resolve_error = resolve_error_buff;
-	cob_set_exception (COB_EC_PROGRAM_NOT_FOUND);
+	cob_try_set_exception (COB_EC_PROGRAM_NOT_FOUND);
 }
 
 static void
@@ -1002,7 +1002,7 @@ cob_resolve_cobol (const char *name, const int fold_case, const int errind)
 		if (errind) {
 			cob_call_error ();
 		}
-		cob_set_exception (COB_EC_PROGRAM_NOT_FOUND);
+		cob_try_set_exception (COB_EC_PROGRAM_NOT_FOUND);
 	}
 	return p;
 }
@@ -1084,7 +1084,7 @@ cob_call_field (const cob_field *f, const struct cob_call_struct *cs,
 		if (errind) {
 			cob_call_error ();
 		} else {
-			cob_set_exception (COB_EC_PROGRAM_NOT_FOUND);
+			cob_try_set_exception (COB_EC_PROGRAM_NOT_FOUND);
 			return NULL;
 		}
 	}

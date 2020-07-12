@@ -319,9 +319,9 @@ static VOID		(WINAPI *time_as_filetime_func) (LPFILETIME) = NULL;
 
 #define	COB_EXCEPTION(code,tag,name,critical) {name, 0x##code, 1, 0},
 struct cob_exception cob_exception_table[] = {
-	{NULL, 0, 0, 0},		/* CB_EC_ZERO */
+	{NULL, 0, 0, 0},		/* COB_EC_ZERO */
 #include "libcob/exception.def"
-	{NULL, 0, 0, 0}		/* CB_EC_MAX */
+	{NULL, 0, 0, 0}		/* COB_EC_MAX */
 };
 #undef	COB_EXCEPTION
 
@@ -1636,19 +1636,32 @@ cob_turn_file (cob_file *f, const int code, const int enable)
 			       code, enable);
 }
 
+void
+cob_try_set_file_exception (const enum cob_exception_id ec, cob_file * const f)
+{
+	if (ec == COB_EC_ZERO) {
+		cob_set_exception (ec);
+	} else if (cob_file_exception_enabled (ec, f)) {
+		cob_set_exception (ec);
+		cobglobptr->cob_error_file = f;
+	}
+}
+
+void
+cob_try_set_exception (const enum cob_exception_id ec)
+{
+	if (ec == COB_EC_ZERO
+	    || cob_exception_enabled (ec)) {
+		cob_set_exception (ec);
+	}
+}
+
 /* set last exception,
    used for EXCEPTION- functions and for cob_accept_exception_status,
    only reset on SET LAST EXCEPTION TO OFF */
 void
 cob_set_exception (const enum cob_exception_id ec)
 {
-	/* TO-DO: Delete this - all calls to cob_set_exception should be
-	   guarded. It's set_exception, not set_exception_if...
-	*/
-	if (ec && !cob_exception_enabled (ec)) {
-		return;
-	}
-
 	cobglobptr->cob_exception_code = COB_MODULE_PTR->exception_table[ec].code;
 	last_exception_code = cobglobptr->cob_exception_code;
 	if (ec) {
@@ -2326,9 +2339,9 @@ cob_module_global_enter (cob_module **module, cob_global **mglobal,
 #endif
 		for (k = 0, mod = COB_MODULE_PTR; mod && k < MAX_ITERS; mod = mod->next, k++) {
 			if (*module == mod) {
+				cob_try_set_exception (COB_EC_PROGRAM_RECURSIVE_CALL);
 				if (cobglobptr->cob_stmt_exception) {
 					/* CALL has ON EXCEPTION so return to caller */
-					cob_set_exception (COB_EC_PROGRAM_RECURSIVE_CALL);
 					cobglobptr->cob_stmt_exception = 0;
 					return 1;
 				}
@@ -3202,7 +3215,8 @@ cob_check_numeric (const cob_field *f, const char *name)
 	char		*buff;
 	size_t		i;
 
-	if (!cob_is_numeric (f)) {
+	if (cob_exception_enabled (COB_EC_DATA_INCOMPATIBLE)
+	    && !cob_is_numeric (f)) {
 		cob_set_exception (COB_EC_DATA_INCOMPATIBLE);
 		buff = cob_fast_malloc ((size_t)COB_SMALL_BUFF);
 		p = buff;
@@ -3233,8 +3247,8 @@ void
 cob_check_odo (const int i, const int min,
 			const int max, const char *name, const char *dep_name)
 {
-	/* Check OCCURS DEPENDING ON item */
-	if (i < min || i > max) {
+	if (cob_exception_enabled (COB_EC_BOUND_ODO)
+	    && (i < min || i > max)) {
 		cob_set_exception (COB_EC_BOUND_ODO);
 
 		/* Hack for call from 2.0 modules as the module signature was changed :-(
@@ -3262,6 +3276,10 @@ void
 cob_check_subscript (const int i, const int max,
 			const char *name, const int odo_item)
 {
+	if (!cob_exception_enabled (COB_EC_BOUND_SUBSCRIPT)) {
+		return;
+	}
+
 #if 1
 	/* Hack for call from 2.0 modules as the module signature was changed :-(
 	   Note: depending on the actual C runtime this may work or directly break
@@ -3300,6 +3318,10 @@ void
 cob_check_ref_mod (const int offset, const int length,
 		   const int size, const char *name)
 {
+	if (!cob_exception_enabled (COB_EC_BOUND_REF_MOD)) {
+		return;
+	}
+	
 	/* Check offset */
 	if (offset < 1 || offset > size) {
 		cob_set_exception (COB_EC_BOUND_REF_MOD);
@@ -4099,7 +4121,7 @@ cob_display_arg_number (cob_field *f)
 	COB_ATTR_INIT (COB_TYPE_NUMERIC_BINARY, 9, 0, 0, NULL);
 	cob_move (f, &temp);
 	if (n < 0 || n >= cob_argc) {
-		cob_set_exception (COB_EC_IMP_DISPLAY);
+		cob_try_set_exception (COB_EC_IMP_DISPLAY);
 		return;
 	}
 	current_arg = n;
@@ -4124,7 +4146,7 @@ void
 cob_accept_arg_value (cob_field *f)
 {
 	if (current_arg >= cob_argc) {
-		cob_set_exception (COB_EC_IMP_ACCEPT);
+		cob_try_set_exception (COB_EC_IMP_ACCEPT);
 		return;
 	}
 	cob_memcpy (f, cob_argv[current_arg],
@@ -4249,11 +4271,11 @@ cob_display_env_value (const cob_field *f)
 	int		ret;
 
 	if (!cob_local_env) {
-		cob_set_exception (COB_EC_IMP_DISPLAY);
+		cob_try_set_exception (COB_EC_IMP_DISPLAY);
 		return;
 	}
 	if (!*cob_local_env) {
-		cob_set_exception (COB_EC_IMP_DISPLAY);
+		cob_try_set_exception (COB_EC_IMP_DISPLAY);
 		return;
 	}
 	env2 = cob_malloc (f->size + 1U);
@@ -4261,7 +4283,7 @@ cob_display_env_value (const cob_field *f)
 	ret = cob_setenv (cob_local_env, env2, 1);
 	cob_free (env2);
 	if (ret != 0) {
-		cob_set_exception (COB_EC_IMP_DISPLAY);
+		cob_try_set_exception (COB_EC_IMP_DISPLAY);
 		return;
 	}
 	/* Rescan term/screen variables */
@@ -4283,7 +4305,7 @@ cob_get_environment (const cob_field *envname, cob_field *envval)
 	size_t		size;
 
 	if (envname->size == 0 || envval->size == 0) {
-		cob_set_exception (COB_EC_IMP_ACCEPT);
+		cob_try_set_exception (COB_EC_IMP_ACCEPT);
 		return;
 	}
 
@@ -4298,7 +4320,7 @@ cob_get_environment (const cob_field *envname, cob_field *envval)
 	}
 	p = getenv (buff);
 	if (!p) {
-		cob_set_exception (COB_EC_IMP_ACCEPT);
+		cob_try_set_exception (COB_EC_IMP_ACCEPT);
 		p = " ";
 	}
 	cob_memcpy (envval, p, strlen (p));
@@ -4314,7 +4336,7 @@ cob_accept_environment (cob_field *f)
 		p = getenv (cob_local_env);
 	}
 	if (!p) {
-		cob_set_exception (COB_EC_IMP_ACCEPT);
+		cob_try_set_exception (COB_EC_IMP_ACCEPT);
 		p = " ";
 	}
 	cob_memcpy (f, p, strlen (p));
@@ -4366,12 +4388,12 @@ cob_allocate (unsigned char **dataptr, cob_field *retptr,
 	fsize = cob_get_int (sizefld);
 	/* FIXME: doesn't work correctly if fsize is > INT_MAX */
 	if (fsize > COB_MAX_ALLOC_SIZE) {
-		cob_set_exception (COB_EC_STORAGE_IMP);
+		cob_try_set_exception (COB_EC_STORAGE_IMP);
 	} else if (fsize > 0) {
 		cache_ptr = cob_malloc (sizeof (struct cob_alloc_cache));
 		mptr = malloc ((size_t)fsize);
 		if (!mptr) {
-			cob_set_exception (COB_EC_STORAGE_NOT_AVAIL);
+			cob_try_set_exception (COB_EC_STORAGE_NOT_AVAIL);
 			cob_free (cache_ptr);
 		} else {
 			if (initialize) {
@@ -4423,7 +4445,7 @@ cob_free_alloc (unsigned char **ptr1, unsigned char *ptr2)
 			}
 			prev_ptr = cache_ptr;
 		}
-		cob_set_exception (COB_EC_STORAGE_NOT_ALLOC);
+		cob_try_set_exception (COB_EC_STORAGE_NOT_ALLOC);
 		return;
 	}
 	if (ptr2 && *(void **)ptr2) {
@@ -4441,7 +4463,7 @@ cob_free_alloc (unsigned char **ptr1, unsigned char *ptr2)
 			}
 			prev_ptr = cache_ptr;
 		}
-		cob_set_exception (COB_EC_STORAGE_NOT_ALLOC);
+		cob_try_set_exception (COB_EC_STORAGE_NOT_ALLOC);
 		return;
 	}
 }
@@ -4666,6 +4688,11 @@ cob_tidy (void)
 
 /* System routines */
 
+/*
+  TO-DO: System routines should probably set EC-ARGUMENT-IMP if they
+  have invalid arguments
+*/
+ 
 int
 cob_sys_exit_proc (const void *dispo, const void *pptr)
 {
@@ -5815,7 +5842,7 @@ cob_set_locale (cob_field *locale, const int category)
 		cob_free (buff);
 	}
 	if (!p) {
-		cob_set_exception (COB_EC_LOCALE_MISSING);
+		cob_try_set_exception (COB_EC_LOCALE_MISSING);
 		return;
 	}
 	p = setlocale (LC_ALL, NULL);
@@ -5826,7 +5853,7 @@ cob_set_locale (cob_field *locale, const int category)
 		cobglobptr->cob_locale = cob_strdup (p);
 	}
 #else
-	cob_set_exception (COB_EC_LOCALE_MISSING);
+	cob_try_set_exception (COB_EC_LOCALE_MISSING);
 #endif
 }
 

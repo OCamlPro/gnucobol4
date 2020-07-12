@@ -9653,6 +9653,14 @@ procedure_division:
 	memcpy (current_program->initial_exception_table,
 		cb_exception_table,
 		sizeof(struct cob_exception) * COB_NUM_ECS);
+	cb_tree l;
+	for (l = current_program->file_list; l; l = CB_CHAIN (l)) {
+		struct cb_file *f = CB_FILE (CB_VALUE (l));
+	        f->initial_exception_table = cobc_parse_malloc (sizeof(struct cob_exception) * COB_NUM_I_O_ECS);
+		memcpy (f->initial_exception_table,
+		        f->exception_table,
+			sizeof(struct cob_exception) * COB_NUM_I_O_ECS);
+	}
 	
 	backup_current_pos ();
   }

@@ -356,7 +356,7 @@ cob_display (const int to_device, const int newline, const int varcnt, ...)
 		if (cobsetptr->cob_display_punch_file) {
 			fp = cobsetptr->cob_display_punch_file;
 		} else {
-			cob_set_exception (COB_EC_IMP_DISPLAY);	/* come back to this later... */
+			cob_try_set_exception (COB_EC_IMP_DISPLAY);	/* come back to this later... */
 			if (!no_syspunch_error_raised) {
 				no_syspunch_error_raised = 1;
 				cob_runtime_warning (_("COB_DISPLAY_PUNCH_FILE is invalid, output to SYSPUNCH skipped"));
@@ -687,7 +687,7 @@ cob_accept (cob_field *f)
 	for (; size < COB_MEDIUM_MAX; ) {
 		ipchr = getchar ();
 		if (unlikely (ipchr == EOF)) {
-			cob_set_exception (COB_EC_IMP_ACCEPT);
+			cob_try_set_exception (COB_EC_IMP_ACCEPT);
 			if (!size) {
 				size = 1;
 				p[0] = ' ';

@@ -1077,7 +1077,6 @@ cob_cache_file (cob_file *f)
 static void
 save_status (cob_file *f, cob_field *fnstatus, const int status)
 {
-	cobglobptr->cob_error_file = f;
 	if (likely(status == 0)) {
 		memset (f->file_status, '0', (size_t)2);
 		if (fnstatus) {
@@ -1086,7 +1085,7 @@ save_status (cob_file *f, cob_field *fnstatus, const int status)
 		/* EOP is non-fatal therefore 00 status but needs exception */
 		if (unlikely (eop_status)) {
 			eop_status = 0;
-			cob_set_exception (COB_EC_I_O_EOP);
+			cob_try_set_file_exception (COB_EC_I_O_EOP, f);
 		} else {
 			cobglobptr->cob_exception_code = 0;
 		}
@@ -1095,7 +1094,7 @@ save_status (cob_file *f, cob_field *fnstatus, const int status)
 		}
 		return;
 	}
-	cob_set_exception (status_exception[status / 10]);
+	cob_try_set_file_exception (status_exception[status / 10], f);
 	f->file_status[0] = (unsigned char)COB_I2D (status / 10);
 	f->file_status[1] = (unsigned char)COB_I2D (status % 10);
 	if (fnstatus) {
@@ -7426,9 +7425,8 @@ copy_file_to_fcd (cob_file *f, FCD3 *fcd)
 static void
 update_fcd_to_file (FCD3* fcd, cob_file *f, cob_field *fnstatus, int wasOpen)
 {
-	cobglobptr->cob_error_file = f;
 	if (isdigit(fcd->fileStatus[0])) {
-		cob_set_exception (status_exception[(fcd->fileStatus[0] - '0')]);
+		cob_try_set_file_exception (status_exception[(fcd->fileStatus[0] - '0')], f);
 	} else {
 		cobglobptr->cob_exception_code = 0;
 	}
@@ -7966,17 +7964,17 @@ cob_sys_extfh (const void *opcode_ptr, void *fcd_ptr)
 	 || !COB_MODULE_PTR->cob_procedure_params[0]
 	 || !COB_MODULE_PTR->cob_procedure_params[1]
 	 || COB_MODULE_PTR->cob_procedure_params[1]->size < 5) {
-		cob_set_exception (COB_EC_PROGRAM_ARG_MISMATCH);
+		cob_try_set_exception (COB_EC_ARGUMENT_IMP);
 		return 0;	/* correct? */
 	}
 	if (COB_MODULE_PTR->cob_procedure_params[1]->size < sizeof(FCD3)) {
 		fcd->fileStatus[0] = '9';
 		fcd->fileStatus[1] = 161;
 		if (fcd->fcdVer != FCD_VER_64Bit) {
+			cob_try_set_exception (COB_EC_ARGUMENT_IMP);
 #if 1
 			cob_runtime_warning (_("ERROR: EXTFH called with FCD version %d"), fcd->fcdVer);
 #else
-			cob_set_exception (COB_EC_PROGRAM_ARG_MISMATCH);
 			cob_runtime_error (_("ERROR: EXTFH called with FCD version %d"), fcd->fcdVer);
 			exit(-1);
 #endif

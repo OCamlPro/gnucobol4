@@ -1,4 +1,8 @@
 
+2020-07-12  Edward Hart <edward.dan.hart@gmail.com>
+
+	* parser.y, codegen.c, tree.h: emit initial exception table for files.
+
 2020-07-08  Edward Hart <edward.dan.hart@gmail.com>
 
 	* cobc.c, typeck.c: >>TURN directives now translated to C, to be

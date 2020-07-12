@@ -1618,6 +1618,8 @@ COB_EXPIMP void cob_turn_ec_for_table	(struct cob_exception *, const size_t,
 					 const int, const int);
 COB_EXPIMP void cob_turn		(const int, const int);
 COB_EXPIMP void cob_turn_file		(cob_file *, const int, const int);
+COB_EXPIMP void		cob_try_set_file_exception (const enum cob_exception_id, cob_file * const);
+COB_EXPIMP void		cob_try_set_exception	(const enum cob_exception_id);
 COB_EXPIMP void		cob_set_exception	(const enum cob_exception_id);
 COB_EXPIMP int		cob_last_exception_is	(const int);
 COB_EXPIMP int		cob_exception_enabled	(const enum cob_exception_id);

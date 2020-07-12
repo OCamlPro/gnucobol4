@@ -193,10 +193,12 @@ raise_ec_on_invalid_line_or_col (const int line, const int column)
 	int	max_x;
 
 	getmaxyx (stdscr, max_y, max_x);
-	if (line < 0 || line >= max_y) {
+	if (cob_exception_enabled (COB_EC_SCREEN_LINE_NUMBER)
+	    && (line < 0 || line >= max_y)) {
 		cob_set_exception (COB_EC_SCREEN_LINE_NUMBER);
 	}
-	if (column < 0 || column >= max_x) {
+	if (cob_exception_enabled (COB_EC_SCREEN_STARTING_COLUMN)
+	    && (column < 0 || column >= max_x)) {
 		cob_set_exception (COB_EC_SCREEN_STARTING_COLUMN);
 	}
 }
@@ -683,7 +685,7 @@ static void
 handle_status (const int fret)
 {
 	if (fret) {
-		cob_set_exception (COB_EC_IMP_ACCEPT);
+		cob_try_set_exception (COB_EC_IMP_ACCEPT);
 	}
 	COB_ACCEPT_STATUS = fret;
 
@@ -806,6 +808,10 @@ raise_ec_on_truncation (const int item_size)
 	int	max_y;
 	int	max_x;
 
+	if (!cob_exception_enabled (COB_EC_SCREEN_ITEM_TRUNCATED)) {
+		return;
+	}
+	
 	getyx (stdscr, y, x);
 	getmaxyx (stdscr, max_y, max_x);
 
@@ -2070,7 +2076,7 @@ extract_line_and_col_vals (cob_field *line, cob_field *column,
 				/* LCOV_EXCL_START */
 				if (unlikely (ret == 1)) {
 #if 0				/* Throw an exception? EC-SCREEN-IMP-LINE-VAR-LENGTH? */
-					cob_set_exception (COB_EC_SCREEN_IMP);
+					cob_try_set_exception (COB_EC_SCREEN_IMP);
 #else
 					cob_fatal_error (COB_FERROR_CODEGEN);
 #endif
@@ -2088,8 +2094,13 @@ extract_line_and_col_vals (cob_field *line, cob_field *column,
 				*sline = line_where_last_stmt_ended (stmt);
 				*scolumn = col_where_last_stmt_ended (stmt);
 			} else {
-				cob_set_exception (COB_EC_SCREEN_LINE_NUMBER);
-				cob_set_exception (COB_EC_SCREEN_STARTING_COLUMN);
+				/*
+				  FIXME: ISO-standard behaviour for this
+				   situation is to not display the item with the
+				   invalid line/col num.
+				*/
+				cob_try_set_exception (COB_EC_SCREEN_LINE_NUMBER);
+				cob_try_set_exception (COB_EC_SCREEN_STARTING_COLUMN);
 				*sline = 0;
 				*scolumn = 0;
 			}
@@ -2097,7 +2108,7 @@ extract_line_and_col_vals (cob_field *line, cob_field *column,
 			if (zero_line_col_allowed) {
 				*sline = line_where_last_stmt_ended (stmt) + 1;
 			} else {
-				cob_set_exception (COB_EC_SCREEN_LINE_NUMBER);
+				cob_try_set_exception (COB_EC_SCREEN_LINE_NUMBER);
 				*sline = 0;
 			}
 			*scolumn = cobol_col - 1;
@@ -2107,7 +2118,7 @@ extract_line_and_col_vals (cob_field *line, cob_field *column,
 		if (zero_line_col_allowed) {
 			*scolumn = col_where_last_stmt_ended (stmt);
 		} else {
-			cob_set_exception (COB_EC_SCREEN_STARTING_COLUMN);
+			cob_try_set_exception (COB_EC_SCREEN_STARTING_COLUMN);
 			*scolumn = 0;
 		}
 	} else {

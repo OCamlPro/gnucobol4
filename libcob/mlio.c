@@ -442,7 +442,7 @@ generate_content (xmlTextWriterPtr writer, cob_ml_tree *tree, unsigned int *coun
 	if (COB_FIELD_IS_FP (content)) {
 		/* TO-DO: Implement! */
 		/* TO-DO: Stop compilation if float in field */
-		cob_set_exception (COB_EC_IMP_FEATURE_MISSING);
+		cob_try_set_exception (COB_EC_IMP_FEATURE_MISSING);
 		cob_fatal_error (COB_FERROR_XML);
 	} else if (COB_FIELD_IS_NUMERIC (content)) {
 		x_content = get_xml_num (content);
@@ -539,7 +539,7 @@ generate_xml_from_tree (xmlTextWriterPtr writer, cob_ml_tree *tree,
 static void
 set_xml_exception (const unsigned int code)
 {
-	cob_set_exception (COB_EC_XML_IMP);
+	cob_try_set_exception (COB_EC_XML_IMP);
 	set_xml_code (code);
 }
 
@@ -561,7 +561,7 @@ set_json_code (const unsigned int code)
 static void
 set_json_exception (const unsigned int code)
 {
-	cob_set_exception (COB_EC_JSON_IMP);
+	cob_try_set_exception (COB_EC_JSON_IMP);
 	set_json_code (code);
 }
 
@@ -613,7 +613,7 @@ generate_json_from_tree (cob_ml_tree *tree, cJSON *out)
 		if (COB_FIELD_IS_FP (tree->content)) {
 			/* TO-DO: Implement! */
 			/* TO-DO: Stop compilation if float in field */
-			cob_set_exception (COB_EC_IMP_FEATURE_MISSING);
+			cob_try_set_exception (COB_EC_IMP_FEATURE_MISSING);
 			cob_fatal_error (COB_FERROR_JSON);
 		} else if (COB_FIELD_IS_NUMERIC (tree->content)) {
 			content = get_json_num (tree->content);

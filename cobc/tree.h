@@ -1054,6 +1054,7 @@ struct cb_file {
            EXTERNAL/DYNAMIC/USING/... word" */
 	unsigned int		flag_assign_no_keyword : 1;
 	/* Exceptions enabled for file */
+	struct cob_exception	*initial_exception_table;
 	struct cob_exception	*exception_table;
 };
 

@@ -8486,6 +8486,31 @@ output_file_initialization (struct cb_file *f)
 	}
 	output_line ("%s%s->flag_select_features = %d;", CB_PREFIX_FILE, f->cname,
 		     features);
+	output_line ("%s%s->exception_table = %s%s_exception_table;",
+		     CB_PREFIX_FILE, f->cname, CB_PREFIX_FILE, f->cname);
+
+	output_local ("static struct cob_exception %s%s_exception_table[] = {\n",
+			CB_PREFIX_FILE, f->cname);
+	/* Fudge the initial exception table if it was unset - this
+	   only happens when there's no PROCEDURE DIVISION, i.e. in
+	   the testsuite */
+	if (!f->initial_exception_table) {
+		f->initial_exception_table = f->exception_table;
+	}
+	for (int i = 0; i < COB_NUM_I_O_ECS; ++i) {
+		output_local ("\t{\"%s\",%d,%d,%d}",
+				f->initial_exception_table[i].name,
+				f->initial_exception_table[i].code,
+				f->initial_exception_table[i].enable,
+				f->initial_exception_table[i].explicit_enable_val);
+		if (i < COB_NUM_I_O_ECS - 1) {
+			output_local (",");
+		}
+		output_local ("\n");
+	}
+	output_local ("};\n");
+
+	
 	if (f->flag_external) {
 		output_block_close ();
 	}

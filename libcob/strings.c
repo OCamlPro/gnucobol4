@@ -156,7 +156,7 @@ inspect_common (cob_field *f1, cob_field *f2, const int type)
 			alloc_figurative (f1, f2);
 			f1 = &alpha_fld;
 		} else {
-			cob_set_exception (COB_EC_RANGE_INSPECT_SIZE);
+			cob_try_set_exception (COB_EC_RANGE_INSPECT_SIZE);
 			return;
 		}
 	}
@@ -361,7 +361,7 @@ cob_inspect_converting (const cob_field *f1, const cob_field *f2)
 			alloc_figurative (f2, f1);
 			f2 = &alpha_fld;
 		} else {
-			cob_set_exception (COB_EC_RANGE_INSPECT_SIZE);
+			cob_try_set_exception (COB_EC_RANGE_INSPECT_SIZE);
 			return;
 		}
 	}
@@ -415,7 +415,8 @@ cob_string_init (cob_field *dst, cob_field *ptr)
 		string_offset = cob_get_int (string_ptr) - 1;
 		if (string_offset < 0 ||
 		    string_offset >= (int)string_dst->size) {
-			cob_set_exception (COB_EC_OVERFLOW_STRING);
+			/* TO-DO: Check ON EXCEPTION is executed even if EC-OVERFLOW-STRING turned off */
+			cob_try_set_exception (COB_EC_OVERFLOW_STRING);
 		}
 	}
 }
@@ -463,7 +464,7 @@ cob_string_append (cob_field *src)
 		size = (int)(string_dst->size - string_offset);
 		memcpy (string_dst->data + string_offset, src->data, (size_t)size);
 		string_offset += size;
-		cob_set_exception (COB_EC_OVERFLOW_STRING);
+		cob_try_set_exception (COB_EC_OVERFLOW_STRING);
 	}
 }
 
@@ -501,7 +502,7 @@ cob_unstring_init (cob_field *src, cob_field *ptr, const size_t num_dlm)
 	if (unstring_ptr) {
 		unstring_offset = cob_get_int (unstring_ptr) - 1;
 		if (unstring_offset < 0 || unstring_offset >= (int)unstring_src->size) {
-			cob_set_exception (COB_EC_OVERFLOW_UNSTRING);
+			cob_try_set_exception (COB_EC_OVERFLOW_UNSTRING);
 		}
 	}
 }
@@ -614,7 +615,7 @@ void
 cob_unstring_finish (void)
 {
 	if (unstring_offset < (int)unstring_src->size) {
-		cob_set_exception (COB_EC_OVERFLOW_UNSTRING);
+		cob_try_set_exception (COB_EC_OVERFLOW_UNSTRING);
 	}
 
 	if (unstring_ptr) {
