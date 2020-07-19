@@ -1,4 +1,10 @@
 
+2020-07-19  Edward Hart <edward.dan.hart@gmail.com>
+
+	* codegen.c (output_module_init_function): change codegen to allocate an
+	  exception table each time, so that >>TURN's are "undone" when
+	  recursing.
+
 2020-07-12  Edward Hart <edward.dan.hart@gmail.com>
 
 	* parser.y, codegen.c, tree.h: emit initial exception table for files.

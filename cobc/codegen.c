@@ -10101,8 +10101,11 @@ output_module_init_function (struct cb_program *prog)
 	}
 
 	if (prog->initial_exception_table) {
-		output_line ("module->exception_table = %s_%d_exception_table;",
-			     prog->program_id, prog->toplev_count);
+		output_line ("module->exception_table = cob_cache_malloc (%d);",
+			     (int) sizeof (struct cob_exception) * COB_NUM_ECS);
+		output_line ("memcpy (module->exception_table, %s_%d_exception_table, %d);",
+			     prog->program_id, prog->toplev_count,
+			     (int) sizeof (struct cob_exception) * COB_NUM_ECS);
 
 		output_storage ("static struct cob_exception %s_%d_exception_table[] = {\n",
 				prog->program_id, prog->toplev_count);

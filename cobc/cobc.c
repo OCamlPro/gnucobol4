@@ -298,11 +298,6 @@ unsigned int	cb_correct_program_order = 0;
 
 cob_u32_t		optimize_defs[COB_OPTIM_MAX] = { 0 };
 
-//#error "TO-DO: Fix cb_emit_turn"
-//#error "TO-DO: Create tests for COB_DISABLED_ECS."
-//#error "TO-DO: Check recursive CALLs behave as expected"
-//#error "TO-DO: Add comment explaining design choice for runtime exception disable table"
-
 #define	COB_EXCEPTION(code,tag,name,critical) {name, 0x##code, 0, 0},
 struct cob_exception cb_exception_table[] = {
 	{NULL, 0, 0, 0},		/* CB_EC_ZERO */

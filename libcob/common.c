@@ -2410,6 +2410,9 @@ cob_module_free (cob_module **module)
 		if ((*module)->param_field != NULL)
 			cob_cache_free ((*module)->param_field);
 #endif
+		if ((*module)->exception_table) {
+			cob_cache_free ((*module)->exception_table);
+		}
 		cob_cache_free (*module);
 		*module = NULL;
 	}

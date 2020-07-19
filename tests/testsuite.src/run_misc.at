@@ -854,7 +854,7 @@ AT_CLEANUP
 
 
 AT_SETUP([TURN directive])
-AT_KEYWORDS([runmisc BOUND NOBOUND directives])
+AT_KEYWORDS([runmisc BOUND NOBOUND directives exceptions])
 
 # note: we only check here that the TURN directive applies
 #       for more general tests, including command line options
@@ -888,6 +888,90 @@ AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [!!],
 [libcob: prog.cob:20: error: subscript of 'y' out of bounds: 6
 	maximum subscript for 'y': 5
 ])
+
+AT_CLEANUP
+
+
+AT_SETUP([TURN directive in recursive function])
+AT_KEYWORDS([runmisc directives exceptions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  n PIC 99 VALUE 1.
+
+       PROCEDURE DIVISION.
+       *> This directive should have no effect.
+       >>TURN EC-BOUND CHECKING OFF
+           CALL "recurse" USING n
+       >>TURN EC-BOUND CHECKING ON
+           .
+       END PROGRAM prog.
+
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. recurse RECURSIVE.
+
+       DATA DIVISION.
+       LOCAL-STORAGE SECTION.
+       01  n1 PIC 99.
+       01  my-offset PIC 9 VALUE 2.
+       01  x.
+           03  y PIC 99 VALUE 0.
+           03  z PIC 99 VALUE 11.
+
+       LINKAGE SECTION.
+       01  n PIC 99 VALUE 1.
+
+       PROCEDURE DIVISION USING n.
+           IF n >= 2
+               *> An exception should occur here
+               DISPLAY y (my-offset:2) NO ADVANCING           
+           ELSE
+       >>TURN EC-BOUND CHECKING OFF
+               ADD 1 TO n GIVING n1
+               DISPLAY y (my-offset:2) NO ADVANCING
+               CALL "recurse" USING n1
+           END-IF
+           .
+       END PROGRAM recurse.
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [01],
+[libcob: prog.cob:34: error: length of 'y' out of bounds: 2, starting at: 2, maximum: 2
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([COB_DISABLE_ECS runtime configuration])
+AT_KEYWORDS([runmisc disable-ecs exceptions])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x.
+           03  num PIC 99 VALUE 0.
+           03  str PIC XX VALUE "AA".
+       01  n PIC 99 VALUE 2.
+       
+       PROCEDURE DIVISION.
+           >>TURN EC-BOUND CHECKING ON
+           DISPLAY num (n:2) NO ADVANCING
+           .
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [],
+[libcob: prog.cob:14: error: length of 'num' out of bounds: 2, starting at: 2, maximum: 2
+])
+AT_CHECK([COB_DISABLE_ECS="EC-PROGRAM,EC-BOUND" $COBCRUN_DIRECT ./prog], [0], [0A], [])
 
 AT_CLEANUP
 
