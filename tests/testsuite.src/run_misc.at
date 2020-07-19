@@ -947,6 +947,45 @@ AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [01],
 AT_CLEANUP
 
 
+AT_SETUP([TURN directive and GO TO statement])
+AT_KEYWORDS([runmisc exceptions])
+
+AT_XFAIL_IF([true])
+
+AT_DATA([prog.cob], [
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. prog.
+
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01  x.
+           03  num PIC 99 VALUE 0.
+           03  str PIC XX VALUE "AA".
+       01  n PIC 99 VALUE 2.
+       
+       PROCEDURE DIVISION.
+       >>TURN EC-BOUND CHECKING ON
+       para-1.
+           GO TO para-3
+           .
+       para-2.
+           DISPLAY num (n:2)
+           GOBACK
+           .
+       para-3.
+       >>TURN EC-BOUND CHECKING OFF
+           GO TO para-2
+           .
+])
+
+AT_CHECK([$COMPILE prog.cob], [0], [], [])
+AT_CHECK([$COBCRUN_DIRECT ./prog], [1], [],
+[libcob: prog.cob:18: error: length of 'num' out of bounds: 2, starting at: 2, maximum: 2
+])
+
+AT_CLEANUP
+
+
 AT_SETUP([COB_DISABLE_ECS runtime configuration])
 AT_KEYWORDS([runmisc disable-ecs exceptions])
 
