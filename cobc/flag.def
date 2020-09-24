@@ -120,6 +120,10 @@ CB_FLAG (cb_flag_c_labels, 1, "gen-c-labels",
 	_("  -fgen-c-labels        generate extra labels in C sources;\n"
 	  "                        useful for source-level debugging"))
 
+CB_FLAG (cb_flag_c_comment_fdump, 1, "gen-c-comment-fdump",
+	_("  -fgen-c-comment-fdump\tcomment out -fdump statements in generated C;\n"
+	  "                        used in source-level debugging when no actual dump is desired"))
+
 CB_FLAG (cb_flag_correct_numeric, 0, "correct-numeric",
 	_("  -fcorrect-numeric     attempt correction of invalid numeric display items"))
 

@@ -9735,7 +9735,7 @@ output_field_display (struct cb_field *f, int offset, int idx)
 	svlocal = f->flag_local;
 	f->flag_local = 0;
 	x = cb_build_field_reference (f, NULL);
-	if( f->redefines ){
+	if( f->redefines || cb_flag_c_comment_fdump ){
 		/*  We don't want redefines in the actual dump; they can 
 		make it excessively large.  But the cbl-gdb debugger needs the information */
 		output("/*");
@@ -9779,7 +9779,7 @@ output_field_display (struct cb_field *f, int offset, int idx)
 		}
 	}
 	output (");");
-	if( f->redefines ){
+	if( f->redefines || cb_flag_c_comment_fdump ){
 		output("*/");
 	}
 	if( (f->redefines && f->level != 66) || f->occurs_min != 0 || f->occurs_max != 1 || f->flag_unbounded ) { 
@@ -11299,7 +11299,14 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	if (prog->working_storage
 	 && (cb_flag_dump & COB_DUMP_WS)) {
 		output_line ("/* Dump WORKING-STORAGE */");
-		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "WORKING-STORAGE");
+		if( cb_flag_c_comment_fdump ) {
+			output("/*");
+		}
+		output ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "WORKING-STORAGE");
+		if( cb_flag_c_comment_fdump ) {
+			output("*/");
+		}
+		output_newline ();
 		output_display_fields (prog->working_storage, 0, 0);
 	}
 	if (prog->screen_storage
@@ -11318,14 +11325,28 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
  	&& (cb_flag_dump & COB_DUMP_LO)) {
 		output_newline ();
 		output_line ("/* Dump LOCAL STORAGE SECTION */");
-		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LOCAL-STORAGE");
+		if( cb_flag_c_comment_fdump ) {
+			output("/*");
+		}
+		output ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LOCAL-STORAGE");
+		if( cb_flag_c_comment_fdump ) {
+			output("*/");
+		}
+		output_newline ();
 		output_display_fields (prog->local_storage, 0, 0);
 	}
 	if (prog->linkage_storage
  	&& (cb_flag_dump & COB_DUMP_LS)) {
 		output_newline ();
 		output_line ("/* Dump LINKAGE SECTION */");
-		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LINKAGE");
+		if( cb_flag_c_comment_fdump ) {
+			output("/*");
+		}
+		output ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LINKAGE");
+		if( cb_flag_c_comment_fdump ) {
+			output("*/");
+		}
+		output_newline ();
 		output_display_fields (prog->linkage_storage, 0, 0);
 	}
 	if (nested_dump) {
