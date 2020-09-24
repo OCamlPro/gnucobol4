@@ -9735,6 +9735,11 @@ output_field_display (struct cb_field *f, int offset, int idx)
 	svlocal = f->flag_local;
 	f->flag_local = 0;
 	x = cb_build_field_reference (f, NULL);
+	if( f->redefines ){
+		/*  We don't want redefines in the actual dump; they can 
+		make it excessively large.  But the cbl-gdb debugger needs the information */
+		output("/*");
+	}
 	output_prefix ();
 	output ("cob_dump_field (%2d, \"%s\", ", f->level, fname);
 	if (f->flag_local
@@ -9774,6 +9779,20 @@ output_field_display (struct cb_field *f, int offset, int idx)
 		}
 	}
 	output (");");
+	if( f->redefines ){
+		output("*/");
+	}
+	if( (f->redefines && f->level != 66) || f->occurs_min != 0 || f->occurs_max != 1 || f->flag_unbounded ) { 
+		// These comments are used by the cbl-gdb debugger
+		output (" /*");
+		if( (f->redefines && f->level != 66) ) {
+			output( " REDEFINES" ); 
+		}
+		if( f->occurs_min != 0 || f->occurs_max != 1 || f->flag_unbounded ) {
+			output (" OCCURS %d %d",f->occurs_min,f->flag_unbounded ? -1 : f->occurs_max);
+		}
+		output (" */");
+	}
 	output_newline ();
 	f->flag_local = svlocal;
 }
@@ -9783,13 +9802,9 @@ output_display_fields (struct cb_field *f, int offset, int idx)
 {
 	struct cb_field	*p;
 	int	adjust,i;
-
 	for (p = f; p; p = p->sister) {
-		if (p->redefines
-		 || (p->level == 0 && p->file == NULL)
-		 || p->level == 66
-		 || p->level == 78
-		 || p->level == 88) {
+		// The cbl-gdb debugger needs entries for redefines and levels 66 and 78
+		if ( (p->level == 0 && p->file == NULL) || p->level == 88) {
 			continue;
 		}
 		/* For special registers */
@@ -11253,9 +11268,14 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 
 	for (l = prog->file_list; l; l = CB_CHAIN (l)) {
 		fl = CB_FILE(CB_VALUE (l));
-		if (fl->record
-	 	&& (cb_flag_dump & COB_DUMP_FD)) {
-			sprintf(fdname,"FD %s",fl->name);
+		if (!fl->record) continue;
+		if (  (fl->organization != COB_ORG_SORT
+	 	    && (cb_flag_dump & COB_DUMP_FD))
+		 ||   (fl->organization == COB_ORG_SORT
+	 	    && (cb_flag_dump & COB_DUMP_SD))) {
+			sprintf (fdname, "%s %s",
+				fl->organization != COB_ORG_SORT ? "FD" : "SD",
+				fl->name);
 			output_line ("/* Dump %s */",fdname);
 			output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", fdname);
 			output_line ("cob_dump_field (-2, (const char*)%s%s, NULL, 0, 0);",
@@ -11293,6 +11313,13 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		output_line ("/* Dump REPORT SECTION */");
 		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "REPORT");
 		output_display_fields (prog->report_storage, 0, 0);
+	}
+	if (prog->local_storage
+ 	&& (cb_flag_dump & COB_DUMP_LO)) {
+		output_newline ();
+		output_line ("/* Dump LOCAL STORAGE SECTION */");
+		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LOCAL-STORAGE");
+		output_display_fields (prog->local_storage, 0, 0);
 	}
 	if (prog->linkage_storage
  	&& (cb_flag_dump & COB_DUMP_LS)) {
@@ -12083,6 +12110,9 @@ output_function_prototypes (struct cb_program *prog)
 
 	/* prototype for general EXTFH function */
 	if (prog->file_list && prog->extfh
+#if 0 /* TODO: add internal calling */
+	 && !cb_flag_dyn_callfh
+#endif
 	 && strcmp ("EXTFH", prog->extfh) != 0) {
 		output ("extern int %s (unsigned char *opcode, FCD3 *fcd);", prog->extfh);
 		output_newline ();

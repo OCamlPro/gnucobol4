@@ -2616,6 +2616,9 @@ cobc_def_dump_opts (const char *opt)
 
 	p = cobc_strdup (opt);
 	q = strtok (p, ",");
+	if (!q) {
+		q = (char *) "";
+	}
 	while (q) {
 		if (!strcasecmp (q, "FD")) {
 			cb_flag_dump |= COB_DUMP_FD;
@@ -2629,9 +2632,11 @@ cobc_def_dump_opts (const char *opt)
 			cb_flag_dump |= COB_DUMP_SD;
 		} else if (!strcasecmp (q, "SC")) {
 			cb_flag_dump |= COB_DUMP_SC;
+		} else if (!strcasecmp (q, "LO")) {
+			cb_flag_dump |= COB_DUMP_LO;
 		} else {
 			cobc_err_exit (_("-fdump= requires one of 'ALL', 'FD', 'WS', 'LS', "
-			                 "'RD', 'FD', 'SC' not '%s'"), opt);
+			                 "'RD', 'FD', 'SC', 'LO' not '%s'"), opt);
 		}
 		q = strtok (NULL, ",");
 	}
@@ -8737,3 +8742,4 @@ main (int argc, char **argv)
 
 	return status;
 }
+
