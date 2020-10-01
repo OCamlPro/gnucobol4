@@ -1,3 +1,7 @@
+2020-09-29  Bob Dubner <rdubner@symas.com?
+
+	* configure.ac: Added "-e 's/-Wp,-D_FORTIFY_SOURCE=.//g'" to the list of things
+	  removed from CFLAGS when creating COB_CFLAGS.
 
 2020-09-29  Simon Sobisch <simonsobisch@gnu.org>
 

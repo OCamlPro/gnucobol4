@@ -1034,7 +1034,7 @@ cobc_strdup (const char *dupstr)
 	return p;
 }
 
-#ifdef	_MSC_VER
+#if	defined (_WIN32) || defined (__CYGWIN__)
 static char *
 cobc_stradd_dup (const char *str1, const char *str2)
 {
@@ -2672,7 +2672,9 @@ cobc_deciph_funcs (const char *opt)
 	cobc_free (p);
 }
 
-#if	defined (_MSC_VER) || defined(__OS400__) || defined(__WATCOMC__) || defined(__BORLANDC__)
+#if	defined (_WIN32)      || defined (__CYGWIN__) \
+ || defined (__WATCOMC__) || defined (__BORLANDC__) \
+ || defined (__OS400__)
 static void
 file_stripext (char *buff)
 {
@@ -3390,7 +3392,7 @@ process_command_line (const int argc, char **argv)
 			break;
 
 		case 'e':
-			/* -e <xx> : Add an extension suffix */
+			/* -ext <xx> : Add an extension suffix */
 			if (strlen (cob_optarg) > 15U) {
 				cobc_err_exit (COBC_INV_PAR, "--ext");
 			}
@@ -7707,7 +7709,9 @@ process_module_direct (struct filename *fn)
 	if (output_name) {
 		name = output_name_buff;
 		strcpy (name, output_name);
-#if	defined(_MSC_VER) || defined(__OS400__) || defined(__WATCOMC__) || defined(__BORLANDC__)
+#if	defined (_MSC_VER) \
+ || defined (__WATCOMC__) || defined (__BORLANDC__) \
+ || defined (__OS400__)
 		file_stripext (name);
 #else
 		if (strchr (output_name, '.') == NULL) {
@@ -7716,7 +7720,9 @@ process_module_direct (struct filename *fn)
 #endif
 	} else {
 		name = file_basename (fn->source, NULL);
-#if	!defined(_MSC_VER) && !defined(__OS400__) && !defined(__WATCOMC__) && !defined(__BORLANDC__)
+#if	!defined (_MSC_VER) \
+ && !defined (__WATCOMC__) && !defined (__BORLANDC__) \
+ && !defined (__OS400__)
 		strcat (name, "." COB_MODULE_EXT);
 #endif
 	}
@@ -7821,7 +7827,9 @@ process_module (struct filename *fn)
 	if (output_name) {
 		name = output_name_buff;
 		strcpy (name, output_name);
-#if	defined(_MSC_VER) || defined(__OS400__) || defined(__WATCOMC__) || defined(__BORLANDC__)
+#if	defined (_MSC_VER) \
+ || defined (__WATCOMC__) || defined (__BORLANDC__) \
+ || defined (__OS400__)
 		file_stripext (name);
 #else
 		if (strchr (output_name, '.') == NULL) {
@@ -7830,7 +7838,9 @@ process_module (struct filename *fn)
 #endif
 	} else {
 		name = file_basename (fn->source, NULL);
-#if	!defined(_MSC_VER) && !defined(__OS400__) && !defined(__WATCOMC__) &&! defined(__BORLANDC__)
+#if	!defined (_MSC_VER) \
+ && !defined (__WATCOMC__) && !defined (__BORLANDC__) \
+ && !defined (__OS400__)
 		strcat (name, "." COB_MODULE_EXT);
 #endif
 	}
@@ -7931,7 +7941,9 @@ process_library (struct filename *l)
 	if (output_name) {
 		name = output_name_buff;
 		strcpy (name, output_name);
-#if	defined(_MSC_VER) || defined(__OS400__) || defined(__WATCOMC__) || defined(__BORLANDC__)
+#if	defined (_MSC_VER) \
+ || defined (__WATCOMC__) || defined (__BORLANDC__) \
+ || defined (__OS400__)
 		file_stripext (name);
 #else
 		if (strchr (output_name, '.') == NULL) {
@@ -7940,7 +7952,9 @@ process_library (struct filename *l)
 #endif
 	} else {
 		name = file_basename (l->source, NULL);
-#if	!defined(_MSC_VER) && !defined(__OS400__) && !defined(__WATCOMC__) && !defined(__BORLANDC__)
+#if	!defined (_MSC_VER) \
+ && !defined (__WATCOMC__) && !defined (__BORLANDC__) \
+ && !defined (__OS400__)
 		strcat (name, "." COB_MODULE_EXT);
 #endif
 	}
@@ -8021,7 +8035,7 @@ process_link (struct filename *l)
 {
 	struct filename	*f;
 	const char		*name;
-#if defined(_MSC_VER) || defined (COB_STRIP_CMD)
+#if defined(_WIN32) || defined(__CYGWIN__) || defined (COB_STRIP_CMD)
 	const char		*exe_name;
 #endif
 	size_t		bufflen;
@@ -8049,7 +8063,9 @@ process_link (struct filename *l)
 	}
 
 	if (output_name) {
-#if	defined(_MSC_VER) || defined(__OS400__) || defined(__WATCOMC__) || defined(__BORLANDC__)
+#if	defined (_WIN32)      || defined (__CYGWIN__) \
+ || defined (__WATCOMC__) || defined (__BORLANDC__) \
+ || defined (__OS400__)
 		name = cobc_main_strdup (output_name);
 		file_stripext ((char *)name);
 #else
@@ -8062,8 +8078,11 @@ process_link (struct filename *l)
 			name = file_basename (l->source, NULL);
 		}
 	}
-#ifdef	_MSC_VER
+#if	defined (_WIN32) || defined (__CYGWIN__)
 	exe_name = cobc_stradd_dup (name, COB_EXE_EXT);
+#ifndef _MSC_VER
+	name = exe_name;
+#endif
 #endif
 
 	size = strlen (name);
