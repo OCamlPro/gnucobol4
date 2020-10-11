@@ -330,13 +330,7 @@ int cb_mf_ibm_comp = -1;
 /* Flag to emit Old style: cob_set_location, cob_trace_section */
 int	cb_old_trace = 0;
 
-#define	CB_WARNDEF(var,name,doc)	int var = 0;
-#define	CB_ONWARNDEF(var,name,doc)	int var = 1;
-#define	CB_NOWARNDEF(var,name,doc)	int var = 0;
-#include "warning.def"
-#undef	CB_WARNDEF
-#undef	CB_ONWARNDEF
-#undef	CB_NOWARNDEF
+int cb_warn_opt_val[COB_WARNOPT_MAX];
 
 /* Local variables */
 
@@ -615,15 +609,15 @@ static const struct option long_options[] = {
 	{"fregister",	CB_RQ_ARG, NULL, '%'},
 	{"fnot-register",	CB_RQ_ARG, NULL, '%'},
 
-#define	CB_WARNDEF(var,name,doc)			\
-	{"W" name,		CB_NO_ARG, &var, 1},	\
-	{"Wno-" name,		CB_NO_ARG, &var, 0},
-#define	CB_ONWARNDEF(var,name,doc)			\
-	{"W" name,		CB_NO_ARG, &var, 1},	\
-	{"Wno-" name,		CB_NO_ARG, &var, 0},
-#define	CB_NOWARNDEF(var,name,doc)			\
-	{"W" name,		CB_NO_ARG, &var, 1},	\
-	{"Wno-" name,		CB_NO_ARG, &var, 0},
+#define	CB_WARNDEF(opt,name,doc)			\
+	{"W" name,		CB_NO_ARG, &cb_warn_opt_val[opt], 1},	\
+	{"Wno-" name,		CB_NO_ARG, &cb_warn_opt_val[opt], 0},
+#define	CB_ONWARNDEF(opt,name,doc)			\
+	{"W" name,		CB_NO_ARG, &cb_warn_opt_val[opt], 1},	\
+	{"Wno-" name,		CB_NO_ARG, &cb_warn_opt_val[opt], 0},
+#define	CB_NOWARNDEF(opt,name,doc)			\
+	{"W" name,		CB_NO_ARG, &cb_warn_opt_val[opt], 1},	\
+	{"Wno-" name,		CB_NO_ARG, &cb_warn_opt_val[opt], 0},
 #include "warning.def"
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
@@ -639,7 +633,6 @@ static const struct option long_options[] = {
 #undef	CB_OP_ARG
 
 /* Prototype */
-DECLNORET static void COB_A_NORETURN	cobc_abort_terminate (int);
 DECLNORET static void COB_A_NORETURN	cobc_early_exit (int);
 DECLNORET static void COB_A_NORETURN	cobc_err_exit (const char *, ...) COB_A_FORMAT12;
 static void	free_list_file		(struct list_files *);
@@ -911,13 +904,6 @@ cobc_err_msg (const char *fmt, ...)
 	va_end (ap);
 	putc ('\n', stderr);
 	fflush (stderr);
-}
-
-void
-cobc_too_many_errors (void)
-{
-	cobc_err_msg (_("too many errors"));
-	cobc_abort_terminate (0);
 }
 
 /* Output cobc source/line where an internal error occurs and exit */
@@ -1923,7 +1909,7 @@ cobc_err_exit (const char *fmt, ...)
 	va_end (ap);
 	putc ('\n', stderr);
 	fflush (stderr);
-	cobc_early_exit (1);
+	cobc_early_exit (EXIT_FAILURE);
 }
 
 static struct cb_define_struct *
@@ -2247,7 +2233,7 @@ cobc_terminate (const char *str)
 		print_program_trailer ();
 	}
 	cobc_clean_up (1);
-	exit (1);
+	exit (EXIT_FAILURE);
 }
 
 static void
@@ -2285,7 +2271,7 @@ cobc_abort_msg (void)
 
 /* return to OS in case of hard errors after trying to output the error to
    listing file if active */
-DECLNORET static void COB_A_NORETURN
+void
 cobc_abort_terminate (int should_be_reported)
 {
 	/* note we returned 99 for aborts earlier but autotest will
@@ -2845,7 +2831,7 @@ process_command_line (const int argc, char **argv)
 
 		case '?':
 			/* Unknown option or ambiguous */
-			cobc_early_exit (1);
+			cobc_early_exit (EXIT_FAILURE);
 
 		case 'h':
 			/* --help */
@@ -2873,7 +2859,7 @@ process_command_line (const int argc, char **argv)
 				cobc_buffer = NULL;
 #endif
 			}
-			cobc_early_exit (0);
+			cobc_early_exit (EXIT_SUCCESS);
 
 		case 'V':
 			/* --version */
@@ -2903,12 +2889,12 @@ process_command_line (const int argc, char **argv)
 				cobc_buffer = NULL;
 #endif
 			}
-			cobc_early_exit (0);
+			cobc_early_exit (EXIT_SUCCESS);
 
 		case 'i':
 			/* --info */
 			cobc_print_info ();
-			cobc_early_exit (0);
+			cobc_early_exit (EXIT_SUCCESS);
 
 		/*
 			The following list options are postponed until
@@ -3016,7 +3002,7 @@ process_command_line (const int argc, char **argv)
 
 	/* Exit for configuration errors resulting from -std/-conf/default.conf */
 	if (conf_ret != 0) {
-		cobc_early_exit (1);
+		cobc_early_exit (EXIT_FAILURE);
 	}
 
 	cob_optind = 1;
@@ -3532,9 +3518,9 @@ process_command_line (const int argc, char **argv)
 
 		case 'w':
 			/* -w : Turn off all warnings (disables -Wall/-Wextra if passed later) */
-#define	CB_WARNDEF(var,name,doc)	var = 0;
-#define	CB_ONWARNDEF(var,name,doc)	var = 0;
-#define	CB_NOWARNDEF(var,name,doc)	var = 0;
+#define	CB_WARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = 0;
+#define	CB_ONWARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = 0;
+#define	CB_NOWARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = 0;
 #include "warning.def"
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
@@ -3543,9 +3529,9 @@ process_command_line (const int argc, char **argv)
 
 		case 'W':
 			/* -Wall : Turn on most warnings */
-#define	CB_WARNDEF(var,name,doc)	var = 1;
-#define	CB_ONWARNDEF(var,name,doc)
-#define	CB_NOWARNDEF(var,name,doc)
+#define	CB_WARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = 1;
+#define	CB_ONWARNDEF(opt,name,doc)
+#define	CB_NOWARNDEF(opt,name,doc)
 #include "warning.def"
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
@@ -3554,9 +3540,9 @@ process_command_line (const int argc, char **argv)
 
 		case 'Y':
 			/* -Wextra : Turn on every warning that is not dialect related */
-#define	CB_WARNDEF(var,name,doc)	var = 1;
-#define	CB_ONWARNDEF(var,name,doc)
-#define	CB_NOWARNDEF(var,name,doc)	var = 1;
+#define	CB_WARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = 1;
+#define	CB_ONWARNDEF(opt,name,doc)
+#define	CB_NOWARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = 1;
 #include "warning.def"
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
@@ -3576,13 +3562,13 @@ process_command_line (const int argc, char **argv)
 		case 'Z':
 			/* -Werror[=warning] : Treat all/single warnings as errors */
 			if (cob_optarg) {
-#define CB_CHECK_WARNING(var,name)  \
+#define CB_CHECK_WARNING(opt,name)  \
 				if (strcmp (cob_optarg, name) == 0) {	\
-					var = COBC_WARN_AS_ERROR;		\
+					cb_warn_opt_val[opt] = COBC_WARN_AS_ERROR;		\
 				} else
-#define	CB_WARNDEF(var,name,doc)	CB_CHECK_WARNING(var, name)
-#define	CB_ONWARNDEF(var,name,doc)	CB_CHECK_WARNING(var, name)
-#define	CB_NOWARNDEF(var,name,doc)	CB_CHECK_WARNING(var, name)
+#define	CB_WARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt, name)
+#define	CB_ONWARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt, name)
+#define	CB_NOWARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt, name)
 #include "warning.def"
 #undef	CB_CHECK_WARNING
 #undef	CB_WARNDEF
@@ -3601,14 +3587,14 @@ process_command_line (const int argc, char **argv)
 		case 'z':
 			/* -Wno-error[=warning] : Treat all/single warnings as errors */
 			if (cob_optarg) {
-#define CB_CHECK_WARNING(var,name)  \
+#define CB_CHECK_WARNING(opt,name)  \
 				if (strcmp (cob_optarg, name) == 0	\
-				 && var == COBC_WARN_AS_ERROR) {	\
-					var = COBC_WARN_ENABLED;		\
+				 && cb_warn_opt_val[opt] == COBC_WARN_AS_ERROR) {	\
+					cb_warn_opt_val[opt] = COBC_WARN_ENABLED;		\
 				} else
-#define	CB_WARNDEF(var,name,doc)	CB_CHECK_WARNING(var, name)
-#define	CB_ONWARNDEF(var,name,doc)	CB_CHECK_WARNING(var, name)
-#define	CB_NOWARNDEF(var,name,doc)	CB_CHECK_WARNING(var, name)
+#define	CB_WARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt, name)
+#define	CB_ONWARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt, name)
+#define	CB_NOWARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt, name)
 #include "warning.def"
 #undef	CB_CHECK_WARNING
 #undef	CB_WARNDEF
@@ -3640,7 +3626,7 @@ process_command_line (const int argc, char **argv)
 
 	/* Exit for configuration errors resulting from -f<conf-tag>[=<value>] */
 	if (conf_ret != 0) {
-		cobc_early_exit (1);
+		cobc_early_exit (EXIT_FAILURE);
 	}
 
 	/* handling of list options */
@@ -3662,7 +3648,7 @@ process_command_line (const int argc, char **argv)
 
 	/* Exit if list options were specified */
 	if (exit_option) {
-		cobc_early_exit (0);
+		cobc_early_exit (EXIT_SUCCESS);
 	}
 
 	/* Exit on missing options */
@@ -3691,7 +3677,7 @@ process_command_line (const int argc, char **argv)
 			cb_missing_statement = CB_WARNING;
 		}
 		/* FIXME - the warning was only raised if not relaxed */
-		cb_warn_ignored_initial_val = 0;
+		cb_warn_opt_val[(int)cb_warn_ignored_initial_val] = 0;
 	}
 #if 0 /* deactivated as -frelaxed-syntax-checks and other compiler configurations
 		 are available at command line - maybe re-add with another name */
@@ -3706,13 +3692,13 @@ process_command_line (const int argc, char **argv)
 
 	/* Set active warnings to errors, if requested */
 	if (error_all_warnings) {
-#define CB_CHECK_WARNING(var)  \
-		if (var == COBC_WARN_ENABLED) {	\
-				var = COBC_WARN_AS_ERROR;		\
+#define CB_CHECK_WARNING(opt)  \
+		if (cb_warn_opt_val[opt] == COBC_WARN_ENABLED) {	\
+			cb_warn_opt_val[opt] = COBC_WARN_AS_ERROR;		\
 		}
-#define	CB_WARNDEF(var,name,doc)	CB_CHECK_WARNING(var)
-#define	CB_ONWARNDEF(var,name,doc)	CB_CHECK_WARNING(var)
-#define	CB_NOWARNDEF(var,name,doc)	CB_CHECK_WARNING(var)
+#define	CB_WARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt)
+#define	CB_ONWARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt)
+#define	CB_NOWARNDEF(opt,name,doc)	CB_CHECK_WARNING(opt)
 #include "warning.def"
 #undef	CB_CHECK_WARNING
 #undef	CB_WARNDEF
@@ -3725,7 +3711,7 @@ process_command_line (const int argc, char **argv)
 	}
 
 	if (fatal_errors_flag) {
-		cb_max_errors = 0;
+		cb_max_errors = -1;
 	}
 
 	/* Set postponed options */
@@ -8378,6 +8364,15 @@ begin_setup_internal_and_compiler_env (void)
 	setlocale (LC_ALL, "");
 	setlocale (LC_NUMERIC, "C");
 #endif
+
+	/* initial values for warning options */
+#define	CB_WARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = COBC_WARN_DISABLED;
+#define	CB_ONWARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = COBC_WARN_ENABLED;
+#define	CB_NOWARNDEF(opt,name,doc)	cb_warn_opt_val[opt] = COBC_WARN_DISABLED;
+#include "warning.def"
+#undef	CB_WARNDEF
+#undef	CB_ONWARNDEF
+#undef	CB_NOWARNDEF
 
 	/* minimal initialization of the environment like binding textdomain,
 	   allowing test to be run under WIN32 (implied in cob_init(),
