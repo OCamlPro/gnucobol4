@@ -996,7 +996,7 @@ create_implicit_picture (struct cb_field *f)
 					is_numeric = 0;
 				}
 			} else {
-				/* ToDo: add appropriate message (untranslated) */
+				cobc_err_msg (_("unexpected tree tag: %d"), (int)CB_TREE_TAG (x));
 				COBC_ABORT ();	/* LCOV_EXCL_LINE */
 			}
 		}
@@ -1023,7 +1023,7 @@ create_implicit_picture (struct cb_field *f)
 				size_implied = cb_field_size (impl_tree);
 				is_numeric = CB_TREE_CATEGORY (impl_tree) == CB_CATEGORY_NUMERIC;
 			} else {
-				size_implied = -1;
+				size_implied = FIELD_SIZE_UNKNOWN;
 			}
 		} else if (first_value) {
 			/* done later*/
@@ -1033,7 +1033,7 @@ create_implicit_picture (struct cb_field *f)
 			return 0;
 		}
 
-		if (size_implied == -1) {
+		if (size_implied == FIELD_SIZE_UNKNOWN) {
 			cb_error_x (x, _("PICTURE clause required for '%s'"),
 				    cb_name (x));
 			return 1;
@@ -2447,6 +2447,21 @@ compute_size (struct cb_field *f)
 			f->size = f->redefines->size;
 		}
 		return f->size;
+	}
+	if (f->storage == CB_STORAGE_REPORT
+	 && (f->report_flag & COB_REPORT_LINE)
+	 && !(f->report_flag & COB_REPORT_LINE_PLUS)
+	 && f->parent
+	 && f->parent->children != f) {
+		for(c = f->parent->children; c && c != f; c = c->sister) {
+			if ((c->report_flag & COB_REPORT_LINE)
+			 && !(c->report_flag & COB_REPORT_LINE_PLUS)
+			 && c->report_line == f->report_line) {
+				cb_warning_x (cb_warn_additional, CB_TREE(f), _("duplicate LINE %d ignored"), f->report_line);
+				f->report_line = 0;
+				f->report_flag &= ~COB_REPORT_LINE;
+			}
+		}
 	}
 
 	if (f->children) {
