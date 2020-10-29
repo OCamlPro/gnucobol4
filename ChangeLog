@@ -1,8 +1,34 @@
+2020-10-28  Simon Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: target for mingw-dist
+
+2020-10-26  Simon Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac, m4/ax_ac_define_resolved.m4, Makefile.am:
+	  defaults.h is not created or included any more,
+	  all configure provided defines are now found in the single
+	  header config.h; new macro ax_ac_define_resolved.m4 resolves
+	  variables previously resolved via make, which also limits the amount
+	  of variables defined in every Makefile.in
+	* configure.ac: move LOCALEDIR definition from config.h to Makefiles;
+	  use $() instead of backticks in all places
+
+2020-10-23  Simon Sobisch <simonsobisch@gnu.org>
+
+	* configure.ac: version check for json-c/cJSON "poor man's check" 
+
+2020-10-06  Simon Sobisch <simonsobisch@gnu.org>
+
+	* Makefile.am: added explicit dependency order for subfolders
+	* configure.ac: check for more debugging options and store them
+	  as COB_DEBUG_FLAGS (defaults.h) for use in cobc; include them
+	  for --enable-debug, see FR 388
+
 2020-10-02  Simon Sobisch <simonsobisch@gnu.org>
 
 	* configure.ac (--enable-hardening): new option to enable or disable
 	  GNU C's hardening options or leave as-is (previous versions effectively
-	  used --disable-hardening)
+	  used --disable-hardening), see FR 388
 	* configure.ac: "common libs" are now also used for local cJSON check
 	  (needs math lib on some environments, as libcob does)
 	* configure.ac: check for declaration of fmemopen
@@ -594,7 +620,7 @@
 
 	* configure.ac: #44 Disable optimisation with --enable-debug
 
-2014-09-09  Philipp Böhme <phi.boehme@googlemail.com>
+2014-09-09  Philipp Bï¿½hme <phi.boehme@googlemail.com>
 
 	* configure.ac: new check for mp_get_memory_functions in
 	  libgmp and new preprocessor define HAVE_MP_GET_MEMORY_FUNCTIONS
@@ -607,7 +633,7 @@
 	  additional output of configuration summary to config.log;
 	  respect --quite (don't echo or printf to stdout)
 
-2014-06-20  Philipp Böhme <phi.boehme@googlemail.com>
+2014-06-20  Philipp Bï¿½hme <phi.boehme@googlemail.com>
 
 	* New folder build_windows
 	* Added project files for Visual Studio 2003 and newer
@@ -616,7 +642,7 @@
 
 	* General: Win compatibility: define COB_OBJEXT in defaults.h
 
-2014-04-14  Philipp Böhme <phi.boehme@googlemail.com>
+2014-04-14  Philipp Bï¿½hme <phi.boehme@googlemail.com>
 
 	* moved cobgetopt.c from lib to libcob
 	* link cobc to libcob
