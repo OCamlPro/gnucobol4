@@ -280,10 +280,10 @@ struct local_filename {
 struct filename {
 	struct filename		*next;
 	const char		*source;		/* foo.cob (path from command line) */
-	const char		*preprocess;		/* foo.i / foo.cob (full path) */
-	const char		*translate;		/* foo.c (full path) */
-	const char		*trstorage;		/* foo.c.h (full path) */
-	const char		*object;		/* foo.o (full path) */
+	const char		*preprocess;		/* foo.i / foo.cob (possibly full path) */
+	const char		*translate;		/* foo.c (possibly full path) */
+	const char		*trstorage;		/* foo.c.h (possibly full path) */
+	const char		*object;		/* foo.o (possibly full path) */
 	const char		*demangle_source;	/* foo */
 	const char		*listing_file;		/* foo.lst */
 	struct local_filename	*localfile;		/* foo.c.l[n].h */
@@ -334,6 +334,7 @@ enum cobc_name_type {
 /* List of error messages */
 struct list_error {
 	struct list_error	*next;
+	struct list_error	*prev;
 	int			line;		/* Line number for error */
 	char			*file;		/* File name */
 	char			*prefix;	/* Error prefix */
@@ -395,6 +396,8 @@ extern struct cb_turn_list	*cb_turn_list;
 #undef	CB_FLAG_ON
 #undef	CB_FLAG_RQ
 #undef	CB_FLAG_NQ
+#undef	CB_FLAG_OP
+#undef	CB_FLAG_NO
 
 #undef	CB_WARNDEF
 #undef	CB_ONWARNDEF
@@ -415,11 +418,15 @@ extern struct cb_turn_list	*cb_turn_list;
 #define	CB_FLAG_ON(var,print_help,name,doc)		extern int var;
 #define CB_FLAG_RQ(var,print_help,name,def,opt,doc)	extern int var;
 #define CB_FLAG_NQ(print_help,name,opt,doc)
+#define CB_FLAG_OP(print_help,name,opt,doc)
+#define CB_FLAG_NO(print_help,name,opt,doc)
 #include "flag.def"
 #undef	CB_FLAG
 #undef	CB_FLAG_ON
 #undef	CB_FLAG_RQ
 #undef	CB_FLAG_NQ
+#undef	CB_FLAG_OP
+#undef	CB_FLAG_NO
 
 /* Flag to emit Old style: cob_set_location, cob_trace_section */
 extern int cb_old_trace;
@@ -467,6 +474,7 @@ extern int			cb_ml_tree_id;
 extern int			cb_flag_functions_all;
 
 extern int			cb_flag_dump;
+#define COB_DUMP_NONE	0x0000	/* No dump */
 #define COB_DUMP_FD	0x0001	/* FILE SECTION -> FILE DESCRIPTION */
 #define COB_DUMP_WS	0x0002  /* WORKING-STORAGE SECTION */
 #define COB_DUMP_RD	0x0004	/* REPORT SECTION */

@@ -2241,7 +2241,7 @@ output_local_field_cache (struct cb_program *prog)
 	if (prog->flag_recursive) {
 		output_local ("\n/* Fields for recursive routine */\n");
 	} else {
-		output_local ("\n/* Fields */\n");
+		output_local ("\n/* Fields (local) */\n");
 	}
 
 	local_field_cache = list_cache_sort (local_field_cache,
@@ -3728,8 +3728,8 @@ output_param (cb_tree x, int id)
 				fl->f = f;
 				fl->curr_prog = excp_current_program_id;
 				if (f->index_type != CB_INT_INDEX
-				    && (f->flag_is_global
-					    || current_prog->flag_file_global)) {
+				 && (   f->flag_is_global
+				     || current_prog->flag_file_global)) {
 					fl->next = field_cache;
 					field_cache = fl;
 				} else {
@@ -4682,7 +4682,7 @@ output_initialize_uniform (cb_tree x, const int c, const int size)
 static void
 output_initialize_chaining (struct cb_field *f, struct cb_initialize *p)
 {
-	/* only handle CHAINING for program initialization*/
+	/* only handle CHAINING for program initialization */
 	if (p->flag_init_statement) {
 		return;
 	}
@@ -5006,11 +5006,13 @@ output_initialize_compound (struct cb_initialize *p, cb_tree x)
 				/* Begin occurs loop */
 				int		i = f->indexes;
 				i_counters[i] = 1;
+				output_block_open ();
 				output_prefix ();
-				output ("for (i%d = 1; i%d <= ", i, i );
+				output ("const int max_i%d = ", i);
 				output_occurs (f);
-				output ("; i%d++)", i);
+				output (" + 1;");
 				output_newline ();
+				output_line ("for (i%d = 1; i%d < max_i%d; i%d++)", i, i, i, i);
 				output_block_open ();
 				CB_REFERENCE (c)->subs =
 				    CB_BUILD_CHAIN (cb_i[i], CB_REFERENCE (c)->subs);
@@ -5025,6 +5027,7 @@ output_initialize_compound (struct cb_initialize *p, cb_tree x)
 			if (f->flag_occurs) {
 				/* Close loop */
 				CB_REFERENCE (c)->subs = CB_CHAIN (CB_REFERENCE (c)->subs);
+				output_block_close ();
 				output_block_close ();
 			}
 		}
@@ -7304,7 +7307,7 @@ output_c_info (void)
 static void
 output_cobol_info (cb_tree x)
 {
-	const char* p = x->source_file;
+	const char	*p = x->source_file;
 	output ("#line %d \"", x->source_line);
 	while(*p){
 		if( *p == '\\' ){
@@ -9825,8 +9828,9 @@ output_field_display (struct cb_field *f, int offset, int idx)
 {
 	struct cb_field *p;
 	cb_tree x;
-	int	i, svlocal;
+	int 	svlocal;
 	char	*fname = (char*)f->name;
+	int commented_line=0;
 
 	if (f->flag_filler) {
 		fname = (char*)"FILLER";
@@ -9834,9 +9838,15 @@ output_field_display (struct cb_field *f, int offset, int idx)
 	svlocal = f->flag_local;
 	f->flag_local = 0;
 	x = cb_build_field_reference (f, NULL);
-	if( f->redefines || cb_flag_c_comment_fdump ){
-		/*  We don't want redefines in the actual dump; they can 
+	if (f->redefines
+	 || f->level == 78
+	 || f->level == 66
+	 || cb_flag_c_comment_fdump) {
+		/*  We don't want redefines, or types 66 or 78 in the actual dump; they can 
 		make it excessively large.  But the cbl-gdb debugger needs the information */
+		commented_line=1;
+	}
+	if( commented_line ){
 		output("/*");
 	}
 	output_prefix ();
@@ -9848,7 +9858,8 @@ output_field_display (struct cb_field *f, int offset, int idx)
 		output_data (x);
 		output (")");
 	} else
-	if (f->count != 0) {
+	if (f->count != 0
+	 && f->storage != CB_STORAGE_LINKAGE) {
 		output_param (x, 0);
 	} else {
 		output ("COB_SET_FLD(%s, ", "f0");
@@ -9861,6 +9872,7 @@ output_field_display (struct cb_field *f, int offset, int idx)
 	}
 	output (", %d, %d", offset, idx);
 	if (idx > 0) {
+		int	i;
 		p = f->parent;
 		for (i = 0; i < idx; i++) {
 			if (field_subscript[i] < 0) {
@@ -9874,15 +9886,19 @@ output_field_display (struct cb_field *f, int offset, int idx)
 			} else {
 				output (", %d, 0",field_subscript[i]);
 			}
+			/* non-standard level 01 occurs */
+			if (!p) {
+				break;
+			}
 			p = p->parent;
 		}
 	}
 	output (");");
-	if( f->redefines || cb_flag_c_comment_fdump ){
+	if( commented_line ){
 		output("*/");
 	}
 	if( (f->redefines && f->level != 66) || f->occurs_min != 0 || f->occurs_max != 1 || f->flag_unbounded ) { 
-		// These comments are used by the cbl-gdb debugger
+		/* These comments are used by the cbl-gdb debugger */
 		output (" /*");
 		if( (f->redefines && f->level != 66) ) {
 			output( " REDEFINES" ); 
@@ -9902,7 +9918,7 @@ output_display_fields (struct cb_field *f, int offset, int idx)
 	struct cb_field	*p;
 	int	adjust,i;
 	for (p = f; p; p = p->sister) {
-		// The cbl-gdb debugger needs entries for redefines and levels 66 and 78
+		/* The cbl-gdb debugger needs entries for redefines and levels 66 and 78 */
 		if ( (p->level == 0 && p->file == NULL) || p->level == 88) {
 			continue;
 		}
@@ -10808,23 +10824,40 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	output_newline ();
 #endif
 
-	if (!cb_sticky_linkage && !prog->flag_chained
+	if (prog->num_proc_params) {
+		if (!cb_sticky_linkage && !prog->flag_chained
 #if	0	/* RXWRXW USERFUNC */
 		&& prog->prog_type != COB_MODULE_TYPE_FUNCTION
 #endif
-		&& prog->num_proc_params) {
-		output_line ("/* Set not passed parameter pointers to NULL */");
-		output_line ("switch (cob_call_params) {");
-		i = 0;
-		for (l = parameter_list; l; l = CB_CHAIN (l)) {
-			output_line ("case %d:", i++);
-			output_line ("\t%s%d = NULL;",
-				CB_PREFIX_BASE, cb_code_field (CB_VALUE (l))->id);
-			output_line ("/* Fall through */");
+		) {
+			output_line ("/* Set not passed parameter pointers to NULL */");
+			output_line ("switch (cob_call_params) {");
+			i = 0;
+			for (l = parameter_list; l; l = CB_CHAIN (l)) {
+				output_line ("case %d:", i++);
+				output_line ("\t%s%d = NULL;",
+					CB_PREFIX_BASE, cb_code_field (CB_VALUE (l))->id);
+				output_line ("/* Fall through */");
+			}
+			output_line ("default:");
+			output_line ("\tbreak; ");
+			output_line ("}");
+			output_newline ();
 		}
-		output_line ("default:");
-		output_line ("\tbreak; ");
-		output_line ("}");
+		output_line ("/* Store last parameters for possible later lookup */");
+		output_local ("/* Last USING parameters for possible later lookup */\n");
+		for (l = parameter_list; l; l = CB_CHAIN (l)) {
+			f = cb_code_field (CB_VALUE (l));
+			output_prefix ();
+			output ("last_");
+			output_base (f, 0);
+			output (" = ");
+			output_base (f, 0);
+			output (";");
+			output_newline ();
+			output_local ("static unsigned char\t*last_%s%d;\n",
+				CB_PREFIX_BASE, f->id);
+		}
 		output_newline ();
 	}
 
@@ -11375,10 +11408,9 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 			sprintf (fdname, "%s %s",
 				fl->organization != COB_ORG_SORT ? "FD" : "SD",
 				fl->name);
-			output_line ("/* Dump %s */",fdname);
-			output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", fdname);
-			output_line ("cob_dump_field (-2, (const char*)%s%s, NULL, 0, 0);",
-							CB_PREFIX_FILE, fl->cname);
+			output_line ("/* Dump %s */", fdname);
+			output_line ("cob_dump_file (\"%s\", %s%s);",
+							fdname, CB_PREFIX_FILE, fl->cname);
 			if (fl->record->sister
 			 && fl->record->sister->sister == NULL) {	/* Only one record layout */
 				f = fl->record->sister->redefines;
@@ -11401,7 +11433,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		if( cb_flag_c_comment_fdump ) {
 			output("/*");
 		}
-		output ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "WORKING-STORAGE");
+		output ("cob_dump_output(\"%s\");", "WORKING-STORAGE");
 		if( cb_flag_c_comment_fdump ) {
 			output("*/");
 		}
@@ -11411,13 +11443,13 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	if (prog->screen_storage
 	 && (cb_flag_dump & COB_DUMP_SC)) {
 		output_line ("/* Dump SCREEN SECTION */");
-		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "SCREEN");
+		output_line ("cob_dump_output(\"%s\");", "SCREEN");
 		output_display_fields (prog->screen_storage, 0, 0);
 	}
 	if (prog->report_storage
 	 && (cb_flag_dump & COB_DUMP_RD)) {
 		output_line ("/* Dump REPORT SECTION */");
-		output_line ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "REPORT");
+		output_line ("cob_dump_output(\"%s\");", "REPORT");
 		output_display_fields (prog->report_storage, 0, 0);
 	}
 	if (prog->local_storage
@@ -11427,7 +11459,7 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 		if( cb_flag_c_comment_fdump ) {
 			output("/*");
 		}
-		output ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LOCAL-STORAGE");
+		output ("cob_dump_output(\"%s\");", "LOCAL-STORAGE");
 		if( cb_flag_c_comment_fdump ) {
 			output("*/");
 		}
@@ -11436,12 +11468,25 @@ output_internal_function (struct cb_program *prog, cb_tree parameter_list)
 	}
 	if (prog->linkage_storage
  	&& (cb_flag_dump & COB_DUMP_LS)) {
+		struct cb_field	*f;
 		output_newline ();
 		output_line ("/* Dump LINKAGE SECTION */");
+		if (prog->num_proc_params) {
+			/* restore data pointer to last known entry */
+			for (l = parameter_list; l; l = CB_CHAIN (l)) {
+				f = cb_code_field (CB_VALUE (l));
+				output_prefix ();
+				output_base (f, 0);
+				output (" = last_");
+				output_base (f, 0);
+				output (";");
+				output_newline ();
+			}
+		}
 		if( cb_flag_c_comment_fdump ) {
 			output("/*");
 		}
-		output ("cob_dump_field (-1, \"%s\", NULL, 0, 0);", "LINKAGE");
+		output ("cob_dump_output(\"%s\");", "LINKAGE");
 		if( cb_flag_c_comment_fdump ) {
 			output("*/");
 		}
@@ -11960,7 +12005,7 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 			if (CB_PURPOSE_INT (l) == CB_CALL_BY_VALUE) {
 				s = try_get_by_value_parameter_type (f->usage, l);
 				if (f->usage == CB_USAGE_FP_BIN128
-				    || f->usage == CB_USAGE_FP_DEC128) {
+				 || f->usage == CB_USAGE_FP_DEC128) {
 					s2 = "{{0, 0}}";
 				} else {
 					s2 = "0";
@@ -12034,9 +12079,9 @@ output_entry_function (struct cb_program *prog, cb_tree entry,
 
 	for (l2 = using_list; l2; l2 = CB_CHAIN (l2)) {
 		f2 = cb_code_field (CB_VALUE (l2));
-		if (CB_PURPOSE_INT (l2) == CB_CALL_BY_VALUE &&
-		    (f2->usage == CB_USAGE_POINTER ||
-		     f2->usage == CB_USAGE_PROGRAM_POINTER)) {
+		if (CB_PURPOSE_INT (l2) == CB_CALL_BY_VALUE
+		 && (   f2->usage == CB_USAGE_POINTER
+			 || f2->usage == CB_USAGE_PROGRAM_POINTER)) {
 			output_line ("ptr_%d = %s%d;",
 				f2->id, s_prefix, f2->id);
 		}

@@ -1,6 +1,10 @@
+2020-11-02  Bob Dubner <rdubner@symas.com>
+
+	* codegen.c and flag.def: Support for cobcd
+
 2020-10-28  Simon Sobisch <simonsobisch@gnu.org>
 
-	* Makefile.am: target for mingw-dist
+	* Makefile.am: target for distmingwdir
 
 2020-10-26  Simon Sobisch <simonsobisch@gnu.org>
 
