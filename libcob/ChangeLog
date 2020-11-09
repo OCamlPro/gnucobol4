@@ -1,3 +1,9 @@
+2020-10-12 Sergey Kashyrin <ska@kiska.net>
+	* common.h: increasing COB_MAX_FIELD_SIZE
+
+2018-07-18 Sergey Kashyrin <ska@kiska.net>
+	* common.cpp: Fix in cob_cmp for numeric edited
+
 2018-07-12 Sergey Kashyrin <ska@kiska.net>
 	* common.cpp: Fix for SYSTEM
 	* common.h: revealing more types as a typedef for plain C.

@@ -1,3 +1,6 @@
+2019-03-08 Sergey Kashyrin <ska@kiska.net>
+	* typeck.cpp: fix for CB_CATEGORY_UNKNOWN in validate_move
+
 2018-06-21 Sergey Kashyrin <ska@kiska.net>
 	* codegen.cpp: fix for major 2.2 bug - Set Decimal Constant values must not
 	  be for initial only
