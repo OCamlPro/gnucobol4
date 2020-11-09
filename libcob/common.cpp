@@ -2184,6 +2184,22 @@ cob_cmp(cob_field * f1, cob_field * f2)
 		}
 		return -cob_cmp_all(f2, f1);
 	}
+	if(COB_FIELD_TYPE(f1) == COB_TYPE_NUMERIC_EDITED && COB_FIELD_IS_NUMERIC(f2)) {
+		unsigned char buff[256];
+		cob_field_attr attr = *f1->attr;
+		attr.type = COB_TYPE_NUMERIC_DISPLAY;
+		cob_field temp(COB_FIELD_DIGITS(f1), buff, &attr);
+		cob_move(f1, &temp);
+		return cob_numeric_cmp(&temp, f2);
+	}
+	if(COB_FIELD_IS_NUMERIC(f1) && COB_FIELD_TYPE(f2) == COB_TYPE_NUMERIC_EDITED) {
+		unsigned char buff[256];
+		cob_field_attr attr = *f2->attr;
+		attr.type = COB_TYPE_NUMERIC_DISPLAY;
+		cob_field temp(COB_FIELD_DIGITS(f2), buff, &attr);
+		cob_move(f2, &temp);
+		return cob_numeric_cmp(f1, &temp);
+	}
 	if(COB_FIELD_IS_NUMERIC(f1) && COB_FIELD_TYPE(f1) != COB_TYPE_NUMERIC_DISPLAY) {
 		unsigned char buff[256];
 		cob_field_attr attr = *f1->attr;
@@ -2191,7 +2207,7 @@ cob_cmp(cob_field * f1, cob_field * f2)
 		attr.flags &= ~COB_FLAG_HAVE_SIGN;
 		cob_field temp(COB_FIELD_DIGITS(f1), buff, &attr);
 		cob_move(f1, &temp);
-		f1 = &temp;
+		return cob_cmp_alnum(&temp, f2);
 	}
 	if(COB_FIELD_IS_NUMERIC(f2) && COB_FIELD_TYPE(f2) != COB_TYPE_NUMERIC_DISPLAY) {
 		unsigned char buff[256];
@@ -2200,7 +2216,7 @@ cob_cmp(cob_field * f1, cob_field * f2)
 		attr.flags &= ~COB_FLAG_HAVE_SIGN;
 		cob_field temp(COB_FIELD_DIGITS(f2), buff, &attr);
 		cob_move(f2, &temp);
-		f2 = &temp;
+		return cob_cmp_alnum(f1, &temp);
 	}
 	return cob_cmp_alnum(f1, f2);
 }

@@ -7360,6 +7360,10 @@ validate_move(cb_tree src, cb_tree dst, bool is_value)
 	}
 
 	fdst = CB_FIELD_PTR(dst);
+	if(CB_TREE_CATEGORY(fdst) == CB_CATEGORY_UNKNOWN) {
+		cb_error_x(loc, _("Invalid destination for MOVE"));
+		return -1;
+	}
 	switch(CB_TREE_TAG(src)) {
 	case CB_TAG_CONST:
 		if(src == cb_space) {	/* error because SPACE is category alphabetic */
@@ -7703,6 +7707,10 @@ validate_move(cb_tree src, cb_tree dst, bool is_value)
 			goto invalid;
 		}
 		fsrc = CB_FIELD_PTR(src);
+		if(CB_TREE_CATEGORY(src) == CB_CATEGORY_UNKNOWN) {
+			cb_error_x(loc, _("Invalid source for MOVE"));
+			return -1;
+		}
 		size = cb_field_size(src);
 		if(size < 0) {
 			size = fsrc->size;

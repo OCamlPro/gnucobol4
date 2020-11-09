@@ -625,7 +625,8 @@
 /* Maximum bytes in a single/group field,
   which doesn't contain UNBOUNDED items */
 /* TODO: add compiler configuration for limiting this */
-#define	COB_MAX_FIELD_SIZE	268435456
+/* #define	COB_MAX_FIELD_SIZE	268435456 */
+#define	COB_MAX_FIELD_SIZE	2147483647
 
 /* Maximum bytes in an unbounded table entry
    (IBM: 999999998) */
