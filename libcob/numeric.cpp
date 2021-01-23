@@ -296,16 +296,20 @@ cob_binary_set_int64(cob_field * f, cob_s64_t n)
 void
 cob_decimal_init(cob_decimal * d)
 {
-	mpz_init2(d->value.get_mpz_t(), COB_MPZ_DEF);
-	d->scale = 0;
+	// We can't mpz_init2 as it will give memory leak
+	// mpz_init2(d->value.get_mpz_t(), COB_MPZ_DEF);
+	// d->scale = 0;
+	*d = 0;
 }
 
 void
 cob_decimal_clear(cob_decimal * d)
 {
 	if(d) {
-		mpz_clear(d->value.get_mpz_t());
-		d->scale = 0;
+		*d = 0;
+		// We can't mpz_clear as it will be cleared at destructor time
+		// mpz_clear(d->value.get_mpz_t());
+		// d->scale = 0;
 	}
 }
 

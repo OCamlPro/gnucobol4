@@ -1,3 +1,7 @@
+2021-01-23 Sergey Kashyrin <ska@kiska.net>
+	* numeric.c: We can't use mpz_clear and mpz_init2 with cob_decimal
+	*            as constructor/destructor are taking care of that
+
 2020-10-12 Sergey Kashyrin <ska@kiska.net>
 	* common.h: increasing COB_MAX_FIELD_SIZE
 
