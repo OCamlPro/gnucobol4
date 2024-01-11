@@ -1,3 +1,40 @@
+[![Actions Status](https://github.com/ocamlpro/gnucobol/workflows/Ubuntu%20Workflow/badge.svg)](https://github.com/ocamlpro/gnucobol/actions/workflows/ubuntu.yml)
+[![Actions Status](https://github.com/ocamlpro/gnucobol/workflows/Windows%20Workflow/badge.svg)](https://github.com/ocamlpro/gnucobol/actions/workflows/windows.yml)
+[![Actions Status](https://github.com/ocamlpro/gnucobol/workflows/MacOS%20Workflow/badge.svg)](https://github.com/ocamlpro/gnucobol/actions/workflows/macos.yml)
+
+# Git Mirror of the GnuCOBOL Project
+
+## Foreword
+
+This repository is a GIT Mirror of the [GnuCOBOL
+Project](https://gnucobol.sourceforge.io/), maintained by
+[OCamlPro](https://ocamlpro.com) as part of the [SuperBOL Studio
+Project](https://get-superbol.com).
+
+Two other Git Mirrors are available for GnuCOBOL:
+
+* [GnuCOBOL Documentation](https://sourceforge.net/p/gnucobol/code/HEAD/tree/external-doc/) is mirrored on https://github.com/ocamlpro/gnucobol-docs
+* [GnuCOBOL Contribution Tree](https://sourceforge.net/p/gnucobol/contrib/HEAD/tree/) is mirrored on https://github.com/ocamlpro/gnucobol-contrib
+
+### History
+
+A previous version of this mirror was used from February 2022 to
+January 2024. It has been moved to
+https://github.com/ocamlpro/gnucobol2 . It was deprecated in favor of
+this one, because it only contained a truncated history of the SVN
+repository.
+
+Pull-Requests made on that repository are still available here:
+https://github.com/ocamlpro/gnucobol2/pulls
+
+Since these two mirrors have no common history, former pull-requests
+cannot be merged directly in this repository. Instead, we advise
+former users to squash all their commits in one single commit, extract
+it as a patch, and regenerate a new branch on this repository by
+applying the patch.
+
+## README.md File of the Project
+
 [GnuCOBOL](https://www.gnu.org/software/gnucobol/) is a free
 COBOL compiler licensed under the GNU Public License (GPL).  
 It implements a substantial part of the COBOL 85,
